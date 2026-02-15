@@ -340,14 +340,6 @@ function App() {
               {/* STEP 1: Route Planning */}
               {planningStep === 1 && (
                 <div className="space-y-6">
-                  {/* AI Natural Language Input */}
-                  {isAIEnabled() && (
-                    <NaturalLanguageTripInput
-                      onGenerate={handleNaturalLanguageGenerate}
-                      disabled={isCalculating}
-                    />
-                  )}
-
                   <div>
                     <h2 className="text-lg font-semibold mb-1">Where are you going?</h2>
                     <p className="text-sm text-muted-foreground mb-4">Add your starting point, destination, and any stops along the way.</p>
@@ -388,6 +380,16 @@ function App() {
                       </div>
                     </div>
                   </div>
+
+                  {/* AI Natural Language Input - Optional Enhancement */}
+                  {isAIEnabled() && (
+                    <div className="border-t pt-4">
+                      <NaturalLanguageTripInput
+                        onGenerate={handleNaturalLanguageGenerate}
+                        disabled={isCalculating}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 
