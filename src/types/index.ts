@@ -20,8 +20,18 @@ export interface Vehicle {
 
 export type UnitSystem = 'metric' | 'imperial';
 export type Currency = 'CAD' | 'USD';
-export type BudgetMode = 'open' | 'fixed';
+export type BudgetMode = 'open' | 'plan-to-budget';
 export type RoutePreference = 'fastest' | 'scenic' | 'economical';
+
+// Enhanced budget system with per-category tracking
+export interface TripBudget {
+  mode: BudgetMode;
+  gas: number;
+  hotel: number;
+  food: number;
+  misc: number;
+  total: number; // Computed: gas + hotel + food + misc
+}
 
 export interface TripSettings {
   units: UnitSystem;
@@ -30,13 +40,15 @@ export interface TripSettings {
   numTravelers: number;
   numDrivers: number;
   budgetMode: BudgetMode;
-  budget: number;
+  budget: TripBudget; // Enhanced from single number
   departureDate: string;
   departureTime: string;
   arrivalDate: string;
   arrivalTime: string;
   useArrivalTime: boolean;
   gasPrice: number;
+  hotelPricePerNight: number; // Average hotel cost estimate
+  mealPricePerDay: number; // Average meal budget per day
   isRoundTrip: boolean;
   avoidTolls: boolean;
   scenicMode: boolean;
@@ -83,6 +95,72 @@ export interface SegmentWarning {
   icon?: string;
 }
 
+// Timezone crossing event
+export interface TimezoneChange {
+  afterSegmentIndex: number;
+  fromTimezone: string; // e.g., "CDT"
+  toTimezone: string; // e.g., "EDT"
+  offset: number; // +1 (gain hour) or -1 (lose hour)
+  message: string; // "Enter Eastern Time Zone (lose 1 hour)"
+}
+
+// Overnight accommodation details
+export interface OvernightStop {
+  location: Location;
+  hotelName?: string;
+  address?: string;
+  cost: number;
+  roomsNeeded: number;
+  amenities?: string[]; // ['breakfast', 'pool', 'wifi']
+  checkIn?: string; // "3:00 PM"
+  checkOut?: string; // "11:00 AM"
+  notes?: string;
+}
+
+// Daily budget tracking with running totals
+export interface DayBudget {
+  gasUsed: number;
+  hotelCost: number;
+  foodEstimate: number;
+  miscCost: number;
+  dayTotal: number;
+  // Running totals (remaining from initial budget)
+  gasRemaining: number;
+  hotelRemaining: number;
+  foodRemaining: number;
+}
+
+// Per-day itinerary breakdown
+export interface TripDay {
+  dayNumber: number;
+  date: string; // "2025-08-16"
+  dateFormatted: string; // "Sat, Aug 16"
+  title?: string; // "Let's Get Outta Here"
+  route: string; // "Winnipeg → Sault Ste. Marie"
+  segments: RouteSegment[];
+  segmentIndices: number[]; // Original indices in full segments array
+  overnight?: OvernightStop;
+  timezoneChanges: TimezoneChange[];
+  budget: DayBudget;
+  totals: {
+    distanceKm: number;
+    driveTimeMinutes: number;
+    stopTimeMinutes: number;
+    departureTime: string; // ISO 8601
+    arrivalTime: string; // ISO 8601
+  };
+}
+
+// Cost breakdown by category
+export interface CostBreakdown {
+  fuel: number;
+  accommodation: number;
+  meals: number;
+  misc: number;
+  total: number;
+  perPerson: number;
+}
+
 export interface TripSummary {
   totalDistanceKm: number;
   totalDurationMinutes: number;
@@ -94,6 +172,11 @@ export interface TripSummary {
   segments: RouteSegment[];
   fullGeometry: number[][]; // [lat, lng][]
   displayDate?: string;
+  // Phase C: Multi-day & budget tracking
+  days?: TripDay[];
+  costBreakdown?: CostBreakdown;
+  budgetStatus?: 'under' | 'at' | 'over';
+  budgetRemaining?: number;
 }
 
 export type POICategory = 'gas' | 'food' | 'hotel' | 'attraction';

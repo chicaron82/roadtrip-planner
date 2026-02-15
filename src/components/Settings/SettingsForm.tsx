@@ -186,23 +186,21 @@ export function SettingsForm({ settings, setSettings }: SettingsFormProps) {
                 >
                     Open
                 </Button>
-                 <Button 
-                    variant={settings.budgetMode === 'fixed' ? 'default' : 'ghost'} 
+                 <Button
+                    variant={settings.budgetMode === 'plan-to-budget' ? 'default' : 'ghost'}
                     size="sm"
-                    onClick={() => handleChange('budgetMode', 'fixed')}
+                    onClick={() => handleChange('budgetMode', 'plan-to-budget')}
                     className="h-7 text-xs"
                 >
-                    Fixed
+                    Plan to Budget
                 </Button>
              </div>
         </div>
-        {settings.budgetMode === 'fixed' && (
-             <Input 
-                type="number"
-                placeholder="Total budget..."
-                value={settings.budget || ''}
-                onChange={(e) => handleChange('budget', parseFloat(e.target.value) || 0)}
-           />
+        {settings.budgetMode === 'plan-to-budget' && (
+             <div className="text-xs text-muted-foreground">
+               Budget: ${settings.budget.total || 0} total
+               <span className="ml-2">(Gas: ${settings.budget.gas}, Hotel: ${settings.budget.hotel}, Food: ${settings.budget.food})</span>
+             </div>
         )}
        </div>
 

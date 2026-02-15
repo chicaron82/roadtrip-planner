@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Trophy, Clock, MapPin, Fuel, Sparkles } from 'lucide-react';
-import type { TripSummary, TripSettings, RouteSegment, Vehicle, StopType } from '../../types';
+import type { TripSummary, TripSettings, RouteSegment, Vehicle, StopType, TripDay } from '../../types';
 import { SmartSuggestions } from './SmartSuggestions';
 import { SuggestedStopCard } from './SuggestedStopCard';
 import { generatePacingSuggestions } from '../../lib/segment-analyzer';
@@ -8,11 +8,14 @@ import { generateSmartStops, createStopConfig, type SuggestedStop } from '../../
 import { Button } from '../UI/Button';
 import { formatTime as formatTimeWithTz, STOP_LABELS } from '../../lib/calculations';
 import { StopDurationPicker } from './StopDurationPicker';
+import { DayHeader } from './DayHeader';
+import { DailyBudgetCard } from './DailyBudgetCard';
 
 interface ItineraryTimelineProps {
   summary: TripSummary;
   settings: TripSettings;
   vehicle?: Vehicle;
+  days?: TripDay[];
   onUpdateStopType?: (segmentIndex: number, newStopType: StopType) => void;
 }
 
@@ -24,7 +27,7 @@ const formatDate = (date: Date) => {
   return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
 };
 
-export function ItineraryTimeline({ summary, settings, vehicle, onUpdateStopType }: ItineraryTimelineProps) {
+export function ItineraryTimeline({ summary, settings, vehicle, days, onUpdateStopType }: ItineraryTimelineProps) {
   const startTime = useMemo(
     () => new Date(`${settings.departureDate}T${settings.departureTime}`),
     [settings.departureDate, settings.departureTime]
@@ -208,6 +211,15 @@ export function ItineraryTimeline({ summary, settings, vehicle, onUpdateStopType
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Multi-Day Headers (when days are available) */}
+      {days && days.length > 0 && (
+        <div className="mb-6">
+          {days.map((day, idx) => (
+            <DayHeader key={day.dayNumber} day={day} isFirst={idx === 0} />
+          ))}
         </div>
       )}
 
@@ -416,6 +428,23 @@ export function ItineraryTimeline({ summary, settings, vehicle, onUpdateStopType
           );
         })}
       </div>
+
+      {/* Daily Budget Summary (when days are available) */}
+      {days && days.length > 0 && (
+        <div className="mt-8 space-y-4">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
+            <span>💰</span> Daily Budget Breakdown
+          </h3>
+          {days.map((day) => (
+            <DailyBudgetCard
+              key={day.dayNumber}
+              budget={day.budget}
+              dayNumber={day.dayNumber}
+              budgetMode={settings.budgetMode}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

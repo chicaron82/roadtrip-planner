@@ -8,9 +8,10 @@ import { Card, CardContent } from './components/UI/Card';
 import { StepIndicator } from './components/UI/StepIndicator';
 import { Input } from './components/UI/Input';
 import { Label } from './components/UI/Label';
-import type { Location, Vehicle, TripSettings, TripSummary, POI, MarkerCategory, POICategory } from './types';
+import type { Location, Vehicle, TripSettings, TripSummary, POI, MarkerCategory, POICategory, TripBudget } from './types';
 import { calculateRoute } from './lib/api';
 import { calculateTripCosts, calculateStrategicFuelStops, calculateArrivalTimes, type StrategicFuelStop } from './lib/calculations';
+import { DEFAULT_BUDGET, splitTripByDays, calculateCostBreakdown, getBudgetStatus } from './lib/budget';
 import { ChevronLeft, ChevronRight, Share2, Calendar, Clock, Users, UserCheck, Loader2 } from 'lucide-react';
 import { OvernightStopPrompt } from './components/Trip/OvernightStopPrompt';
 import { fetchWeather } from './lib/weather';
@@ -19,6 +20,7 @@ import { addToHistory, getHistory, getDefaultVehicleId, getGarage } from './lib/
 import { parseStateFromURL, serializeStateToURL } from './lib/url';
 import { Spinner } from './components/UI/Spinner';
 import { ItineraryTimeline } from './components/Trip/ItineraryTimeline';
+import { BudgetInput } from './components/Trip/BudgetInput';
 import { ChatWidget } from './components/AI/ChatWidget';
 import { AISettingsModal } from './components/AI/AISettingsModal';
 import { NaturalLanguageTripInput } from './components/AI/NaturalLanguageTripInput';
@@ -46,13 +48,15 @@ const DEFAULT_SETTINGS: TripSettings = {
   numTravelers: 2,
   numDrivers: 1,
   budgetMode: 'open',
-  budget: 0,
+  budget: DEFAULT_BUDGET,
   departureDate: new Date().toISOString().split('T')[0],
   departureTime: '09:00',
   arrivalDate: '',
   arrivalTime: '',
   useArrivalTime: false,
   gasPrice: 1.50,
+  hotelPricePerNight: 150, // Default moderate hotel estimate
+  mealPricePerDay: 50, // Default meal budget per person per day
   isRoundTrip: false,
   avoidTolls: false,
   scenicMode: false,
@@ -234,6 +238,23 @@ function App() {
         );
 
         tripSummary.segments = segmentsWithTimes;
+
+        // Split trip into days with budget tracking
+        const tripDays = splitTripByDays(
+          segmentsWithTimes,
+          settings,
+          settings.departureDate,
+          settings.departureTime
+        );
+        tripSummary.days = tripDays;
+
+        // Calculate overall cost breakdown
+        if (tripDays.length > 0) {
+          tripSummary.costBreakdown = calculateCostBreakdown(tripDays, settings.numTravelers);
+          tripSummary.budgetStatus = getBudgetStatus(settings.budget, tripSummary.costBreakdown);
+          tripSummary.budgetRemaining = settings.budget.total - tripSummary.costBreakdown.total;
+        }
+
         setSummary(tripSummary);
 
         // Calculate strategic fuel stops
@@ -759,6 +780,15 @@ function App() {
                       </p>
                     </div>
                   </div>
+
+                  {/* Budget Planning */}
+                  <div className="border-t pt-4">
+                    <BudgetInput
+                      budget={settings.budget}
+                      onChange={(newBudget: TripBudget) => setSettings(prev => ({ ...prev, budget: newBudget }))}
+                      currency={settings.currency}
+                    />
+                  </div>
                 </div>
               )}
 
@@ -809,6 +839,7 @@ function App() {
                       summary={summary}
                       settings={settings}
                       vehicle={vehicle}
+                      days={summary.days}
                       onUpdateStopType={handleUpdateStopType}
                     />
                   ) : (
