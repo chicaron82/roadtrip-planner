@@ -42,16 +42,19 @@ export function calculateTripCosts(
       fuelCost: ((segment.distanceKm / 100) * weightedFuelEconomy) * settings.gasPrice
   }));
 
+  // Apply Round Trip Logic (x2)
+  const multiplier = settings.isRoundTrip ? 2 : 1;
+
   return {
-    totalDistanceKm,
-    totalDurationMinutes,
-    totalFuelLitres,
-    totalFuelCost,
-    gasStops,
-    costPerPerson,
-    drivingDays,
-    segments: segmentsWithCost,
-    fullGeometry: [] // Geometry is handled separately or passed through
+    totalDistanceKm: totalDistanceKm * multiplier,
+    totalDurationMinutes: totalDurationMinutes * multiplier,
+    totalFuelLitres: totalFuelLitres * multiplier,
+    totalFuelCost: totalFuelCost * multiplier,
+    gasStops: gasStops * multiplier, // Rough estimate, might need precise tank logic but x2 is safe
+    costPerPerson: costPerPerson * multiplier,
+    drivingDays: drivingDays * multiplier,
+    segments: segmentsWithCost, // Segments stay one-way for display, but totals are x2
+    fullGeometry: [] 
   };
 }
 
@@ -85,4 +88,12 @@ export function formatDuration(minutes: number): string {
   if (hours === 0) return `${mins} min`;
   if (mins === 0) return `${hours}h`;
   return `${hours}h ${mins}m`;
+}
+
+export function convertLitresToGallons(litres: number): number {
+  return litres / 3.78541;
+}
+
+export function convertGallonsToLitres(gallons: number): number {
+  return gallons * 3.78541;
 }

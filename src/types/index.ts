@@ -36,6 +36,18 @@ export interface TripSettings {
   arrivalTime: string;
   useArrivalTime: boolean;
   gasPrice: number;
+  isRoundTrip: boolean;
+  avoidTolls: boolean;
+  scenicMode: boolean;
+}
+
+export interface WeatherData {
+  temperatureMax: number;
+  temperatureMin: number;
+  precipitationProb: number;
+  weatherCode: number;
+  timezone: string;
+  timezoneAbbr: string;
 }
 
 export interface RouteSegment {
@@ -45,6 +57,7 @@ export interface RouteSegment {
   durationMinutes: number;
   fuelNeededLitres: number;
   fuelCost: number;
+  weather?: WeatherData;
 }
 
 export interface TripSummary {
@@ -57,10 +70,22 @@ export interface TripSummary {
   drivingDays: number;
   segments: RouteSegment[];
   fullGeometry: number[][]; // [lat, lng][]
+  displayDate?: string;
+}
+
+export type POICategory = 'gas' | 'food' | 'hotel' | 'attraction';
+
+export interface POI {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  category: POICategory;
+  address?: string;
 }
 
 export interface MarkerCategory {
-  id: string;
+  id: POICategory;
   label: string;
   emoji: string;
   color: string;

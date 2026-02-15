@@ -65,6 +65,12 @@
   font-family: inherit;
 }
 
+/* Remove default styles for our custom icons */
+.leaflet-div-icon.custom-marker-container {
+  background: transparent;
+  border: none;
+}
+
 .custom-marker {
   display: flex;
   align-items: center;

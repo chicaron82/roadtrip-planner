@@ -34,14 +34,20 @@ export async function searchLocations(query: string): Promise<Location[]> {
   }
 }
 
-export async function calculateRoute(locations: Location[]): Promise<{ segments: RouteSegment[], fullGeometry: [number, number][] } | null> {
+export async function calculateRoute(locations: Location[], options?: { avoidTolls?: boolean; scenicMode?: boolean }): Promise<{ segments: RouteSegment[], fullGeometry: [number, number][] } | null> {
   if (locations.length < 2) return null;
 
   const waypoints = locations.map((loc) => `${loc.lng},${loc.lat}`).join(';');
+  const parts: string[] = [];
+
+  if (options?.avoidTolls) parts.push('toll');
+  if (options?.scenicMode) parts.push('motorway');
+
+  const excludeParam = parts.length > 0 ? `&exclude=${parts.join(',')}` : '';
 
   try {
     const response = await fetch(
-      `https://router.project-osrm.org/route/v1/driving/${waypoints}?overview=full&geometries=geojson&steps=true`
+      `https://router.project-osrm.org/route/v1/driving/${waypoints}?overview=full&geometries=geojson&steps=true${excludeParam}`
     );
     const data = await response.json();
 

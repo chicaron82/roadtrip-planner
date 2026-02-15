@@ -2,10 +2,6 @@ import type { TripSettings } from '../../types';
 import { Input } from '../UI/Input';
 import { Label } from '../UI/Label';
 import { Button } from '../UI/Button';
-// import { Slider } from '../UI/Slider'; 
-// I haven't created Slider.tsx yet but I installed @radix-ui/react-slider. 
-// I'll create it or use standard input range for now to be safe. 
-// Actually I'll use a range input for simplicity in this pass.
 
 interface SettingsFormProps {
   settings: TripSettings;
@@ -13,7 +9,7 @@ interface SettingsFormProps {
 }
 
 export function SettingsForm({ settings, setSettings }: SettingsFormProps) {
-  const handleChange = (field: keyof TripSettings, value: string | number) => {
+  const handleChange = (field: keyof TripSettings, value: string | number | boolean) => {
     setSettings({ ...settings, [field]: value });
   };
 
@@ -63,7 +59,66 @@ export function SettingsForm({ settings, setSettings }: SettingsFormProps) {
         </div>
       </div>
 
-      <div>
+      <div className="pt-2 border-t">
+          <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Schedule</Label>
+          <div className="grid grid-cols-2 gap-3 mt-2">
+              <div>
+                  <Label className="text-xs text-muted-foreground">Start Date</Label>
+                  <Input 
+                        type="date" 
+                        value={settings.departureDate} 
+                        onChange={(e) => handleChange('departureDate', e.target.value)} 
+                        className="mt-1"
+                  />
+              </div>
+              <div>
+                  <Label className="text-xs text-muted-foreground">{settings.useArrivalTime ? "Depart By (Calc)" : "Depart At"}</Label>
+                  <Input 
+                        type="time" 
+                        value={settings.departureTime} 
+                        onChange={(e) => handleChange('departureTime', e.target.value)} 
+                        className="mt-1"
+                        disabled={settings.useArrivalTime}
+                  />
+              </div>
+          </div>
+          
+           <div className="flex items-center justify-between mt-3">
+             <Label className="cursor-pointer text-sm" htmlFor="use-arrival-time">Plan by Arrival Time?</Label>
+             <button 
+               id="use-arrival-time"
+               onClick={() => handleChange('useArrivalTime', !settings.useArrivalTime)}
+               className={`w-11 h-6 flex items-center rounded-full px-1 transition-colors ${settings.useArrivalTime ? 'bg-primary' : 'bg-muted'}`}
+             >
+               <div className={`w-4 h-4 rounded-full bg-white transition-transform ${settings.useArrivalTime ? 'translate-x-5' : 'translate-x-0'}`} />
+             </button>
+           </div>
+
+           {settings.useArrivalTime && (
+             <div className="grid grid-cols-2 gap-3 mt-3 animate-in slide-in-from-top-2 fade-in duration-300">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Arrival Date</Label>
+                  <Input 
+                        type="date" 
+                        value={settings.arrivalDate} 
+                        onChange={(e) => handleChange('arrivalDate', e.target.value)} 
+                        className="mt-1"
+                  />
+              </div>
+              <div>
+                  <Label className="text-xs text-muted-foreground">Arrive By</Label>
+                  <Input 
+                        type="time" 
+                        value={settings.arrivalTime} 
+                        onChange={(e) => handleChange('arrivalTime', e.target.value)} 
+                        className="mt-1"
+                  />
+              </div>
+             </div>
+           )}
+      </div>
+
+       <div>
         <div className="flex justify-between mb-2">
             <Label className="text-sm font-medium">Max Drive Time / Day</Label>
             <span className="font-mono text-sm bg-secondary px-2 rounded">{settings.maxDriveHours}h</span>
@@ -146,6 +201,44 @@ export function SettingsForm({ settings, setSettings }: SettingsFormProps) {
                 onChange={(e) => handleChange('budget', parseFloat(e.target.value) || 0)}
            />
         )}
+       </div>
+
+       {/* Route Preferences */}
+       <div className="space-y-3 pt-2 border-t">
+          <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Route Preferences</Label>
+          
+          <div className="flex items-center justify-between">
+            <Label className="cursor-pointer" htmlFor="round-trip">Round Trip (x2)</Label>
+            <button 
+              id="round-trip"
+              onClick={() => handleChange('isRoundTrip', !settings.isRoundTrip)}
+              className={`w-11 h-6 flex items-center rounded-full px-1 transition-colors ${settings.isRoundTrip ? 'bg-primary' : 'bg-muted'}`}
+            >
+              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${settings.isRoundTrip ? 'translate-x-5' : 'translate-x-0'}`} />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <Label className="cursor-pointer" htmlFor="scenic-mode">Scenic Route (No Hwys)</Label>
+             <button 
+              id="scenic-mode"
+              onClick={() => handleChange('scenicMode', !settings.scenicMode)}
+              className={`w-11 h-6 flex items-center rounded-full px-1 transition-colors ${settings.scenicMode ? 'bg-primary' : 'bg-muted'}`}
+            >
+              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${settings.scenicMode ? 'translate-x-5' : 'translate-x-0'}`} />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <Label className="cursor-pointer" htmlFor="avoid-tolls">Avoid Tolls</Label>
+             <button 
+              id="avoid-tolls"
+              onClick={() => handleChange('avoidTolls', !settings.avoidTolls)}
+              className={`w-11 h-6 flex items-center rounded-full px-1 transition-colors ${settings.avoidTolls ? 'bg-primary' : 'bg-muted'}`}
+            >
+              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${settings.avoidTolls ? 'translate-x-5' : 'translate-x-0'}`} />
+            </button>
+          </div>
        </div>
     </div>
   );

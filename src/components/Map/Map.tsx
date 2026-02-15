@@ -2,17 +2,16 @@ import { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import type { Location } from '../../types';
+import type { Location, POI, MarkerCategory } from '../../types';
 
-// Fix for default marker icons in React Leaflet
-// import icon from 'leaflet/dist/images/marker-icon.png';
-// import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+// ... (existing imports)
 
 interface MapProps {
   locations: Location[];
   routeGeometry: [number, number][] | null;
   tripActive: boolean;
-  markerCategories: never[]; // temporarily allow to pass through if needed or remove from props
+  pois: POI[];
+  markerCategories: MarkerCategory[];
 }
 
 const markerColors: Record<string, string> = {
@@ -44,28 +43,38 @@ function MapUpdater({ locations, routeGeometry }: { locations: Location[], route
   return null;
 }
 
-export function Map({ locations, routeGeometry }: MapProps) {
+export function Map({ locations, routeGeometry, pois, markerCategories }: MapProps) {
   // Custom Icon Generator
   const createCustomIcon = (type: string, categoryColor?: string, emoji?: string) => {
-    const color = categoryColor || markerColors[type] || '#333';
+    // Basic color mapping for tailwind classes if passed directly
+    let color = categoryColor || markerColors[type] || '#333';
+    
+    // Quick hack map tailwind classes to hex if passed from category (e.g. 'green-500' -> hex)
+    // In a real app we'd use a proper color utility or pass hex codes in config
+    if (categoryColor === 'green-500') color = '#22c55e';
+    if (categoryColor === 'orange-500') color = '#f97316';
+    if (categoryColor === 'blue-500') color = '#3b82f6';
+    if (categoryColor === 'purple-500') color = '#a855f7';
+
     const label = emoji || markerLabels[type] || '•';
     
     return L.divIcon({
       className: 'custom-marker-container',
       html: `<div class="custom-marker" style="
         background: ${color};
-        width: 36px;
-        height: 36px;
+        width: ${emoji ? '32px' : '36px'};
+        height: ${emoji ? '32px' : '36px'};
         display: flex;
         align-items: center;
         justify-content: center;
         border-radius: 50%;
-        border: 3px solid white;
-        box-shadow: 0 3px 12px rgba(0,0,0,0.3);
-        font-size: 16px;
+        border: 2px solid white;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+        font-size: ${emoji ? '18px' : '16px'};
       ">${label}</div>`,
-      iconSize: [36, 36],
-      iconAnchor: [18, 18],
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+      popupAnchor: [0, -18],
     });
   };
 
@@ -118,6 +127,28 @@ export function Map({ locations, routeGeometry }: MapProps) {
             </Popup>
           </Marker>
         ))}
+
+        {/* POI Markers */}
+        {pois.map((poi) => {
+            const category = markerCategories.find(c => c.id === poi.category);
+            if (!category || !category.visible) return null;
+
+            return (
+                <Marker
+                    key={poi.id}
+                    position={[poi.lat, poi.lng]}
+                    icon={createCustomIcon(poi.category, category.color.replace('bg-', ''), category.emoji)}
+                >
+                    <Popup className="font-sans">
+                        <div className="p-1 text-center">
+                            <div className="text-xl mb-1">{category.emoji}</div>
+                            <strong>{poi.name}</strong>
+                            {poi.address && <div className="text-xs text-muted-foreground mt-1 max-w-[200px] truncate">{poi.address}</div>}
+                        </div>
+                    </Popup>
+                </Marker>
+            );
+        })}
       </MapContainer>
     </div>
   );
