@@ -7,7 +7,6 @@ interface AnimatedPolylineProps {
   weight: number;
   opacity: number;
   animationDuration?: number; // in milliseconds
-  isShadow?: boolean;
 }
 
 export function AnimatedPolyline({
@@ -15,19 +14,25 @@ export function AnimatedPolyline({
   color,
   weight,
   opacity,
-  animationDuration = 2000,
-  isShadow = false
+  animationDuration = 2000
 }: AnimatedPolylineProps) {
   const [visiblePositions, setVisiblePositions] = useState<[number, number][]>([]);
   const [isAnimating, setIsAnimating] = useState(false);
 
   useEffect(() => {
+    // Filter out invalid positions (undefined, null, or invalid coordinates)
+    const validPositions = positions.filter(
+      pos => pos && Array.isArray(pos) && pos.length === 2 &&
+      typeof pos[0] === 'number' && typeof pos[1] === 'number' &&
+      !isNaN(pos[0]) && !isNaN(pos[1])
+    );
+
     // Reset and start animation when positions change
     setVisiblePositions([]);
     setIsAnimating(true);
 
     // Animate the polyline drawing
-    const totalPoints = positions.length;
+    const totalPoints = validPositions.length;
     if (totalPoints === 0) return;
 
     const intervalDuration = animationDuration / totalPoints;
@@ -35,7 +40,7 @@ export function AnimatedPolyline({
 
     const interval = setInterval(() => {
       if (currentIndex < totalPoints) {
-        setVisiblePositions(prev => [...prev, positions[currentIndex]]);
+        setVisiblePositions(prev => [...prev, validPositions[currentIndex]]);
         currentIndex++;
       } else {
         clearInterval(interval);

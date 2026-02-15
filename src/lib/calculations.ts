@@ -44,7 +44,7 @@ export function calculateTripCosts(
   }));
 
   // Analyze segments for warnings, timezone crossings, etc.
-  const analyzedSegments = analyzeSegments(segmentsWithCost, settings);
+  const analyzedSegments = analyzeSegments(segmentsWithCost);
 
   // Apply Round Trip Logic (x2)
   const multiplier = settings.isRoundTrip ? 2 : 1;

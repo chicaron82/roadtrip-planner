@@ -296,7 +296,10 @@ function App() {
                       vehicle={vehicle}
                       setVehicle={setVehicle}
                       units={settings.units}
-                      setUnits={(units) => setSettings(prev => ({ ...prev, units }))}
+                      setUnits={(value) => setSettings(prev => ({
+                        ...prev, 
+                        units: typeof value === 'function' ? value(prev.units) : value 
+                      }))}
                     />
                 )}
                 {activeTab === 'settings' && (
@@ -358,11 +361,12 @@ function App() {
         />
         
         {summary && (
-            <TripSummaryCard 
-                summary={summary} 
-                settings={settings} 
+            <TripSummaryCard
+                summary={summary}
+                settings={settings}
                 tripActive={tripActive}
                 onStop={() => setTripActive(false)}
+                onOpenVehicleTab={() => setActiveTab('vehicle')}
             />
         )}
       </div>

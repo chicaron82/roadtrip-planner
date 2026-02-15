@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Location, POI, MarkerCategory } from '../../types';
@@ -35,7 +35,14 @@ function MapUpdater({ locations, routeGeometry }: { locations: Location[], route
     if (locations.length > 0) {
       const bounds = L.latLngBounds(locations.map(l => [l.lat, l.lng]));
       if (routeGeometry) {
-        routeGeometry.forEach(coord => bounds.extend(coord));
+        // Filter out invalid coordinates before extending bounds
+        routeGeometry.forEach(coord => {
+          if (coord && Array.isArray(coord) && coord.length === 2 &&
+              typeof coord[0] === 'number' && typeof coord[1] === 'number' &&
+              !isNaN(coord[0]) && !isNaN(coord[1])) {
+            bounds.extend(coord);
+          }
+        });
       }
       map.fitBounds(bounds, { padding: [50, 50] });
     }
@@ -104,7 +111,7 @@ export function Map({ locations, routeGeometry, pois, markerCategories }: MapPro
               weight={8}
               opacity={0.2}
               animationDuration={2000}
-              isShadow={true}
+              // animationDuration already set above
             />
              {/* Main Line (animated) */}
             <AnimatedPolyline

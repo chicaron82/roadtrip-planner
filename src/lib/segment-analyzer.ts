@@ -4,8 +4,7 @@ import type { RouteSegment, SegmentWarning, TripSettings } from '../types';
  * Analyzes route segments and adds intelligent warnings
  */
 export function analyzeSegments(
-  segments: RouteSegment[],
-  settings: TripSettings
+  segments: RouteSegment[]
 ): RouteSegment[] {
   return segments.map((segment) => {
     const warnings: SegmentWarning[] = [];
@@ -137,7 +136,6 @@ export function calculateArrivalTime(
  */
 export function generatePacingSuggestions(
   totalDurationMinutes: number,
-  totalDistanceKm: number,
   settings: TripSettings
 ): string[] {
   const suggestions: string[] = [];

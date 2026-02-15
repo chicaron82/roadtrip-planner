@@ -1,5 +1,5 @@
 import { Trophy, Clock, MapPin, Fuel } from 'lucide-react';
-import type { TripSummary, TripSettings } from '../../types';
+import type { TripSummary, TripSettings, RouteSegment } from '../../types';
 import { SmartSuggestions } from './SmartSuggestions';
 import { generatePacingSuggestions } from '../../lib/segment-analyzer';
 
@@ -22,7 +22,6 @@ export function ItineraryTimeline({ summary, settings }: ItineraryTimelineProps)
   // Generate smart suggestions
   const suggestions = generatePacingSuggestions(
     summary.totalDurationMinutes,
-    summary.totalDistanceKm,
     settings
   );
   
@@ -32,7 +31,7 @@ export function ItineraryTimeline({ summary, settings }: ItineraryTimelineProps)
       arrivalTime: Date;
       cost?: number;
       litres?: number;
-      segment?: any;
+      segment?: RouteSegment;
       index?: number;
   }
   

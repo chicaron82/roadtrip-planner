@@ -1,19 +1,24 @@
+import { useState } from 'react';
 import type { TripSummary, TripSettings } from '../../types';
 import { Card, CardContent } from '../UI/Card';
 import { formatDistance, formatDuration, formatCurrency } from '../../lib/calculations';
 import { getWeatherEmoji } from '../../lib/weather';
 import { Button } from '../UI/Button';
-import { Car, Clock, Fuel, Users, MapPin } from 'lucide-react';
+import { Car, Clock, Fuel, Users, MapPin, List } from 'lucide-react';
 import { TripOverview } from './TripOverview';
+import { ItineraryModal } from './ItineraryModal';
 
 interface TripSummaryProps {
   summary: TripSummary | null;
   settings: TripSettings;
   onStop?: () => void;
   tripActive: boolean;
+  onOpenVehicleTab?: () => void;
 }
 
-export function TripSummaryCard({ summary, settings, onStop, tripActive }: TripSummaryProps) {
+export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenVehicleTab }: TripSummaryProps) {
+  const [itineraryModalOpen, setItineraryModalOpen] = useState(false);
+
   if (!summary) return null;
 
   return (
@@ -25,9 +30,23 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive }: TripS
                 {tripActive && <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />}
                 <span className="font-bold text-lg">{tripActive ? "Trip Active" : "Trip Summary"}</span>
              </div>
-             {tripActive && onStop && (
-                 <Button variant="destructive" size="sm" onClick={onStop}>End Trip</Button>
-             )}
+             <div className="flex items-center gap-2">
+               {/* Vehicle Quick Edit */}
+               {onOpenVehicleTab && !tripActive && (
+                 <Button
+                   variant="outline"
+                   size="sm"
+                   onClick={onOpenVehicleTab}
+                   className="h-7 text-xs gap-1"
+                 >
+                   <Car className="w-3 h-3" />
+                   Edit Vehicle
+                 </Button>
+               )}
+               {tripActive && onStop && (
+                   <Button variant="destructive" size="sm" onClick={onStop}>End Trip</Button>
+               )}
+             </div>
           </div>
 
           {/* Trip Overview - Difficulty & Confidence */}
@@ -77,20 +96,30 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive }: TripS
           </div>
           <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 max-h-68 overflow-y-auto">
             <div className="flex items-center justify-between mb-3">
-               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Itinerary</h3>
-               <Button 
-                 variant="outline" 
-                 size="sm" 
-                 className="h-6 text-xs gap-1"
-                 onClick={() => {
-                   const origin = summary.segments[0].from;
-                   const dest = summary.segments[summary.segments.length - 1].to;
-                   const waypoints = summary.segments.slice(0, -1).map(s => s.to).map(l => `${l.lat},${l.lng}`).join('|');
-                   window.open(`https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${dest.lat},${dest.lng}&waypoints=${waypoints}&travelmode=driving`, '_blank');
-                 }}
-               >
-                 <MapPin className="w-3 h-3" /> Check Traffic
-               </Button>
+               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Itinerary Preview</h3>
+               <div className="flex items-center gap-2">
+                 <Button
+                   variant="default"
+                   size="sm"
+                   className="h-6 text-xs gap-1"
+                   onClick={() => setItineraryModalOpen(true)}
+                 >
+                   <List className="w-3 h-3" /> View Full
+                 </Button>
+                 <Button
+                   variant="outline"
+                   size="sm"
+                   className="h-6 text-xs gap-1"
+                   onClick={() => {
+                     const origin = summary.segments[0].from;
+                     const dest = summary.segments[summary.segments.length - 1].to;
+                     const waypoints = summary.segments.slice(0, -1).map(s => s.to).map(l => `${l.lat},${l.lng}`).join('|');
+                     window.open(`https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${dest.lat},${dest.lng}&waypoints=${waypoints}&travelmode=driving`, '_blank');
+                   }}
+                 >
+                   <MapPin className="w-3 h-3" /> Traffic
+                 </Button>
+               </div>
             </div>
             <div className="space-y-3">
               {summary.segments.map((seg, i) => {
@@ -134,6 +163,14 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive }: TripS
           </div>
         </CardContent>
       </Card>
+
+      {/* Itinerary Modal */}
+      <ItineraryModal
+        open={itineraryModalOpen}
+        onClose={() => setItineraryModalOpen(false)}
+        summary={summary}
+        settings={settings}
+      />
     </div>
   );
 }
