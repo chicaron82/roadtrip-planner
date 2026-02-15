@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Location, POI, MarkerCategory } from '../../types';
@@ -15,6 +15,7 @@ interface MapProps {
   pois: POI[];
   markerCategories: MarkerCategory[];
   strategicFuelStops?: StrategicFuelStop[];
+  onMapClick?: (lat: number, lng: number) => void;
 }
 
 const markerColors: Record<string, string> = {
@@ -59,7 +60,19 @@ function MapUpdater({ locations, routeGeometry }: { locations: Location[], route
   return null;
 }
 
-export function Map({ locations, routeGeometry, pois, markerCategories, strategicFuelStops = [] }: MapProps) {
+// Component to handle map click events
+function MapClickHandler({ onMapClick }: { onMapClick?: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    click(e) {
+      if (onMapClick) {
+        onMapClick(e.latlng.lat, e.latlng.lng);
+      }
+    },
+  });
+  return null;
+}
+
+export function Map({ locations, routeGeometry, pois, markerCategories, strategicFuelStops = [], onMapClick }: MapProps) {
   // Custom Icon Generator
   const createCustomIcon = (type: string, categoryColor?: string, emoji?: string) => {
     // Basic color mapping for tailwind classes if passed directly
@@ -106,8 +119,9 @@ export function Map({ locations, routeGeometry, pois, markerCategories, strategi
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
           url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
         />
-        
+
         <MapUpdater locations={locations} routeGeometry={routeGeometry} />
+        <MapClickHandler onMapClick={onMapClick} />
 
         {/* Route Polylines with Animation */}
         {routeGeometry && (

@@ -248,6 +248,25 @@ function App() {
           tripSummary.budgetRemaining = settings.budget.total - tripSummary.costBreakdown.total;
         }
 
+        // Apply round trip multiplier if enabled
+        if (settings.isRoundTrip) {
+          tripSummary.totalDistanceKm *= 2;
+          tripSummary.totalDurationMinutes *= 2;
+          tripSummary.totalFuelCost *= 2;
+
+          if (tripSummary.costBreakdown) {
+            tripSummary.costBreakdown.fuel *= 2;
+            tripSummary.costBreakdown.total =
+              tripSummary.costBreakdown.fuel +
+              tripSummary.costBreakdown.accommodation +
+              tripSummary.costBreakdown.meals +
+              tripSummary.costBreakdown.misc;
+            tripSummary.costBreakdown.perPerson = tripSummary.costBreakdown.total / settings.numTravelers;
+            tripSummary.budgetRemaining = settings.budget.total - tripSummary.costBreakdown.total;
+            tripSummary.budgetStatus = getBudgetStatus(settings.budget, tripSummary.costBreakdown);
+          }
+        }
+
         setSummary(tripSummary);
 
         // Calculate strategic fuel stops
@@ -349,6 +368,64 @@ function App() {
 
   const handleStepClick = (step: PlanningStep) => {
     setPlanningStep(step);
+  };
+
+  const handleMapClick = async (lat: number, lng: number) => {
+    try {
+      // Reverse geocode to get location name
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
+      );
+      const data = await response.json();
+      const name = data.display_name || `Location at ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+
+      // Find first empty slot or add as waypoint
+      const originEmpty = !locations[0]?.name || locations[0].lat === 0;
+      const destEmpty = !locations[locations.length - 1]?.name || locations[locations.length - 1].lat === 0;
+
+      if (originEmpty) {
+        // Set as origin
+        const newLocations = [...locations];
+        newLocations[0] = { ...newLocations[0], name, lat, lng };
+        setLocations(newLocations);
+      } else if (destEmpty) {
+        // Set as destination
+        const newLocations = [...locations];
+        newLocations[newLocations.length - 1] = { ...newLocations[newLocations.length - 1], name, lat, lng };
+        setLocations(newLocations);
+      } else {
+        // Add as waypoint before destination
+        const newLocations = [...locations];
+        const newWaypoint: Location = {
+          id: `waypoint-${Date.now()}`,
+          name,
+          lat,
+          lng,
+          type: 'waypoint',
+        };
+        newLocations.splice(newLocations.length - 1, 0, newWaypoint);
+        setLocations(newLocations);
+      }
+    } catch (error) {
+      console.error('Failed to reverse geocode:', error);
+      setError('Failed to get location name');
+    }
+  };
+
+  const openInGoogleMaps = () => {
+    const validLocations = locations.filter(loc => loc.lat !== 0 && loc.lng !== 0);
+    if (validLocations.length < 2) return;
+
+    const origin = validLocations[0];
+    const destination = validLocations[validLocations.length - 1];
+    const waypoints = validLocations.slice(1, -1).map(loc => `${loc.lat},${loc.lng}`).join('|');
+
+    let url = `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}`;
+    if (waypoints) {
+      url += `&waypoints=${waypoints}`;
+    }
+
+    window.open(url, '_blank');
   };
 
   return (
@@ -498,6 +575,28 @@ function App() {
                         </>
                       )}
                     </p>
+                  </div>
+
+                  {/* Round Trip Toggle */}
+                  <div className="border-t pt-4">
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200">
+                      <div className="flex items-center gap-3">
+                        <div className="text-2xl">🔄</div>
+                        <div>
+                          <div className="text-sm font-semibold text-blue-900">Round Trip</div>
+                          <div className="text-xs text-blue-600">Return to starting point (doubles costs & distance)</div>
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={settings.isRoundTrip}
+                          onChange={(e) => setSettings(prev => ({ ...prev, isRoundTrip: e.target.checked }))}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
                   </div>
 
                   {/* Budget Planning - Set your budget upfront */}
@@ -742,11 +841,21 @@ function App() {
                       <h2 className="text-lg font-semibold">Your Trip</h2>
                       <p className="text-sm text-muted-foreground">Review your route and itinerary.</p>
                     </div>
-                    {shareUrl && (
-                      <Button size="sm" variant="outline" className="gap-1" onClick={copyShareLink}>
-                        <Share2 className="h-3 w-3" /> Share
-                      </Button>
-                    )}
+                    <div className="flex gap-2">
+                      {summary && (
+                        <Button size="sm" variant="outline" className="gap-1" onClick={openInGoogleMaps}>
+                          <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                          </svg>
+                          Google Maps
+                        </Button>
+                      )}
+                      {shareUrl && (
+                        <Button size="sm" variant="outline" className="gap-1" onClick={copyShareLink}>
+                          <Share2 className="h-3 w-3" /> Share
+                        </Button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Overnight Stop Prompt */}
@@ -888,6 +997,7 @@ function App() {
           markerCategories={markerCategories}
           tripActive={tripActive}
           strategicFuelStops={strategicFuelStops}
+          onMapClick={handleMapClick}
         />
 
         {summary && planningStep === 3 && (
