@@ -20,6 +20,9 @@ import { Spinner } from './components/UI/Spinner';
 import { ItineraryTimeline } from './components/Trip/ItineraryTimeline';
 import { ChatWidget } from './components/AI/ChatWidget';
 import { AISettingsModal } from './components/AI/AISettingsModal';
+import { NaturalLanguageTripInput } from './components/AI/NaturalLanguageTripInput';
+import { getAIConfig, isAIEnabled } from './lib/ai-config';
+import { parseNaturalLanguageTrip } from './lib/ai-service';
 
 const DEFAULT_LOCATIONS: Location[] = [
   { id: 'origin', name: '', lat: 0, lng: 0, type: 'origin' },
@@ -245,6 +248,47 @@ function App() {
     setPlanningStep(step);
   };
 
+  const handleNaturalLanguageGenerate = async (description: string) => {
+    const config = getAIConfig();
+    if (!config) {
+      throw new Error('AI not configured');
+    }
+
+    const result = await parseNaturalLanguageTrip(config, description);
+
+    if (!result.success || !result.data) {
+      throw new Error(result.error || 'Failed to parse trip description');
+    }
+
+    const { data } = result;
+
+    // Update locations
+    if (data.locations && data.locations.length >= 2) {
+      const newLocations: Location[] = data.locations.map((loc, idx) => ({
+        id: `loc-${idx}`,
+        name: loc.name,
+        lat: 0, // Will be geocoded when user proceeds
+        lng: 0,
+        type: loc.type,
+      }));
+      setLocations(newLocations);
+    }
+
+    // Update settings
+    setSettings(prev => ({
+      ...prev,
+      ...(data.departureDate && { departureDate: data.departureDate }),
+      ...(data.numTravelers && { numTravelers: data.numTravelers }),
+      ...(data.numDrivers && { numDrivers: data.numDrivers }),
+      ...(data.maxDriveHours && { maxDriveHours: data.maxDriveHours }),
+      ...(data.preferences?.avoidTolls !== undefined && { avoidTolls: data.preferences.avoidTolls }),
+      ...(data.preferences?.scenicMode !== undefined && { scenicMode: data.preferences.scenicMode }),
+    }));
+
+    // Show success feedback (optional - could add a toast here)
+    console.log('AI parsed trip:', data.reasoning);
+  };
+
   return (
     <div className="flex flex-col md:flex-row h-screen w-full overflow-hidden bg-background text-foreground">
       {/* Sidebar */}
@@ -296,6 +340,14 @@ function App() {
               {/* STEP 1: Route Planning */}
               {planningStep === 1 && (
                 <div className="space-y-6">
+                  {/* AI Natural Language Input */}
+                  {isAIEnabled() && (
+                    <NaturalLanguageTripInput
+                      onGenerate={handleNaturalLanguageGenerate}
+                      disabled={isCalculating}
+                    />
+                  )}
+
                   <div>
                     <h2 className="text-lg font-semibold mb-1">Where are you going?</h2>
                     <p className="text-sm text-muted-foreground mb-4">Add your starting point, destination, and any stops along the way.</p>

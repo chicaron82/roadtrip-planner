@@ -276,3 +276,84 @@ export async function getTripAdvice(
 
   return sendChatMessage(config, messages, context);
 }
+
+export interface ParsedTripData {
+  locations: Array<{ name: string; type: 'origin' | 'destination' | 'waypoint' }>;
+  departureDate?: string;
+  numTravelers?: number;
+  numDrivers?: number;
+  maxDriveHours?: number;
+  preferences?: {
+    avoidTolls?: boolean;
+    scenicMode?: boolean;
+    budgetFriendly?: boolean;
+  };
+  reasoning?: string;
+}
+
+/**
+ * Parse natural language trip description into structured data
+ */
+export async function parseNaturalLanguageTrip(
+  config: AIConfig,
+  description: string
+): Promise<{ success: boolean; data?: ParsedTripData; error?: string }> {
+  const messages: ChatMessage[] = [
+    {
+      role: 'user',
+      content: `Parse this trip description into structured data:
+
+"${description}"
+
+Respond ONLY with valid JSON in this exact format (no markdown, no code blocks):
+{
+  "locations": [
+    {"name": "City Name", "type": "origin"},
+    {"name": "City Name", "type": "waypoint"},
+    {"name": "City Name", "type": "destination"}
+  ],
+  "departureDate": "YYYY-MM-DD or null",
+  "numTravelers": number or null,
+  "numDrivers": number or null,
+  "maxDriveHours": number or null,
+  "preferences": {
+    "avoidTolls": boolean,
+    "scenicMode": boolean,
+    "budgetFriendly": boolean
+  },
+  "reasoning": "Brief explanation of your interpretation"
+}
+
+Rules:
+- Extract origin and destination from the description
+- Add waypoints for notable stops mentioned
+- Infer dates if mentioned (e.g., "5 days" = 5 days from today)
+- Extract traveler count if mentioned
+- Detect preferences like "scenic", "avoid highways", "budget"
+- Use null for fields not mentioned
+- Be smart about interpreting the user's intent`,
+    },
+  ];
+
+  try {
+    const response = await sendChatMessage(config, messages);
+
+    if (!response.success) {
+      return { success: false, error: response.error };
+    }
+
+    // Parse the JSON response
+    // Remove markdown code blocks if present
+    let jsonText = response.message.trim();
+    if (jsonText.startsWith('```')) {
+      jsonText = jsonText.replace(/```json?\n?/g, '').replace(/```\n?$/g, '');
+    }
+
+    const data = JSON.parse(jsonText) as ParsedTripData;
+
+    return { success: true, data };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to parse response';
+    return { success: false, error: message };
+  }
+}
