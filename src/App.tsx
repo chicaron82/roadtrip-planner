@@ -101,17 +101,31 @@ function App() {
   const canProceedFromStep1 = useMemo(() => {
     const hasOrigin = locations.some(l => l.type === 'origin' && l.name);
     const hasDest = locations.some(l => l.type === 'destination' && l.name);
-    console.log('Step 1 Validation:', {
-      hasOrigin,
-      hasDest,
-      locations: locations.map(l => ({ name: l.name, type: l.type, hasName: !!l.name }))
-    });
     return hasOrigin && hasDest;
   }, [locations]);
 
   const canProceedFromStep2 = useMemo(() => {
     return vehicle.fuelEconomyCity > 0 && vehicle.fuelEconomyHwy > 0 && vehicle.tankSize > 0;
   }, [vehicle]);
+
+  // Safely filter route geometry to ensure valid coordinates
+  const validRouteGeometry = useMemo(() => {
+    if (!summary?.fullGeometry) return null;
+
+    const filtered = summary.fullGeometry.filter(coord =>
+      coord &&
+      Array.isArray(coord) &&
+      coord.length === 2 &&
+      typeof coord[0] === 'number' &&
+      typeof coord[1] === 'number' &&
+      !isNaN(coord[0]) &&
+      !isNaN(coord[1]) &&
+      coord[0] !== 0 &&
+      coord[1] !== 0
+    );
+
+    return filtered.length >= 2 ? filtered as [number, number][] : null;
+  }, [summary?.fullGeometry]);
 
   // Load state from URL or Storage on mount
   useEffect(() => {
@@ -862,7 +876,7 @@ function App() {
       <div className="flex-1 relative h-[55vh] md:h-full order-1 md:order-2">
         <Map
           locations={locations}
-          routeGeometry={summary?.fullGeometry as [number, number][] || null}
+          routeGeometry={validRouteGeometry}
           pois={pois}
           markerCategories={markerCategories}
           tripActive={tripActive}

@@ -24,7 +24,8 @@ export function AnimatedPolyline({
     const validPositions = positions.filter(
       pos => pos && Array.isArray(pos) && pos.length === 2 &&
       typeof pos[0] === 'number' && typeof pos[1] === 'number' &&
-      !isNaN(pos[0]) && !isNaN(pos[1])
+      !isNaN(pos[0]) && !isNaN(pos[1]) &&
+      pos[0] !== 0 && pos[1] !== 0 // Also filter out [0,0] coordinates
     );
 
     // Reset and start animation when positions change
@@ -33,14 +34,21 @@ export function AnimatedPolyline({
 
     // Animate the polyline drawing
     const totalPoints = validPositions.length;
-    if (totalPoints === 0) return;
+    if (totalPoints === 0) {
+      setIsAnimating(false);
+      return;
+    }
 
     const intervalDuration = animationDuration / totalPoints;
     let currentIndex = 0;
 
     const interval = setInterval(() => {
-      if (currentIndex < totalPoints) {
-        setVisiblePositions(prev => [...prev, validPositions[currentIndex]]);
+      if (currentIndex < totalPoints && validPositions[currentIndex]) {
+        // Double-check the position is still valid before adding
+        const nextPos = validPositions[currentIndex];
+        if (nextPos && Array.isArray(nextPos) && nextPos.length === 2) {
+          setVisiblePositions(prev => [...prev, nextPos]);
+        }
         currentIndex++;
       } else {
         clearInterval(interval);
@@ -48,7 +56,10 @@ export function AnimatedPolyline({
       }
     }, intervalDuration);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      setIsAnimating(false);
+    };
   }, [positions, animationDuration]);
 
   if (visiblePositions.length < 2) {
