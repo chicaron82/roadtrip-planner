@@ -10,7 +10,7 @@ import { Input } from './components/UI/Input';
 import { Label } from './components/UI/Label';
 import type { Location, Vehicle, TripSettings, TripSummary, POI, MarkerCategory, POICategory } from './types';
 import { calculateRoute } from './lib/api';
-import { calculateTripCosts, calculateStrategicFuelStops, type StrategicFuelStop } from './lib/calculations';
+import { calculateTripCosts, calculateStrategicFuelStops, calculateArrivalTimes, type StrategicFuelStop } from './lib/calculations';
 import { ChevronLeft, ChevronRight, Share2, Calendar, Clock, Users, UserCheck, Loader2 } from 'lucide-react';
 import { OvernightStopPrompt } from './components/Trip/OvernightStopPrompt';
 import { fetchWeather } from './lib/weather';
@@ -226,7 +226,14 @@ function App() {
           return { ...seg, weather: weather || undefined };
         }));
 
-        tripSummary.segments = segmentsWithWeather;
+        // Calculate arrival times for each segment
+        const segmentsWithTimes = calculateArrivalTimes(
+          segmentsWithWeather,
+          settings.departureDate,
+          settings.departureTime
+        );
+
+        tripSummary.segments = segmentsWithTimes;
         setSummary(tripSummary);
 
         // Calculate strategic fuel stops

@@ -52,6 +52,8 @@ export interface WeatherData {
   timezoneAbbr: string;
 }
 
+export type StopType = 'drive' | 'fuel' | 'break' | 'quickMeal' | 'meal' | 'overnight';
+
 export interface RouteSegment {
   from: Location;
   to: Location;
@@ -64,6 +66,12 @@ export interface RouteSegment {
   timezoneCrossing?: boolean; // True if this segment crosses a timezone boundary
   warnings?: SegmentWarning[];
   suggestedBreak?: boolean; // Auto-suggest break if segment > 3 hours
+
+  // Time intelligence fields
+  departureTime?: string; // ISO 8601 datetime string
+  arrivalTime?: string; // ISO 8601 datetime string
+  stopDuration?: number; // Stop duration at destination in minutes
+  stopType?: StopType; // Type of stop at destination
 }
 
 export type WarningType = 'long_drive' | 'weather' | 'border_crossing' | 'fuel_stop' | 'timezone';

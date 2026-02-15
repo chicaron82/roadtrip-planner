@@ -6,6 +6,7 @@ import { SuggestedStopCard } from './SuggestedStopCard';
 import { generatePacingSuggestions } from '../../lib/segment-analyzer';
 import { generateSmartStops, createStopConfig, type SuggestedStop } from '../../lib/stop-suggestions';
 import { Button } from '../UI/Button';
+import { formatTime as formatTimeWithTz, STOP_LABELS } from '../../lib/calculations';
 
 interface ItineraryTimelineProps {
   summary: TripSummary;
@@ -358,14 +359,23 @@ export function ItineraryTimeline({ summary, settings, vehicle }: ItineraryTimel
                 {/* The Stop Card */}
                 <div className={`rounded-xl border p-4 shadow-sm transition-all duration-300 ${isDest ? 'bg-yellow-50/50 border-yellow-200' : 'bg-card hover:bg-slate-50 hover:border-blue-200'}`}>
                   <div className="flex justify-between items-start mb-1">
-                    <div>
+                    <div className="flex-1">
                       <div className="text-xs font-bold uppercase tracking-wider mb-0.5 text-muted-foreground">
                         {isDest ? 'Destination' : 'Waypoint'}
                       </div>
                       <div className="font-bold text-lg leading-tight">{segment?.to.name}</div>
+                      {segment?.stopType && segment.stopType !== 'drive' && segment.stopDuration && (
+                        <div className="mt-2 inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-xs border border-blue-100 font-medium">
+                          <Clock className="h-3 w-3" />
+                          {STOP_LABELS[segment.stopType]} • {segment.stopDuration} min
+                        </div>
+                      )}
                     </div>
-                    <div className="text-sm font-mono font-bold bg-muted/80 px-2 py-1 rounded text-foreground">
-                      {arrivalTime && formatTime(arrivalTime)}
+                    <div className="text-right">
+                      <div className="text-sm font-mono font-bold bg-muted/80 px-2 py-1 rounded text-foreground">
+                        {segment?.arrivalTime ? formatTimeWithTz(segment.arrivalTime, segment.weather?.timezoneAbbr) :
+                         arrivalTime ? formatTime(arrivalTime) : ''}
+                      </div>
                     </div>
                   </div>
 

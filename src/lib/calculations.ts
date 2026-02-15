@@ -194,3 +194,87 @@ export function calculateStrategicFuelStops(
 
   return fuelStops;
 }
+
+/**
+ * Stop duration presets in minutes
+ */
+export const STOP_DURATIONS = {
+  drive: 0,        // No stop - just driving
+  fuel: 10,        // ⛽ Quick refuel
+  break: 15,       // ☕ Coffee/bathroom break
+  quickMeal: 30,   // 🍔 Fast food stop
+  meal: 60,        // 🍽️ Sit-down meal
+  overnight: 720,  // 🏨 12 hours overnight rest
+} as const;
+
+export const STOP_LABELS = {
+  drive: 'Driving',
+  fuel: '⛽ Fuel Stop',
+  break: '☕ Break',
+  quickMeal: '🍔 Quick Meal',
+  meal: '🍽️ Full Meal',
+  overnight: '🏨 Overnight',
+} as const;
+
+/**
+ * Calculate actual arrival and departure times for each segment
+ * Accounts for stop durations and timezone changes
+ */
+export function calculateArrivalTimes(
+  segments: RouteSegment[],
+  departureDate: string,
+  departureTime: string
+): RouteSegment[] {
+  if (segments.length === 0) return segments;
+
+  // Parse initial departure time
+  const initialDateTime = new Date(`${departureDate}T${departureTime}`);
+  let currentTime = initialDateTime;
+
+  return segments.map((segment) => {
+    // Departure time for this segment is the current time
+    const departureTime = new Date(currentTime);
+
+    // Add driving duration
+    const arrivalTime = new Date(currentTime.getTime() + segment.durationMinutes * 60000);
+
+    // Get stop duration for this segment (defaults to 0 if not set)
+    const stopDuration = segment.stopDuration ?? STOP_DURATIONS[segment.stopType ?? 'drive'];
+
+    // Next segment starts after the stop
+    currentTime = new Date(arrivalTime.getTime() + stopDuration * 60000);
+
+    return {
+      ...segment,
+      departureTime: departureTime.toISOString(),
+      arrivalTime: arrivalTime.toISOString(),
+      stopDuration,
+      stopType: segment.stopType ?? 'drive',
+    };
+  });
+}
+
+/**
+ * Format time for display with timezone
+ */
+export function formatTime(isoString: string, timezoneAbbr?: string): string {
+  const date = new Date(isoString);
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12;
+  const displayMinutes = minutes.toString().padStart(2, '0');
+
+  const timeStr = `${displayHours}:${displayMinutes} ${period}`;
+  return timezoneAbbr ? `${timeStr} ${timezoneAbbr}` : timeStr;
+}
+
+/**
+ * Get day number for multi-day trips
+ */
+export function getDayNumber(departureDate: string, currentDate: string): number {
+  const start = new Date(departureDate);
+  const current = new Date(currentDate);
+  const diffDays = Math.floor((current.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  return diffDays + 1;
+}
