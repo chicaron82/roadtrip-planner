@@ -1,4 +1,4 @@
-import type { TripSettings, RoutePreference } from '../../types';
+import type { TripSettings } from '../../types';
 import { Input } from '../UI/Input';
 import { Label } from '../UI/Label';
 import { Button } from '../UI/Button';

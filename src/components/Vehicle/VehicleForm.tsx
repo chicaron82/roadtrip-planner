@@ -10,8 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../UI/Tooltip';
 import { VEHICLE_DB, COMMON_MAKES } from '../../lib/vehicles';
 import { getGarage, saveToGarage, removeFromGarage, setDefaultVehicleId, getDefaultVehicle, type SavedVehicle } from '../../lib/storage';
-import { convertL100kmToMpg, convertMpgToL100km, convertLitresToGallons, convertGallonsToLitres } from '../../lib/calculations';
-import { X, Zap, Save, Trash2, Car, Star, Clock, Gauge, Fuel, Battery } from 'lucide-react';
+import { convertL100kmToMpg, convertLitresToGallons } from '../../lib/calculations';
+import { X, Zap, Save, Trash2, Car, Star, Gauge, Fuel, Battery } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 interface VehicleFormProps {
