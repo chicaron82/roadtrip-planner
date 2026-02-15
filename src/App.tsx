@@ -433,7 +433,7 @@ function App() {
                   </div>
 
                   {summary ? (
-                    <ItineraryTimeline summary={summary} settings={settings} />
+                    <ItineraryTimeline summary={summary} settings={settings} vehicle={vehicle} />
                   ) : (
                     <div className="text-center py-12 text-muted-foreground">
                       <div className="mb-2">🗺️</div>
