@@ -21,6 +21,7 @@ export interface Vehicle {
 export type UnitSystem = 'metric' | 'imperial';
 export type Currency = 'CAD' | 'USD';
 export type BudgetMode = 'open' | 'fixed';
+export type RoutePreference = 'fastest' | 'scenic' | 'economical';
 
 export interface TripSettings {
   units: UnitSystem;
@@ -39,6 +40,7 @@ export interface TripSettings {
   isRoundTrip: boolean;
   avoidTolls: boolean;
   scenicMode: boolean;
+  routePreference: RoutePreference;
 }
 
 export interface WeatherData {
@@ -58,6 +60,19 @@ export interface RouteSegment {
   fuelNeededLitres: number;
   fuelCost: number;
   weather?: WeatherData;
+  timezone?: string; // IANA timezone (e.g., "America/Toronto")
+  timezoneCrossing?: boolean; // True if this segment crosses a timezone boundary
+  warnings?: SegmentWarning[];
+  suggestedBreak?: boolean; // Auto-suggest break if segment > 3 hours
+}
+
+export type WarningType = 'long_drive' | 'weather' | 'border_crossing' | 'fuel_stop' | 'timezone';
+
+export interface SegmentWarning {
+  type: WarningType;
+  severity: 'info' | 'warning' | 'critical';
+  message: string;
+  icon?: string;
 }
 
 export interface TripSummary {

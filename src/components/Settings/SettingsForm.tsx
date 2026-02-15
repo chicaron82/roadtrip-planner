@@ -1,7 +1,10 @@
-import type { TripSettings } from '../../types';
+import type { TripSettings, RoutePreference } from '../../types';
 import { Input } from '../UI/Input';
 import { Label } from '../UI/Label';
 import { Button } from '../UI/Button';
+import { Switch } from '../UI/Switch';
+import { RoutePreferenceCards } from './RoutePreferenceCards';
+import { Repeat } from 'lucide-react';
 
 interface SettingsFormProps {
   settings: TripSettings;
@@ -204,41 +207,40 @@ export function SettingsForm({ settings, setSettings }: SettingsFormProps) {
        </div>
 
        {/* Route Preferences */}
-       <div className="space-y-3 pt-2 border-t">
+       <div className="space-y-4 pt-2 border-t">
           <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Route Preferences</Label>
-          
-          <div className="flex items-center justify-between">
-            <Label className="cursor-pointer" htmlFor="round-trip">Round Trip (x2)</Label>
-            <button 
+
+          {/* Route Preference Cards */}
+          <RoutePreferenceCards
+            value={settings.routePreference}
+            onChange={(value) => handleChange('routePreference', value)}
+          />
+
+          {/* Round Trip Toggle with Premium Badge */}
+          <div className="flex items-center justify-between p-3 rounded-lg border bg-gradient-to-r from-primary/5 to-transparent">
+            <div className="flex items-center gap-2">
+              <Repeat className="h-4 w-4 text-primary" />
+              <Label className="cursor-pointer font-medium" htmlFor="round-trip">
+                Round Trip
+              </Label>
+              {settings.isRoundTrip && (
+                <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-primary text-primary-foreground">
+                  ×2
+                </span>
+              )}
+            </div>
+            <Switch
               id="round-trip"
-              onClick={() => handleChange('isRoundTrip', !settings.isRoundTrip)}
-              className={`w-11 h-6 flex items-center rounded-full px-1 transition-colors ${settings.isRoundTrip ? 'bg-primary' : 'bg-muted'}`}
-            >
-              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${settings.isRoundTrip ? 'translate-x-5' : 'translate-x-0'}`} />
-            </button>
+              checked={settings.isRoundTrip}
+              onCheckedChange={(checked) => handleChange('isRoundTrip', checked)}
+            />
           </div>
 
-          <div className="flex items-center justify-between">
-            <Label className="cursor-pointer" htmlFor="scenic-mode">Scenic Route (No Hwys)</Label>
-             <button 
-              id="scenic-mode"
-              onClick={() => handleChange('scenicMode', !settings.scenicMode)}
-              className={`w-11 h-6 flex items-center rounded-full px-1 transition-colors ${settings.scenicMode ? 'bg-primary' : 'bg-muted'}`}
-            >
-              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${settings.scenicMode ? 'translate-x-5' : 'translate-x-0'}`} />
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <Label className="cursor-pointer" htmlFor="avoid-tolls">Avoid Tolls</Label>
-             <button 
-              id="avoid-tolls"
-              onClick={() => handleChange('avoidTolls', !settings.avoidTolls)}
-              className={`w-11 h-6 flex items-center rounded-full px-1 transition-colors ${settings.avoidTolls ? 'bg-primary' : 'bg-muted'}`}
-            >
-              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${settings.avoidTolls ? 'translate-x-5' : 'translate-x-0'}`} />
-            </button>
-          </div>
+          {settings.isRoundTrip && (
+            <div className="text-xs text-muted-foreground pl-9 -mt-2 animate-in slide-in-from-top-1 fade-in">
+              ✨ Distance, cost, and gas stops will be doubled
+            </div>
+          )}
        </div>
     </div>
   );

@@ -48,6 +48,7 @@ const DEFAULT_SETTINGS: TripSettings = {
   isRoundTrip: false,
   avoidTolls: false,
   scenicMode: false,
+  routePreference: 'fastest',
 };
 
 type Tab = 'route' | 'vehicle' | 'settings' | 'history' | 'itinerary';
