@@ -159,8 +159,12 @@ export function calculateStrategicFuelStops(
 
       if (stopDistance >= segmentStart && stopDistance <= segmentEnd) {
         // Find the corresponding point in route geometry
-        // Approximate by using segment midpoint for simplicity
+        // Interpolate between segment start and end based on progress
         const progress = (stopDistance - segmentStart) / segment.distanceKm;
+
+        // Interpolate coordinates
+        const lat = segment.from.lat + (segment.to.lat - segment.from.lat) * progress;
+        const lng = segment.from.lng + (segment.to.lng - segment.from.lng) * progress;
 
         // Estimate time at this stop
         const minutesIntoSegment = segment.durationMinutes * progress;
@@ -175,8 +179,8 @@ export function calculateStrategicFuelStops(
         const fuelRemaining = 100 - fuelUsedPercent;
 
         fuelStops.push({
-          lat: segment.to.lat,
-          lng: segment.to.lng,
+          lat,
+          lng,
           distanceFromStart: stopDistance,
           estimatedTime: timeStr,
           fuelRemaining: Math.max(0, fuelRemaining),
