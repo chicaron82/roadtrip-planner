@@ -17,15 +17,14 @@ export function AISettingsModal({ open, onClose, onConfigChange }: AISettingsMod
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-xl max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>AI Trip Assistant Settings</DialogTitle>
+          <DialogTitle>AI Trip Assistant</DialogTitle>
           <DialogDescription>
-            Configure your AI provider to unlock intelligent trip planning features.
-            Your API key is stored locally and never sent to our servers.
+            Configure your AI provider. Keys stored locally - never sent to our servers.
           </DialogDescription>
         </DialogHeader>
-        <div className="mt-4">
+        <div className="overflow-y-auto flex-1 -mx-6 px-6">
           <AISettings onConfigChange={handleConfigChange} />
         </div>
       </DialogContent>

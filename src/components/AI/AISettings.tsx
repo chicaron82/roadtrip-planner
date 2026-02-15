@@ -93,15 +93,15 @@ export function AISettings({ onConfigChange }: AISettingsProps) {
   const models = DEFAULT_MODELS[config.provider];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white">
-          <Bot className="h-5 w-5" />
+        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white">
+          <Bot className="h-4 w-4" />
         </div>
         <div>
-          <h3 className="font-semibold">AI Trip Assistant</h3>
-          <p className="text-xs text-muted-foreground">BYOK - Bring Your Own Key</p>
+          <h3 className="font-semibold text-sm">AI Trip Assistant</h3>
+          <p className="text-[10px] text-muted-foreground">BYOK - Bring Your Own Key</p>
         </div>
       </div>
 
@@ -215,11 +215,11 @@ export function AISettings({ onConfigChange }: AISettingsProps) {
           </div>
 
           {/* Privacy Notice */}
-          <div className="flex items-start gap-3 p-3 rounded-lg bg-green-50 border border-green-100 text-green-800">
-            <Shield className="h-5 w-5 mt-0.5 flex-shrink-0" />
-            <div className="text-xs">
-              <div className="font-medium mb-1">Your Privacy is Protected</div>
-              <p>Your API key stays on your device and is never sent to our servers. All AI requests go directly from your browser to {providerInfo.name}.</p>
+          <div className="flex items-start gap-2 p-2 rounded-lg bg-green-50 border border-green-100 text-green-800">
+            <Shield className="h-4 w-4 mt-0.5 flex-shrink-0" />
+            <div className="text-[10px]">
+              <div className="font-medium mb-0.5">Privacy Protected</div>
+              <p>Key stays on your device. AI calls go directly to {providerInfo.name}.</p>
             </div>
           </div>
 
