@@ -4,7 +4,7 @@ import { Card, CardContent } from '../UI/Card';
 import { formatDistance, formatDuration, formatCurrency } from '../../lib/calculations';
 import { getWeatherEmoji } from '../../lib/weather';
 import { Button } from '../UI/Button';
-import { Car, Clock, Fuel, Users, MapPin, List } from 'lucide-react';
+import { Car, Clock, Fuel, Users, MapPin, List, ChevronDown, ChevronUp } from 'lucide-react';
 import { TripOverview } from './TripOverview';
 import { ItineraryModal } from './ItineraryModal';
 
@@ -18,6 +18,7 @@ interface TripSummaryProps {
 
 export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenVehicleTab }: TripSummaryProps) {
   const [itineraryModalOpen, setItineraryModalOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   if (!summary) return null;
 
@@ -31,8 +32,18 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
                 <span className="font-bold text-lg">{tripActive ? "Trip Active" : "Trip Summary"}</span>
              </div>
              <div className="flex items-center gap-2">
+               {/* Collapse/Expand Toggle */}
+               <Button
+                 variant="ghost"
+                 size="sm"
+                 onClick={() => setIsCollapsed(!isCollapsed)}
+                 className="h-7 w-7 p-0"
+                 title={isCollapsed ? "Expand" : "Collapse"}
+               >
+                 {isCollapsed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+               </Button>
                {/* Vehicle Quick Edit */}
-               {onOpenVehicleTab && !tripActive && (
+               {onOpenVehicleTab && !tripActive && !isCollapsed && (
                  <Button
                    variant="outline"
                    size="sm"
@@ -43,22 +54,22 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
                    Edit Vehicle
                  </Button>
                )}
-               {tripActive && onStop && (
+               {tripActive && onStop && !isCollapsed && (
                    <Button variant="destructive" size="sm" onClick={onStop}>End Trip</Button>
                )}
              </div>
           </div>
 
           {/* Trip Overview - Difficulty & Confidence */}
-          <TripOverview summary={summary} settings={settings} />
+          {!isCollapsed && <TripOverview summary={summary} settings={settings} />}
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className={`grid grid-cols-2 md:grid-cols-4 gap-3 ${isCollapsed ? '' : ''}`}>
             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3 border border-blue-100 dark:border-blue-800">
                 <div className="flex items-center gap-2 mb-1">
                     <Car className="w-4 h-4 text-blue-600" />
                     <div className="text-[10px] uppercase tracking-wider text-blue-600 font-semibold">Distance</div>
                 </div>
-                <div className="text-lg font-bold text-blue-700 dark:text-blue-400">
+                <div className={`${isCollapsed ? 'text-base' : 'text-lg'} font-bold text-blue-700 dark:text-blue-400`}>
                     {formatDistance(summary.totalDistanceKm, settings.units)}
                     {settings.isRoundTrip && <span className="text-xs ml-1 font-normal opacity-70">(x2)</span>}
                 </div>
@@ -69,7 +80,7 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
                     <Clock className="w-4 h-4 text-amber-600" />
                     <div className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">Time</div>
                 </div>
-                <div className="text-lg font-bold text-amber-700 dark:text-amber-400">
+                <div className={`${isCollapsed ? 'text-base' : 'text-lg'} font-bold text-amber-700 dark:text-amber-400`}>
                     {formatDuration(summary.totalDurationMinutes)}
                 </div>
             </div>
@@ -79,7 +90,7 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
                     <Fuel className="w-4 h-4 text-green-600" />
                     <div className="text-[10px] uppercase tracking-wider text-green-600 font-semibold">Fuel Cost</div>
                 </div>
-                <div className="text-lg font-bold text-green-700 dark:text-green-400">
+                <div className={`${isCollapsed ? 'text-base' : 'text-lg'} font-bold text-green-700 dark:text-green-400`}>
                     {formatCurrency(summary.totalFuelCost, settings.currency)}
                 </div>
             </div>
@@ -89,11 +100,12 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
                     <Users className="w-4 h-4 text-purple-600" />
                     <div className="text-[10px] uppercase tracking-wider text-purple-600 font-semibold">Per Person</div>
                 </div>
-                <div className="text-lg font-bold text-purple-700 dark:text-purple-400">
+                <div className={`${isCollapsed ? 'text-base' : 'text-lg'} font-bold text-purple-700 dark:text-purple-400`}>
                     {formatCurrency(summary.costPerPerson, settings.currency)}
                 </div>
             </div>
           </div>
+          {!isCollapsed && (
           <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 max-h-68 overflow-y-auto">
             <div className="flex items-center justify-between mb-3">
                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Itinerary Preview</h3>
@@ -161,6 +173,7 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
               })}
             </div>
           </div>
+          )}
         </CardContent>
       </Card>
 
