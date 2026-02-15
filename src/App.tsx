@@ -431,7 +431,14 @@ function App() {
                           min={1}
                           max={20}
                           value={settings.numTravelers}
-                          onChange={(e) => setSettings(prev => ({ ...prev, numTravelers: parseInt(e.target.value) || 1 }))}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '') return; // Don't update on empty
+                            const num = parseInt(val);
+                            if (!isNaN(num) && num >= 1 && num <= 20) {
+                              setSettings(prev => ({ ...prev, numTravelers: num }));
+                            }
+                          }}
                           className="mt-1"
                         />
                       </div>
@@ -445,7 +452,14 @@ function App() {
                           min={1}
                           max={settings.numTravelers}
                           value={settings.numDrivers}
-                          onChange={(e) => setSettings(prev => ({ ...prev, numDrivers: Math.min(parseInt(e.target.value) || 1, prev.numTravelers) }))}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '') return; // Don't update on empty
+                            const num = parseInt(val);
+                            if (!isNaN(num) && num >= 1) {
+                              setSettings(prev => ({ ...prev, numDrivers: Math.min(num, prev.numTravelers) }));
+                            }
+                          }}
                           className="mt-1"
                         />
                       </div>
@@ -470,7 +484,14 @@ function App() {
                         min={1}
                         max={24}
                         value={settings.maxDriveHours}
-                        onChange={(e) => setSettings(prev => ({ ...prev, maxDriveHours: parseInt(e.target.value) || 8 }))}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === '') return; // Don't update on empty
+                          const num = parseInt(val);
+                          if (!isNaN(num) && num >= 1 && num <= 24) {
+                            setSettings(prev => ({ ...prev, maxDriveHours: num }));
+                          }
+                        }}
                         className="mt-1"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
