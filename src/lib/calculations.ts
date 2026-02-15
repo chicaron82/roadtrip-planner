@@ -101,3 +101,92 @@ export function convertLitresToGallons(litres: number): number {
 export function convertGallonsToLitres(gallons: number): number {
   return gallons * 3.78541;
 }
+
+/**
+ * Calculate strategic fuel stops along the route
+ * Returns coordinates where fuel stops are recommended
+ */
+export interface StrategicFuelStop {
+  lat: number;
+  lng: number;
+  distanceFromStart: number;
+  estimatedTime: string;
+  fuelRemaining: number; // percentage
+}
+
+export function calculateStrategicFuelStops(
+  routeGeometry: [number, number][],
+  segments: RouteSegment[],
+  vehicle: Vehicle,
+  settings: TripSettings
+): StrategicFuelStop[] {
+  if (routeGeometry.length === 0 || segments.length === 0) return [];
+
+  // Calculate weighted fuel economy
+  const weightedFuelEconomy =
+    settings.units === 'metric'
+      ? vehicle.fuelEconomyHwy * 0.8 + vehicle.fuelEconomyCity * 0.2
+      : convertMpgToL100km(vehicle.fuelEconomyHwy) * 0.8 +
+        convertMpgToL100km(vehicle.fuelEconomyCity) * 0.2;
+
+  // Tank size in litres
+  const tankSizeLitres =
+    settings.units === 'metric' ? vehicle.tankSize : vehicle.tankSize * 3.78541;
+
+  // Range on full tank (80% usable)
+  const rangeKm = (tankSizeLitres * 0.8 / weightedFuelEconomy) * 100;
+
+  // Trigger fuel stop at 20% remaining
+  const stopIntervalKm = rangeKm * 0.8;
+
+  const fuelStops: StrategicFuelStop[] = [];
+  let currentDistance = 0;
+  let currentTime = 0; // minutes
+
+  // Walk through segments to calculate stops
+  for (const segment of segments) {
+    const segmentStart = currentDistance;
+    const segmentEnd = currentDistance + segment.distanceKm;
+
+    // Check if we need a fuel stop in this segment
+    const lastStopDistance = fuelStops.length > 0
+      ? fuelStops[fuelStops.length - 1].distanceFromStart
+      : 0;
+
+    if (segmentEnd - lastStopDistance >= stopIntervalKm) {
+      // Calculate where in this segment to place the stop
+      const stopDistance = lastStopDistance + stopIntervalKm;
+
+      if (stopDistance >= segmentStart && stopDistance <= segmentEnd) {
+        // Find the corresponding point in route geometry
+        // Approximate by using segment midpoint for simplicity
+        const progress = (stopDistance - segmentStart) / segment.distanceKm;
+
+        // Estimate time at this stop
+        const minutesIntoSegment = segment.durationMinutes * progress;
+        const estimatedMinutes = currentTime + minutesIntoSegment;
+        const hours = Math.floor(estimatedMinutes / 60);
+        const mins = Math.round(estimatedMinutes % 60);
+        const timeStr = `${hours}h ${mins}m`;
+
+        // Calculate fuel remaining at this point (starts at 100%, depletes)
+        const kmSinceLastStop = stopDistance - lastStopDistance;
+        const fuelUsedPercent = (kmSinceLastStop / rangeKm) * 100;
+        const fuelRemaining = 100 - fuelUsedPercent;
+
+        fuelStops.push({
+          lat: segment.to.lat,
+          lng: segment.to.lng,
+          distanceFromStart: stopDistance,
+          estimatedTime: timeStr,
+          fuelRemaining: Math.max(0, fuelRemaining),
+        });
+      }
+    }
+
+    currentDistance += segment.distanceKm;
+    currentTime += segment.durationMinutes;
+  }
+
+  return fuelStops;
+}

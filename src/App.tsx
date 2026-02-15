@@ -10,8 +10,9 @@ import { Input } from './components/UI/Input';
 import { Label } from './components/UI/Label';
 import type { Location, Vehicle, TripSettings, TripSummary, POI, MarkerCategory, POICategory } from './types';
 import { calculateRoute } from './lib/api';
-import { calculateTripCosts } from './lib/calculations';
+import { calculateTripCosts, calculateStrategicFuelStops, type StrategicFuelStop } from './lib/calculations';
 import { ChevronLeft, ChevronRight, Share2, Calendar, Clock, Users, UserCheck, Loader2 } from 'lucide-react';
+import { OvernightStopPrompt } from './components/Trip/OvernightStopPrompt';
 import { fetchWeather } from './lib/weather';
 import { searchNearbyPOIs } from './lib/poi';
 import { addToHistory, getHistory, getDefaultVehicleId, getGarage } from './lib/storage';
@@ -87,6 +88,11 @@ function App() {
     { id: 'hotel', label: 'Hotel', emoji: '🏨', color: 'bg-blue-500', visible: false },
     { id: 'attraction', label: 'Sights', emoji: '📸', color: 'bg-purple-500', visible: false },
   ]);
+
+  // Strategic Stops State
+  const [strategicFuelStops, setStrategicFuelStops] = useState<StrategicFuelStop[]>([]);
+  const [showOvernightPrompt, setShowOvernightPrompt] = useState(false);
+  const [suggestedOvernightStop, setSuggestedOvernightStop] = useState<Location | null>(null);
 
   // AI State
   const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
@@ -208,6 +214,41 @@ function App() {
 
         tripSummary.segments = segmentsWithWeather;
         setSummary(tripSummary);
+
+        // Calculate strategic fuel stops
+        const fuelStops = calculateStrategicFuelStops(
+          routeData.fullGeometry,
+          tripSummary.segments,
+          vehicle,
+          settings
+        );
+        setStrategicFuelStops(fuelStops);
+
+        // Check if overnight stop is recommended
+        const totalHours = tripSummary.totalDurationMinutes / 60;
+        const exceedsMaxHours = totalHours > settings.maxDriveHours;
+
+        if (exceedsMaxHours) {
+          // Calculate midpoint for overnight stop
+          const targetDistance = tripSummary.totalDistanceKm * 0.5;
+          let currentDist = 0;
+          let overnightLocation: Location | null = null;
+
+          for (const segment of tripSummary.segments) {
+            currentDist += segment.distanceKm;
+            if (currentDist >= targetDistance) {
+              overnightLocation = segment.to;
+              break;
+            }
+          }
+
+          if (overnightLocation) {
+            setSuggestedOvernightStop(overnightLocation);
+            setShowOvernightPrompt(true);
+          }
+        } else {
+          setShowOvernightPrompt(false);
+        }
 
         setHistory(addToHistory(tripSummary));
         serializeStateToURL(locations, vehicle, settings);
@@ -693,6 +734,33 @@ function App() {
                     )}
                   </div>
 
+                  {/* Overnight Stop Prompt */}
+                  {showOvernightPrompt && suggestedOvernightStop && summary && (
+                    <OvernightStopPrompt
+                      suggestedLocation={suggestedOvernightStop}
+                      hoursBeforeStop={(summary.totalDurationMinutes / 60) * 0.5}
+                      distanceBeforeStop={summary.totalDistanceKm * 0.5}
+                      numTravelers={settings.numTravelers}
+                      arrivalTime="5:00 PM"
+                      departureTime="8:00 AM"
+                      onAccept={() => {
+                        // Add overnight stop to locations
+                        const updatedLocations = [...locations];
+                        updatedLocations.splice(locations.length - 1, 0, {
+                          ...suggestedOvernightStop,
+                          type: 'waypoint',
+                        });
+                        setLocations(updatedLocations);
+                        setShowOvernightPrompt(false);
+                        // Recalculate with new stop
+                        setTimeout(() => handleCalculate(), 100);
+                      }}
+                      onDecline={() => {
+                        setShowOvernightPrompt(false);
+                      }}
+                    />
+                  )}
+
                   {summary ? (
                     <ItineraryTimeline summary={summary} settings={settings} vehicle={vehicle} />
                   ) : (
@@ -798,6 +866,7 @@ function App() {
           pois={pois}
           markerCategories={markerCategories}
           tripActive={tripActive}
+          strategicFuelStops={strategicFuelStops}
         />
 
         {summary && planningStep === 3 && (
