@@ -19,6 +19,14 @@ const BUDGET_PRESETS = {
   comfort: { gas: 600, hotel: 1200, food: 600, misc: 300 },
 };
 
+// Default distribution ratios when user enters total first
+const DEFAULT_RATIOS = {
+  gas: 0.35,    // 35% for fuel
+  hotel: 0.40,  // 40% for accommodation
+  food: 0.20,   // 20% for meals
+  misc: 0.05,   // 5% for activities/misc
+};
+
 export function BudgetInput({ budget, onChange, currency, className }: BudgetInputProps) {
   const [isExpanded, setIsExpanded] = useState(budget.mode === 'plan-to-budget');
   const currencySymbol = currency === 'CAD' ? 'CA$' : '$';
@@ -26,6 +34,46 @@ export function BudgetInput({ budget, onChange, currency, className }: BudgetInp
   const updateBudget = (field: keyof Omit<TripBudget, 'mode' | 'total'>, value: number) => {
     const newBudget = { ...budget, [field]: value };
     newBudget.total = newBudget.gas + newBudget.hotel + newBudget.food + newBudget.misc;
+    onChange(newBudget);
+  };
+
+  // Update total and distribute to categories
+  const updateTotal = (newTotal: number) => {
+    const currentSum = budget.gas + budget.hotel + budget.food + budget.misc;
+
+    let newBudget: TripBudget;
+
+    if (currentSum === 0) {
+      // No existing values - use default ratios
+      newBudget = {
+        ...budget,
+        gas: Math.round(newTotal * DEFAULT_RATIOS.gas),
+        hotel: Math.round(newTotal * DEFAULT_RATIOS.hotel),
+        food: Math.round(newTotal * DEFAULT_RATIOS.food),
+        misc: Math.round(newTotal * DEFAULT_RATIOS.misc),
+        total: newTotal,
+      };
+    } else {
+      // Distribute proportionally based on current ratios
+      const scale = newTotal / currentSum;
+      newBudget = {
+        ...budget,
+        gas: Math.round(budget.gas * scale),
+        hotel: Math.round(budget.hotel * scale),
+        food: Math.round(budget.food * scale),
+        misc: Math.round(budget.misc * scale),
+        total: newTotal,
+      };
+    }
+
+    // Adjust for rounding errors - add/subtract difference from largest category
+    const actualSum = newBudget.gas + newBudget.hotel + newBudget.food + newBudget.misc;
+    const diff = newTotal - actualSum;
+    if (diff !== 0) {
+      // Add rounding difference to hotel (usually the largest)
+      newBudget.hotel += diff;
+    }
+
     onChange(newBudget);
   };
 
@@ -202,12 +250,29 @@ export function BudgetInput({ budget, onChange, currency, className }: BudgetInp
             </div>
           </div>
 
-          {/* Total Display */}
-          <div className="flex items-center justify-between pt-3 border-t border-gray-200">
-            <span className="text-sm font-medium text-gray-700">Total Trip Budget</span>
-            <span className="text-lg font-bold text-green-600">
-              {currencySymbol}{budget.total.toLocaleString()}
-            </span>
+          {/* Editable Total */}
+          <div className="pt-3 border-t border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                  <DollarSign className="h-4 w-4 text-green-600" />
+                  Total Trip Budget
+                </Label>
+                <p className="text-[10px] text-gray-500 mt-0.5">
+                  Edit total to auto-distribute across categories
+                </p>
+              </div>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-green-600">$</span>
+                <Input
+                  type="number"
+                  value={budget.total || ''}
+                  onChange={(e) => updateTotal(Number(e.target.value) || 0)}
+                  className="pl-7 h-10 w-32 text-lg font-bold text-green-600 text-right border-green-200 focus:border-green-400 focus:ring-green-200"
+                  placeholder="0"
+                />
+              </div>
+            </div>
           </div>
         </div>
       )}
