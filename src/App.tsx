@@ -18,6 +18,8 @@ import { addToHistory, getHistory, getDefaultVehicleId, getGarage } from './lib/
 import { parseStateFromURL, serializeStateToURL } from './lib/url';
 import { Spinner } from './components/UI/Spinner';
 import { ItineraryTimeline } from './components/Trip/ItineraryTimeline';
+import { ChatWidget } from './components/AI/ChatWidget';
+import { AISettingsModal } from './components/AI/AISettingsModal';
 
 const DEFAULT_LOCATIONS: Location[] = [
   { id: 'origin', name: '', lat: 0, lng: 0, type: 'origin' },
@@ -82,6 +84,9 @@ function App() {
     { id: 'hotel', label: 'Hotel', emoji: '🏨', color: 'bg-blue-500', visible: false },
     { id: 'attraction', label: 'Sights', emoji: '📸', color: 'bg-purple-500', visible: false },
   ]);
+
+  // AI State
+  const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
 
   // Validation for steps
   const canProceedFromStep1 = useMemo(() => {
@@ -549,6 +554,23 @@ function App() {
           />
         )}
       </div>
+
+      {/* AI Chat Widget */}
+      <ChatWidget
+        context={{
+          locations,
+          vehicle,
+          settings,
+          summary: summary || undefined,
+        }}
+        onOpenSettings={() => setAiSettingsOpen(true)}
+      />
+
+      {/* AI Settings Modal */}
+      <AISettingsModal
+        open={aiSettingsOpen}
+        onClose={() => setAiSettingsOpen(false)}
+      />
     </div>
   );
 }
