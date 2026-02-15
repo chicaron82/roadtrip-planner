@@ -27,6 +27,7 @@ interface LocationListProps {
   setLocations: (locations: Location[]) => void;
   onCalculate: () => void;
   isCalculating: boolean;
+  hideCalculateButton?: boolean;
 }
 
 interface SortableLocationItemProps {
@@ -150,7 +151,7 @@ function SortableLocationItem({
   );
 }
 
-export function LocationList({ locations, setLocations, onCalculate, isCalculating }: LocationListProps) {
+export function LocationList({ locations, setLocations, onCalculate, isCalculating, hideCalculateButton }: LocationListProps) {
   const [favorites, setFavorites] = useState<SavedLocation[]>(() => getFavorites());
 
   const sensors = useSensors(
@@ -280,13 +281,15 @@ export function LocationList({ locations, setLocations, onCalculate, isCalculati
         + Add Stop
       </Button>
 
-      <Button 
-        onClick={onCalculate} 
-        disabled={isCalculating || locations.some(l => !l.name)}
-        className="w-full h-12 text-sm font-semibold shadow-lg"
-      >
-        {isCalculating ? "Calculating..." : "🗺️ Calculate Route"}
-      </Button>
+      {!hideCalculateButton && (
+        <Button
+          onClick={onCalculate}
+          disabled={isCalculating || locations.some(l => !l.name)}
+          className="w-full h-12 text-sm font-semibold shadow-lg"
+        >
+          {isCalculating ? "Calculating..." : "🗺️ Calculate Route"}
+        </Button>
+      )}
     </div>
   );
 }
