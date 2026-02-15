@@ -32,8 +32,14 @@ function MapUpdater({ locations, routeGeometry }: { locations: Location[], route
   const map = useMap();
 
   useEffect(() => {
-    if (locations.length > 0) {
-      const bounds = L.latLngBounds(locations.map(l => [l.lat, l.lng]));
+    // Filter out invalid locations (undefined, or with invalid coordinates)
+    const validLocations = locations.filter(
+      l => l && typeof l.lat === 'number' && typeof l.lng === 'number' &&
+      !isNaN(l.lat) && !isNaN(l.lng) && l.lat !== 0 && l.lng !== 0
+    );
+
+    if (validLocations.length > 0) {
+      const bounds = L.latLngBounds(validLocations.map(l => [l.lat, l.lng]));
       if (routeGeometry) {
         // Filter out invalid coordinates before extending bounds
         routeGeometry.forEach(coord => {
@@ -125,23 +131,28 @@ export function Map({ locations, routeGeometry, pois, markerCategories }: MapPro
         )}
 
         {/* Location Markers */}
-        {locations.map((loc, index) => (
-          <Marker
-            key={loc.id}
-            position={[loc.lat, loc.lng]}
-            icon={createCustomIcon(loc.type)}
-          >
-            <Popup className="font-sans">
-              <div className="p-1">
-                <strong>
-                  {loc.type === 'origin' ? 'Start' : loc.type === 'destination' ? 'Destination' : `Stop ${index}`}
-                </strong>
-                <br />
-                <span className="text-gray-500 text-xs">{loc.name}</span>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
+        {locations
+          .filter(loc =>
+            loc && typeof loc.lat === 'number' && typeof loc.lng === 'number' &&
+            !isNaN(loc.lat) && !isNaN(loc.lng) && loc.lat !== 0 && loc.lng !== 0
+          )
+          .map((loc, index) => (
+            <Marker
+              key={loc.id}
+              position={[loc.lat, loc.lng]}
+              icon={createCustomIcon(loc.type)}
+            >
+              <Popup className="font-sans">
+                <div className="p-1">
+                  <strong>
+                    {loc.type === 'origin' ? 'Start' : loc.type === 'destination' ? 'Destination' : `Stop ${index}`}
+                  </strong>
+                  <br />
+                  <span className="text-gray-500 text-xs">{loc.name}</span>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
 
         {/* POI Markers */}
         {pois.map((poi) => {
