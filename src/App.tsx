@@ -433,12 +433,13 @@ function App() {
                           value={settings.numTravelers}
                           onChange={(e) => {
                             const val = e.target.value;
-                            if (val === '') return; // Don't update on empty
-                            const num = parseInt(val);
-                            if (!isNaN(num) && num >= 1 && num <= 20) {
-                              setSettings(prev => ({ ...prev, numTravelers: num }));
+                            // Allow empty or parse the number
+                            const num = val === '' ? 1 : parseInt(val);
+                            if (!isNaN(num)) {
+                              setSettings(prev => ({ ...prev, numTravelers: Math.max(1, Math.min(20, num)) }));
                             }
                           }}
+                          onFocus={(e) => e.target.select()} // Auto-select on focus
                           className="mt-1"
                         />
                       </div>
@@ -454,12 +455,13 @@ function App() {
                           value={settings.numDrivers}
                           onChange={(e) => {
                             const val = e.target.value;
-                            if (val === '') return; // Don't update on empty
-                            const num = parseInt(val);
-                            if (!isNaN(num) && num >= 1) {
-                              setSettings(prev => ({ ...prev, numDrivers: Math.min(num, prev.numTravelers) }));
+                            // Allow empty or parse the number
+                            const num = val === '' ? 1 : parseInt(val);
+                            if (!isNaN(num)) {
+                              setSettings(prev => ({ ...prev, numDrivers: Math.max(1, Math.min(prev.numTravelers, num)) }));
                             }
                           }}
+                          onFocus={(e) => e.target.select()} // Auto-select on focus
                           className="mt-1"
                         />
                       </div>
@@ -486,12 +488,13 @@ function App() {
                         value={settings.maxDriveHours}
                         onChange={(e) => {
                           const val = e.target.value;
-                          if (val === '') return; // Don't update on empty
-                          const num = parseInt(val);
-                          if (!isNaN(num) && num >= 1 && num <= 24) {
-                            setSettings(prev => ({ ...prev, maxDriveHours: num }));
+                          // Allow empty or parse the number
+                          const num = val === '' ? 8 : parseInt(val);
+                          if (!isNaN(num)) {
+                            setSettings(prev => ({ ...prev, maxDriveHours: Math.max(1, Math.min(24, num)) }));
                           }
                         }}
+                        onFocus={(e) => e.target.select()} // Auto-select on focus
                         className="mt-1"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
