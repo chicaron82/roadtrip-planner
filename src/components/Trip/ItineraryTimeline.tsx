@@ -1,5 +1,7 @@
 import { Trophy, Clock, MapPin, Fuel } from 'lucide-react';
 import type { TripSummary, TripSettings } from '../../types';
+import { SmartSuggestions } from './SmartSuggestions';
+import { generatePacingSuggestions } from '../../lib/segment-analyzer';
 
 interface ItineraryTimelineProps {
   summary: TripSummary;
@@ -16,6 +18,13 @@ const formatDate = (date: Date) => {
 
 export function ItineraryTimeline({ summary, settings }: ItineraryTimelineProps) {
   const startTime = new Date(`${settings.departureDate}T${settings.departureTime}`);
+
+  // Generate smart suggestions
+  const suggestions = generatePacingSuggestions(
+    summary.totalDurationMinutes,
+    summary.totalDistanceKm,
+    settings
+  );
   
   // Advanced Simulation Logic for "Smart Itinerary"
   interface SimulationItem {
@@ -70,9 +79,14 @@ export function ItineraryTimeline({ summary, settings }: ItineraryTimelineProps)
   }
 
   return (
-    <div className="space-y-0 pt-2 relative pb-12">
-       {/* Timeline Line (Background) */}
-       <div className="absolute left-[19px] top-4 bottom-0 w-0.5 bg-border -z-10"></div>
+    <div className="space-y-6">
+      {/* Smart Suggestions */}
+      <SmartSuggestions suggestions={suggestions} />
+
+      {/* Timeline */}
+      <div className="space-y-0 pt-2 relative pb-12">
+        {/* Timeline Line (Background) */}
+        <div className="absolute left-[19px] top-4 bottom-0 w-0.5 bg-border -z-10"></div>
 
       {/* Start Node */}
       <div className="flex gap-4 mb-8">
@@ -192,6 +206,7 @@ export function ItineraryTimeline({ summary, settings }: ItineraryTimelineProps)
              </div>
           );
       })}
+      </div>
     </div>
   );
 }

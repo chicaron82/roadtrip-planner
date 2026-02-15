@@ -1,4 +1,5 @@
 import type { RouteSegment, TripSummary, Vehicle, TripSettings } from '../types';
+import { analyzeSegments } from './segment-analyzer';
 
 export function calculateTripCosts(
   uniqueSegments: RouteSegment[],
@@ -42,6 +43,9 @@ export function calculateTripCosts(
       fuelCost: ((segment.distanceKm / 100) * weightedFuelEconomy) * settings.gasPrice
   }));
 
+  // Analyze segments for warnings, timezone crossings, etc.
+  const analyzedSegments = analyzeSegments(segmentsWithCost, settings);
+
   // Apply Round Trip Logic (x2)
   const multiplier = settings.isRoundTrip ? 2 : 1;
 
@@ -53,8 +57,8 @@ export function calculateTripCosts(
     gasStops: gasStops * multiplier, // Rough estimate, might need precise tank logic but x2 is safe
     costPerPerson: costPerPerson * multiplier,
     drivingDays: drivingDays * multiplier,
-    segments: segmentsWithCost, // Segments stay one-way for display, but totals are x2
-    fullGeometry: [] 
+    segments: analyzedSegments, // Segments with intelligence (warnings, timezone, etc.)
+    fullGeometry: []
   };
 }
 
