@@ -95,6 +95,11 @@ function App() {
   const canProceedFromStep1 = useMemo(() => {
     const hasOrigin = locations.some(l => l.type === 'origin' && l.name);
     const hasDest = locations.some(l => l.type === 'destination' && l.name);
+    console.log('Step 1 Validation:', {
+      hasOrigin,
+      hasDest,
+      locations: locations.map(l => ({ name: l.name, type: l.type, hasName: !!l.name }))
+    });
     return hasOrigin && hasDest;
   }, [locations]);
 

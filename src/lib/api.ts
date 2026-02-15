@@ -6,7 +6,7 @@ interface NominatimResult {
   display_name: string;
 }
 
-export async function searchLocations(query: string): Promise<Location[]> {
+export async function searchLocations(query: string): Promise<Partial<Location>[]> {
   try {
     const response = await fetch(
       `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
@@ -26,7 +26,7 @@ export async function searchLocations(query: string): Promise<Location[]> {
       lng: parseFloat(item.lon),
       name: item.display_name.split(',').slice(0, 2).join(','),
       address: item.display_name,
-      type: 'waypoint', // Default type
+      // Don't include 'type' - let the slot's original type be preserved
     }));
   } catch (error) {
     console.error("Search failed:", error);
