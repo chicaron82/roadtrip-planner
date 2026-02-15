@@ -305,6 +305,28 @@ function App() {
     }
   };
 
+  const handleUpdateStopType = (segmentIndex: number, newStopType: import('./types').StopType) => {
+    if (!summary) return;
+
+    // Update the segment's stop type
+    const updatedSegments = summary.segments.map((seg, idx) =>
+      idx === segmentIndex ? { ...seg, stopType: newStopType } : seg
+    );
+
+    // Recalculate arrival times with new stop durations
+    const segmentsWithTimes = calculateArrivalTimes(
+      updatedSegments,
+      settings.departureDate,
+      settings.departureTime
+    );
+
+    // Update summary with recalculated times
+    setSummary({
+      ...summary,
+      segments: segmentsWithTimes
+    });
+  };
+
   const goToPrevStep = () => {
     if (planningStep > 1) {
       setPlanningStep((planningStep - 1) as PlanningStep);
@@ -783,7 +805,12 @@ function App() {
                   )}
 
                   {summary ? (
-                    <ItineraryTimeline summary={summary} settings={settings} vehicle={vehicle} />
+                    <ItineraryTimeline
+                      summary={summary}
+                      settings={settings}
+                      vehicle={vehicle}
+                      onUpdateStopType={handleUpdateStopType}
+                    />
                   ) : (
                     <div className="text-center py-12 text-muted-foreground">
                       <div className="mb-2">🗺️</div>

@@ -1,17 +1,19 @@
 import { useState, useMemo } from 'react';
 import { Trophy, Clock, MapPin, Fuel, Sparkles } from 'lucide-react';
-import type { TripSummary, TripSettings, RouteSegment, Vehicle } from '../../types';
+import type { TripSummary, TripSettings, RouteSegment, Vehicle, StopType } from '../../types';
 import { SmartSuggestions } from './SmartSuggestions';
 import { SuggestedStopCard } from './SuggestedStopCard';
 import { generatePacingSuggestions } from '../../lib/segment-analyzer';
 import { generateSmartStops, createStopConfig, type SuggestedStop } from '../../lib/stop-suggestions';
 import { Button } from '../UI/Button';
 import { formatTime as formatTimeWithTz, STOP_LABELS } from '../../lib/calculations';
+import { StopDurationPicker } from './StopDurationPicker';
 
 interface ItineraryTimelineProps {
   summary: TripSummary;
   settings: TripSettings;
   vehicle?: Vehicle;
+  onUpdateStopType?: (segmentIndex: number, newStopType: StopType) => void;
 }
 
 const formatTime = (date: Date) => {
@@ -22,7 +24,7 @@ const formatDate = (date: Date) => {
   return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
 };
 
-export function ItineraryTimeline({ summary, settings, vehicle }: ItineraryTimelineProps) {
+export function ItineraryTimeline({ summary, settings, vehicle, onUpdateStopType }: ItineraryTimelineProps) {
   const startTime = useMemo(
     () => new Date(`${settings.departureDate}T${settings.departureTime}`),
     [settings.departureDate, settings.departureTime]
@@ -45,9 +47,12 @@ export function ItineraryTimeline({ summary, settings, vehicle }: ItineraryTimel
   const [showSuggestions, setShowSuggestions] = useState(true);
 
   // Handle accept/dismiss
-  const handleAccept = (stopId: string) => {
+  const handleAccept = (stopId: string, customDuration?: number) => {
     setStopSuggestions(prev =>
-      prev.map(s => s.id === stopId ? { ...s, accepted: true } : s)
+      prev.map(s => s.id === stopId
+        ? { ...s, accepted: true, duration: customDuration ?? s.duration }
+        : s
+      )
     );
   };
 
@@ -364,12 +369,20 @@ export function ItineraryTimeline({ summary, settings, vehicle }: ItineraryTimel
                         {isDest ? 'Destination' : 'Waypoint'}
                       </div>
                       <div className="font-bold text-lg leading-tight">{segment?.to.name}</div>
-                      {segment?.stopType && segment.stopType !== 'drive' && segment.stopDuration && (
+                      {segment?.stopType && segment.stopType !== 'drive' && onUpdateStopType && typeof index === 'number' ? (
+                        <div className="mt-2">
+                          <StopDurationPicker
+                            value={segment.stopType}
+                            onChange={(newType) => onUpdateStopType(index, newType)}
+                            compact={true}
+                          />
+                        </div>
+                      ) : segment?.stopType && segment.stopType !== 'drive' && segment.stopDuration ? (
                         <div className="mt-2 inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-xs border border-blue-100 font-medium">
                           <Clock className="h-3 w-3" />
                           {STOP_LABELS[segment.stopType]} • {segment.stopDuration} min
                         </div>
-                      )}
+                      ) : null}
                     </div>
                     <div className="text-right">
                       <div className="text-sm font-mono font-bold bg-muted/80 px-2 py-1 rounded text-foreground">
