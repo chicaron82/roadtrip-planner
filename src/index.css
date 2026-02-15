@@ -80,3 +80,23 @@
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
   font-size: 16px;
 }
+
+/* Animated Route Drawing */
+@keyframes route-pulse {
+  0%, 100% {
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dashoffset: 20;
+  }
+}
+
+.route-drawing {
+  animation: route-pulse 1s ease-in-out infinite;
+  stroke-dasharray: 10 5;
+}
+
+/* Smooth polyline rendering */
+.leaflet-interactive {
+  transition: all 0.3s ease;
+}

@@ -4,6 +4,7 @@ import { formatDistance, formatDuration, formatCurrency } from '../../lib/calcul
 import { getWeatherEmoji } from '../../lib/weather';
 import { Button } from '../UI/Button';
 import { Car, Clock, Fuel, Users, MapPin } from 'lucide-react';
+import { TripOverview } from './TripOverview';
 
 interface TripSummaryProps {
   summary: TripSummary | null;
@@ -28,6 +29,9 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive }: TripS
                  <Button variant="destructive" size="sm" onClick={onStop}>End Trip</Button>
              )}
           </div>
+
+          {/* Trip Overview - Difficulty & Confidence */}
+          <TripOverview summary={summary} settings={settings} />
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3 border border-blue-100 dark:border-blue-800">

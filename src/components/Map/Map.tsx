@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Location, POI, MarkerCategory } from '../../types';
+import { AnimatedPolyline } from './AnimatedPolyline';
 
 // ... (existing imports)
 
@@ -93,18 +94,25 @@ export function Map({ locations, routeGeometry, pois, markerCategories }: MapPro
         
         <MapUpdater locations={locations} routeGeometry={routeGeometry} />
 
-        {/* Route Polylines */}
+        {/* Route Polylines with Animation */}
         {routeGeometry && (
           <>
-             {/* Shadow/Outline */}
-            <Polyline
+             {/* Shadow/Outline (animated) */}
+            <AnimatedPolyline
               positions={routeGeometry}
-              pathOptions={{ color: '#000', weight: 8, opacity: 0.2 }}
+              color="#000"
+              weight={8}
+              opacity={0.2}
+              animationDuration={2000}
+              isShadow={true}
             />
-             {/* Main Line */}
-            <Polyline
+             {/* Main Line (animated) */}
+            <AnimatedPolyline
               positions={routeGeometry}
-              pathOptions={{ color: 'hsl(221.2 83.2% 53.3%)', weight: 5, opacity: 0.9, lineCap: 'round', lineJoin: 'round' }}
+              color="hsl(221.2 83.2% 53.3%)"
+              weight={5}
+              opacity={0.9}
+              animationDuration={2000}
             />
           </>
         )}
