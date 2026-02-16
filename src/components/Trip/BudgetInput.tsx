@@ -1,9 +1,8 @@
-import { useState } from 'react';
-import { DollarSign, Fuel, Hotel, Utensils, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { DollarSign, Fuel, Hotel, Utensils, Sparkles } from 'lucide-react';
 import { Input } from '../UI/Input';
 import { Label } from '../UI/Label';
 import { Button } from '../UI/Button';
-import type { TripBudget, BudgetMode, Currency } from '../../types';
+import type { TripBudget, Currency } from '../../types';
 import { cn } from '../../lib/utils';
 
 interface BudgetInputProps {
@@ -27,10 +26,7 @@ const DEFAULT_RATIOS = {
   misc: 0.05,   // 5% for activities/misc
 };
 
-export function BudgetInput({ budget, onChange, currency, className }: BudgetInputProps) {
-  const [isExpanded, setIsExpanded] = useState(budget.mode === 'plan-to-budget');
-  const currencySymbol = currency === 'CAD' ? 'CA$' : '$';
-
+export function BudgetInput({ budget, onChange, currency: _currency, className }: BudgetInputProps) {
   const updateBudget = (field: keyof Omit<TripBudget, 'mode' | 'total'>, value: number) => {
     const newBudget = { ...budget, [field]: value };
     newBudget.total = newBudget.gas + newBudget.hotel + newBudget.food + newBudget.misc;
@@ -77,13 +73,6 @@ export function BudgetInput({ budget, onChange, currency, className }: BudgetInp
     onChange(newBudget);
   };
 
-  const setMode = (mode: BudgetMode) => {
-    onChange({ ...budget, mode });
-    if (mode === 'plan-to-budget') {
-      setIsExpanded(true);
-    }
-  };
-
   const applyPreset = (preset: keyof typeof BUDGET_PRESETS) => {
     const values = BUDGET_PRESETS[preset];
     const newBudget: TripBudget = {
@@ -96,66 +85,14 @@ export function BudgetInput({ budget, onChange, currency, className }: BudgetInp
 
   return (
     <div className={cn("space-y-4", className)}>
-      {/* Budget Mode Toggle */}
+      {/* Trip Budget Header */}
       <div className="flex items-center gap-2">
+        <DollarSign className="h-5 w-5 text-green-600" />
         <Label className="text-sm font-medium">Trip Budget</Label>
-        <div className="flex-1" />
-        <div className="flex rounded-lg border border-gray-200 overflow-hidden">
-          <button
-            onClick={() => setMode('open')}
-            className={cn(
-              "px-3 py-1.5 text-xs font-medium transition-colors",
-              budget.mode === 'open'
-                ? "bg-blue-500 text-white"
-                : "bg-white text-gray-600 hover:bg-gray-50"
-            )}
-          >
-            Show Costs
-          </button>
-          <button
-            onClick={() => setMode('plan-to-budget')}
-            className={cn(
-              "px-3 py-1.5 text-xs font-medium transition-colors border-l border-gray-200",
-              budget.mode === 'plan-to-budget'
-                ? "bg-blue-500 text-white"
-                : "bg-white text-gray-600 hover:bg-gray-50"
-            )}
-          >
-            Plan to Budget
-          </button>
-        </div>
       </div>
 
-      {/* Budget Summary (collapsed view) */}
-      {budget.mode === 'plan-to-budget' && (
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="w-full flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 hover:border-green-300 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-              <DollarSign className="h-5 w-5 text-green-600" />
-            </div>
-            <div className="text-left">
-              <div className="text-sm font-semibold text-green-800">
-                Total Budget: {currencySymbol}{budget.total.toLocaleString()}
-              </div>
-              <div className="text-xs text-green-600">
-                Gas: ${budget.gas} | Hotel: ${budget.hotel} | Food: ${budget.food}
-              </div>
-            </div>
-          </div>
-          {isExpanded ? (
-            <ChevronUp className="h-5 w-5 text-green-600" />
-          ) : (
-            <ChevronDown className="h-5 w-5 text-green-600" />
-          )}
-        </button>
-      )}
-
-      {/* Expanded Budget Inputs */}
-      {budget.mode === 'plan-to-budget' && isExpanded && (
-        <div className="space-y-4 p-4 rounded-lg bg-gray-50 border border-gray-200 animate-in slide-in-from-top-2">
+      {/* Budget Inputs */}
+      <div className="space-y-4 p-4 rounded-lg bg-gray-50 border border-gray-200">
           {/* Quick Presets */}
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-purple-500" />
@@ -275,14 +212,6 @@ export function BudgetInput({ budget, onChange, currency, className }: BudgetInp
             </div>
           </div>
         </div>
-      )}
-
-      {/* Open Mode Info */}
-      {budget.mode === 'open' && (
-        <div className="text-xs text-gray-500 italic">
-          Trip costs will be calculated and displayed after planning
-        </div>
-      )}
     </div>
   );
 }
