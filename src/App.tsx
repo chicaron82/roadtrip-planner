@@ -27,6 +27,7 @@ import { POISuggestionsPanel } from './components/Trip/POISuggestionsPanel';
 import { JournalModeToggle, StartJournalCTA, type ViewMode } from './components/Trip/JournalModeToggle';
 import { JournalTimeline } from './components/Trip/JournalTimeline';
 import { createJournal, updateJournal, getActiveJournal, setActiveJournalId } from './lib/journal-storage';
+import { AdventureMode, AdventureButton } from './components/Trip/AdventureMode';
 
 const DEFAULT_LOCATIONS: Location[] = [
   { id: 'origin', name: '', lat: 0, lng: 0, type: 'origin' },
@@ -109,6 +110,9 @@ function App() {
   // Journal State
   const [viewMode, setViewMode] = useState<ViewMode>('plan');
   const [activeJournal, setActiveJournal] = useState<TripJournal | null>(null);
+
+  // Adventure Mode State
+  const [showAdventureMode, setShowAdventureMode] = useState(false);
 
   // Load active journal on mount
   useEffect(() => {
@@ -436,6 +440,17 @@ function App() {
     }
   };
 
+  // Adventure Mode handler
+  const handleAdventureSelect = (destination: Location) => {
+    // Update the destination in locations
+    setLocations(prev => prev.map(loc =>
+      loc.type === 'destination'
+        ? { ...loc, ...destination, type: 'destination' as const }
+        : loc
+    ));
+    setShowAdventureMode(false);
+  };
+
   const goToNextStep = () => {
     if (planningStep === 1 && canProceedFromStep1) {
       setCompletedSteps(prev => [...new Set([...prev, 1])]);
@@ -648,6 +663,12 @@ function App() {
                         <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                       </label>
                     </div>
+
+                    {/* Adventure Mode Button */}
+                    <AdventureButton
+                      onClick={() => setShowAdventureMode(true)}
+                      className="mt-4"
+                    />
                   </div>
 
                   <div className="border-t pt-4">
@@ -1265,6 +1286,15 @@ function App() {
           />
         )}
       </div>
+
+      {/* Adventure Mode Modal */}
+      {showAdventureMode && (
+        <AdventureMode
+          origin={locations.find(l => l.type === 'origin') || null}
+          onSelectDestination={handleAdventureSelect}
+          onClose={() => setShowAdventureMode(false)}
+        />
+      )}
     </div>
   );
 }
