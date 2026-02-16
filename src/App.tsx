@@ -27,7 +27,7 @@ import { POISuggestionsPanel } from './components/Trip/POISuggestionsPanel';
 import { JournalModeToggle, StartJournalCTA, type ViewMode } from './components/Trip/JournalModeToggle';
 import { JournalTimeline } from './components/Trip/JournalTimeline';
 import { createJournal, updateJournal, getActiveJournal, setActiveJournalId } from './lib/journal-storage';
-import { AdventureMode, AdventureButton } from './components/Trip/AdventureMode';
+import { AdventureMode, AdventureButton, type AdventureSelection } from './components/Trip/AdventureMode';
 
 const DEFAULT_LOCATIONS: Location[] = [
   { id: 'origin', name: '', lat: 0, lng: 0, type: 'origin' },
@@ -441,13 +441,22 @@ function App() {
   };
 
   // Adventure Mode handler
-  const handleAdventureSelect = (destination: Location) => {
+  const handleAdventureSelect = (selection: AdventureSelection) => {
     // Update the destination in locations
     setLocations(prev => prev.map(loc =>
       loc.type === 'destination'
-        ? { ...loc, ...destination, type: 'destination' as const }
+        ? { ...loc, ...selection.destination, type: 'destination' as const }
         : loc
     ));
+
+    // Carry over settings from Adventure Mode
+    setSettings(prev => ({
+      ...prev,
+      numTravelers: selection.travelers,
+      numDrivers: Math.min(selection.travelers, prev.numDrivers), // Drivers can't exceed travelers
+      isRoundTrip: selection.isRoundTrip,
+    }));
+
     setShowAdventureMode(false);
   };
 

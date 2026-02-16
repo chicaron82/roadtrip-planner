@@ -20,9 +20,18 @@ import { Input } from '../UI/Input';
 import { Label } from '../UI/Label';
 import { cn } from '../../lib/utils';
 
+// Settings to carry over when selecting a destination
+export interface AdventureSelection {
+  destination: Location;
+  travelers: number;
+  days: number;
+  isRoundTrip: boolean;
+  accommodationType: 'budget' | 'moderate' | 'comfort';
+}
+
 interface AdventureModeProps {
   origin: Location | null;
-  onSelectDestination: (destination: Location) => void;
+  onSelectDestination: (selection: AdventureSelection) => void;
   onClose: () => void;
   className?: string;
 }
@@ -88,7 +97,13 @@ export function AdventureMode({
   };
 
   const handleSelectDestination = (dest: AdventureDestination) => {
-    onSelectDestination(dest.location);
+    onSelectDestination({
+      destination: dest.location,
+      travelers,
+      days,
+      isRoundTrip,
+      accommodationType,
+    });
     onClose();
   };
 
