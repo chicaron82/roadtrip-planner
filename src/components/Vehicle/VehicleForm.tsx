@@ -1,18 +1,27 @@
+/**
+ * VehicleForm — Vehicle configuration orchestrator.
+ *
+ * Delegates garage management to VehicleGarage and quick presets to
+ * VehiclePresetCards. Owns make/model selection, hybrid/EV toggles,
+ * fuel economy inputs, and the auto-populate effect.
+ */
+
 import { useState, useEffect } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { Vehicle, UnitSystem } from '../../types';
 import { Input } from '../UI/Input';
 import { Label } from '../UI/Label';
 import { Select } from '../UI/Select';
-import { Button } from '../UI/Button';
 import { Switch } from '../UI/Switch';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../UI/Dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../UI/Tooltip';
 import { VEHICLE_DB, COMMON_MAKES } from '../../lib/vehicles';
-import { getGarage, saveToGarage, removeFromGarage, setDefaultVehicleId, getDefaultVehicle, type SavedVehicle } from '../../lib/storage';
+import { getDefaultVehicle, type SavedVehicle } from '../../lib/storage';
 import { convertL100kmToMpg, convertLitresToGallons } from '../../lib/calculations';
-import { X, Zap, Save, Trash2, Car, Star, Gauge, Fuel, Battery } from 'lucide-react';
+import { X, Zap, Gauge, Fuel, Battery } from 'lucide-react';
 import { cn } from '../../lib/utils';
+
+import { VehicleGarage } from './VehicleGarage';
+import { VehiclePresetCards } from './VehiclePresetCards';
 
 interface VehicleFormProps {
   vehicle: Vehicle;
@@ -21,39 +30,6 @@ interface VehicleFormProps {
   setUnits: Dispatch<SetStateAction<UnitSystem>>;
 }
 
-const PRESET_VEHICLES: (Vehicle & { emoji: string; description: string })[] = [
-  {
-    year: "2024",
-    make: "Toyota",
-    model: "Camry",
-    fuelEconomyCity: 8.2,
-    fuelEconomyHwy: 6.0,
-    tankSize: 60,
-    emoji: "🚗",
-    description: "Reliable sedan"
-  },
-  {
-    year: "2024",
-    make: "Ford",
-    model: "F-150",
-    fuelEconomyCity: 13.5,
-    fuelEconomyHwy: 10.2,
-    tankSize: 87,
-    emoji: "🛻",
-    description: "Powerful truck"
-  },
-  {
-    year: "2024",
-    make: "Tesla",
-    model: "Model 3",
-    fuelEconomyCity: 1.6,
-    fuelEconomyHwy: 1.4,
-    tankSize: 57.5,
-    emoji: "⚡",
-    description: "Electric sedan"
-  },
-];
-
 export function VehicleForm({ vehicle, setVehicle, units, setUnits }: VehicleFormProps) {
   const [isCustomMake, setIsCustomMake] = useState(false);
   const [isCustomModel, setIsCustomModel] = useState(false);
@@ -61,22 +37,12 @@ export function VehicleForm({ vehicle, setVehicle, units, setUnits }: VehicleFor
   const [isEV, setIsEV] = useState(false);
   const [justAutoPopulated, setJustAutoPopulated] = useState(false);
 
-  // Garage State
-  const [garage, setGarage] = useState<SavedVehicle[]>(() => getGarage());
-  const [garageId, setGarageId] = useState<string>("");
-
-  // Dialog State
-  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [vehicleName, setVehicleName] = useState("");
-
   // Load default vehicle on mount
   useEffect(() => {
     const defaultVehicle = getDefaultVehicle();
     if (defaultVehicle) {
       const { id, name, lastUsed, isDefault, ...vehicleData } = defaultVehicle;
       setVehicle(vehicleData);
-      setGarageId(id);
       setIsCustomMake(COMMON_MAKES.indexOf(defaultVehicle.make) === -1);
       setIsCustomModel(!VEHICLE_DB[defaultVehicle.make]?.[defaultVehicle.model]);
     }
@@ -123,105 +89,15 @@ export function VehicleForm({ vehicle, setVehicle, units, setUnits }: VehicleFor
     }
   }, [vehicle.make, vehicle.model, isHybrid, isCustomMake, isCustomModel, setVehicle, units]);
 
-  const handlePresetChange = (preset: typeof PRESET_VEHICLES[0]) => {
-    let updatedPreset = { ...preset };
-
-    // Convert to imperial if needed
-    if (units === 'imperial') {
-      updatedPreset.fuelEconomyCity = Number(convertL100kmToMpg(preset.fuelEconomyCity).toFixed(1));
-      updatedPreset.fuelEconomyHwy = Number(convertL100kmToMpg(preset.fuelEconomyHwy).toFixed(1));
-      if (preset.tankSize > 0) {
-        updatedPreset.tankSize = Number(convertLitresToGallons(preset.tankSize).toFixed(1));
-      }
-    }
-
-    setVehicle({
-      year: updatedPreset.year,
-      make: updatedPreset.make,
-      model: updatedPreset.model,
-      fuelEconomyCity: updatedPreset.fuelEconomyCity,
-      fuelEconomyHwy: updatedPreset.fuelEconomyHwy,
-      tankSize: updatedPreset.tankSize
-    });
-    setIsCustomMake(false);
-    setIsCustomModel(false);
-    setIsHybrid(false);
-    setIsEV(preset.make === "Tesla");
-    setGarageId("");
-  };
-
-  const handleGarageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const id = e.target.value;
-      setGarageId(id);
-      const saved = garage.find(v => v.id === id);
-      if (saved) {
-          // Remove id/name from the vehicle state to avoid pollution
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const { id: _id, name: _name, lastUsed: _lastUsed, isDefault: _isDefault, ...vehicleData } = saved;
-          setVehicle(vehicleData);
-          setIsCustomMake(COMMON_MAKES.indexOf(saved.make) === -1);
-          setIsCustomModel(!VEHICLE_DB[saved.make]?.[saved.model]);
-      }
-  };
-
-  const handleSaveToGarage = () => {
-      setVehicleName(`${vehicle.year} ${vehicle.make} ${vehicle.model}`);
-      setSaveDialogOpen(true);
-  };
-
-  const confirmSaveToGarage = () => {
-      if (vehicleName.trim()) {
-          const newSaved: SavedVehicle = {
-              ...vehicle,
-              id: crypto.randomUUID(),
-              name: vehicleName,
-              lastUsed: new Date().toISOString()
-          };
-          const updatedGarage = saveToGarage(newSaved);
-          setGarage(updatedGarage);
-          setGarageId(newSaved.id);
-          setSaveDialogOpen(false);
-          setVehicleName("");
-      }
-  };
-
-  const handleDeleteFromGarage = () => {
-      if (garageId) {
-          setDeleteDialogOpen(true);
-      }
-  };
-
-  const confirmDeleteFromGarage = () => {
-      if (garageId) {
-          const updated = removeFromGarage(garageId);
-          setGarage(updated);
-          setGarageId("");
-          setDeleteDialogOpen(false);
-      }
-  };
-
-  const handleSetDefault = (id: string) => {
-    setDefaultVehicleId(id);
-    setGarage(getGarage()); // Refresh to show updated default status
-  };
-
   const handleChange = (field: keyof Vehicle, value: string | number) => {
-    // Validate year input
     if (field === 'year' && typeof value === 'string') {
       const yearNum = parseInt(value);
       const currentYear = new Date().getFullYear();
-      if (value !== '' && (isNaN(yearNum) || yearNum < 1900 || yearNum > currentYear + 2)) {
-        return; // Don't update if invalid
-      }
+      if (value !== '' && (isNaN(yearNum) || yearNum < 1900 || yearNum > currentYear + 2)) return;
     }
-
-    // Validate numeric inputs
     if ((field === 'fuelEconomyCity' || field === 'fuelEconomyHwy' || field === 'tankSize') && typeof value === 'number') {
-      if (value < 0 || value > 1000) {
-        return; // Don't update if out of range
-      }
+      if (value < 0 || value > 1000) return;
     }
-
     setVehicle({ ...vehicle, [field]: value });
   };
 
@@ -251,30 +127,22 @@ export function VehicleForm({ vehicle, setVehicle, units, setUnits }: VehicleFor
     }
   };
 
-  const formatLastUsed = (isoDate: string) => {
-    const date = new Date(isoDate);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const handleGarageSelect = (_vehicle: Vehicle, saved: SavedVehicle) => {
+    setVehicle(_vehicle);
+    setIsCustomMake(COMMON_MAKES.indexOf(saved.make) === -1);
+    setIsCustomModel(!VEHICLE_DB[saved.make]?.[saved.model]);
+  };
 
-    if (diffDays === 0) return "Today";
-    if (diffDays === 1) return "Yesterday";
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-    return `${Math.floor(diffDays / 30)} months ago`;
+  const handlePresetSelect = (presetVehicle: Vehicle, presetIsEV: boolean) => {
+    setVehicle(presetVehicle);
+    setIsCustomMake(false);
+    setIsCustomModel(false);
+    setIsHybrid(false);
+    setIsEV(presetIsEV);
   };
 
   // Determine available models based on selected make
   const availableModels = VEHICLE_DB[vehicle.make] ? Object.keys(VEHICLE_DB[vehicle.make]) : [];
-
-  // Sort garage: default first, then by last used
-  const sortedGarage = [...garage].sort((a, b) => {
-    if (a.isDefault && !b.isDefault) return -1;
-    if (!a.isDefault && b.isDefault) return 1;
-    const aTime = a.lastUsed ? new Date(a.lastUsed).getTime() : 0;
-    const bTime = b.lastUsed ? new Date(b.lastUsed).getTime() : 0;
-    return bTime - aTime;
-  });
 
   return (
     <TooltipProvider>
@@ -299,71 +167,11 @@ export function VehicleForm({ vehicle, setVehicle, units, setUnits }: VehicleFor
           </div>
         </div>
 
-        {/* Garage Section */}
-        <div className="p-3 bg-muted/30 rounded-lg border border-dashed border-primary/20">
-          <label className="text-xs font-semibold uppercase tracking-wider text-primary mb-2 flex items-center gap-1">
-              <Car className="h-3 w-3" /> The Garage
-          </label>
-          <div className="flex gap-2">
-              <Select
-                value={garageId}
-                onChange={handleGarageChange}
-                className="flex-1 bg-background"
-              >
-                <option value="">-- Load from Garage --</option>
-                {sortedGarage.map(v => (
-                    <option key={v.id} value={v.id}>
-                      {v.isDefault ? '⭐ ' : ''}{v.name} {v.lastUsed && `• ${formatLastUsed(v.lastUsed)}`}
-                    </option>
-                ))}
-              </Select>
-              <Button variant="outline" size="icon" onClick={handleSaveToGarage} title="Save Current to Garage">
-                  <Save className="h-4 w-4" />
-              </Button>
-               {garageId && (
-                <>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleSetDefault(garageId)}
-                        className={cn(
-                          "text-yellow-500 hover:text-yellow-600 hover:bg-yellow-50",
-                          garage.find(v => v.id === garageId)?.isDefault && "bg-yellow-100"
-                        )}
-                      >
-                        <Star className={cn("h-4 w-4", garage.find(v => v.id === garageId)?.isDefault && "fill-current")} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Set as default vehicle</TooltipContent>
-                  </Tooltip>
-                  <Button variant="ghost" size="icon" onClick={handleDeleteFromGarage} className="text-destructive hover:text-destructive hover:bg-destructive/10">
-                      <Trash2 className="h-4 w-4" />
-                  </Button>
-                </>
-            )}
-          </div>
-        </div>
+        {/* Garage */}
+        <VehicleGarage vehicle={vehicle} onSelectVehicle={handleGarageSelect} />
 
-        {/* Quick Select - Visual Cards */}
-        <div>
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Quick Select</Label>
-          <div className="grid grid-cols-3 gap-2">
-            {PRESET_VEHICLES.map((preset, i) => (
-              <button
-                key={i}
-                onClick={() => handlePresetChange(preset)}
-                className="group relative p-3 rounded-lg border-2 border-muted hover:border-primary transition-all hover:shadow-md bg-background"
-              >
-                <div className="text-2xl mb-1">{preset.emoji}</div>
-                <div className="text-xs font-medium">{preset.make}</div>
-                <div className="text-[10px] text-muted-foreground truncate">{preset.model}</div>
-                <div className="text-[9px] text-muted-foreground mt-1">{preset.description}</div>
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* Quick Select Presets */}
+        <VehiclePresetCards units={units} onSelect={handlePresetSelect} />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
           <div>
@@ -574,61 +382,6 @@ export function VehicleForm({ vehicle, setVehicle, units, setUnits }: VehicleFor
             />
           </div>
 
-        {/* Save Vehicle Dialog */}
-        <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Save to Garage</DialogTitle>
-              <DialogDescription>
-                Give this vehicle a memorable name to save it to your garage.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
-              <Label htmlFor="vehicle-name" className="text-sm">Vehicle Name</Label>
-              <Input
-                id="vehicle-name"
-                value={vehicleName}
-                onChange={(e) => setVehicleName(e.target.value)}
-                placeholder="e.g., My Truck, Family Van"
-                className="mt-2"
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    confirmSaveToGarage();
-                  }
-                }}
-              />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={confirmSaveToGarage} disabled={!vehicleName.trim()}>
-                Save
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Delete Vehicle Dialog */}
-        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Remove from Garage?</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to remove this vehicle from your garage? This action cannot be undone.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button variant="destructive" onClick={confirmDeleteFromGarage}>
-                Remove
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </TooltipProvider>
   );

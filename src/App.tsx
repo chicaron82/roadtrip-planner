@@ -10,6 +10,7 @@ import { getHistory } from './lib/storage';
 import { parseStateFromURL } from './lib/url';
 import { Spinner } from './components/UI/Spinner';
 import { AdventureMode, type AdventureSelection } from './components/Trip/AdventureMode';
+import { buildAdventureBudget } from './lib/adventure-service';
 import { Step1Content, Step2Content, Step3Content } from './components/Steps';
 
 // Import contexts and hooks
@@ -243,41 +244,12 @@ function AppContent() {
       loc.type === 'destination' ? { ...loc, ...selection.destination, type: 'destination' as const } : loc
     ));
 
-    type BudgetProfile = 'balanced' | 'foodie' | 'scenic' | 'backpacker' | 'comfort' | 'custom';
-    const preferenceToProfile: Record<string, BudgetProfile> = {
-      foodie: 'foodie', scenic: 'scenic', budget: 'backpacker', family: 'comfort',
-    };
-
-    let budgetProfile: BudgetProfile = 'balanced';
-    if (selection.preferences.length > 0) {
-      budgetProfile = preferenceToProfile[selection.preferences[0]] || 'balanced';
-    } else if (selection.accommodationType === 'budget') {
-      budgetProfile = 'backpacker';
-    } else if (selection.accommodationType === 'comfort') {
-      budgetProfile = 'comfort';
-    }
-
-    const estimatedGasCost = Math.round(selection.estimatedDistanceKm * 0.12);
-    const remainingBudget = selection.budget - estimatedGasCost;
-    const discretionaryWeights: Record<BudgetProfile, { hotel: number; food: number; misc: number }> = {
-      balanced: { hotel: 45, food: 40, misc: 15 },
-      foodie: { hotel: 25, food: 60, misc: 15 },
-      scenic: { hotel: 50, food: 30, misc: 20 },
-      backpacker: { hotel: 35, food: 40, misc: 25 },
-      comfort: { hotel: 55, food: 35, misc: 10 },
-      custom: { hotel: 45, food: 40, misc: 15 },
-    };
-    const discWeights = discretionaryWeights[budgetProfile];
-    const hotelAmount = Math.round(remainingBudget * (discWeights.hotel / 100));
-    const foodAmount = Math.round(remainingBudget * (discWeights.food / 100));
-    const miscAmount = Math.round(remainingBudget * (discWeights.misc / 100));
-    const totalBudget = selection.budget;
-    const actualWeights = {
-      gas: Math.round((estimatedGasCost / totalBudget) * 100),
-      hotel: Math.round((hotelAmount / totalBudget) * 100),
-      food: Math.round((foodAmount / totalBudget) * 100),
-      misc: Math.round((miscAmount / totalBudget) * 100),
-    };
+    const adventureBudget = buildAdventureBudget(
+      selection.budget,
+      selection.estimatedDistanceKm,
+      selection.preferences,
+      selection.accommodationType,
+    );
 
     setSettings(prev => ({
       ...prev,
@@ -289,14 +261,14 @@ function AppContent() {
       departureTime: selection.departureTime,
       budget: {
         ...prev.budget,
-        profile: budgetProfile,
-        weights: actualWeights,
+        profile: adventureBudget.profile,
+        weights: adventureBudget.weights,
         allocation: 'fixed' as const,
-        total: totalBudget,
-        gas: estimatedGasCost,
-        hotel: hotelAmount,
-        food: foodAmount,
-        misc: miscAmount,
+        total: adventureBudget.total,
+        gas: adventureBudget.gas,
+        hotel: adventureBudget.hotel,
+        food: adventureBudget.food,
+        misc: adventureBudget.misc,
       },
     }));
 
