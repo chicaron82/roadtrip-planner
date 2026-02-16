@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
-import { Trophy, Clock, MapPin, Fuel, Sparkles } from 'lucide-react';
-import type { TripSummary, TripSettings, RouteSegment, Vehicle, StopType, TripDay } from '../../types';
+import { Trophy, Clock, MapPin, Fuel, Sparkles, Edit3 } from 'lucide-react';
+import type { TripSummary, TripSettings, RouteSegment, Vehicle, StopType, TripDay, DayType, Activity, DayOption } from '../../types';
 import { SmartSuggestions } from './SmartSuggestions';
 import { SuggestedStopCard } from './SuggestedStopCard';
 import { generatePacingSuggestions } from '../../lib/segment-analyzer';
@@ -10,6 +10,8 @@ import { formatTime as formatTimeWithTz, STOP_LABELS } from '../../lib/calculati
 import { StopDurationPicker } from './StopDurationPicker';
 import { DayHeader } from './DayHeader';
 import { DailyBudgetCard } from './DailyBudgetCard';
+import { ActivityBadge, ActivityEditor } from './ActivityEditor';
+import { FreeDayCard, FlexibleDayCard } from './FlexibleDay';
 
 interface ItineraryTimelineProps {
   summary: TripSummary;
@@ -17,6 +19,13 @@ interface ItineraryTimelineProps {
   vehicle?: Vehicle;
   days?: TripDay[];
   onUpdateStopType?: (segmentIndex: number, newStopType: StopType) => void;
+  onUpdateActivity?: (segmentIndex: number, activity: Activity | undefined) => void;
+  onUpdateDayType?: (dayNumber: number, dayType: DayType) => void;
+  onUpdateDayNotes?: (dayNumber: number, notes: string) => void;
+  onUpdateDayTitle?: (dayNumber: number, title: string) => void;
+  onAddDayOption?: (dayNumber: number, option: DayOption) => void;
+  onRemoveDayOption?: (dayNumber: number, optionIndex: number) => void;
+  onSelectDayOption?: (dayNumber: number, optionIndex: number) => void;
 }
 
 const formatTime = (date: Date) => {
@@ -27,11 +36,31 @@ const formatDate = (date: Date) => {
   return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
 };
 
-export function ItineraryTimeline({ summary, settings, vehicle, days, onUpdateStopType }: ItineraryTimelineProps) {
+export function ItineraryTimeline({
+  summary,
+  settings,
+  vehicle,
+  days,
+  onUpdateStopType,
+  onUpdateActivity,
+  onUpdateDayType,
+  onUpdateDayNotes,
+  onUpdateDayTitle,
+  onAddDayOption,
+  onRemoveDayOption,
+  onSelectDayOption,
+}: ItineraryTimelineProps) {
   const startTime = useMemo(
     () => new Date(`${settings.departureDate}T${settings.departureTime}`),
     [settings.departureDate, settings.departureTime]
   );
+
+  // Activity editor state
+  const [editingActivity, setEditingActivity] = useState<{
+    segmentIndex: number;
+    activity?: Activity;
+    locationName?: string;
+  } | null>(null);
 
   // Generate smart suggestions
   const pacingSuggestions = generatePacingSuggestions(
@@ -216,10 +245,63 @@ export function ItineraryTimeline({ summary, settings, vehicle, days, onUpdateSt
 
       {/* Multi-Day Headers (when days are available) */}
       {days && days.length > 0 && (
-        <div className="mb-6">
-          {days.map((day, idx) => (
-            <DayHeader key={day.dayNumber} day={day} isFirst={idx === 0} />
-          ))}
+        <div className="mb-6 space-y-4">
+          {days.map((day, idx) => {
+            const dayType = day.dayType || 'planned';
+
+            // Render different components based on day type
+            if (dayType === 'free' && onUpdateDayNotes && onUpdateDayTitle) {
+              return (
+                <div key={day.dayNumber}>
+                  <DayHeader
+                    day={day}
+                    isFirst={idx === 0}
+                    editable={!!onUpdateDayType}
+                    onDayTypeChange={onUpdateDayType}
+                    onTitleChange={onUpdateDayTitle}
+                  />
+                  <FreeDayCard
+                    day={day}
+                    onNotesChange={(notes) => onUpdateDayNotes(day.dayNumber, notes)}
+                    onTitleChange={(title) => onUpdateDayTitle(day.dayNumber, title)}
+                  />
+                </div>
+              );
+            }
+
+            if (dayType === 'flexible' && onAddDayOption && onRemoveDayOption && onSelectDayOption && onUpdateDayNotes) {
+              return (
+                <div key={day.dayNumber}>
+                  <DayHeader
+                    day={day}
+                    isFirst={idx === 0}
+                    editable={!!onUpdateDayType}
+                    onDayTypeChange={onUpdateDayType}
+                    onTitleChange={onUpdateDayTitle}
+                  />
+                  <FlexibleDayCard
+                    day={day}
+                    onSelectOption={(optionIndex) => onSelectDayOption(day.dayNumber, optionIndex)}
+                    onAddOption={(option) => onAddDayOption(day.dayNumber, option)}
+                    onRemoveOption={(optionIndex) => onRemoveDayOption(day.dayNumber, optionIndex)}
+                    onNotesChange={(notes) => onUpdateDayNotes(day.dayNumber, notes)}
+                  />
+                </div>
+              );
+            }
+
+            // Default: planned day
+            return (
+              <DayHeader
+                key={day.dayNumber}
+                day={day}
+                isFirst={idx === 0}
+                editable={!!onUpdateDayType}
+                onDayTypeChange={onUpdateDayType}
+                onTitleChange={onUpdateDayTitle}
+              />
+            );
+          })}
         </div>
       )}
 
@@ -395,6 +477,32 @@ export function ItineraryTimeline({ summary, settings, vehicle, days, onUpdateSt
                           {STOP_LABELS[segment.stopType]} • {segment.stopDuration} min
                         </div>
                       ) : null}
+
+                      {/* Activity Badge or Add Button */}
+                      {segment?.activity ? (
+                        <div className="mt-2">
+                          <ActivityBadge
+                            activity={segment.activity}
+                            onClick={() => typeof index === 'number' && setEditingActivity({
+                              segmentIndex: index,
+                              activity: segment.activity,
+                              locationName: segment.to.name,
+                            })}
+                          />
+                        </div>
+                      ) : onUpdateActivity && typeof index === 'number' && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingActivity({
+                            segmentIndex: index,
+                            locationName: segment?.to.name,
+                          })}
+                          className="mt-2 inline-flex items-center gap-1 text-xs text-gray-500 hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors"
+                        >
+                          <Edit3 className="h-3 w-3" />
+                          Add Activity
+                        </button>
+                      )}
                     </div>
                     <div className="text-right">
                       <div className="text-sm font-mono font-bold bg-muted/80 px-2 py-1 rounded text-foreground">
@@ -444,6 +552,24 @@ export function ItineraryTimeline({ summary, settings, vehicle, days, onUpdateSt
             />
           ))}
         </div>
+      )}
+
+      {/* Activity Editor Dialog */}
+      {editingActivity && onUpdateActivity && (
+        <ActivityEditor
+          open={true}
+          onOpenChange={(open) => !open && setEditingActivity(null)}
+          activity={editingActivity.activity}
+          locationName={editingActivity.locationName}
+          onSave={(activity) => {
+            onUpdateActivity(editingActivity.segmentIndex, activity);
+            setEditingActivity(null);
+          }}
+          onRemove={editingActivity.activity ? () => {
+            onUpdateActivity(editingActivity.segmentIndex, undefined);
+            setEditingActivity(null);
+          } : undefined}
+        />
       )}
     </div>
   );

@@ -1,14 +1,29 @@
-import { Calendar, Clock, MapPin, Route } from 'lucide-react';
-import type { TripDay } from '../../types';
+import { useState } from 'react';
+import { Calendar, Clock, MapPin, Route, Edit3 } from 'lucide-react';
+import type { TripDay, DayType } from '../../types';
 import { cn } from '../../lib/utils';
+import { DayTypeToggle, DayTypeBadge } from './FlexibleDay';
+import { Input } from '../UI/Input';
 
 interface DayHeaderProps {
   day: TripDay;
   isFirst?: boolean;
   className?: string;
+  editable?: boolean;
+  onDayTypeChange?: (dayNumber: number, type: DayType) => void;
+  onTitleChange?: (dayNumber: number, title: string) => void;
 }
 
-export function DayHeader({ day, isFirst = false, className }: DayHeaderProps) {
+export function DayHeader({
+  day,
+  isFirst = false,
+  className,
+  editable = false,
+  onDayTypeChange,
+  onTitleChange,
+}: DayHeaderProps) {
+  const dayType = day.dayType || 'planned';
+  const [editingTitle, setEditingTitle] = useState(false);
   const formatDuration = (minutes: number): string => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -44,16 +59,56 @@ export function DayHeader({ day, isFirst = false, className }: DayHeaderProps) {
 
         {/* Day Info */}
         <div className="flex-1 min-w-0 pt-1">
-          {/* Date */}
+          {/* Date & Day Type */}
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
             <Calendar className="h-3.5 w-3.5" />
             <span>{day.dateFormatted}</span>
+            {dayType !== 'planned' && <DayTypeBadge dayType={dayType} />}
           </div>
 
-          {/* Title & Route */}
-          {day.title && (
-            <h3 className="text-lg font-bold text-gray-900 mb-0.5">{day.title}</h3>
+          {/* Day Type Toggle (when editable) */}
+          {editable && onDayTypeChange && (
+            <DayTypeToggle
+              dayType={dayType}
+              onChange={(type) => onDayTypeChange(day.dayNumber, type)}
+              className="mb-2 max-w-xs"
+            />
           )}
+
+          {/* Title & Route */}
+          {editable && onTitleChange && editingTitle ? (
+            <Input
+              value={day.title || ''}
+              onChange={(e) => onTitleChange(day.dayNumber, e.target.value)}
+              onBlur={() => setEditingTitle(false)}
+              onKeyDown={(e) => e.key === 'Enter' && setEditingTitle(false)}
+              placeholder="Day title..."
+              className="text-lg font-bold mb-0.5 max-w-xs"
+              autoFocus
+            />
+          ) : day.title ? (
+            <h3
+              className={cn(
+                "text-lg font-bold text-gray-900 mb-0.5",
+                editable && onTitleChange && "cursor-pointer hover:text-indigo-600 inline-flex items-center gap-1 group"
+              )}
+              onClick={() => editable && onTitleChange && setEditingTitle(true)}
+            >
+              {day.title}
+              {editable && onTitleChange && (
+                <Edit3 className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity" />
+              )}
+            </h3>
+          ) : editable && onTitleChange ? (
+            <button
+              type="button"
+              onClick={() => setEditingTitle(true)}
+              className="text-sm text-gray-400 hover:text-indigo-600 mb-0.5 flex items-center gap-1"
+            >
+              <Edit3 className="h-3 w-3" />
+              Add title
+            </button>
+          ) : null}
           <div className="flex items-center gap-1.5 text-gray-700">
             <Route className="h-4 w-4 text-indigo-500" />
             <span className="font-medium">{day.route}</span>

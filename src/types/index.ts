@@ -121,6 +121,37 @@ export interface WeatherData {
 
 export type StopType = 'drive' | 'fuel' | 'break' | 'quickMeal' | 'meal' | 'overnight';
 
+// Activity categories for planned stops
+export type ActivityCategory = 'photo' | 'meal' | 'attraction' | 'museum' | 'shopping' | 'nature' | 'rest' | 'fuel' | 'other';
+
+// Activity details for a stop (optional enhancement to stops)
+export interface Activity {
+  name: string;                    // "Visit Covent Garden Market"
+  description?: string;            // "Great for lunch, try the peameal bacon"
+  category: ActivityCategory;      // 'meal', 'attraction', etc.
+  plannedStartTime?: string;       // "10:30" (HH:mm format)
+  plannedEndTime?: string;         // "12:00" (HH:mm format)
+  durationMinutes?: number;        // 90 (can differ from time window)
+  cost?: number;                   // Optional activity cost
+  notes?: string;                  // "Cash only", "Closed Mondays"
+  url?: string;                    // Website or booking link
+  isRequired?: boolean;            // Must-do vs optional
+}
+
+// Day types for flexible planning
+export type DayType = 'planned' | 'flexible' | 'free';
+
+// Alternative option for a flexible day
+export interface DayOption {
+  id: string;
+  name: string;                    // "Option A: Gros Morne"
+  description?: string;            // "Full day hiking in the national park"
+  segments: RouteSegment[];        // Route segments for this option
+  estimatedCost?: number;          // Total cost for this option
+  estimatedDuration?: number;      // Total time in minutes
+  highlights?: string[];           // ["Tablelands", "Western Brook Pond"]
+}
+
 export interface RouteSegment {
   from: Location;
   to: Location;
@@ -139,6 +170,9 @@ export interface RouteSegment {
   arrivalTime?: string; // ISO 8601 datetime string
   stopDuration?: number; // Stop duration at destination in minutes
   stopType?: StopType; // Type of stop at destination
+
+  // Activity planning (optional - for bougie planners)
+  activity?: Activity; // Planned activity at this stop
 }
 
 export type WarningType = 'long_drive' | 'weather' | 'border_crossing' | 'fuel_stop' | 'timezone';
@@ -204,6 +238,12 @@ export interface TripDay {
     departureTime: string; // ISO 8601
     arrivalTime: string; // ISO 8601
   };
+
+  // Flexible day planning
+  dayType?: DayType;              // 'planned' | 'flexible' | 'free'
+  options?: DayOption[];          // Alternative plans for flexible days
+  selectedOption?: number;        // Index of currently selected option
+  notes?: string;                 // "Depends on weather" or "No plans yet"
 }
 
 // Cost breakdown by category
