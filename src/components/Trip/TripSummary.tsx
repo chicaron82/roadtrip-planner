@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { TripSummary, TripSettings } from '../../types';
 import { Card, CardContent } from '../UI/Card';
 import { formatDistance, formatDuration, formatCurrency } from '../../lib/calculations';
@@ -8,6 +8,8 @@ import { Car, Clock, Fuel, Users, MapPin, ChevronDown, ChevronUp } from 'lucide-
 import { TripOverview } from './TripOverview';
 import { ItineraryModal } from './ItineraryModal';
 import { ItineraryTimeline } from './ItineraryTimeline';
+import { FeasibilityBanner } from './FeasibilityBanner';
+import { analyzeFeasibility } from '../../lib/feasibility';
 
 interface TripSummaryProps {
   summary: TripSummary | null;
@@ -21,6 +23,11 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
   const [itineraryModalOpen, setItineraryModalOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'itinerary'>('overview');
+
+  const feasibility = useMemo(
+    () => summary ? analyzeFeasibility(summary, settings) : null,
+    [summary, settings],
+  );
 
   if (!summary) return null;
 
@@ -64,6 +71,11 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
 
           {/* Trip Overview - Difficulty & Confidence */}
           {!isCollapsed && <TripOverview summary={summary} settings={settings} />}
+
+          {/* Feasibility Health Check */}
+          {!isCollapsed && feasibility && (
+            <FeasibilityBanner result={feasibility} className="mb-4" defaultCollapsed />
+          )}
 
           {/* Tab Navigation */}
           {!isCollapsed && (
