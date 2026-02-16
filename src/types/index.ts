@@ -23,6 +23,7 @@ export type Currency = 'CAD' | 'USD';
 export type BudgetMode = 'open' | 'plan-to-budget';
 export type RoutePreference = 'fastest' | 'scenic' | 'economical';
 export type StopFrequency = 'conservative' | 'balanced' | 'aggressive';
+export type TripPreference = 'scenic' | 'family' | 'budget' | 'foodie';
 
 // Enhanced budget system with per-category tracking
 export interface TripBudget {
@@ -55,6 +56,7 @@ export interface TripSettings {
   scenicMode: boolean;
   routePreference: RoutePreference;
   stopFrequency: StopFrequency;
+  tripPreferences: TripPreference[]; // User's trip style preferences
 }
 
 export interface WeatherData {

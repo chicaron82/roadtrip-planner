@@ -57,6 +57,7 @@ const DEFAULT_SETTINGS: TripSettings = {
   scenicMode: false,
   routePreference: 'fastest',
   stopFrequency: 'balanced',
+  tripPreferences: [],
 };
 
 type PlanningStep = 1 | 2 | 3;
@@ -630,15 +631,6 @@ function App() {
                       )}
                     </p>
                   </div>
-
-                  {/* Budget Planning - Set your budget upfront */}
-                  <div className="border-t pt-4">
-                    <BudgetInput
-                      budget={settings.budget}
-                      onChange={(newBudget: TripBudget) => setSettings(prev => ({ ...prev, budget: newBudget }))}
-                      currency={settings.currency}
-                    />
-                  </div>
                 </div>
               )}
 
@@ -902,6 +894,56 @@ function App() {
                       {settings.stopFrequency === 'balanced' && "⚖️ Balanced: Stop every 2 hours, refuel at 25% tank. Recommended for most trips."}
                       {settings.stopFrequency === 'aggressive' && "⚡ Aggressive: Stop every 2.5 hours, refuel at 20% tank. For experienced drivers who prefer fewer stops."}
                     </p>
+                  </div>
+
+                  {/* Trip Preferences */}
+                  <div className="border-t pt-4">
+                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                      🏷️ Trip Style
+                    </h3>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Choose your preferences to get personalized POI suggestions
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { id: 'scenic' as const, label: 'Scenic', emoji: '🌿', desc: 'Viewpoints & nature' },
+                        { id: 'family' as const, label: 'Family', emoji: '👨‍👩‍👧‍👦', desc: 'Kid-friendly stops' },
+                        { id: 'budget' as const, label: 'Budget', emoji: '💸', desc: 'Free/cheap attractions' },
+                        { id: 'foodie' as const, label: 'Foodie', emoji: '🍴', desc: 'Local restaurants' },
+                      ].map((pref) => (
+                        <button
+                          key={pref.id}
+                          onClick={() => {
+                            setSettings(prev => ({
+                              ...prev,
+                              tripPreferences: prev.tripPreferences.includes(pref.id)
+                                ? prev.tripPreferences.filter(p => p !== pref.id)
+                                : [...prev.tripPreferences, pref.id]
+                            }));
+                          }}
+                          className={`p-3 rounded-lg border-2 transition-all text-left ${
+                            settings.tripPreferences.includes(pref.id)
+                              ? 'border-primary bg-primary/10'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-lg">{pref.emoji}</span>
+                            <span className="text-sm font-semibold">{pref.label}</span>
+                          </div>
+                          <div className="text-xs text-muted-foreground">{pref.desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Trip Budget */}
+                  <div className="border-t pt-4">
+                    <BudgetInput
+                      budget={settings.budget}
+                      onChange={(newBudget: TripBudget) => setSettings(prev => ({ ...prev, budget: newBudget }))}
+                      currency={settings.currency}
+                    />
                   </div>
                 </div>
               )}
