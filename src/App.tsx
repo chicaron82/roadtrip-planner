@@ -56,6 +56,7 @@ const DEFAULT_SETTINGS: TripSettings = {
   avoidTolls: false,
   scenicMode: false,
   routePreference: 'fastest',
+  stopFrequency: 'balanced',
 };
 
 type PlanningStep = 1 | 2 | 3;
@@ -92,6 +93,7 @@ function App() {
   const [strategicFuelStops, setStrategicFuelStops] = useState<StrategicFuelStop[]>([]);
   const [showOvernightPrompt, setShowOvernightPrompt] = useState(false);
   const [suggestedOvernightStop, setSuggestedOvernightStop] = useState<Location | null>(null);
+  const [mobileView, setMobileView] = useState<'map' | 'plan'>('map');
 
 
   // Validation for steps
@@ -431,7 +433,11 @@ function App() {
   return (
     <div className="flex flex-col md:flex-row h-screen w-full overflow-hidden bg-background text-foreground">
       {/* Sidebar */}
-      <div className="w-full md:w-[420px] h-[45vh] md:h-full flex flex-col border-b md:border-b-0 md:border-r bg-card z-10 shadow-xl order-2 md:order-1">
+      <div className={`w-full md:w-[420px] ${
+        planningStep === 3 && mobileView === 'plan' ? 'h-full' : 'h-[45vh]'
+      } md:h-full flex flex-col border-b md:border-b-0 md:border-r bg-card z-10 shadow-xl order-2 md:order-1 ${
+        planningStep === 3 && mobileView === 'map' ? 'hidden md:flex' : ''
+      }`}>
         {/* Header */}
         <div className="p-4 border-b bg-card">
           <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
@@ -443,6 +449,34 @@ function App() {
             completedSteps={completedSteps}
           />
         </div>
+
+        {/* Mobile View Toggle - Only show on mobile at Step 3 */}
+        {planningStep === 3 && (
+          <div className="md:hidden px-4 py-2 border-b bg-muted/10">
+            <div className="flex gap-2">
+              <button
+                onClick={() => setMobileView('plan')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                  mobileView === 'plan'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'bg-background text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                📋 Plan
+              </button>
+              <button
+                onClick={() => setMobileView('map')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                  mobileView === 'map'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'bg-background text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                🗺️ Map
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* POI Controls - Only show on Step 3 */}
         {planningStep === 3 && (
@@ -830,6 +864,47 @@ function App() {
                       </p>
                     </div>
                   </div>
+
+                  {/* Stop Frequency Preference */}
+                  <div className="border-t pt-4">
+                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                      🛑 Stop Frequency
+                    </h3>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      How often should we suggest fuel and rest stops?
+                    </p>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      {(['conservative', 'balanced', 'aggressive'] as const).map((freq) => (
+                        <button
+                          key={freq}
+                          onClick={() => setSettings(prev => ({ ...prev, stopFrequency: freq }))}
+                          className={`p-3 rounded-lg border-2 transition-all ${
+                            settings.stopFrequency === freq
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="text-center">
+                            <div className="text-sm font-medium capitalize mb-1">
+                              {freq}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground">
+                              {freq === 'conservative' && 'More frequent\nsafer stops'}
+                              {freq === 'balanced' && 'Standard\nintervals'}
+                              {freq === 'aggressive' && 'Push further\nfewer stops'}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+
+                    <p className="text-xs mt-3 p-2 rounded-md bg-purple-50 border border-purple-100 text-purple-700">
+                      {settings.stopFrequency === 'conservative' && "🛡️ Conservative: Stop every 1.5 hours, refuel at 30% tank. Best for solo drivers or those with kids."}
+                      {settings.stopFrequency === 'balanced' && "⚖️ Balanced: Stop every 2 hours, refuel at 25% tank. Recommended for most trips."}
+                      {settings.stopFrequency === 'aggressive' && "⚡ Aggressive: Stop every 2.5 hours, refuel at 20% tank. For experienced drivers who prefer fewer stops."}
+                    </p>
+                  </div>
                 </div>
               )}
 
@@ -989,7 +1064,11 @@ function App() {
       </div>
 
       {/* Map Area */}
-      <div className="flex-1 relative h-[55vh] md:h-full order-1 md:order-2">
+      <div className={`flex-1 relative ${
+        planningStep === 3 && mobileView === 'map' ? 'h-full' : 'h-[55vh]'
+      } md:h-full order-1 md:order-2 ${
+        planningStep === 3 && mobileView === 'plan' ? 'hidden md:block' : ''
+      }`}>
         <Map
           locations={locations}
           routeGeometry={validRouteGeometry}

@@ -22,6 +22,20 @@ export function DailyBudgetCard({ budget, dayNumber, budgetMode, className }: Da
     }
   };
 
+  const getProgressBarColor = (used: number, remaining: number): string => {
+    const total = used + remaining;
+    const percentUsed = total > 0 ? (used / total) * 100 : 0;
+    if (percentUsed > 100) return 'bg-red-500';
+    if (percentUsed > 85) return 'bg-amber-500';
+    return 'bg-green-500';
+  };
+
+  const getProgressPercent = (used: number, remaining: number): number => {
+    const total = used + remaining;
+    if (total === 0) return 0;
+    return Math.min((used / total) * 100, 100);
+  };
+
   return (
     <div
       className={cn(
@@ -109,6 +123,59 @@ export function DailyBudgetCard({ budget, dayNumber, budgetMode, className }: Da
           </div>
         )}
       </div>
+
+      {/* Visual Progress Bars */}
+      {showRemaining && (
+        <div className="mt-4 pt-3 border-t border-gray-100 space-y-2">
+          {/* Gas Progress */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Gas Budget</span>
+              <span className="text-[10px] font-semibold text-gray-600">
+                {getProgressPercent(budget.gasUsed, budget.gasRemaining).toFixed(0)}%
+              </span>
+            </div>
+            <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className={cn("h-full transition-all duration-500", getProgressBarColor(budget.gasUsed, budget.gasRemaining))}
+                style={{ width: `${getProgressPercent(budget.gasUsed, budget.gasRemaining)}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Hotel Progress */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Hotel Budget</span>
+              <span className="text-[10px] font-semibold text-gray-600">
+                {getProgressPercent(budget.hotelCost, budget.hotelRemaining).toFixed(0)}%
+              </span>
+            </div>
+            <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className={cn("h-full transition-all duration-500", getProgressBarColor(budget.hotelCost, budget.hotelRemaining))}
+                style={{ width: `${getProgressPercent(budget.hotelCost, budget.hotelRemaining)}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Food Progress */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Food Budget</span>
+              <span className="text-[10px] font-semibold text-gray-600">
+                {getProgressPercent(budget.foodEstimate, budget.foodRemaining).toFixed(0)}%
+              </span>
+            </div>
+            <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className={cn("h-full transition-all duration-500", getProgressBarColor(budget.foodEstimate, budget.foodRemaining))}
+                style={{ width: `${getProgressPercent(budget.foodEstimate, budget.foodRemaining)}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

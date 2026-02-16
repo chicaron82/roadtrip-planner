@@ -15,9 +15,12 @@ export interface SuggestedStop {
     fuelCost?: number;
     hoursOnRoad?: number; // hours driven before this stop
   };
+  warning?: string; // Sparse stretch warning
   dismissed?: boolean;
   accepted?: boolean;
 }
+
+export type StopFrequency = 'conservative' | 'balanced' | 'aggressive';
 
 export interface StopSuggestionConfig {
   tankSizeLitres: number;
@@ -26,6 +29,8 @@ export interface StopSuggestionConfig {
   numDrivers: number;
   departureTime: Date;
   gasPrice: number;
+  fuelBuffer?: number; // Percent to keep in reserve (default 0.25)
+  stopFrequency?: StopFrequency; // How often to suggest stops (default 'balanced')
 }
 
 /**
@@ -37,51 +42,91 @@ export function generateSmartStops(
 ): SuggestedStop[] {
   const suggestions: SuggestedStop[] = [];
 
+  // Configuration based on stop frequency
+  const stopFrequency = config.stopFrequency || 'balanced';
+
+  const bufferMultipliers = {
+    conservative: 0.30, // 30% buffer, stop earlier
+    balanced: 0.25,     // 25% buffer
+    aggressive: 0.20,   // 20% buffer, push further
+  };
+
+  const actualBuffer = bufferMultipliers[stopFrequency];
+
+  // Calculate safe range (distance we can travel before needing fuel)
+  const vehicleRangeKm = (config.tankSizeLitres / config.fuelEconomyL100km) * 100;
+  const safeRangeKm = vehicleRangeKm * (1 - actualBuffer);
+
   // Track simulation state
   let currentFuel = config.tankSizeLitres;
+  let distanceSinceLastFill = 0;
   let currentTime = new Date(config.departureTime);
   let hoursOnRoad = 0;
   let totalDrivingToday = 0;
   let lastBreakTime = new Date(config.departureTime);
 
-  const FUEL_WARNING_THRESHOLD = config.tankSizeLitres * 0.20; // 20% remaining
-  const REST_BREAK_INTERVAL = 2; // hours
+  const REST_BREAK_INTERVAL = stopFrequency === 'conservative' ? 1.5 : stopFrequency === 'balanced' ? 2 : 2.5;
   const MEAL_TIMES = { breakfast: 8, lunch: 12, dinner: 18 }; // 24h format
 
   segments.forEach((segment, index) => {
     const segmentHours = segment.durationMinutes / 60;
     const fuelNeeded = segment.fuelNeededLitres || (segment.distanceKm / 100) * config.fuelEconomyL100km;
 
-    // === FUEL STOP CHECK ===
-    if (currentFuel - fuelNeeded < FUEL_WARNING_THRESHOLD) {
+    // === FUEL STOP CHECK (using safe range approach) ===
+    distanceSinceLastFill += segment.distanceKm;
+
+    // Check if we've exceeded safe range OR will run critically low
+    const wouldRunCriticallyLow = (currentFuel - fuelNeeded) < (config.tankSizeLitres * 0.15); // Critical: below 15%
+    const exceededSafeRange = distanceSinceLastFill >= safeRangeKm;
+
+    if (exceededSafeRange || wouldRunCriticallyLow) {
       const refillAmount = config.tankSizeLitres - currentFuel;
       const refillCost = refillAmount * config.gasPrice;
+      const tankPercent = Math.round((currentFuel / config.tankSizeLitres) * 100);
+      const litresRemaining = currentFuel.toFixed(1);
+
+      let reason = '';
+      if (wouldRunCriticallyLow) {
+        reason = `Tank at ${tankPercent}% (${litresRemaining}L remaining). ~$${refillCost.toFixed(2)} to refill. Critical: refuel before continuing to ${segment.to.name}.`;
+      } else {
+        reason = `Tank at ${tankPercent}% (${litresRemaining}L remaining). ~$${refillCost.toFixed(2)} to refill. You've driven ${distanceSinceLastFill.toFixed(0)} km since last fill.`;
+      }
+
+      // Check if the next segment is a sparse stretch (> 150km)
+      let sparseWarning: string | undefined;
+      if (segment.distanceKm > 150) {
+        const hoursForSegment = segment.durationMinutes / 60;
+        sparseWarning = `⚠️ Heads up: Limited services for next ${segment.distanceKm.toFixed(0)} km (${hoursForSegment.toFixed(1)} hours). Fuel up and take a break before continuing.`;
+      }
 
       suggestions.push({
         id: `fuel-${index}`,
         type: 'fuel',
-        reason: `Tank will be at ${Math.round((currentFuel / config.tankSizeLitres) * 100)}% - refuel needed before ${segment.to.name}`,
+        reason,
         afterSegmentIndex: index - 1, // Stop before this segment
         estimatedTime: new Date(currentTime),
         duration: 15,
-        priority: 'required',
+        priority: wouldRunCriticallyLow ? 'required' : 'recommended',
         details: {
           fuelNeeded: refillAmount,
           fuelCost: refillCost,
         },
+        warning: sparseWarning,
       });
 
       currentFuel = config.tankSizeLitres; // Simulated refill
+      distanceSinceLastFill = 0; // Reset distance tracker
       currentTime = new Date(currentTime.getTime() + 15 * 60 * 1000); // Add 15 min
     }
 
     // === REST BREAK CHECK (every 2-3 hours) ===
     const hoursSinceBreak = (currentTime.getTime() - lastBreakTime.getTime()) / (1000 * 60 * 60);
     if (hoursSinceBreak >= REST_BREAK_INTERVAL && segmentHours > 0.5) {
+      const numDriversText = config.numDrivers > 1 ? `${config.numDrivers} drivers` : 'solo driver';
       suggestions.push({
         id: `rest-${index}`,
         type: 'rest',
-        reason: `${hoursSinceBreak.toFixed(1)} hours since last break - stretch and refresh`,
+        reason: `${hoursSinceBreak.toFixed(1)} hours behind the wheel (${numDriversText}). Take a 15-minute break to stretch, use the restroom, and stay alert.`,
         afterSegmentIndex: index - 1,
         estimatedTime: new Date(currentTime),
         duration: 15,
@@ -105,10 +150,12 @@ export function generateSmartStops(
       (currentHour < MEAL_TIMES.dinner && nextHour >= MEAL_TIMES.dinner)
     ) {
       const mealType = currentHour < MEAL_TIMES.lunch ? 'Lunch' : 'Dinner';
+      const mealTime = currentHour < MEAL_TIMES.lunch ? '12:00 PM' : '6:00 PM';
+      const totalHoursOnRoad = (hoursOnRoad + segmentHours).toFixed(1);
       suggestions.push({
         id: `meal-${mealType.toLowerCase()}-${index}`,
         type: 'meal',
-        reason: `${mealType} time - good opportunity to eat and recharge`,
+        reason: `${mealType} break around ${mealTime}. You'll have driven ${totalHoursOnRoad} hours. Refuel yourself and your vehicle with a proper meal.`,
         afterSegmentIndex: index,
         estimatedTime: new Date(currentTime.getTime() + segment.durationMinutes * 60 * 1000),
         duration: 45,
@@ -122,10 +169,11 @@ export function generateSmartStops(
     // === OVERNIGHT STOP CHECK ===
     totalDrivingToday += segmentHours;
     if (totalDrivingToday >= config.maxDriveHoursPerDay) {
+      const maxHoursText = config.maxDriveHoursPerDay === 1 ? '1 hour' : `${config.maxDriveHoursPerDay} hours`;
       suggestions.push({
         id: `overnight-${index}`,
         type: 'overnight',
-        reason: `${totalDrivingToday.toFixed(1)} hours of driving today - time to rest for the night`,
+        reason: `You've reached your daily driving limit (${totalDrivingToday.toFixed(1)} hours driven, max ${maxHoursText}/day). Find a hotel, get dinner, and recharge for tomorrow.`,
         afterSegmentIndex: index,
         estimatedTime: new Date(currentTime.getTime() + segment.durationMinutes * 60 * 1000),
         duration: 8 * 60, // 8 hours
@@ -245,5 +293,6 @@ export function createStopConfig(
     numDrivers: settings.numDrivers,
     departureTime: new Date(`${settings.departureDate}T${settings.departureTime}`),
     gasPrice: settings.gasPrice,
+    stopFrequency: settings.stopFrequency,
   };
 }

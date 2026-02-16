@@ -106,6 +106,15 @@ export function SuggestedStopCard({ stop, onAccept, onDismiss }: SuggestedStopCa
             {stop.reason}
           </p>
 
+          {/* Sparse Stretch Warning */}
+          {stop.warning && (
+            <div className="mb-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-xs text-amber-800 font-medium leading-relaxed">
+                {stop.warning}
+              </p>
+            </div>
+          )}
+
           {/* Details */}
           <div className="flex flex-wrap items-center gap-3 text-xs">
             <div className="flex items-center gap-1 text-muted-foreground">
