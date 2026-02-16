@@ -477,6 +477,7 @@ export interface AdventureConfig {
   // Optional constraints
   maxDriveHoursPerDay?: number;
   accommodationType?: 'budget' | 'moderate' | 'comfort';
+  isRoundTrip?: boolean; // Default true - set false for one-way adventures
 }
 
 // A reachable destination suggestion

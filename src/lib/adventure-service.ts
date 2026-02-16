@@ -89,6 +89,7 @@ const POPULAR_DESTINATIONS: Array<{
 export function calculateMaxDistance(config: AdventureConfig): number {
   const { budget, days, travelers } = config;
   const accommodationType = config.accommodationType || 'moderate';
+  const isRoundTrip = config.isRoundTrip !== false; // Default to true
 
   // Calculate fixed costs
   const nights = Math.max(0, days - 1);
@@ -96,14 +97,15 @@ export function calculateMaxDistance(config: AdventureConfig): number {
   const foodCost = days * travelers * COST_ESTIMATES.food.perPersonPerDay;
   const fixedCosts = accommodationCost + foodCost;
 
-  // Remaining budget for fuel (round trip)
+  // Remaining budget for fuel
   const fuelBudget = Math.max(0, budget - fixedCosts);
 
-  // Calculate max round-trip distance
-  const maxRoundTripKm = fuelBudget / COST_ESTIMATES.fuel.perKm;
+  // Calculate max distance based on trip type
+  const maxDrivableKm = fuelBudget / COST_ESTIMATES.fuel.perKm;
 
-  // One-way distance (divide by 2 for round trip)
-  return maxRoundTripKm / 2;
+  // For round trip, divide by 2 (need to drive both ways)
+  // For one-way, use full distance
+  return isRoundTrip ? maxDrivableKm / 2 : maxDrivableKm;
 }
 
 /**
@@ -168,9 +170,12 @@ function calculateCosts(
 ): AdventureDestination['estimatedCosts'] {
   const { budget, days, travelers } = config;
   const accommodationType = config.accommodationType || 'moderate';
+  const isRoundTrip = config.isRoundTrip !== false; // Default to true
   const nights = Math.max(0, days - 1);
 
-  const fuel = distanceKm * 2 * COST_ESTIMATES.fuel.perKm; // Round trip
+  // Fuel: multiply by 2 for round trip, 1 for one-way
+  const fuelMultiplier = isRoundTrip ? 2 : 1;
+  const fuel = distanceKm * fuelMultiplier * COST_ESTIMATES.fuel.perKm;
   const accommodation = nights * COST_ESTIMATES.accommodation[accommodationType];
   const food = days * travelers * COST_ESTIMATES.food.perPersonPerDay;
   const total = fuel + accommodation + food;

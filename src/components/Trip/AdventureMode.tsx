@@ -10,6 +10,8 @@ import {
   ChevronRight,
   X,
   Car,
+  RotateCcw,
+  ArrowRight,
 } from 'lucide-react';
 import type { Location, AdventureDestination, TripPreference } from '../../types';
 import { findAdventureDestinations, calculateMaxDistance } from '../../lib/adventure-service';
@@ -37,6 +39,7 @@ export function AdventureMode({
   const [travelers, setTravelers] = useState(2);
   const [preferences, setPreferences] = useState<TripPreference[]>([]);
   const [accommodationType, setAccommodationType] = useState<'budget' | 'moderate' | 'comfort'>('moderate');
+  const [isRoundTrip, setIsRoundTrip] = useState(true);
 
   // Results state
   const [destinations, setDestinations] = useState<AdventureDestination[]>([]);
@@ -58,6 +61,7 @@ export function AdventureMode({
           travelers,
           preferences,
           accommodationType,
+          isRoundTrip,
         });
         setDestinations(result.destinations);
         setMaxReachableKm(result.maxReachableKm);
@@ -70,11 +74,11 @@ export function AdventureMode({
     }, 500); // Debounce 500ms
 
     return () => clearTimeout(timer);
-  }, [origin, budget, days, travelers, preferences, accommodationType]);
+  }, [origin, budget, days, travelers, preferences, accommodationType, isRoundTrip]);
 
   // Quick preview of max distance
   const previewMaxKm = origin && origin.lat !== 0
-    ? calculateMaxDistance({ origin, budget, days, travelers, preferences, accommodationType })
+    ? calculateMaxDistance({ origin, budget, days, travelers, preferences, accommodationType, isRoundTrip })
     : 0;
 
   const togglePreference = (pref: TripPreference) => {
@@ -233,6 +237,42 @@ export function AdventureMode({
               </div>
             </div>
 
+            {/* Round Trip Toggle */}
+            <div>
+              <Label className="text-xs text-gray-500 mb-2 block">Trip Type</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setIsRoundTrip(true)}
+                  className={cn(
+                    'p-2 rounded-lg border-2 text-sm font-medium transition-all flex items-center justify-center gap-2',
+                    isRoundTrip
+                      ? 'border-purple-500 bg-purple-50 text-purple-700'
+                      : 'border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Round Trip
+                </button>
+                <button
+                  onClick={() => setIsRoundTrip(false)}
+                  className={cn(
+                    'p-2 rounded-lg border-2 text-sm font-medium transition-all flex items-center justify-center gap-2',
+                    !isRoundTrip
+                      ? 'border-purple-500 bg-purple-50 text-purple-700'
+                      : 'border-gray-200 hover:border-gray-300'
+                  )}
+                >
+                  <ArrowRight className="h-4 w-4" />
+                  One Way
+                </button>
+              </div>
+              {!isRoundTrip && (
+                <p className="text-xs text-purple-600 mt-1.5 text-center">
+                  Go twice as far! Plan to fly/bus back.
+                </p>
+              )}
+            </div>
+
             {/* Trip Preferences */}
             <div>
               <Label className="text-xs text-gray-500 mb-2 block">What kind of trip?</Label>
@@ -264,7 +304,11 @@ export function AdventureMode({
               <div className="flex items-center justify-center gap-2 p-3 bg-purple-100 rounded-lg text-purple-800">
                 <Car className="h-4 w-4" />
                 <span className="text-sm font-medium">
-                  Up to <strong>{Math.round(previewMaxKm)} km</strong> one-way
+                  {isRoundTrip ? (
+                    <>Up to <strong>{Math.round(previewMaxKm)} km</strong> each way</>
+                  ) : (
+                    <>Go up to <strong>{Math.round(previewMaxKm)} km</strong> one-way!</>
+                  )}
                 </span>
               </div>
             )}
@@ -390,7 +434,10 @@ export function AdventureMode({
             <div className="text-center py-12">
               <div className="text-4xl mb-3">😢</div>
               <p className="text-gray-600 font-medium">No destinations found in budget</p>
-              <p className="text-sm text-gray-400 mt-1">Try increasing your budget or days</p>
+              <p className="text-sm text-gray-400 mt-1">
+                Try increasing your budget or days
+                {isRoundTrip && ', or switch to one-way'}
+              </p>
             </div>
           ) : (
             <div className="text-center py-12">
