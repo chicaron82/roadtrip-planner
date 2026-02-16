@@ -1,9 +1,11 @@
-import { useMemo } from 'react';
-import { MapPin, Trophy, Clock, Camera, Star, BookOpen } from 'lucide-react';
-import type { TripSummary, TripSettings, TripJournal, JournalEntry, JournalPhoto } from '../../types';
+import { useMemo, useState } from 'react';
+import { MapPin, Trophy, Clock, Camera, Star, BookOpen, Plus } from 'lucide-react';
+import type { TripSummary, TripSettings, TripJournal, JournalEntry, JournalPhoto, QuickCapture } from '../../types';
 import { JournalStopCard, QuickArriveButton } from './JournalStopCard';
 import { DayHeader } from './DayHeader';
+import { QuickCaptureDialog } from './QuickCaptureDialog';
 import { cn } from '../../lib/utils';
+import { showToast } from '../../lib/toast';
 
 interface JournalTimelineProps {
   summary: TripSummary;
@@ -20,6 +22,12 @@ export function JournalTimeline({
   onUpdateJournal,
   className,
 }: JournalTimelineProps) {
+  const [quickCaptureOpen, setQuickCaptureOpen] = useState(false);
+  const [quickCaptureContext, setQuickCaptureContext] = useState<{
+    segmentIndex?: number;
+    locationName?: string;
+  }>({});
+
   const startTime = useMemo(
     () => new Date(`${settings.departureDate}T${settings.departureTime}`),
     [settings.departureDate, settings.departureTime]
@@ -100,6 +108,30 @@ export function JournalTimeline({
     handleUpdateEntry(segmentIndex, {
       photos: entry.photos.filter(p => p.id !== photoId),
     });
+  };
+
+  // Handle quick capture save
+  const handleSaveQuickCapture = (capture: QuickCapture) => {
+    onUpdateJournal({
+      ...journal,
+      quickCaptures: [...journal.quickCaptures, capture],
+      stats: {
+        ...journal.stats,
+        photosCount: journal.stats.photosCount + 1,
+      },
+      updatedAt: new Date(),
+    });
+
+    showToast({
+      message: '📸 Memory captured!',
+      type: 'success',
+    });
+  };
+
+  // Open quick capture dialog
+  const handleOpenQuickCapture = (segmentIndex?: number, locationName?: string) => {
+    setQuickCaptureContext({ segmentIndex, locationName });
+    setQuickCaptureOpen(true);
   };
 
   const formatTime = (date: Date) => {
@@ -200,8 +232,66 @@ export function JournalTimeline({
           const isCurrent = index === currentStopIndex;
           const isVisited = entry?.status === 'visited';
 
+          // Get quick captures for this segment
+          const segmentCaptures = journal.quickCaptures.filter(
+            qc => qc.autoTaggedSegment === index
+          );
+
           return (
-            <div key={`stop-${index}`} className="flex gap-4 mb-6">
+            <div key={`stop-${index}`}>
+              {/* Inline Add Memory Button (before stop) */}
+              <div className="flex gap-4 mb-3">
+                <div className="w-10 flex justify-center">
+                  <div className="w-0.5 h-6 bg-border" />
+                </div>
+                <button
+                  onClick={() => handleOpenQuickCapture(index, segment.to.name)}
+                  className="flex-1 border-2 border-dashed border-purple-200 bg-purple-50/30 hover:bg-purple-50 hover:border-purple-300 rounded-lg px-3 py-2 transition-all group"
+                >
+                  <div className="flex items-center justify-center gap-2 text-xs text-purple-600 font-medium">
+                    <Plus className="h-3 w-3 group-hover:scale-110 transition-transform" />
+                    <span>Add Memory</span>
+                  </div>
+                </button>
+              </div>
+
+              {/* Quick Captures for this segment */}
+              {segmentCaptures.map((capture) => (
+                <div key={capture.id} className="flex gap-4 mb-4">
+                  <div className="relative flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-600 border-2 border-purple-200 flex items-center justify-center shadow-sm z-10">
+                      <Camera className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl p-4">
+                      <div className="flex items-start gap-3 mb-2">
+                        <div className="text-2xl">📸</div>
+                        <div className="flex-1">
+                          <div className="font-semibold text-purple-900 text-sm">
+                            {capture.autoTaggedLocation || 'Quick Memory'}
+                          </div>
+                          <div className="text-xs text-purple-600 mt-0.5">
+                            Captured on the way
+                          </div>
+                        </div>
+                      </div>
+                      {capture.photo && (
+                        <img
+                          src={capture.photo.dataUrl}
+                          alt={capture.photo.caption || 'Memory'}
+                          className="w-full h-40 object-cover rounded-lg mb-2"
+                        />
+                      )}
+                      {capture.photo.caption && (
+                        <p className="text-sm text-purple-700">{capture.photo.caption}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <div className="flex gap-4 mb-6">
               {/* Timeline Node */}
               <div className="relative flex-shrink-0">
                 <div
@@ -254,6 +344,7 @@ export function JournalTimeline({
                 />
               </div>
             </div>
+            </div>
           );
         })}
       </div>
@@ -267,15 +358,181 @@ export function JournalTimeline({
             You visited all {totalStops} stops and captured {journal.stats.photosCount} memories.
           </p>
           <div className="flex justify-center gap-3">
-            <button className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors">
+            <button
+              onClick={() => {
+                // Export journal as PDF-ready HTML format
+                // TODO: Add html2canvas + jsPDF for proper PDF generation
+                const journalHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>${journal.metadata.title}</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+    h1 { color: #2563eb; }
+    .stop { border-left: 3px solid #10b981; padding-left: 15px; margin: 20px 0; }
+    .highlight { background: #fef3c7; padding: 10px; border-radius: 8px; }
+    .rating { color: #f59e0b; }
+  </style>
+</head>
+<body>
+  <h1>🚗 ${journal.metadata.title}</h1>
+  <p><strong>Distance:</strong> ${journal.tripSummary.totalDistanceKm.toFixed(1)} km |
+     <strong>Duration:</strong> ${(journal.tripSummary.totalDurationMinutes / 60).toFixed(1)} hours</p>
+  <p><strong>Travelers:</strong> ${journal.metadata.travelers?.join(', ') || 'Unknown'}</p>
+
+  <h2>Journey Highlights</h2>
+  ${journal.entries.map(e => {
+    const stop = summary.segments[e.segmentIndex]?.to;
+    const photosHTML = e.photos.length > 0
+      ? `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin: 15px 0;">
+          ${e.photos.map(p => `
+            <div>
+              <img src="${p.dataUrl}" alt="${p.caption || 'Photo'}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" />
+              ${p.caption ? `<p style="font-size: 12px; color: #6b7280; margin-top: 4px; text-align: center;">${p.caption}</p>` : ''}
+            </div>
+          `).join('')}
+         </div>`
+      : '';
+
+    return `
+    <div class="stop ${e.isHighlight ? 'highlight' : ''}">
+      <h3>${stop?.name || 'Unknown'}</h3>
+      ${e.rating ? `<div class="rating">${'⭐'.repeat(e.rating)}</div>` : ''}
+      ${photosHTML}
+      ${e.notes ? `<p>${e.notes}</p>` : ''}
+      ${e.isHighlight ? `<p><strong>✨ ${e.highlightReason}</strong></p>` : ''}
+      <p><em>Status: ${e.status}</em></p>
+    </div>`;
+  }).join('')}
+
+  <h2>Trip Statistics</h2>
+  <ul>
+    <li>Total Stops: ${journal.stats.stopsVisited + journal.stats.stopsSkipped}</li>
+    <li>Stops Visited: ${journal.stats.stopsVisited}</li>
+    <li>Photos Captured: ${journal.stats.photosCount}</li>
+    <li>Highlights: ${journal.stats.highlightsCount}</li>
+  </ul>
+
+  <p style="text-align: center; color: #6b7280; margin-top: 40px;">
+    Generated by Roadtrip Planner on ${new Date().toLocaleDateString()}
+  </p>
+</body>
+</html>`;
+
+                const blob = new Blob([journalHTML], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `roadtrip-journal-${journal.metadata.title.replace(/\s+/g, '-').toLowerCase()}.html`;
+                link.click();
+                URL.revokeObjectURL(url);
+
+                showToast({
+                  message: 'Journal exported! Open the HTML file and print to PDF (Ctrl+P)',
+                  type: 'success',
+                  duration: 4000,
+                });
+              }}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
+            >
               Export Journal
             </button>
-            <button className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">
+            <button
+              onClick={() => {
+                // Create loadable trip template with reviews and recommendations
+                const template = {
+                  type: 'roadtrip-template',
+                  version: '1.0',
+                  createdAt: new Date().toISOString(),
+                  author: journal.metadata.travelers?.[0] || 'Anonymous',
+
+                  trip: {
+                    title: journal.metadata.title,
+                    description: journal.metadata.description || 'Follow this roadtrip route!',
+                    tags: journal.metadata.tags,
+                    durationDays: journal.tripSummary.days?.length || 1,
+                    totalDistanceKm: journal.tripSummary.totalDistanceKm,
+                    totalDurationHours: (journal.tripSummary.totalDurationMinutes / 60).toFixed(1),
+                  },
+
+                  budget: {
+                    profile: settings.budget.profile,
+                    totalSpent: journal.stats.totalActualSpent,
+                    perPerson: journal.stats.totalActualSpent / settings.numTravelers,
+                    breakdown: {
+                      fuel: journal.tripSummary.totalFuelCost,
+                      accommodation: journal.stats.totalActualSpent * 0.4, // estimate
+                      food: journal.stats.totalActualSpent * 0.3, // estimate
+                      misc: journal.stats.totalActualSpent * 0.3, // estimate
+                    },
+                  },
+
+                  route: {
+                    origin: summary.segments[0]?.from,
+                    destination: summary.segments[summary.segments.length - 1]?.to,
+                    waypoints: summary.segments
+                      .map(s => s.to)
+                      .filter((loc, idx, arr) => arr.findIndex(l => l.name === loc.name) === idx),
+                  },
+
+                  recommendations: journal.entries.map(e => {
+                    const stop = summary.segments[e.segmentIndex]?.to;
+                    return {
+                      location: stop?.name,
+                      lat: stop?.lat,
+                      lng: stop?.lng,
+                      rating: e.rating,
+                      notes: e.notes,
+                      isHighlight: e.isHighlight,
+                      highlightReason: e.highlightReason,
+                      wouldStayAgain: e.rating && e.rating >= 4,
+                      tips: e.notes,
+                    };
+                  }).filter(r => r.rating || r.isHighlight),
+
+                  importInstructions: 'Load this template in Roadtrip Planner to follow the same route!',
+                };
+
+                const dataBlob = new Blob([JSON.stringify(template, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `trip-template-${journal.metadata.title.replace(/\s+/g, '-').toLowerCase()}.json`;
+                link.click();
+                URL.revokeObjectURL(url);
+
+                showToast({
+                  message: 'Trip template downloaded! Share it so others can follow your route.',
+                  type: 'success',
+                  duration: 4000,
+                });
+              }}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+            >
               Share as Template
             </button>
           </div>
         </div>
       )}
+
+      {/* Floating Add Memory Button */}
+      <button
+        onClick={() => handleOpenQuickCapture()}
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-110 transition-all flex items-center justify-center group"
+        title="Add Memory"
+      >
+        <Plus className="h-6 w-6 group-hover:rotate-90 transition-transform" />
+      </button>
+
+      {/* Quick Capture Dialog */}
+      <QuickCaptureDialog
+        open={quickCaptureOpen}
+        onOpenChange={setQuickCaptureOpen}
+        onSave={handleSaveQuickCapture}
+        autoTaggedLocation={quickCaptureContext.locationName}
+        autoTaggedSegment={quickCaptureContext.segmentIndex}
+      />
     </div>
   );
 }

@@ -28,6 +28,40 @@ export type TripPreference = 'scenic' | 'family' | 'budget' | 'foodie';
 // Budget allocation profiles - each shifts category weights
 export type BudgetProfile = 'balanced' | 'foodie' | 'scenic' | 'backpacker' | 'comfort' | 'custom';
 
+// Saved budget profile (user's custom configurations)
+export interface SavedBudgetProfile {
+  id: string;
+  name: string;                      // "Solo Foodie Adventure"
+  emoji: string;                     // Custom emoji for the profile
+  baseProfile: BudgetProfile;        // What it was derived from
+  weights: BudgetWeights;            // Custom weights
+  allocation: BudgetAllocation;      // 'fixed' or 'flexible'
+  defaultTotal?: number;             // Optional preset amount
+  numTravelers?: number;             // Context hint for suggestions
+  categoryLabels?: {                 // Custom category names
+    misc?: string;                   // "Dining Experiences", "Activities", etc.
+  };
+  stats?: {                          // Track profile performance
+    timesUsed: number;
+    lastTripName?: string;           // "Vancouver → Banff"
+    lastTripDate?: string;           // ISO timestamp
+  };
+  lastUsed?: string;                 // ISO timestamp
+  isDefault?: boolean;               // ⭐ starred profile
+  createdFrom?: {                    // Trip context it was created from
+    tripName?: string;               // "Vancouver → Banff"
+    tripDate?: string;               // "Feb 2026"
+  };
+}
+
+// Last trip budget recall (ghost profile)
+export interface LastTripBudget {
+  tripName: string;                  // "Vancouver → Banff"
+  tripDate: string;                  // ISO timestamp
+  budget: TripBudget;                // Full budget state
+  numTravelers: number;
+}
+
 // Whether total is fixed (categories flex) or flexible (categories are independent)
 export type BudgetAllocation = 'fixed' | 'flexible';
 

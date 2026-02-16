@@ -25,8 +25,13 @@ export interface AdventureSelection {
   destination: Location;
   travelers: number;
   days: number;
+  budget: number; // Total trip budget amount
   isRoundTrip: boolean;
   accommodationType: 'budget' | 'moderate' | 'comfort';
+  preferences: TripPreference[]; // Trip style preferences for budget profile mapping
+  departureDate: string; // ISO date string
+  departureTime: string; // HH:MM format
+  estimatedDistanceKm: number; // For gas calculation
 }
 
 interface AdventureModeProps {
@@ -49,6 +54,12 @@ export function AdventureMode({
   const [preferences, setPreferences] = useState<TripPreference[]>([]);
   const [accommodationType, setAccommodationType] = useState<'budget' | 'moderate' | 'comfort'>('moderate');
   const [isRoundTrip, setIsRoundTrip] = useState(true);
+
+  // Departure date/time - default to tomorrow at 9am
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const [departureDate, setDepartureDate] = useState(tomorrow.toISOString().split('T')[0]);
+  const [departureTime, setDepartureTime] = useState('09:00');
 
   // Results state
   const [destinations, setDestinations] = useState<AdventureDestination[]>([]);
@@ -101,8 +112,13 @@ export function AdventureMode({
       destination: dest.location,
       travelers,
       days,
+      budget,
       isRoundTrip,
       accommodationType,
+      preferences,
+      departureDate,
+      departureTime,
+      estimatedDistanceKm: dest.distanceKm * (isRoundTrip ? 2 : 1),
     });
     onClose();
   };
@@ -225,6 +241,33 @@ export function AdventureMode({
                     +
                   </Button>
                 </div>
+              </div>
+            </div>
+
+            {/* Departure Date/Time */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                  <Calendar className="h-3 w-3" /> Depart
+                </Label>
+                <Input
+                  type="date"
+                  value={departureDate}
+                  onChange={(e) => setDepartureDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                  <Clock className="h-3 w-3" /> Time
+                </Label>
+                <Input
+                  type="time"
+                  value={departureTime}
+                  onChange={(e) => setDepartureTime(e.target.value)}
+                  className="text-sm"
+                />
               </div>
             </div>
 

@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { DollarSign, Fuel, Hotel, Utensils, Sparkles, Lock, Unlock, Users, ChevronDown, ChevronUp } from 'lucide-react';
+import { DollarSign, Fuel, Hotel, Utensils, Sparkles, Lock, Unlock, Users, ChevronDown, ChevronUp, Save } from 'lucide-react';
 import { Input } from '../UI/Input';
 import { Label } from '../UI/Label';
-import type { TripBudget, Currency, BudgetProfile, BudgetWeights } from '../../types';
-import { BUDGET_PROFILES, applyBudgetWeights, getPerPersonCost } from '../../lib/budget';
+import type { TripBudget, Currency, BudgetWeights, SavedBudgetProfile } from '../../types';
+import { applyBudgetWeights, getPerPersonCost } from '../../lib/budget';
 import { cn } from '../../lib/utils';
+import { BudgetProfilePicker, SaveProfileDialog } from './BudgetProfilePicker';
 
 interface BudgetInputProps {
   budget: TripBudget;
@@ -16,30 +17,42 @@ interface BudgetInputProps {
 
 export function BudgetInput({ budget, onChange, currency: _currency, numTravelers = 1, className }: BudgetInputProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [activeSavedProfile, setActiveSavedProfile] = useState<SavedBudgetProfile | null>(null);
 
-  // Apply a profile's weights to the current total
-  const applyProfile = (profile: BudgetProfile) => {
-    const profileData = BUDGET_PROFILES[profile];
-    const weights = profileData.weights;
 
-    if (budget.allocation === 'fixed' && budget.total > 0) {
-      // Fixed mode: redistribute total based on new weights
-      const categories = applyBudgetWeights(budget.total, weights);
-      onChange({
-        ...budget,
-        profile,
-        weights,
-        ...categories,
-      });
-    } else {
-      // Flexible mode: just update the profile/weights
-      onChange({
-        ...budget,
-        profile,
-        weights,
-      });
+  // Apply a saved profile
+  const applySavedProfile = (savedProfile: SavedBudgetProfile) => {
+    setActiveSavedProfile(savedProfile);
+
+    const newBudget: TripBudget = {
+      ...budget,
+      profile: savedProfile.baseProfile,
+      weights: savedProfile.weights,
+      allocation: savedProfile.allocation,
+    };
+
+    // Apply default total if set
+    if (savedProfile.defaultTotal && savedProfile.defaultTotal > 0) {
+      newBudget.total = savedProfile.defaultTotal;
+      if (newBudget.allocation === 'fixed') {
+        const categories = applyBudgetWeights(newBudget.total, newBudget.weights);
+        Object.assign(newBudget, categories);
+      }
     }
+
+    onChange(newBudget);
   };
+
+  // Handle profile save complete
+  const handleProfileSaved = (profile: SavedBudgetProfile) => {
+    setActiveSavedProfile(profile);
+  };
+
+  // Check if current budget differs from active saved profile (to show save button)
+  const hasUnsavedChanges = activeSavedProfile
+    ? JSON.stringify(budget.weights) !== JSON.stringify(activeSavedProfile.weights)
+    : budget.profile === 'custom' || budget.total > 0;
 
   // Toggle fixed/flexible allocation
   const toggleAllocation = () => {
@@ -203,39 +216,16 @@ export function BudgetInput({ budget, onChange, currency: _currency, numTraveler
 
       {/* Budget Container */}
       <div className="space-y-4 p-4 rounded-lg bg-gray-50 border border-gray-200">
-        {/* Profile Cards */}
-        <div>
-          <Label className="text-xs text-gray-500 mb-2 block">Budget Style</Label>
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-            {(Object.keys(BUDGET_PROFILES) as BudgetProfile[]).map((profile) => {
-              const { emoji, label } = BUDGET_PROFILES[profile];
-              const isSelected = budget.profile === profile;
-              return (
-                <button
-                  key={profile}
-                  onClick={() => applyProfile(profile)}
-                  className={cn(
-                    'p-2 rounded-lg border-2 text-center transition-all',
-                    isSelected
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-gray-200 hover:border-gray-300 bg-white'
-                  )}
-                >
-                  <div className="text-lg">{emoji}</div>
-                  <div className={cn(
-                    'text-[10px] font-medium',
-                    isSelected ? 'text-green-700' : 'text-gray-600'
-                  )}>
-                    {label}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-          <p className="text-[10px] text-gray-500 mt-1.5 text-center">
-            {BUDGET_PROFILES[budget.profile].description}
-          </p>
-        </div>
+        {/* Profile Picker */}
+        <BudgetProfilePicker
+          currentBudget={budget}
+          numTravelers={numTravelers}
+          onSelectProfile={(newBudget) => {
+            setActiveSavedProfile(null);
+            onChange(newBudget);
+          }}
+          onSelectSavedProfile={applySavedProfile}
+        />
 
         {/* Total Budget Input */}
         <div className="pt-3 border-t border-gray-200">
@@ -271,6 +261,17 @@ export function BudgetInput({ budget, onChange, currency: _currency, numTraveler
               <Users className="h-3.5 w-3.5" />
               <span>{currencySymbol}{perPersonCost} per person</span>
             </div>
+          )}
+
+          {/* Save Profile Button */}
+          {hasUnsavedChanges && budget.total > 0 && (
+            <button
+              onClick={() => setShowSaveDialog(true)}
+              className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-dashed border-green-300 text-green-700 text-sm font-medium hover:bg-green-50 hover:border-green-400 transition-all"
+            >
+              <Save className="h-4 w-4" />
+              Save as Profile
+            </button>
           )}
         </div>
 
@@ -395,7 +396,7 @@ export function BudgetInput({ budget, onChange, currency: _currency, numTraveler
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium flex items-center gap-1.5">
                   <Sparkles className="h-3.5 w-3.5 text-purple-500" />
-                  Misc / Activities
+                  {activeSavedProfile?.categoryLabels?.misc || 'Misc / Activities'}
                   <span className="text-gray-400 ml-auto">{budget.weights.misc}%</span>
                 </Label>
                 <div className="relative">
@@ -453,6 +454,15 @@ export function BudgetInput({ budget, onChange, currency: _currency, numTraveler
           </div>
         )}
       </div>
+
+      {/* Save Profile Dialog */}
+      <SaveProfileDialog
+        open={showSaveDialog}
+        onOpenChange={setShowSaveDialog}
+        budget={budget}
+        numTravelers={numTravelers}
+        onSave={handleProfileSaved}
+      />
     </div>
   );
 }

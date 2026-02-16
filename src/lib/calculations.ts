@@ -46,17 +46,17 @@ export function calculateTripCosts(
   // Analyze segments for warnings, timezone crossings, etc.
   const analyzedSegments = analyzeSegments(segmentsWithCost);
 
-  // Apply Round Trip Logic (x2)
-  const multiplier = settings.isRoundTrip ? 2 : 1;
+  // NOTE: Round trip multiplier is applied in App.tsx after day splitting
+  // Don't apply it here to avoid double multiplication
 
   return {
-    totalDistanceKm: totalDistanceKm * multiplier,
-    totalDurationMinutes: totalDurationMinutes * multiplier,
-    totalFuelLitres: totalFuelLitres * multiplier,
-    totalFuelCost: totalFuelCost * multiplier,
-    gasStops: gasStops * multiplier, // Rough estimate, might need precise tank logic but x2 is safe
-    costPerPerson: costPerPerson * multiplier,
-    drivingDays: drivingDays * multiplier,
+    totalDistanceKm: totalDistanceKm,
+    totalDurationMinutes: totalDurationMinutes,
+    totalFuelLitres: totalFuelLitres,
+    totalFuelCost: totalFuelCost,
+    gasStops: gasStops,
+    costPerPerson: costPerPerson,
+    drivingDays: drivingDays,
     segments: analyzedSegments, // Segments with intelligence (warnings, timezone, etc.)
     fullGeometry: []
   };

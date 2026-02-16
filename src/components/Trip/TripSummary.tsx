@@ -25,15 +25,15 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
   if (!summary) return null;
 
   return (
-    <div className="absolute bottom-4 left-4 right-4 z-[1000] animate-in slide-in-from-bottom duration-500">
-      <Card className="bg-white/90 backdrop-blur-md shadow-xl border-white/20">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-4">
+    <div className="absolute bottom-4 left-4 right-4 z-[1000] animate-in slide-in-from-bottom duration-500 max-h-[85vh] flex flex-col">
+      <Card className="bg-white/90 backdrop-blur-md shadow-xl border-white/20 flex-1 overflow-hidden flex flex-col">
+        <CardContent className="p-4 flex-1 overflow-y-auto flex flex-col">
+          <div className="flex items-center justify-between mb-4 sticky top-0 bg-white/90 backdrop-blur-md z-10 -mx-4 px-4 py-2">
              <div className="flex items-center gap-3">
                 {tripActive && <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />}
                 <span className="font-bold text-lg">{tripActive ? "Trip Active" : "Trip Summary"}</span>
              </div>
-             <div className="flex items-center gap-2">
+             <div className="flex items-center gap-2 shrink-0">
                {/* Collapse/Expand Toggle */}
                <Button
                  variant="ghost"
