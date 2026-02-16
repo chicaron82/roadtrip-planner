@@ -39,6 +39,10 @@ interface UseTripCalculationReturn {
   // Actions
   calculateTrip: () => Promise<void>;
   updateStopType: (segmentIndex: number, newStopType: import('../types').StopType) => void;
+  updateDayNotes: (dayNumber: number, notes: string) => void;
+  updateDayTitle: (dayNumber: number, title: string) => void;
+  updateDayType: (dayNumber: number, dayType: import('../types').DayType) => void;
+  updateDayOvernight: (dayNumber: number, overnight: import('../types').OvernightStop) => void;
   clearError: () => void;
 }
 
@@ -229,6 +233,47 @@ export function useTripCalculation({
     [localSummary, settings.departureDate, settings.departureTime, onSummaryChange]
   );
 
+  // Generic day updater — updates a single day in summary.days
+  const updateDay = useCallback(
+    (dayNumber: number, patch: Partial<import('../types').TripDay>) => {
+      if (!localSummary?.days) return;
+
+      const updatedDays = localSummary.days.map(day =>
+        day.dayNumber === dayNumber ? { ...day, ...patch } : day
+      );
+
+      const updatedSummary = {
+        ...localSummary,
+        days: updatedDays,
+      };
+
+      setLocalSummary(updatedSummary);
+      onSummaryChange(updatedSummary);
+    },
+    [localSummary, onSummaryChange]
+  );
+
+  // Convenience wrappers
+  const updateDayNotes = useCallback(
+    (dayNumber: number, notes: string) => updateDay(dayNumber, { notes }),
+    [updateDay]
+  );
+
+  const updateDayTitle = useCallback(
+    (dayNumber: number, title: string) => updateDay(dayNumber, { title }),
+    [updateDay]
+  );
+
+  const updateDayType = useCallback(
+    (dayNumber: number, dayType: import('../types').DayType) => updateDay(dayNumber, { dayType }),
+    [updateDay]
+  );
+
+  const updateDayOvernight = useCallback(
+    (dayNumber: number, overnight: import('../types').OvernightStop) => updateDay(dayNumber, { overnight }),
+    [updateDay]
+  );
+
   const dismissOvernightPrompt = useCallback(() => {
     setShowOvernightPrompt(false);
   }, []);
@@ -247,6 +292,10 @@ export function useTripCalculation({
     dismissOvernightPrompt,
     calculateTrip,
     updateStopType,
+    updateDayNotes,
+    updateDayTitle,
+    updateDayType,
+    updateDayOvernight,
     clearError,
   };
 }

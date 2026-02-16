@@ -12,6 +12,7 @@ interface DayHeaderProps {
   editable?: boolean;
   onDayTypeChange?: (dayNumber: number, type: DayType) => void;
   onTitleChange?: (dayNumber: number, title: string) => void;
+  onEditOvernight?: (dayNumber: number) => void;
 }
 
 export function DayHeader({
@@ -21,6 +22,7 @@ export function DayHeader({
   editable = false,
   onDayTypeChange,
   onTitleChange,
+  onEditOvernight,
 }: DayHeaderProps) {
   const dayType = day.dayType || 'planned';
   const [editingTitle, setEditingTitle] = useState(false);
@@ -157,14 +159,26 @@ export function DayHeader({
 
       {/* Overnight Stop Info */}
       {day.overnight && (
-        <div className="mb-4 p-3 rounded-lg bg-indigo-50 border border-indigo-200">
+        <div
+          className={cn(
+            "mb-4 p-3 rounded-lg bg-indigo-50 border border-indigo-200",
+            onEditOvernight && "cursor-pointer hover:bg-indigo-100 hover:border-indigo-300 transition-colors"
+          )}
+          onClick={() => onEditOvernight?.(day.dayNumber)}
+          role={onEditOvernight ? 'button' : undefined}
+          tabIndex={onEditOvernight ? 0 : undefined}
+          onKeyDown={(e) => e.key === 'Enter' && onEditOvernight?.(day.dayNumber)}
+        >
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
               <span className="text-lg">🏨</span>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="font-semibold text-indigo-900 text-sm">
+              <div className="font-semibold text-indigo-900 text-sm flex items-center gap-2">
                 {day.overnight.hotelName || 'Overnight Stay'}
+                {onEditOvernight && !day.overnight.hotelName && (
+                  <span className="text-[10px] text-indigo-400 font-normal">click to add details</span>
+                )}
               </div>
               {day.overnight.address && (
                 <div className="text-xs text-indigo-600 truncate">
@@ -179,6 +193,12 @@ export function DayHeader({
                   <>
                     <span>•</span>
                     <span>{day.overnight.amenities.join(', ')}</span>
+                  </>
+                )}
+                {day.overnight.checkIn && (
+                  <>
+                    <span>•</span>
+                    <span>Check-in: {day.overnight.checkIn}</span>
                   </>
                 )}
               </div>

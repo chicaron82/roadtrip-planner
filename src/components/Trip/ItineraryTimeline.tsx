@@ -1,17 +1,17 @@
 import { useState, useMemo } from 'react';
-import { Trophy, Clock, MapPin, Fuel, Sparkles, Edit3 } from 'lucide-react';
-import type { TripSummary, TripSettings, RouteSegment, Vehicle, StopType, TripDay, DayType, Activity, DayOption } from '../../types';
+import { Sparkles } from 'lucide-react';
+import type { TripSummary, TripSettings, Vehicle, StopType, TripDay, DayType, Activity, DayOption, RouteSegment, OvernightStop } from '../../types';
 import { SmartSuggestions } from './SmartSuggestions';
 import { SuggestedStopCard } from './SuggestedStopCard';
 import { generatePacingSuggestions } from '../../lib/segment-analyzer';
 import { generateSmartStops, createStopConfig, type SuggestedStop } from '../../lib/stop-suggestions';
+import { assignDrivers, extractFuelStopIndices } from '../../lib/driver-rotation';
 import { Button } from '../UI/Button';
-import { formatTime as formatTimeWithTz, STOP_LABELS } from '../../lib/calculations';
-import { StopDurationPicker } from './StopDurationPicker';
-import { DayHeader } from './DayHeader';
-import { DailyBudgetCard } from './DailyBudgetCard';
-import { ActivityBadge, ActivityEditor } from './ActivityEditor';
-import { FreeDayCard, FlexibleDayCard } from './FlexibleDay';
+import { ActivityEditor } from './ActivityEditor';
+import { StartNode, GasStopNode, SuggestedStopNode, WaypointNode } from './TimelineNode';
+import { DaySection } from './DaySection';
+import { DriverStatsPanel } from './DriverStatsPanel';
+import { OvernightEditor } from './OvernightEditor';
 
 interface ItineraryTimelineProps {
   summary: TripSummary;
@@ -26,15 +26,8 @@ interface ItineraryTimelineProps {
   onAddDayOption?: (dayNumber: number, option: DayOption) => void;
   onRemoveDayOption?: (dayNumber: number, optionIndex: number) => void;
   onSelectDayOption?: (dayNumber: number, optionIndex: number) => void;
+  onUpdateOvernight?: (dayNumber: number, overnight: OvernightStop) => void;
 }
-
-const formatTime = (date: Date) => {
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-};
-
-const formatDate = (date: Date) => {
-  return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-};
 
 export function ItineraryTimeline({
   summary,
@@ -49,6 +42,7 @@ export function ItineraryTimeline({
   onAddDayOption,
   onRemoveDayOption,
   onSelectDayOption,
+  onUpdateOvernight,
 }: ItineraryTimelineProps) {
   const startTime = useMemo(
     () => new Date(`${settings.departureDate}T${settings.departureTime}`),
@@ -60,6 +54,12 @@ export function ItineraryTimeline({
     segmentIndex: number;
     activity?: Activity;
     locationName?: string;
+  } | null>(null);
+
+  // Overnight editor state
+  const [editingOvernight, setEditingOvernight] = useState<{
+    dayNumber: number;
+    overnight: OvernightStop;
   } | null>(null);
 
   // Generate smart suggestions
@@ -110,6 +110,7 @@ export function ItineraryTimeline({
       segment?: RouteSegment;
       index?: number;
       suggestedStop?: SuggestedStop;
+      fuelPriority?: 'critical' | 'recommended' | 'optional';
     }
 
     const items: SimulationItem[] = [];
@@ -138,6 +139,12 @@ export function ItineraryTimeline({
           const refillCost = refillAmount * settings.gasPrice;
           const stopDurationMinutes = 15;
 
+          // Determine fuel priority based on remaining tank level
+          const fuelPercent = currentFuel / VIRTUAL_TANK_CAPACITY;
+          const fuelPriority: 'critical' | 'recommended' | 'optional' =
+            fuelPercent < 0.10 ? 'critical' :
+            fuelPercent < 0.25 ? 'recommended' : 'optional';
+
           const stopTime = new Date(currentTime);
           currentTime = new Date(currentTime.getTime() + (stopDurationMinutes * 60 * 1000));
           currentFuel = VIRTUAL_TANK_CAPACITY;
@@ -146,7 +153,8 @@ export function ItineraryTimeline({
             type: 'gas',
             arrivalTime: stopTime,
             cost: refillCost,
-            litres: refillAmount
+            litres: refillAmount,
+            fuelPriority,
           });
         }
       }
@@ -202,6 +210,19 @@ export function ItineraryTimeline({
   // Pending suggestions (not yet accepted or dismissed)
   const pendingSuggestions = activeSuggestions.filter(s => !s.accepted);
 
+  // Driver rotation overlay (computed, never mutates segment data)
+  const driverRotation = useMemo(() => {
+    if (settings.numDrivers <= 1) return null;
+    const fuelIndices = extractFuelStopIndices(simulationItems);
+    return assignDrivers(summary.segments, settings.numDrivers, fuelIndices);
+  }, [summary.segments, settings.numDrivers, simulationItems]);
+
+  // Quick lookup: segment index → driver number
+  const driverBySegment = useMemo(() => {
+    if (!driverRotation) return new Map<number, number>();
+    return new Map(driverRotation.assignments.map(a => [a.segmentIndex, a.driver]));
+  }, [driverRotation]);
+
   return (
     <div className="space-y-6">
       {/* Smart Suggestions */}
@@ -243,65 +264,30 @@ export function ItineraryTimeline({
         </div>
       )}
 
-      {/* Multi-Day Headers (when days are available) */}
+      {/* Day Sections (multi-day trips) */}
       {days && days.length > 0 && (
         <div className="mb-6 space-y-4">
-          {days.map((day, idx) => {
-            const dayType = day.dayType || 'planned';
-
-            // Render different components based on day type
-            if (dayType === 'free' && onUpdateDayNotes && onUpdateDayTitle) {
-              return (
-                <div key={day.dayNumber}>
-                  <DayHeader
-                    day={day}
-                    isFirst={idx === 0}
-                    editable={!!onUpdateDayType}
-                    onDayTypeChange={onUpdateDayType}
-                    onTitleChange={onUpdateDayTitle}
-                  />
-                  <FreeDayCard
-                    day={day}
-                    onNotesChange={(notes) => onUpdateDayNotes(day.dayNumber, notes)}
-                    onTitleChange={(title) => onUpdateDayTitle(day.dayNumber, title)}
-                  />
-                </div>
-              );
-            }
-
-            if (dayType === 'flexible' && onAddDayOption && onRemoveDayOption && onSelectDayOption && onUpdateDayNotes) {
-              return (
-                <div key={day.dayNumber}>
-                  <DayHeader
-                    day={day}
-                    isFirst={idx === 0}
-                    editable={!!onUpdateDayType}
-                    onDayTypeChange={onUpdateDayType}
-                    onTitleChange={onUpdateDayTitle}
-                  />
-                  <FlexibleDayCard
-                    day={day}
-                    onSelectOption={(optionIndex) => onSelectDayOption(day.dayNumber, optionIndex)}
-                    onAddOption={(option) => onAddDayOption(day.dayNumber, option)}
-                    onRemoveOption={(optionIndex) => onRemoveDayOption(day.dayNumber, optionIndex)}
-                    onNotesChange={(notes) => onUpdateDayNotes(day.dayNumber, notes)}
-                  />
-                </div>
-              );
-            }
-
-            // Default: planned day
-            return (
-              <DayHeader
-                key={day.dayNumber}
-                day={day}
-                isFirst={idx === 0}
-                editable={!!onUpdateDayType}
-                onDayTypeChange={onUpdateDayType}
-                onTitleChange={onUpdateDayTitle}
-              />
-            );
-          })}
+          {days.map((day, idx) => (
+            <DaySection
+              key={day.dayNumber}
+              day={day}
+              isFirst={idx === 0}
+              editable={!!onUpdateDayType}
+              budgetMode={settings.budgetMode}
+              onDayTypeChange={onUpdateDayType}
+              onTitleChange={onUpdateDayTitle}
+              onNotesChange={onUpdateDayNotes}
+              onAddDayOption={onAddDayOption}
+              onRemoveDayOption={onRemoveDayOption}
+              onSelectDayOption={onSelectDayOption}
+              onEditOvernight={onUpdateOvernight && day.overnight ? (dayNum) => {
+                const target = days?.find(d => d.dayNumber === dayNum);
+                if (target?.overnight) {
+                  setEditingOvernight({ dayNumber: dayNum, overnight: target.overnight });
+                }
+              } : undefined}
+            />
+          ))}
         </div>
       )}
 
@@ -311,247 +297,61 @@ export function ItineraryTimeline({
         <div className="absolute left-[19px] top-4 bottom-0 w-0.5 bg-border -z-10"></div>
 
         {/* Start Node */}
-        <div className="flex gap-4 mb-8">
-          <div className="relative">
-            <div className="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center border-2 border-green-200 shadow-sm z-10">
-              <MapPin className="h-5 w-5" />
-            </div>
-          </div>
-          <div className="pt-1">
-            <div className="text-xs font-bold text-green-600 uppercase tracking-wider mb-0.5">Start</div>
-            <div className="font-bold text-xl">{summary.segments[0]?.from.name || "Origin"}</div>
-            <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
-              <Clock className="h-3 w-3" /> {formatDate(startTime)} • {formatTime(startTime)}
-              {settings.useArrivalTime && <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold">CALCULATED</span>}
-            </div>
-          </div>
-        </div>
+        <StartNode
+          locationName={summary.segments[0]?.from.name || 'Origin'}
+          startTime={startTime}
+          isCalculatedDeparture={settings.useArrivalTime}
+        />
 
         {/* Simulation Items */}
         {simulationItems.map((item, idx) => {
           if (item.type === 'gas') {
             return (
-              <div key={`gas-${idx}`} className="flex gap-4 mb-8 relative animate-in fade-in slide-in-from-left-4 duration-500">
-                <div className="relative">
-                  <div className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center border-2 border-white ring-2 ring-orange-200 shadow-sm z-10 bg-white">
-                    <Fuel className="h-5 w-5" />
-                  </div>
-                </div>
-                <div className="pt-0 flex-1">
-                  <div className="bg-orange-50 border border-orange-100 rounded-xl p-3 shadow-sm">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="font-bold text-orange-800 text-sm">Recommended Gas Stop</div>
-                        <div className="text-xs text-orange-600 mt-0.5">Tracked fuel is low (&lt;15%).</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-bold text-orange-700">${item.cost?.toFixed(2)}</div>
-                        <div className="text-xs text-orange-600">~{item.litres?.toFixed(0)}L</div>
-                      </div>
-                    </div>
-                    <div className="mt-2 text-xs flex items-center gap-2 text-orange-700/70 border-t border-orange-100/50 pt-2">
-                      <Clock className="h-3 w-3" /> +15 min stop calculated
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <GasStopNode
+                key={`gas-${idx}`}
+                arrivalTime={item.arrivalTime}
+                cost={item.cost}
+                litres={item.litres}
+                priority={item.fuelPriority}
+              />
             );
           }
 
           if (item.type === 'suggested' && item.suggestedStop) {
-            const stop = item.suggestedStop;
             return (
-              <div key={`suggested-${idx}`} className="flex gap-4 mb-8 relative animate-in fade-in slide-in-from-left-4 duration-500">
-                <div className="relative">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 shadow-sm z-10 bg-white ${
-                    stop.type === 'fuel' ? 'bg-orange-100 text-orange-600 border-orange-200' :
-                    stop.type === 'rest' ? 'bg-amber-100 text-amber-600 border-amber-200' :
-                    stop.type === 'meal' ? 'bg-green-100 text-green-600 border-green-200' :
-                    'bg-indigo-100 text-indigo-600 border-indigo-200'
-                  }`}>
-                    {stop.type === 'fuel' ? <Fuel className="h-5 w-5" /> :
-                     stop.type === 'rest' ? '☕' :
-                     stop.type === 'meal' ? '🍽️' : '🏨'}
-                  </div>
-                </div>
-                <div className="pt-0 flex-1">
-                  <div className={`rounded-xl p-3 shadow-sm border ${
-                    stop.type === 'fuel' ? 'bg-orange-50 border-orange-200' :
-                    stop.type === 'rest' ? 'bg-amber-50 border-amber-200' :
-                    stop.type === 'meal' ? 'bg-green-50 border-green-200' :
-                    'bg-indigo-50 border-indigo-200'
-                  }`}>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className={`font-bold text-sm flex items-center gap-2 ${
-                          stop.type === 'fuel' ? 'text-orange-800' :
-                          stop.type === 'rest' ? 'text-amber-800' :
-                          stop.type === 'meal' ? 'text-green-800' :
-                          'text-indigo-800'
-                        }`}>
-                          {stop.type === 'fuel' ? 'Fuel Stop' :
-                           stop.type === 'rest' ? 'Rest Break' :
-                           stop.type === 'meal' ? 'Meal Stop' : 'Overnight Stay'}
-                          <span className="text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded font-bold">ADDED</span>
-                        </div>
-                        <div className={`text-xs mt-0.5 ${
-                          stop.type === 'fuel' ? 'text-orange-600' :
-                          stop.type === 'rest' ? 'text-amber-600' :
-                          stop.type === 'meal' ? 'text-green-600' :
-                          'text-indigo-600'
-                        }`}>{stop.reason}</div>
-                      </div>
-                      {stop.details.fuelCost && (
-                        <div className="text-right">
-                          <div className="font-bold text-orange-700">${stop.details.fuelCost.toFixed(2)}</div>
-                          <div className="text-xs text-orange-600">~{stop.details.fuelNeeded?.toFixed(0)}L</div>
-                        </div>
-                      )}
-                    </div>
-                    <div className={`mt-2 text-xs flex items-center gap-2 border-t pt-2 ${
-                      stop.type === 'fuel' ? 'text-orange-700/70 border-orange-100/50' :
-                      stop.type === 'rest' ? 'text-amber-700/70 border-amber-100/50' :
-                      stop.type === 'meal' ? 'text-green-700/70 border-green-100/50' :
-                      'text-indigo-700/70 border-indigo-100/50'
-                    }`}>
-                      <Clock className="h-3 w-3" /> +{stop.duration} min • {formatTime(item.arrivalTime)}
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <SuggestedStopNode
+                key={`suggested-${idx}`}
+                arrivalTime={item.arrivalTime}
+                stop={item.suggestedStop}
+              />
             );
           }
 
-          const { segment, arrivalTime, index } = item;
-          const isDest = index === summary.segments.length - 1;
+          if (item.segment && typeof item.index === 'number') {
+            return (
+              <WaypointNode
+                key={`stop-${item.index}`}
+                segment={item.segment}
+                arrivalTime={item.arrivalTime}
+                index={item.index}
+                isDestination={item.index === summary.segments.length - 1}
+                onUpdateStopType={onUpdateStopType}
+                onEditActivity={onUpdateActivity ? (segIdx, activity, locName) => {
+                  setEditingActivity({ segmentIndex: segIdx, activity, locationName: locName });
+                } : undefined}
+                activity={item.segment.activity}
+                assignedDriver={driverBySegment.get(item.index)}
+              />
+            );
+          }
 
-          return (
-            <div key={`stop-${index}`} className="flex gap-4 mb-8 group">
-              <div className="relative">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 shadow-sm z-10 bg-white transition-colors duration-300 ${
-                  isDest
-                    ? 'bg-yellow-100 text-yellow-600 border-yellow-200'
-                    : 'bg-white text-muted-foreground border-slate-200 group-hover:border-blue-400 group-hover:text-blue-500'
-                }`}>
-                  {isDest ? <Trophy className="h-5 w-5" /> : <span className="font-mono text-xs font-bold">{typeof index === 'number' ? index + 1 : ''}</span>}
-                </div>
-              </div>
-
-              <div className="flex-1 pt-1">
-                {/* Drive Segment Info */}
-                <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 pl-1">
-                  <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded border border-slate-100">
-                    <span>🚗</span>
-                    <span>{segment?.distanceKm.toFixed(0)} km</span>
-                  </div>
-                  <span className="text-slate-300">•</span>
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    <span>{Math.floor((segment?.durationMinutes || 0) / 60)}h {(segment?.durationMinutes || 0) % 60}m</span>
-                  </div>
-                  <span className="text-slate-300">•</span>
-                  <div className="text-green-600 font-medium">
-                    ${segment?.fuelCost.toFixed(2)} fuel
-                  </div>
-                </div>
-
-                {/* The Stop Card */}
-                <div className={`rounded-xl border p-4 shadow-sm transition-all duration-300 ${isDest ? 'bg-yellow-50/50 border-yellow-200' : 'bg-card hover:bg-slate-50 hover:border-blue-200'}`}>
-                  <div className="flex justify-between items-start mb-1">
-                    <div className="flex-1">
-                      <div className="text-xs font-bold uppercase tracking-wider mb-0.5 text-muted-foreground">
-                        {isDest ? 'Destination' : 'Waypoint'}
-                      </div>
-                      <div className="font-bold text-lg leading-tight">{segment?.to.name}</div>
-                      {segment?.stopType && segment.stopType !== 'drive' && onUpdateStopType && typeof index === 'number' ? (
-                        <div className="mt-2">
-                          <StopDurationPicker
-                            value={segment.stopType}
-                            onChange={(newType) => onUpdateStopType(index, newType)}
-                            compact={true}
-                          />
-                        </div>
-                      ) : segment?.stopType && segment.stopType !== 'drive' && segment.stopDuration ? (
-                        <div className="mt-2 inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-xs border border-blue-100 font-medium">
-                          <Clock className="h-3 w-3" />
-                          {STOP_LABELS[segment.stopType]} • {segment.stopDuration} min
-                        </div>
-                      ) : null}
-
-                      {/* Activity Badge or Add Button */}
-                      {segment?.activity ? (
-                        <div className="mt-2">
-                          <ActivityBadge
-                            activity={segment.activity}
-                            onClick={() => typeof index === 'number' && setEditingActivity({
-                              segmentIndex: index,
-                              activity: segment.activity,
-                              locationName: segment.to.name,
-                            })}
-                          />
-                        </div>
-                      ) : onUpdateActivity && typeof index === 'number' && (
-                        <button
-                          type="button"
-                          onClick={() => setEditingActivity({
-                            segmentIndex: index,
-                            locationName: segment?.to.name,
-                          })}
-                          className="mt-2 inline-flex items-center gap-1 text-xs text-gray-500 hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors"
-                        >
-                          <Edit3 className="h-3 w-3" />
-                          Add Activity
-                        </button>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-mono font-bold bg-muted/80 px-2 py-1 rounded text-foreground">
-                        {segment?.arrivalTime ? formatTimeWithTz(segment.arrivalTime, segment.weather?.timezoneAbbr) :
-                         arrivalTime ? formatTime(arrivalTime) : ''}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Weather & Metadata */}
-                  <div className="flex flex-wrap items-center gap-2 mt-3">
-                    {segment?.weather && (
-                      <div className="flex items-center gap-1.5 bg-sky-50 text-sky-700 px-2 py-1 rounded-md text-xs border border-sky-100 font-medium">
-                        <span className="text-base">
-                          {segment.weather.weatherCode !== undefined ? (
-                            segment.weather.temperatureMax > 25 ? '☀️' :
-                            (segment.weather.precipitationProb > 40 ? '🌧️' :
-                            (segment.weather.weatherCode > 3 ? '☁️' : '🌤️'))
-                          ) : '🌡️'}
-                        </span>
-                        <span>{segment.weather.temperatureMax}°C</span>
-                        <span className="text-sky-400 pl-1 border-l border-sky-200">
-                          {segment.weather.precipitationProb}% rain
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
+          return null;
         })}
       </div>
 
-      {/* Daily Budget Summary (when days are available) */}
-      {days && days.length > 0 && (
-        <div className="mt-8 space-y-4">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
-            <span>💰</span> Daily Budget Breakdown
-          </h3>
-          {days.map((day) => (
-            <DailyBudgetCard
-              key={day.dayNumber}
-              budget={day.budget}
-              dayNumber={day.dayNumber}
-              budgetMode={settings.budgetMode}
-            />
-          ))}
-        </div>
+      {/* Driver Stats (when multiple drivers) */}
+      {driverRotation && driverRotation.stats.length > 1 && (
+        <DriverStatsPanel stats={driverRotation.stats} />
       )}
 
       {/* Activity Editor Dialog */}
@@ -569,6 +369,19 @@ export function ItineraryTimeline({
             onUpdateActivity(editingActivity.segmentIndex, undefined);
             setEditingActivity(null);
           } : undefined}
+        />
+      )}
+
+      {/* Overnight Hotel Editor Dialog */}
+      {editingOvernight && onUpdateOvernight && (
+        <OvernightEditor
+          open={true}
+          onOpenChange={(open) => !open && setEditingOvernight(null)}
+          overnight={editingOvernight.overnight}
+          onSave={(overnight) => {
+            onUpdateOvernight(editingOvernight.dayNumber, overnight);
+            setEditingOvernight(null);
+          }}
         />
       )}
     </div>

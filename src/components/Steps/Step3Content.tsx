@@ -1,11 +1,12 @@
-import { Share2 } from 'lucide-react';
-import type { Location, Vehicle, TripSettings, TripSummary, POISuggestion, TripJournal, StopType } from '../../types';
+import { Share2, Printer } from 'lucide-react';
+import type { Location, Vehicle, TripSettings, TripSummary, POISuggestion, TripJournal, StopType, DayType, OvernightStop } from '../../types';
 import { Button } from '../UI/Button';
 import { OvernightStopPrompt } from '../Trip/OvernightStopPrompt';
 import { POISuggestionsPanel } from '../Trip/POISuggestionsPanel';
 import { JournalModeToggle, StartJournalCTA, type ViewMode } from '../Trip/JournalModeToggle';
 import { JournalTimeline } from '../Trip/JournalTimeline';
 import { ItineraryTimeline } from '../Trip/ItineraryTimeline';
+import { printTrip } from '../Trip/TripPrintView';
 import type { PlanningStep } from '../../hooks';
 
 interface Step3ContentProps {
@@ -26,6 +27,10 @@ interface Step3ContentProps {
   onStartJournal: () => void;
   onUpdateJournal: (journal: TripJournal) => void;
   onUpdateStopType: (segmentIndex: number, stopType: StopType) => void;
+  onUpdateDayNotes?: (dayNumber: number, notes: string) => void;
+  onUpdateDayTitle?: (dayNumber: number, title: string) => void;
+  onUpdateDayType?: (dayNumber: number, dayType: DayType) => void;
+  onUpdateOvernight?: (dayNumber: number, overnight: OvernightStop) => void;
   onDismissOvernight: () => void;
   onAddPOI: (poiId: string) => void;
   onDismissPOI: (poiId: string) => void;
@@ -50,6 +55,10 @@ export function Step3Content({
   onStartJournal,
   onUpdateJournal,
   onUpdateStopType,
+  onUpdateDayNotes,
+  onUpdateDayTitle,
+  onUpdateDayType,
+  onUpdateOvernight,
   onDismissOvernight,
   onAddPOI,
   onDismissPOI,
@@ -75,6 +84,11 @@ export function Step3Content({
             {shareUrl && (
               <Button size="sm" variant="outline" className="gap-1" onClick={onCopyShareLink}>
                 <Share2 className="h-3 w-3" /> Share
+              </Button>
+            )}
+            {summary && (
+              <Button size="sm" variant="outline" className="gap-1" onClick={() => printTrip({ summary, settings })}>
+                <Printer className="h-3 w-3" /> Print
               </Button>
             )}
           </div>
@@ -140,6 +154,10 @@ export function Step3Content({
             vehicle={vehicle}
             days={summary.days}
             onUpdateStopType={onUpdateStopType}
+            onUpdateDayNotes={onUpdateDayNotes}
+            onUpdateDayTitle={onUpdateDayTitle}
+            onUpdateDayType={onUpdateDayType}
+            onUpdateOvernight={onUpdateOvernight}
           />
         )
       ) : (
