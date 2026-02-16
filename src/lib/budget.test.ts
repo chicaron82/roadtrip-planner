@@ -180,7 +180,7 @@ describe('calculateCostBreakdown', () => {
 
 describe('getBudgetStatus', () => {
   const mockBudget: TripBudget = {
-    mode: 'limited',
+    mode: 'plan-to-budget',
     allocation: 'flexible',
     profile: 'balanced',
     weights: BUDGET_PROFILES.balanced.weights,
@@ -313,14 +313,14 @@ describe('createSmartBudget', () => {
 
 describe('BUDGET_PROFILES', () => {
   it('all profiles have weights summing to 100', () => {
-    for (const [name, profile] of Object.entries(BUDGET_PROFILES)) {
+    for (const [_name, profile] of Object.entries(BUDGET_PROFILES)) {
       const sum = profile.weights.gas + profile.weights.hotel + profile.weights.food + profile.weights.misc;
-      expect(sum).toBe(100, `Profile "${name}" weights should sum to 100, got ${sum}`);
+      expect(sum).toBe(100);
     }
   });
 
   it('all profiles have required fields', () => {
-    for (const [name, profile] of Object.entries(BUDGET_PROFILES)) {
+    for (const [_name, profile] of Object.entries(BUDGET_PROFILES)) {
       expect(profile.label).toBeDefined();
       expect(profile.emoji).toBeDefined();
       expect(profile.description).toBeDefined();

@@ -172,6 +172,8 @@ describe('calculateTripCosts', () => {
       to: { id: 'dest', name: 'Regina', lat: 50.4452, lng: -104.6189, type: 'destination' },
       distanceKm: 573.8,
       durationMinutes: 365, // ~6 hours
+      fuelNeededLitres: 0,
+      fuelCost: 0,
     },
   ];
 
@@ -217,6 +219,8 @@ describe('calculateTripCosts', () => {
         to: { id: 'dest', name: 'Toronto', lat: 43.6532, lng: -79.3832, type: 'destination' },
         distanceKm: 2200,
         durationMinutes: 1200, // 20 hours
+        fuelNeededLitres: 0,
+        fuelCost: 0,
       },
     ];
     const result = calculateTripCosts(longSegments, mockVehicle, mockSettings);
@@ -231,6 +235,8 @@ describe('calculateTripCosts', () => {
         to: { id: 'dest', name: 'Toronto', lat: 43.6532, lng: -79.3832, type: 'destination' },
         distanceKm: 2200,
         durationMinutes: 1200,
+        fuelNeededLitres: 0,
+        fuelCost: 0,
       },
     ];
     const result = calculateTripCosts(longSegments, mockVehicle, mockSettings);
@@ -266,12 +272,16 @@ describe('calculateArrivalTimes', () => {
       to: { id: 'mid', name: 'Portage', lat: 49.9728, lng: -98.2925, type: 'waypoint' },
       distanceKm: 100,
       durationMinutes: 60,
+      fuelNeededLitres: 0,
+      fuelCost: 0,
     },
     {
       from: { id: 'mid', name: 'Portage', lat: 49.9728, lng: -98.2925, type: 'waypoint' },
       to: { id: 'dest', name: 'Brandon', lat: 49.8485, lng: -99.9501, type: 'destination' },
       distanceKm: 130,
       durationMinutes: 80,
+      fuelNeededLitres: 0,
+      fuelCost: 0,
     },
   ];
 
