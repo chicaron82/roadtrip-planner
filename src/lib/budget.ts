@@ -4,11 +4,58 @@ import type {
   TripSettings,
   RouteSegment,
   CostBreakdown,
+  BudgetProfile,
+  BudgetWeights,
 } from '../types';
+
+// ==================== BUDGET WEIGHT PROFILES ====================
+// Each profile shifts where your money goes
+
+export const BUDGET_PROFILES: Record<BudgetProfile, { weights: BudgetWeights; label: string; emoji: string; description: string }> = {
+  balanced: {
+    weights: { gas: 25, hotel: 35, food: 30, misc: 10 },
+    label: 'Balanced',
+    emoji: '⚖️',
+    description: 'Even split across all categories',
+  },
+  foodie: {
+    weights: { gas: 20, hotel: 20, food: 50, misc: 10 },
+    label: 'Foodie',
+    emoji: '🍜',
+    description: 'Eat like royalty, sleep like a backpacker',
+  },
+  scenic: {
+    weights: { gas: 35, hotel: 35, food: 20, misc: 10 },
+    label: 'Scenic',
+    emoji: '🏔️',
+    description: 'More driving, nicer views, cozy stays',
+  },
+  backpacker: {
+    weights: { gas: 35, hotel: 25, food: 25, misc: 15 },
+    label: 'Backpacker',
+    emoji: '🎒',
+    description: 'Stretch every dollar, maximize adventure',
+  },
+  comfort: {
+    weights: { gas: 20, hotel: 45, food: 25, misc: 10 },
+    label: 'Comfort',
+    emoji: '✨',
+    description: 'Splurge on nice hotels, relax in style',
+  },
+  custom: {
+    weights: { gas: 25, hotel: 35, food: 30, misc: 10 },
+    label: 'Custom',
+    emoji: '🎛️',
+    description: 'Set your own priorities',
+  },
+};
 
 // Default budget values (CAD)
 export const DEFAULT_BUDGET: TripBudget = {
   mode: 'open',
+  allocation: 'flexible',
+  profile: 'balanced',
+  weights: BUDGET_PROFILES.balanced.weights,
   gas: 0,
   hotel: 0,
   food: 0,
@@ -32,6 +79,26 @@ export const COST_ESTIMATES = {
 };
 
 /**
+ * Apply weight profile to a total budget amount
+ * Returns category amounts based on percentage weights
+ */
+export function applyBudgetWeights(total: number, weights: BudgetWeights): Pick<TripBudget, 'gas' | 'hotel' | 'food' | 'misc'> {
+  return {
+    gas: Math.round(total * (weights.gas / 100)),
+    hotel: Math.round(total * (weights.hotel / 100)),
+    food: Math.round(total * (weights.food / 100)),
+    misc: Math.round(total * (weights.misc / 100)),
+  };
+}
+
+/**
+ * Calculate per-person cost
+ */
+export function getPerPersonCost(total: number, numTravelers: number): number {
+  return numTravelers > 0 ? Math.round(total / numTravelers) : 0;
+}
+
+/**
  * Create a budget with smart defaults based on trip parameters
  */
 export function createSmartBudget(
@@ -47,14 +114,26 @@ export function createSmartBudget(
   const gasEstimate = totalDistanceKm * COST_ESTIMATES.gasPerKm;
   const hotelEstimate = nights * roomsNeeded * settings.hotelPricePerNight;
   const foodEstimate = totalDays * numTravelers * settings.mealPricePerDay;
+  const total = Math.round(gasEstimate + hotelEstimate + foodEstimate);
+
+  // Calculate actual weights based on estimates
+  const weights = total > 0 ? {
+    gas: Math.round((gasEstimate / total) * 100),
+    hotel: Math.round((hotelEstimate / total) * 100),
+    food: Math.round((foodEstimate / total) * 100),
+    misc: 0,
+  } : BUDGET_PROFILES.balanced.weights;
 
   return {
     mode: 'open',
+    allocation: 'flexible',
+    profile: 'balanced',
+    weights,
     gas: Math.round(gasEstimate),
     hotel: Math.round(hotelEstimate),
     food: Math.round(foodEstimate),
     misc: 0,
-    total: Math.round(gasEstimate + hotelEstimate + foodEstimate),
+    total,
   };
 }
 

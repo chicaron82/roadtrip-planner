@@ -1077,6 +1077,7 @@ function App() {
                       budget={settings.budget}
                       onChange={(newBudget: TripBudget) => setSettings(prev => ({ ...prev, budget: newBudget }))}
                       currency={settings.currency}
+                      numTravelers={settings.numTravelers}
                     />
                   </div>
                 </div>

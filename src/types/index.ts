@@ -25,14 +25,31 @@ export type RoutePreference = 'fastest' | 'scenic' | 'economical';
 export type StopFrequency = 'conservative' | 'balanced' | 'aggressive';
 export type TripPreference = 'scenic' | 'family' | 'budget' | 'foodie';
 
+// Budget allocation profiles - each shifts category weights
+export type BudgetProfile = 'balanced' | 'foodie' | 'scenic' | 'backpacker' | 'comfort' | 'custom';
+
+// Whether total is fixed (categories flex) or flexible (categories are independent)
+export type BudgetAllocation = 'fixed' | 'flexible';
+
+// Category weight percentages (must sum to 100)
+export interface BudgetWeights {
+  gas: number;    // 0-100%
+  hotel: number;  // 0-100%
+  food: number;   // 0-100%
+  misc: number;   // 0-100%
+}
+
 // Enhanced budget system with per-category tracking
 export interface TripBudget {
   mode: BudgetMode;
+  allocation: BudgetAllocation; // Fixed total or flexible categories
+  profile: BudgetProfile;       // Weight profile preset
+  weights: BudgetWeights;       // Actual percentages
   gas: number;
   hotel: number;
   food: number;
   misc: number;
-  total: number; // Computed: gas + hotel + food + misc
+  total: number; // In fixed mode: locked. In flexible: sum of categories
 }
 
 export interface TripSettings {
