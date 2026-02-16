@@ -66,6 +66,21 @@ const POPULAR_DESTINATIONS: Array<{
   // Atlantic Canada
   { name: 'Halifax', lat: 44.6488, lng: -63.5752, category: 'city', description: 'Maritime history, seafood, and coastal beauty', tags: ['historic', 'foodie', 'coastal', 'friendly'], imageUrl: 'https://images.unsplash.com/photo-1577717903315-1691ae25ab3f?w=400' },
   { name: 'Cape Breton', lat: 46.2382, lng: -60.8785, category: 'nature', description: 'Cabot Trail scenic drive and Celtic culture', tags: ['scenic', 'nature', 'culture', 'coastal'], imageUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400' },
+
+  // Central Canada / Prairie Provinces
+  { name: 'Calgary', lat: 51.0447, lng: -114.0719, category: 'city', description: 'Gateway to the Rockies, Stampede, and urban energy', tags: ['city', 'adventure', 'culture', 'skiing'], imageUrl: 'https://images.unsplash.com/photo-1517935706615-2717063c2225?w=400' },
+  { name: 'Edmonton', lat: 53.5461, lng: -113.4938, category: 'city', description: 'River valley trails, festivals, and West Edmonton Mall', tags: ['city', 'shopping', 'culture', 'family'], imageUrl: 'https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?w=400' },
+  { name: 'Regina', lat: 50.4452, lng: -104.6189, category: 'city', description: 'Prairie capital with beautiful parks and museums', tags: ['city', 'culture', 'budget', 'family'], imageUrl: 'https://images.unsplash.com/photo-1530789253388-582c481c54b0?w=400' },
+  { name: 'Saskatoon', lat: 52.1579, lng: -106.6702, category: 'city', description: 'City of bridges on the South Saskatchewan River', tags: ['city', 'nature', 'culture', 'friendly'], imageUrl: 'https://images.unsplash.com/photo-1530789253388-582c481c54b0?w=400' },
+
+  // US Midwest (reachable from central Canada)
+  { name: 'Minneapolis', lat: 44.9778, lng: -93.2650, category: 'city', description: 'Twin Cities with lakes, arts, and vibrant food scene', tags: ['city', 'foodie', 'culture', 'lakes'], imageUrl: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400' },
+  { name: 'Fargo', lat: 46.8772, lng: -96.7898, category: 'city', description: 'Charming downtown, craft breweries, and friendly vibes', tags: ['city', 'beer', 'budget', 'friendly'], imageUrl: 'https://images.unsplash.com/photo-1530789253388-582c481c54b0?w=400' },
+  { name: 'Duluth', lat: 46.7867, lng: -92.1005, category: 'nature', description: 'Lake Superior port city with stunning scenery', tags: ['nature', 'lakes', 'scenic', 'hiking'], imageUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400' },
+  { name: 'Chicago', lat: 41.8781, lng: -87.6298, category: 'city', description: 'World-class architecture, deep dish pizza, and lakefront', tags: ['city', 'foodie', 'culture', 'iconic'], imageUrl: 'https://images.unsplash.com/photo-1494522855154-9297ac14b55f?w=400' },
+
+  // Northern Ontario
+  { name: 'Thunder Bay', lat: 48.3809, lng: -89.2477, category: 'nature', description: 'Gateway to Lake Superior with outdoor adventures', tags: ['nature', 'hiking', 'scenic', 'adventure'], imageUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400' },
 ];
 
 /**
@@ -190,9 +205,12 @@ export async function findAdventureDestinations(
     // Check if within range
     if (roadDistanceKm > maxDistance) continue;
 
-    // Check if drivable in one day (assuming 80km/h average)
+    // Check if drivable based on trip length (assuming 80km/h average)
     const driveHours = roadDistanceKm / 80;
-    if (driveHours > maxDriveHoursPerDay * config.days * 0.4) continue; // Don't spend >40% of trip driving
+    // For short trips (1-2 days): allow up to 80% driving time (it's a road trip!)
+    // For longer trips: scale down to leave more time at destination
+    const maxDrivingRatio = config.days <= 2 ? 0.8 : config.days <= 4 ? 0.6 : 0.4;
+    if (driveHours > maxDriveHoursPerDay * config.days * maxDrivingRatio) continue;
 
     // Calculate costs
     const costs = calculateCosts(roadDistanceKm, config);
