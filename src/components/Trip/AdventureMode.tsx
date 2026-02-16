@@ -98,30 +98,31 @@ export function AdventureMode({
 
   return (
     <div className={cn('fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4', className)}>
-      <div className="w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+      {/* Wider modal on desktop for two-column layout */}
+      <div className="w-full max-w-2xl md:max-w-4xl max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-6 text-white relative">
+        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-4 md:p-6 text-white relative flex-shrink-0">
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition-colors"
+            className="absolute top-3 right-3 md:top-4 md:right-4 p-2 hover:bg-white/20 rounded-full transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
 
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
-              <Compass className="h-6 w-6" />
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/20 flex items-center justify-center">
+              <Compass className="h-5 w-5 md:h-6 md:w-6" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold">I'm Feeling Adventurous</h2>
-              <p className="text-purple-200 text-sm">Enter your budget and see how far you can go!</p>
+              <h2 className="text-xl md:text-2xl font-bold">I'm Feeling Adventurous</h2>
+              <p className="text-purple-200 text-xs md:text-sm">Enter your budget and see how far you can go!</p>
             </div>
           </div>
         </div>
 
         {/* Origin Check */}
         {(!origin || origin.lat === 0) && (
-          <div className="p-6 bg-amber-50 border-b border-amber-200">
+          <div className="p-4 md:p-6 bg-amber-50 border-b border-amber-200 flex-shrink-0">
             <div className="flex items-center gap-3 text-amber-800">
               <MapPin className="h-5 w-5" />
               <p className="text-sm font-medium">
@@ -131,144 +132,146 @@ export function AdventureMode({
           </div>
         )}
 
-        {/* Form Inputs */}
-        <div className="p-6 border-b bg-gray-50 space-y-4">
-          <div className="grid grid-cols-3 gap-4">
-            {/* Budget */}
-            <div>
-              <Label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
-                <DollarSign className="h-3 w-3" /> Total Budget
-              </Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
-                <Input
-                  type="number"
-                  min={100}
-                  max={10000}
-                  step={100}
-                  value={budget}
-                  onChange={(e) => setBudget(Math.max(100, parseInt(e.target.value) || 100))}
-                  className="pl-7 text-lg font-bold"
-                />
+        {/* Two-column layout on desktop, stacked on mobile */}
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+          {/* Left Column: Form Inputs */}
+          <div className="p-4 md:p-6 border-b md:border-b-0 md:border-r bg-gray-50 space-y-4 md:w-80 md:flex-shrink-0 md:overflow-y-auto">
+            <div className="grid grid-cols-3 md:grid-cols-1 gap-4">
+              {/* Budget */}
+              <div>
+                <Label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                  <DollarSign className="h-3 w-3" /> Total Budget
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                  <Input
+                    type="number"
+                    min={100}
+                    max={10000}
+                    step={100}
+                    value={budget}
+                    onChange={(e) => setBudget(Math.max(100, parseInt(e.target.value) || 100))}
+                    className="pl-7 text-lg font-bold"
+                  />
+                </div>
+              </div>
+
+              {/* Days */}
+              <div>
+                <Label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                  <Calendar className="h-3 w-3" /> Days
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-10 w-10"
+                    onClick={() => setDays(Math.max(1, days - 1))}
+                  >
+                    -
+                  </Button>
+                  <div className="flex-1 text-center text-lg font-bold">{days}</div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-10 w-10"
+                    onClick={() => setDays(Math.min(14, days + 1))}
+                  >
+                    +
+                  </Button>
+                </div>
+              </div>
+
+              {/* Travelers */}
+              <div>
+                <Label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+                  <Users className="h-3 w-3" /> Travelers
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-10 w-10"
+                    onClick={() => setTravelers(Math.max(1, travelers - 1))}
+                  >
+                    -
+                  </Button>
+                  <div className="flex-1 text-center text-lg font-bold">{travelers}</div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-10 w-10"
+                    onClick={() => setTravelers(Math.min(10, travelers + 1))}
+                  >
+                    +
+                  </Button>
+                </div>
               </div>
             </div>
 
-            {/* Days */}
+            {/* Accommodation Type */}
             <div>
-              <Label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
-                <Calendar className="h-3 w-3" /> Days
-              </Label>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-10 w-10"
-                  onClick={() => setDays(Math.max(1, days - 1))}
-                >
-                  -
-                </Button>
-                <div className="flex-1 text-center text-lg font-bold">{days}</div>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-10 w-10"
-                  onClick={() => setDays(Math.min(14, days + 1))}
-                >
-                  +
-                </Button>
+              <Label className="text-xs text-gray-500 mb-2 block">Accommodation Style</Label>
+              <div className="grid grid-cols-3 md:grid-cols-1 gap-2">
+                {(['budget', 'moderate', 'comfort'] as const).map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setAccommodationType(type)}
+                    className={cn(
+                      'p-2 rounded-lg border-2 text-sm font-medium transition-all capitalize',
+                      accommodationType === type
+                        ? 'border-purple-500 bg-purple-50 text-purple-700'
+                        : 'border-gray-200 hover:border-gray-300'
+                    )}
+                  >
+                    {type === 'budget' && '💰 '}
+                    {type === 'moderate' && '🏨 '}
+                    {type === 'comfort' && '✨ '}
+                    {type}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Travelers */}
+            {/* Trip Preferences */}
             <div>
-              <Label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
-                <Users className="h-3 w-3" /> Travelers
-              </Label>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-10 w-10"
-                  onClick={() => setTravelers(Math.max(1, travelers - 1))}
-                >
-                  -
-                </Button>
-                <div className="flex-1 text-center text-lg font-bold">{travelers}</div>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-10 w-10"
-                  onClick={() => setTravelers(Math.min(10, travelers + 1))}
-                >
-                  +
-                </Button>
+              <Label className="text-xs text-gray-500 mb-2 block">What kind of trip?</Label>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  { id: 'scenic' as const, label: '🌿 Scenic', desc: 'Nature & views' },
+                  { id: 'family' as const, label: '👨‍👩‍👧‍👦 Family', desc: 'Kid-friendly' },
+                  { id: 'budget' as const, label: '💸 Budget', desc: 'Save money' },
+                  { id: 'foodie' as const, label: '🍴 Foodie', desc: 'Great eats' },
+                ]).map((pref) => (
+                  <button
+                    key={pref.id}
+                    onClick={() => togglePreference(pref.id)}
+                    className={cn(
+                      'px-3 py-1.5 rounded-full text-sm font-medium transition-all border',
+                      preferences.includes(pref.id)
+                        ? 'bg-purple-100 border-purple-300 text-purple-700'
+                        : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                    )}
+                  >
+                    {pref.label}
+                  </button>
+                ))}
               </div>
             </div>
+
+            {/* Max Distance Preview */}
+            {previewMaxKm > 0 && (
+              <div className="flex items-center justify-center gap-2 p-3 bg-purple-100 rounded-lg text-purple-800">
+                <Car className="h-4 w-4" />
+                <span className="text-sm font-medium">
+                  Up to <strong>{Math.round(previewMaxKm)} km</strong> one-way
+                </span>
+              </div>
+            )}
           </div>
 
-          {/* Accommodation Type */}
-          <div>
-            <Label className="text-xs text-gray-500 mb-2 block">Accommodation Style</Label>
-            <div className="grid grid-cols-3 gap-2">
-              {(['budget', 'moderate', 'comfort'] as const).map((type) => (
-                <button
-                  key={type}
-                  onClick={() => setAccommodationType(type)}
-                  className={cn(
-                    'p-2 rounded-lg border-2 text-sm font-medium transition-all capitalize',
-                    accommodationType === type
-                      ? 'border-purple-500 bg-purple-50 text-purple-700'
-                      : 'border-gray-200 hover:border-gray-300'
-                  )}
-                >
-                  {type === 'budget' && '💰 '}
-                  {type === 'moderate' && '🏨 '}
-                  {type === 'comfort' && '✨ '}
-                  {type}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Trip Preferences */}
-          <div>
-            <Label className="text-xs text-gray-500 mb-2 block">What kind of trip?</Label>
-            <div className="flex flex-wrap gap-2">
-              {([
-                { id: 'scenic' as const, label: '🌿 Scenic', desc: 'Nature & views' },
-                { id: 'family' as const, label: '👨‍👩‍👧‍👦 Family', desc: 'Kid-friendly' },
-                { id: 'budget' as const, label: '💸 Budget', desc: 'Save money' },
-                { id: 'foodie' as const, label: '🍴 Foodie', desc: 'Great eats' },
-              ]).map((pref) => (
-                <button
-                  key={pref.id}
-                  onClick={() => togglePreference(pref.id)}
-                  className={cn(
-                    'px-3 py-1.5 rounded-full text-sm font-medium transition-all border',
-                    preferences.includes(pref.id)
-                      ? 'bg-purple-100 border-purple-300 text-purple-700'
-                      : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
-                  )}
-                >
-                  {pref.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Max Distance Preview */}
-          {previewMaxKm > 0 && (
-            <div className="flex items-center justify-center gap-2 p-3 bg-purple-100 rounded-lg text-purple-800">
-              <Car className="h-4 w-4" />
-              <span className="text-sm font-medium">
-                You can travel up to <strong>{Math.round(previewMaxKm)} km</strong> one-way
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Results */}
-        <div className="flex-1 overflow-y-auto p-4">
+          {/* Right Column: Results */}
+          <div className="flex-1 overflow-y-auto p-4">
           {isCalculating ? (
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
@@ -395,6 +398,7 @@ export function AdventureMode({
               <p className="text-gray-500">Enter your starting location to begin</p>
             </div>
           )}
+          </div>
         </div>
 
         {/* Footer */}
