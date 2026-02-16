@@ -201,3 +201,266 @@ export interface MarkerCategory {
   color: string;
   visible: boolean;
 }
+
+// ==================== POI SUGGESTION SYSTEM ====================
+
+// Extended POI categories for suggestions (beyond basic map markers)
+export type POISuggestionCategory =
+  | 'viewpoint'      // Scenic overlooks, panoramic views
+  | 'attraction'     // Tourist attractions, landmarks
+  | 'museum'         // Museums, galleries, cultural sites
+  | 'park'           // National parks, nature reserves
+  | 'restaurant'     // Full-service dining
+  | 'cafe'           // Coffee shops, quick bites
+  | 'gas'            // Gas stations (can overlap with fuel stops)
+  | 'hotel'          // Accommodation (can overlap with overnight)
+  | 'shopping'       // Shops, markets, outlets
+  | 'entertainment'; // Theaters, arcades, activities
+
+// Corridor bucket - where the POI suggestion appears
+export type POIBucket = 'along-way' | 'destination';
+
+// User action state for POI suggestions
+export type POIActionState = 'suggested' | 'dismissed' | 'added' | 'noted';
+
+// Smart POI suggestion with ranking metadata
+export interface POISuggestion {
+  id: string;
+  name: string;
+  category: POISuggestionCategory;
+  lat: number;
+  lng: number;
+  address?: string;
+
+  // Corridor metadata
+  bucket: POIBucket; // Along the way or at destination
+  distanceFromRoute: number; // km from route centerline
+  detourTimeMinutes: number; // Extra time to visit and return to route
+  segmentIndex?: number; // Which route segment this is near (for along-way)
+
+  // Timing context
+  estimatedArrivalTime?: Date; // When you'd reach this POI
+  fitsInBreakWindow?: boolean; // True if it fits in existing break/meal stop
+
+  // Ranking scores (0-100)
+  rankingScore: number; // Overall composite score
+  categoryMatchScore: number; // How well it matches user preferences
+  popularityScore: number; // Based on OSM tags (tourism=yes, etc.)
+  timingFitScore: number; // How well it fits into natural break windows
+
+  // User interaction state
+  actionState: POIActionState;
+  userNotes?: string; // Optional notes when saved to journal
+
+  // OSM metadata
+  osmType?: 'node' | 'way' | 'relation';
+  osmId?: string;
+  tags?: Record<string, string>; // Raw OSM tags for rich data
+}
+
+// Consolidated POI suggestion panel data
+export interface POISuggestionGroup {
+  alongWay: POISuggestion[]; // 3-5 top picks along the route corridor
+  atDestination: POISuggestion[]; // 3-5 top picks at destination area
+  totalFound: number; // Total POIs found before ranking/filtering
+  queryDurationMs?: number; // Performance metric
+}
+
+// ==================== JOURNAL SYSTEM ====================
+
+// Photo with caption and metadata
+export interface JournalPhoto {
+  id: string;
+  dataUrl: string; // Base64 compressed image
+  caption: string;
+  timestamp: Date;
+  location?: {
+    lat: number;
+    lng: number;
+    name?: string;
+  };
+}
+
+// Journal entry for a specific stop
+export interface JournalEntry {
+  id: string;
+  stopId: string; // Links to segment/stop in itinerary
+  segmentIndex: number; // Which segment this entry is for
+
+  // User content
+  photos: JournalPhoto[];
+  notes: string;
+
+  // Actual vs Planned times
+  plannedArrival?: Date;
+  actualArrival?: Date;
+  plannedDeparture?: Date;
+  actualDeparture?: Date;
+
+  // Stop status
+  status: 'planned' | 'visited' | 'skipped' | 'modified';
+  skipReason?: string; // If skipped, why?
+
+  // Highlight
+  isHighlight: boolean;
+  highlightReason?: string;
+
+  // Weather snapshot (auto-captured)
+  weatherSnapshot?: WeatherData;
+
+  // Rating
+  rating?: 1 | 2 | 3 | 4 | 5;
+
+  // Timestamps
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Track actual spending vs planned
+export interface BudgetActual {
+  id: string;
+  category: 'gas' | 'hotel' | 'food' | 'misc';
+  planned: number;
+  actual: number;
+  description?: string; // "Shell station on Hwy 1"
+  dayNumber: number;
+  timestamp: Date;
+}
+
+// Quick capture entry (GPS auto-tagged)
+export interface QuickCapture {
+  id: string;
+  photo: JournalPhoto;
+  autoTaggedSegment?: number; // Nearest segment index
+  autoTaggedLocation?: string; // "Near Salmon Arm"
+  timestamp: Date;
+}
+
+// Mood emoji for day summary
+export type JournalMood = '😊' | '😅' | '🤯' | '😴' | '🎉' | '😤' | '🥰';
+
+// Day title customization
+export interface JournalDayMeta {
+  dayNumber: number;
+  customTitle?: string; // "The Day We Got Lost"
+  mood?: JournalMood;
+  summary?: string; // Brief day summary
+}
+
+// Privacy levels for template sharing
+export type TemplatePrivacy =
+  | 'full'          // Route + POIs + budget + photos + notes
+  | 'route-only'    // Just waypoints, no personal data
+  | 'highlights'    // Only starred stops with photos
+  | 'private';      // Never shareable
+
+// Complete trip journal
+export interface TripJournal {
+  id: string;
+  version: '1.0';
+
+  // Link to original trip plan
+  tripSummaryId?: string;
+  tripSummary: TripSummary;
+  settings: TripSettings;
+  vehicle: Vehicle;
+
+  // Journal content
+  entries: JournalEntry[];
+  quickCaptures: QuickCapture[];
+  dayMeta: JournalDayMeta[];
+
+  // Budget tracking
+  budgetActuals: BudgetActual[];
+
+  // Metadata
+  metadata: {
+    title: string; // "Vancouver to Banff Adventure"
+    description?: string;
+    coverPhotoId?: string; // ID of photo to use as cover
+    tags: TripPreference[];
+    travelers?: string[]; // Names of people on trip
+    dates: {
+      plannedStart: string;
+      plannedEnd: string;
+      actualStart?: string;
+      actualEnd?: string;
+    };
+  };
+
+  // Sharing settings
+  sharing: {
+    privacy: TemplatePrivacy;
+    isPublic: boolean;
+    includePhotos: boolean;
+    includeBudget: boolean;
+    includeNotes: boolean;
+  };
+
+  // Sync status (for offline support)
+  sync: {
+    status: 'synced' | 'pending' | 'offline';
+    lastSynced: Date | null;
+    pendingChanges: number;
+  };
+
+  // Stats (computed)
+  stats: {
+    photosCount: number;
+    highlightsCount: number;
+    stopsVisited: number;
+    stopsSkipped: number;
+    totalActualSpent: number;
+    budgetVariance: number; // Actual - Planned
+  };
+
+  // Timestamps
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Template for sharing (stripped down version)
+export interface TripTemplate {
+  id: string;
+  version: '1.0';
+
+  // Creator info
+  author?: string;
+  createdAt: Date;
+
+  // Template metadata
+  metadata: {
+    title: string;
+    description: string;
+    coverPhotoUrl?: string;
+    tags: TripPreference[];
+    budgetLevel: 'budget' | 'moderate' | 'comfort';
+    durationDays: number;
+    totalDistanceKm: number;
+  };
+
+  // Route data
+  route: {
+    locations: Location[];
+    origin: Location;
+    destination: Location;
+  };
+
+  // Recommendations from original trip
+  recommendedPOIs?: POISuggestion[];
+  budgetEstimates?: TripBudget;
+
+  // Highlights from journal (if included)
+  highlights?: {
+    stopName: string;
+    reason: string;
+    photoUrl?: string;
+  }[];
+
+  // Community stats (future)
+  communityStats?: {
+    usageCount: number;
+    avgRating: number;
+    lastUsed: Date;
+  };
+}

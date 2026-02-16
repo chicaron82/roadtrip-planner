@@ -1,0 +1,294 @@
+import type { POISuggestion, RouteSegment, TripPreference, POISuggestionCategory } from '../types';
+
+// Ranking weights (sum to 1.0)
+const WEIGHTS = {
+  categoryMatch: 0.35,  // 35% - How well it matches user preferences
+  popularity: 0.25,     // 25% - Based on OSM metadata richness
+  detourCost: 0.25,     // 25% - Minimize extra time/distance
+  timingFit: 0.15,      // 15% - Fits into natural break windows
+};
+
+// Maximum acceptable detour (minutes)
+const MAX_DETOUR_MINUTES = 30;
+
+// Corridor distance thresholds
+const CORRIDOR_THRESHOLDS = {
+  quick: 5,      // Within 5km - minimal detour
+  moderate: 10,  // Within 10km - acceptable detour
+  farther: 20,   // Within 20km - worth it if high value
+};
+
+/**
+ * Calculate straight-line distance between two points (Haversine formula)
+ * Returns distance in kilometers
+ */
+function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371; // Earth's radius in km
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function toRad(degrees: number): number {
+  return degrees * (Math.PI / 180);
+}
+
+/**
+ * Calculate minimum distance from POI to route polyline
+ * Returns { distanceKm, nearestSegmentIndex, nearestPoint }
+ */
+function distanceToRoute(
+  poi: POISuggestion,
+  routeGeometry: [number, number][]
+): { distanceKm: number; nearestSegmentIndex: number; nearestPoint: [number, number] } {
+  let minDistance = Infinity;
+  let nearestSegmentIndex = 0;
+  let nearestPoint: [number, number] = routeGeometry[0];
+
+  for (let i = 0; i < routeGeometry.length - 1; i++) {
+    const [lat1, lng1] = routeGeometry[i];
+    const [lat2, lng2] = routeGeometry[i + 1];
+
+    // Distance to segment endpoints
+    const distToStart = haversineDistance(poi.lat, poi.lng, lat1, lng1);
+    const distToEnd = haversineDistance(poi.lat, poi.lng, lat2, lng2);
+
+    // Simple approximation: check distance to both endpoints
+    // (Full point-to-line-segment distance would require projection)
+    const minSegmentDist = Math.min(distToStart, distToEnd);
+
+    if (minSegmentDist < minDistance) {
+      minDistance = minSegmentDist;
+      nearestSegmentIndex = i;
+      nearestPoint = distToStart < distToEnd ? [lat1, lng1] : [lat2, lng2];
+    }
+  }
+
+  return {
+    distanceKm: minDistance,
+    nearestSegmentIndex,
+    nearestPoint,
+  };
+}
+
+/**
+ * Estimate detour time based on distance from route
+ * Assumes ~60 km/h average speed for detours
+ */
+function estimateDetourTime(distanceFromRouteKm: number): number {
+  // Round trip detour at 60 km/h
+  const roundTripKm = distanceFromRouteKm * 2;
+  const detourHours = roundTripKm / 60;
+  return Math.round(detourHours * 60); // Convert to minutes
+}
+
+/**
+ * Calculate category match score (0-100)
+ * Boosts POIs that align with user preferences
+ */
+function calculateCategoryMatchScore(
+  poiCategory: POISuggestionCategory,
+  tripPreferences: TripPreference[]
+): number {
+  if (tripPreferences.length === 0) {
+    // No preferences = all categories equally valued
+    return 50;
+  }
+
+  let score = 30; // Base score
+
+  // Check if POI category matches any preference
+  const preferenceMap: Record<TripPreference, POISuggestionCategory[]> = {
+    scenic: ['viewpoint', 'park'],
+    family: ['attraction', 'park', 'entertainment'],
+    budget: ['viewpoint', 'park', 'cafe'],
+    foodie: ['restaurant', 'cafe'],
+  };
+
+  tripPreferences.forEach(pref => {
+    const matchingCategories = preferenceMap[pref];
+    if (matchingCategories.includes(poiCategory)) {
+      score += 20; // Strong boost for preference match
+    }
+  });
+
+  // Universal boosts
+  if (poiCategory === 'viewpoint') score += 10; // Viewpoints always valuable
+  if (poiCategory === 'attraction') score += 5; // Attractions slightly favored
+
+  return Math.min(score, 100);
+}
+
+/**
+ * Calculate detour cost score (0-100)
+ * Lower distance = higher score
+ */
+function calculateDetourCostScore(distanceKm: number, detourMinutes: number): number {
+  // Penalize both distance and time
+  let score = 100;
+
+  // Distance penalty
+  if (distanceKm > CORRIDOR_THRESHOLDS.farther) {
+    score -= 50; // Major penalty for far POIs
+  } else if (distanceKm > CORRIDOR_THRESHOLDS.moderate) {
+    score -= 30;
+  } else if (distanceKm > CORRIDOR_THRESHOLDS.quick) {
+    score -= 15;
+  }
+
+  // Time penalty
+  if (detourMinutes > MAX_DETOUR_MINUTES) {
+    score -= 30; // Major penalty for long detours
+  } else if (detourMinutes > 20) {
+    score -= 20;
+  } else if (detourMinutes > 10) {
+    score -= 10;
+  }
+
+  return Math.max(score, 0);
+}
+
+/**
+ * Calculate timing fit score (0-100)
+ * Checks if POI fits into natural break windows
+ */
+function calculateTimingFitScore(
+  poi: POISuggestion,
+  segments: RouteSegment[]
+): number {
+  if (!poi.segmentIndex || poi.segmentIndex >= segments.length) {
+    return 50; // Neutral score if no timing context
+  }
+
+  const segment = segments[poi.segmentIndex];
+  const stopType = segment.stopType;
+
+  let score = 50; // Base score
+
+  // Boost if POI aligns with existing stop type
+  if (stopType === 'meal' && (poi.category === 'restaurant' || poi.category === 'cafe')) {
+    score += 30; // Great fit - meal stop + food POI
+  } else if (stopType === 'break' && poi.category === 'viewpoint') {
+    score += 25; // Good fit - break + viewpoint
+  } else if (stopType === 'fuel' && poi.category === 'gas') {
+    score += 20; // Practical fit
+  } else if (stopType === 'overnight' && poi.category === 'hotel') {
+    score += 20; // Accommodation alignment
+  }
+
+  // Boost for POIs that can be visited during any stop
+  if (poi.category === 'viewpoint' || poi.category === 'park') {
+    score += 10; // Quick stops work for any break
+  }
+
+  return Math.min(score, 100);
+}
+
+/**
+ * Calculate overall ranking score for a POI
+ * Returns updated POI with all scores populated
+ */
+function rankPOI(
+  poi: POISuggestion,
+  routeGeometry: [number, number][],
+  segments: RouteSegment[],
+  tripPreferences: TripPreference[]
+): POISuggestion {
+  // Calculate distance from route
+  const { distanceKm, nearestSegmentIndex } = distanceToRoute(poi, routeGeometry);
+
+  // Estimate detour time
+  const detourMinutes = estimateDetourTime(distanceKm);
+
+  // Calculate individual scores
+  const categoryMatchScore = calculateCategoryMatchScore(poi.category, tripPreferences);
+  const detourCostScore = calculateDetourCostScore(distanceKm, detourMinutes);
+  const timingFitScore = calculateTimingFitScore({ ...poi, segmentIndex: nearestSegmentIndex }, segments);
+  const popularityScore = poi.popularityScore; // Already calculated from OSM tags
+
+  // Weighted composite score
+  const rankingScore =
+    categoryMatchScore * WEIGHTS.categoryMatch +
+    popularityScore * WEIGHTS.popularity +
+    detourCostScore * WEIGHTS.detourCost +
+    timingFitScore * WEIGHTS.timingFit;
+
+  // Estimate arrival time based on segment
+  let estimatedArrivalTime: Date | undefined;
+  if (nearestSegmentIndex < segments.length && segments[nearestSegmentIndex].arrivalTime) {
+    estimatedArrivalTime = new Date(segments[nearestSegmentIndex].arrivalTime!);
+  }
+
+  // Check if fits in break window (if detour is quick)
+  const fitsInBreakWindow = detourMinutes <= 15;
+
+  return {
+    ...poi,
+    distanceFromRoute: distanceKm,
+    detourTimeMinutes: detourMinutes,
+    segmentIndex: nearestSegmentIndex,
+    estimatedArrivalTime,
+    fitsInBreakWindow,
+    rankingScore: Math.round(rankingScore),
+    categoryMatchScore: Math.round(categoryMatchScore),
+    timingFitScore: Math.round(timingFitScore),
+  };
+}
+
+/**
+ * Rank and filter POIs to top picks
+ */
+export function rankAndFilterPOIs(
+  pois: POISuggestion[],
+  routeGeometry: [number, number][],
+  segments: RouteSegment[],
+  tripPreferences: TripPreference[],
+  topN: number = 5
+): POISuggestion[] {
+  // Rank all POIs
+  const rankedPOIs = pois.map(poi => rankPOI(poi, routeGeometry, segments, tripPreferences));
+
+  // Filter out POIs that are too far (>20km from route)
+  const filtered = rankedPOIs.filter(poi => poi.distanceFromRoute <= CORRIDOR_THRESHOLDS.farther);
+
+  // Sort by ranking score (descending)
+  const sorted = filtered.sort((a, b) => b.rankingScore - a.rankingScore);
+
+  // Return top N
+  return sorted.slice(0, topN);
+}
+
+/**
+ * Rank destination-area POIs (different logic - no detour cost, focus on quality)
+ */
+export function rankDestinationPOIs(
+  pois: POISuggestion[],
+  tripPreferences: TripPreference[],
+  topN: number = 5
+): POISuggestion[] {
+  const rankedPOIs = pois.map(poi => {
+    const categoryMatchScore = calculateCategoryMatchScore(poi.category, tripPreferences);
+    const popularityScore = poi.popularityScore;
+
+    // For destination POIs, only use category match + popularity (50/50 weight)
+    const rankingScore = categoryMatchScore * 0.5 + popularityScore * 0.5;
+
+    return {
+      ...poi,
+      rankingScore: Math.round(rankingScore),
+      categoryMatchScore: Math.round(categoryMatchScore),
+    };
+  });
+
+  // Sort by ranking score
+  const sorted = rankedPOIs.sort((a, b) => b.rankingScore - a.rankingScore);
+
+  // Return top N
+  return sorted.slice(0, topN);
+}

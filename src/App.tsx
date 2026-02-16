@@ -8,10 +8,12 @@ import { Card, CardContent } from './components/UI/Card';
 import { StepIndicator } from './components/UI/StepIndicator';
 import { Input } from './components/UI/Input';
 import { Label } from './components/UI/Label';
-import type { Location, Vehicle, TripSettings, TripSummary, POI, MarkerCategory, POICategory, TripBudget } from './types';
+import type { Location, Vehicle, TripSettings, TripSummary, POI, MarkerCategory, POICategory, TripBudget, POISuggestion, TripJournal } from './types';
 import { calculateRoute } from './lib/api';
 import { calculateTripCosts, calculateStrategicFuelStops, calculateArrivalTimes, type StrategicFuelStop } from './lib/calculations';
 import { DEFAULT_BUDGET, splitTripByDays, calculateCostBreakdown, getBudgetStatus } from './lib/budget';
+import { fetchPOISuggestions } from './lib/poi-service';
+import { rankAndFilterPOIs, rankDestinationPOIs } from './lib/poi-ranking';
 import { ChevronLeft, ChevronRight, Share2, Calendar, Clock, Users, UserCheck, Loader2 } from 'lucide-react';
 import { OvernightStopPrompt } from './components/Trip/OvernightStopPrompt';
 import { fetchWeather } from './lib/weather';
@@ -21,6 +23,10 @@ import { parseStateFromURL, serializeStateToURL } from './lib/url';
 import { Spinner } from './components/UI/Spinner';
 import { ItineraryTimeline } from './components/Trip/ItineraryTimeline';
 import { BudgetInput } from './components/Trip/BudgetInput';
+import { POISuggestionsPanel } from './components/Trip/POISuggestionsPanel';
+import { JournalModeToggle, StartJournalCTA, type ViewMode } from './components/Trip/JournalModeToggle';
+import { JournalTimeline } from './components/Trip/JournalTimeline';
+import { createJournal, updateJournal, getActiveJournal, setActiveJournalId } from './lib/journal-storage';
 
 const DEFAULT_LOCATIONS: Location[] = [
   { id: 'origin', name: '', lat: 0, lng: 0, type: 'origin' },
@@ -96,6 +102,24 @@ function App() {
   const [suggestedOvernightStop, setSuggestedOvernightStop] = useState<Location | null>(null);
   const [mobileView, setMobileView] = useState<'map' | 'plan'>('map');
 
+  // POI Suggestions State
+  const [poiSuggestions, setPoiSuggestions] = useState<POISuggestion[]>([]);
+  const [isLoadingPOIs, setIsLoadingPOIs] = useState(false);
+
+  // Journal State
+  const [viewMode, setViewMode] = useState<ViewMode>('plan');
+  const [activeJournal, setActiveJournal] = useState<TripJournal | null>(null);
+
+  // Load active journal on mount
+  useEffect(() => {
+    const loadActiveJournal = async () => {
+      const journal = await getActiveJournal();
+      if (journal) {
+        setActiveJournal(journal);
+      }
+    };
+    loadActiveJournal();
+  }, []);
 
   // Validation for steps
   const canProceedFromStep1 = useMemo(() => {
@@ -281,6 +305,45 @@ function App() {
         );
         setStrategicFuelStops(fuelStops);
 
+        // Fetch and rank POI suggestions
+        setIsLoadingPOIs(true);
+        try {
+          const origin = locations.find(l => l.type === 'origin');
+          const destination = locations.find(l => l.type === 'destination');
+
+          if (origin && destination && routeData.fullGeometry.length > 0) {
+            const poiData = await fetchPOISuggestions(
+              routeData.fullGeometry as [number, number][],
+              origin,
+              destination,
+              settings.tripPreferences
+            );
+
+            // Rank and filter along-way POIs (top 5)
+            const rankedAlongWay = rankAndFilterPOIs(
+              poiData.alongWay,
+              routeData.fullGeometry as [number, number][],
+              tripSummary.segments,
+              settings.tripPreferences,
+              5
+            );
+
+            // Rank and filter destination POIs (top 5)
+            const rankedDestination = rankDestinationPOIs(
+              poiData.atDestination,
+              settings.tripPreferences,
+              5
+            );
+
+            setPoiSuggestions([...rankedAlongWay, ...rankedDestination]);
+          }
+        } catch (poiError) {
+          console.error('Failed to fetch POI suggestions:', poiError);
+          // Don't fail the whole trip calculation if POIs fail
+        } finally {
+          setIsLoadingPOIs(false);
+        }
+
         // Check if overnight stop is recommended
         const totalHours = tripSummary.totalDurationMinutes / 60;
         const exceedsMaxHours = totalHours > settings.maxDriveHours;
@@ -329,6 +392,47 @@ function App() {
     if (shareUrl) {
       navigator.clipboard.writeText(shareUrl);
       alert("Link copied!");
+    }
+  };
+
+  const handleAddPOI = (poiId: string) => {
+    setPoiSuggestions(prev =>
+      prev.map(poi =>
+        poi.id === poiId ? { ...poi, actionState: 'added' as const } : poi
+      )
+    );
+    // TODO: In future, add POI as a stop in the itinerary timeline
+  };
+
+  const handleDismissPOI = (poiId: string) => {
+    setPoiSuggestions(prev =>
+      prev.map(poi =>
+        poi.id === poiId ? { ...poi, actionState: 'dismissed' as const } : poi
+      )
+    );
+  };
+
+  // Journal handlers
+  const handleStartJournal = async () => {
+    if (!summary) return;
+
+    try {
+      const journal = await createJournal(summary, settings, vehicle);
+      setActiveJournal(journal);
+      setActiveJournalId(journal.id);
+      setViewMode('journal');
+    } catch (error) {
+      console.error('Failed to create journal:', error);
+      setError('Failed to start journal. Please try again.');
+    }
+  };
+
+  const handleUpdateJournal = async (updatedJournal: TripJournal) => {
+    try {
+      const saved = await updateJournal(updatedJournal);
+      setActiveJournal(saved);
+    } catch (error) {
+      console.error('Failed to update journal:', error);
     }
   };
 
@@ -951,26 +1055,37 @@ function App() {
               {/* STEP 3: Results */}
               {planningStep === 3 && (
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h2 className="text-lg font-semibold">Your Trip</h2>
-                      <p className="text-sm text-muted-foreground">Review your route and itinerary.</p>
+                  <div className="flex flex-col gap-3">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h2 className="text-lg font-semibold">Your Trip</h2>
+                        <p className="text-sm text-muted-foreground">Review your route and itinerary.</p>
+                      </div>
+                      <div className="flex gap-2">
+                        {summary && (
+                          <Button size="sm" variant="outline" className="gap-1" onClick={openInGoogleMaps}>
+                            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                            </svg>
+                            Google Maps
+                          </Button>
+                        )}
+                        {shareUrl && (
+                          <Button size="sm" variant="outline" className="gap-1" onClick={copyShareLink}>
+                            <Share2 className="h-3 w-3" /> Share
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      {summary && (
-                        <Button size="sm" variant="outline" className="gap-1" onClick={openInGoogleMaps}>
-                          <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                          </svg>
-                          Google Maps
-                        </Button>
-                      )}
-                      {shareUrl && (
-                        <Button size="sm" variant="outline" className="gap-1" onClick={copyShareLink}>
-                          <Share2 className="h-3 w-3" /> Share
-                        </Button>
-                      )}
-                    </div>
+
+                    {/* Journal Mode Toggle */}
+                    {summary && (
+                      <JournalModeToggle
+                        mode={viewMode}
+                        onChange={setViewMode}
+                        hasActiveJournal={!!activeJournal}
+                      />
+                    )}
                   </div>
 
                   {/* Overnight Stop Prompt */}
@@ -1000,14 +1115,35 @@ function App() {
                     />
                   )}
 
+                  {/* POI Suggestions */}
+                  <POISuggestionsPanel
+                    suggestions={poiSuggestions}
+                    isLoading={isLoadingPOIs}
+                    onAdd={handleAddPOI}
+                    onDismiss={handleDismissPOI}
+                  />
+
                   {summary ? (
-                    <ItineraryTimeline
-                      summary={summary}
-                      settings={settings}
-                      vehicle={vehicle}
-                      days={summary.days}
-                      onUpdateStopType={handleUpdateStopType}
-                    />
+                    viewMode === 'journal' ? (
+                      activeJournal ? (
+                        <JournalTimeline
+                          summary={summary}
+                          settings={settings}
+                          journal={activeJournal}
+                          onUpdateJournal={handleUpdateJournal}
+                        />
+                      ) : (
+                        <StartJournalCTA onStart={handleStartJournal} />
+                      )
+                    ) : (
+                      <ItineraryTimeline
+                        summary={summary}
+                        settings={settings}
+                        vehicle={vehicle}
+                        days={summary.days}
+                        onUpdateStopType={handleUpdateStopType}
+                      />
+                    )
                   ) : (
                     <div className="text-center py-12 text-muted-foreground">
                       <div className="mb-2">🗺️</div>
