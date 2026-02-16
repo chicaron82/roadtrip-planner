@@ -1,8 +1,13 @@
 import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
 import { type VariantProps } from "class-variance-authority"
 import { cn } from "../../lib/utils"
 import { buttonVariants } from "./button-variants"
+
+/**
+ * Native Button component — replaces @radix-ui/react-slot usage which has
+ * infinite re-render issues with React 19's ref callback handling.
+ * asChild merges props onto the single child element instead of rendering a <button>.
+ */
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
@@ -11,14 +16,25 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button"
+  ({ className, variant, size, asChild = false, children, ...props }, ref) => {
+    if (asChild && React.isValidElement(children)) {
+      // Merge button styles onto the child element (Slot-like behavior)
+      const child = children as React.ReactElement<Record<string, unknown>>;
+      return React.cloneElement(child, {
+        ...props,
+        ref,
+        className: cn(buttonVariants({ variant, size, className }), child.props.className as string),
+      } as Record<string, unknown>);
+    }
+
     return (
-      <Comp
+      <button
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
         {...props}
-      />
+      >
+        {children}
+      </button>
     )
   }
 )

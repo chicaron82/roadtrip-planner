@@ -1,27 +1,78 @@
 import * as React from "react"
-import * as TooltipPrimitive from "@radix-ui/react-tooltip"
 import { cn } from "../../lib/utils"
 
-const TooltipProvider = TooltipPrimitive.Provider
+/**
+ * Native Tooltip components — replaces @radix-ui/react-tooltip which has
+ * infinite re-render issues with React 19's ref callback handling.
+ * Uses CSS :hover + absolute positioning for a lightweight tooltip.
+ */
 
-const Tooltip = TooltipPrimitive.Root
+// Provider is a no-op (Radix needed it for delay context)
+function TooltipProvider({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
+}
 
-const TooltipTrigger = TooltipPrimitive.Trigger
+// Root just wraps children in a relative container
+function Tooltip({ children }: { children: React.ReactNode }) {
+  return <div className="relative inline-flex">{children}</div>;
+}
 
-const TooltipContent = React.forwardRef<
-  React.ElementRef<typeof TooltipPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
->(({ className, sideOffset = 4, ...props }, ref) => (
-  <TooltipPrimitive.Content
-    ref={ref}
-    sideOffset={sideOffset}
-    className={cn(
-      "z-50 overflow-hidden rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
-      className
-    )}
-    {...props}
-  />
-))
-TooltipContent.displayName = TooltipPrimitive.Content.displayName
+// Trigger renders children as-is via cloneElement when asChild, or wraps in span
+interface TooltipTriggerProps extends React.HTMLAttributes<HTMLElement> {
+  asChild?: boolean;
+  children: React.ReactNode;
+}
+
+const TooltipTrigger = React.forwardRef<HTMLElement, TooltipTriggerProps>(
+  ({ asChild, children, ...props }, ref) => {
+    if (asChild && React.isValidElement(children)) {
+      const child = children as React.ReactElement<Record<string, unknown>>;
+      return React.cloneElement(child, {
+        ...props,
+        ref,
+        className: cn("peer", child.props.className as string),
+      } as Record<string, unknown>);
+    }
+    return (
+      <span ref={ref as React.Ref<HTMLSpanElement>} className="peer" {...props}>
+        {children}
+      </span>
+    );
+  }
+);
+TooltipTrigger.displayName = "TooltipTrigger";
+
+// Content shows on peer hover
+interface TooltipContentProps extends React.HTMLAttributes<HTMLDivElement> {
+  sideOffset?: number;
+  side?: "top" | "bottom" | "left" | "right";
+}
+
+const TooltipContent = React.forwardRef<HTMLDivElement, TooltipContentProps>(
+  ({ className, sideOffset = 4, side = "top", children, ...props }, ref) => {
+    const positionStyles: Record<string, string> = {
+      top: `bottom-full left-1/2 -translate-x-1/2 mb-[${sideOffset}px]`,
+      bottom: `top-full left-1/2 -translate-x-1/2 mt-[${sideOffset}px]`,
+      left: `right-full top-1/2 -translate-y-1/2 mr-[${sideOffset}px]`,
+      right: `left-full top-1/2 -translate-y-1/2 ml-[${sideOffset}px]`,
+    };
+
+    return (
+      <div
+        ref={ref}
+        role="tooltip"
+        className={cn(
+          "absolute z-50 hidden peer-hover:block overflow-hidden rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground animate-in fade-in-0 zoom-in-95 whitespace-nowrap",
+          positionStyles[side],
+          className
+        )}
+        {...props}
+      >
+        {children}
+      </div>
+    );
+  }
+);
+TooltipContent.displayName = "TooltipContent";
 
 export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider }

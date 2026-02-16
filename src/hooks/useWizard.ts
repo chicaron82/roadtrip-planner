@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import type { Location, Vehicle } from '../types';
 
 export type PlanningStep = 1 | 2 | 3;
@@ -22,6 +22,7 @@ interface UseWizardReturn {
   goToNextStep: () => void;
   goToPrevStep: () => void;
   goToStep: (step: PlanningStep) => void;
+  forceStep: (step: PlanningStep) => void;
   markStepComplete: (step: number) => void;
   resetWizard: () => void;
 }
@@ -33,6 +34,7 @@ export function useWizard({
 }: UseWizardOptions): UseWizardReturn {
   const [planningStep, setPlanningStep] = useState<PlanningStep>(1);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const completedRef = useRef<number[]>([]);
 
   // Step 1 validation: Must have origin and destination with names
   const canProceedFromStep1 = useMemo(() => {
@@ -51,7 +53,11 @@ export function useWizard({
   }, [vehicle]);
 
   const markStepComplete = useCallback((step: number) => {
-    setCompletedSteps(prev => [...new Set([...prev, step])]);
+    // Update ref synchronously BEFORE the state setter (ref survives batched updates)
+    if (!completedRef.current.includes(step)) {
+      completedRef.current = [...completedRef.current, step];
+    }
+    setCompletedSteps(completedRef.current);
   }, []);
 
   const goToNextStep = useCallback(() => {
@@ -71,11 +77,17 @@ export function useWizard({
   }, [planningStep]);
 
   const goToStep = useCallback((step: PlanningStep) => {
-    // Allow going back to any step, or forward only to completed steps
-    if (step < planningStep || completedSteps.includes(step)) {
-      setPlanningStep(step);
-    }
-  }, [planningStep, completedSteps]);
+    // Use ref to read latest completedSteps (survives batched updates)
+    setPlanningStep(prev => {
+      if (step < prev || completedRef.current.includes(step)) return step;
+      return prev;
+    });
+  }, []);
+
+  // Force-navigate to a step (no guards, for trusted callers like onCalculationComplete)
+  const forceStep = useCallback((step: PlanningStep) => {
+    setPlanningStep(step);
+  }, []);
 
   const resetWizard = useCallback(() => {
     setPlanningStep(1);
@@ -90,6 +102,7 @@ export function useWizard({
     goToNextStep,
     goToPrevStep,
     goToStep,
+    forceStep,
     markStepComplete,
     resetWizard,
   };

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { Map } from './components/Map/Map';
 import { TripSummaryCard } from './components/Trip/TripSummary';
 import { Button } from './components/UI/Button';
@@ -30,6 +30,9 @@ function AppContent() {
     setSummary,
   } = useTripContext();
 
+  // Stable ref for post-calculation callback (breaks circular dep between hooks)
+  const onCalcCompleteRef = React.useRef<() => void>(() => {});
+
   // POI Hook
   const {
     pois,
@@ -56,16 +59,17 @@ function AppContent() {
     dismissOvernightPrompt,
     calculateTrip,
     updateStopType,
+    updateDayNotes,
+    updateDayTitle,
+    updateDayType,
+    updateDayOvernight,
     clearError: clearCalcError,
   } = useTripCalculation({
     locations,
     vehicle,
     settings,
     onSummaryChange: setSummary,
-    onCalculationComplete: () => {
-      markStepComplete(1);
-      markStepComplete(2);
-    },
+    onCalculationComplete: () => onCalcCompleteRef.current(),
   });
 
   // Wizard Hook
@@ -77,6 +81,7 @@ function AppContent() {
     goToNextStep: wizardNext,
     goToPrevStep,
     goToStep,
+    forceStep,
     markStepComplete,
     resetWizard,
   } = useWizard({
@@ -98,6 +103,14 @@ function AppContent() {
       }
     },
   });
+
+  // Wire up the calculation-complete callback now that markStepComplete is available
+  onCalcCompleteRef.current = () => {
+    markStepComplete(1);
+    markStepComplete(2);
+    markStepComplete(3);
+    forceStep(3);
+  };
 
   // Journal Hook
   const {
@@ -125,7 +138,7 @@ function AppContent() {
     clearCalcError();
   };
 
-  // Load state from URL on mount
+  // Load state from URL on mount (run once)
   useEffect(() => {
     const parsedState = parseStateFromURL();
     if (parsedState) {
@@ -135,10 +148,12 @@ function AppContent() {
       if (parsedState.locations?.some(l => l.name)) {
         markStepComplete(1);
         markStepComplete(2);
-        goToStep(3);
+        markStepComplete(3);
+        forceStep(3);
       }
     }
-  }, [setLocations, setVehicle, setSettings, markStepComplete, goToStep]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Recalculate departure time when using "Arrive By"
   useEffect(() => {
@@ -414,6 +429,10 @@ function AppContent() {
                   onStartJournal={startJournal}
                   onUpdateJournal={updateActiveJournal}
                   onUpdateStopType={updateStopType}
+                  onUpdateDayNotes={updateDayNotes}
+                  onUpdateDayTitle={updateDayTitle}
+                  onUpdateDayType={updateDayType}
+                  onUpdateOvernight={updateDayOvernight}
                   onDismissOvernight={dismissOvernightPrompt}
                   onAddPOI={addPOI}
                   onDismissPOI={dismissPOI}

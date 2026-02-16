@@ -27,8 +27,8 @@ export const parseStateFromURL = (): { locations?: Location[], vehicle?: Vehicle
 
     try {
         const parsedLocs = locs ? JSON.parse(locs) : undefined;
-        // Re-add IDs to locations if likely missing
-        const locations = parsedLocs?.map((l: Omit<Location, 'id'>) => ({ ...l, id: crypto.randomUUID() }));
+        // Re-add IDs to locations only if missing (preserve existing IDs)
+        const locations = parsedLocs?.map((l: Partial<Location>) => ({ ...l, id: l.id || crypto.randomUUID() }));
 
         const vehicle = veh ? JSON.parse(veh) : undefined;
         const settings = set ? JSON.parse(set) : undefined;
