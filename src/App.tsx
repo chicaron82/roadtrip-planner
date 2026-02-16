@@ -7,7 +7,7 @@ import { StepIndicator } from './components/UI/StepIndicator';
 import type { Location, TripSummary } from './types';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { getHistory } from './lib/storage';
-import { parseStateFromURL } from './lib/url';
+import { parseStateFromURL, type TemplateImportResult } from './lib/url';
 import { Spinner } from './components/UI/Spinner';
 import { AdventureMode, type AdventureSelection } from './components/Trip/AdventureMode';
 import { buildAdventureBudget } from './lib/adventure-service';
@@ -228,6 +228,31 @@ function AppContent() {
     }
   }, [shareUrl]);
 
+  // Import a shared trip template — populates locations, vehicle, settings
+  const handleImportTemplate = useCallback((result: TemplateImportResult) => {
+    // Load locations
+    if (result.locations.length > 0) {
+      setLocations(result.locations);
+    }
+
+    // Load vehicle if present
+    if (result.vehicle) {
+      setVehicle(result.vehicle);
+    }
+
+    // Merge shared settings into current settings (partial merge, keep user's dates/times)
+    if (result.settings) {
+      setSettings(prev => ({ ...prev, ...result.settings }));
+    }
+
+    // Mark steps 1+2 complete and jump to step 2 (so they can review vehicle)
+    markStepComplete(1);
+    if (result.vehicle) {
+      markStepComplete(2);
+      forceStep(2);
+    }
+  }, [setLocations, setVehicle, setSettings, markStepComplete, forceStep]);
+
   const openInGoogleMaps = useCallback(() => {
     const validLocations = locations.filter(loc => loc.lat !== 0 && loc.lng !== 0);
     if (validLocations.length < 2) return;
@@ -368,6 +393,7 @@ function AppContent() {
                   settings={settings}
                   setSettings={setSettings}
                   onShowAdventure={() => setShowAdventureMode(true)}
+                  onImportTemplate={handleImportTemplate}
                 />
               )}
 

@@ -13,7 +13,7 @@
  * 2→1 drivers, and a Montreal cut all cascaded through the plan.
  */
 
-import type { TripSummary, TripSettings, TripDay, RouteSegment } from '../types';
+import type { TripSummary, TripSettings, TripDay } from '../types';
 
 // ==================== TYPES ====================
 

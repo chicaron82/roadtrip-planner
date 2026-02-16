@@ -491,6 +491,25 @@ export function JournalTimeline({
                     };
                   }).filter(r => r.rating || r.isHighlight),
 
+                  // Include settings & vehicle so the plan can be fully loaded
+                  settings: {
+                    units: settings.units,
+                    currency: settings.currency,
+                    maxDriveHours: settings.maxDriveHours,
+                    numTravelers: settings.numTravelers,
+                    numDrivers: settings.numDrivers,
+                    isRoundTrip: settings.isRoundTrip,
+                    avoidTolls: settings.avoidTolls,
+                    scenicMode: settings.scenicMode,
+                    routePreference: settings.routePreference,
+                    stopFrequency: settings.stopFrequency,
+                    gasPrice: settings.gasPrice,
+                    hotelPricePerNight: settings.hotelPricePerNight,
+                    mealPricePerDay: settings.mealPricePerDay,
+                  },
+
+                  vehicle: journal.vehicle,
+
                   importInstructions: 'Load this template in Roadtrip Planner to follow the same route!',
                 };
 

@@ -1,5 +1,58 @@
 import type { Location, Vehicle, TripSettings } from '../types';
 
+// ==================== SHARED TEMPLATE TYPES ====================
+
+/** Shape of the JSON template exported via "Share as Template" */
+export interface SharedTemplate {
+  type: 'roadtrip-template';
+  version: string;
+  author: string;
+  trip: {
+    title: string;
+    description: string;
+    tags: string[];
+    durationDays: number;
+    totalDistanceKm: number;
+    totalDurationHours: string;
+  };
+  budget?: {
+    profile: string;
+    totalSpent: number;
+    perPerson: number;
+    breakdown: { fuel: number; accommodation: number; food: number; misc: number };
+  };
+  route: {
+    origin: Location;
+    destination: Location;
+    waypoints: Location[];
+  };
+  recommendations?: Array<{
+    location?: string;
+    lat?: number;
+    lng?: number;
+    rating?: number;
+    notes?: string;
+    isHighlight?: boolean;
+    highlightReason?: string;
+    tips?: string;
+  }>;
+  settings?: Partial<TripSettings>;
+  vehicle?: Vehicle;
+}
+
+export interface TemplateImportResult {
+  locations: Location[];
+  vehicle?: Vehicle;
+  settings?: Partial<TripSettings>;
+  meta: {
+    title: string;
+    author: string;
+    description: string;
+    recommendations: SharedTemplate['recommendations'];
+  };
+}
+
+
 export const serializeStateToURL = (locations: Location[], vehicle: Vehicle, settings: TripSettings) => {
     const params = new URLSearchParams();
     
@@ -16,6 +69,63 @@ export const serializeStateToURL = (locations: Location[], vehicle: Vehicle, set
     const newUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({ path: newUrl }, '', newUrl);
 };
+
+// ==================== TEMPLATE IMPORT ====================
+
+/**
+ * Parse a shared template JSON file and extract loadable trip data.
+ * Returns locations (origin + waypoints + destination), vehicle, and settings.
+ */
+export function parseSharedTemplate(json: string): TemplateImportResult {
+  const data = JSON.parse(json) as SharedTemplate;
+
+  if (data.type !== 'roadtrip-template') {
+    throw new Error('Not a valid roadtrip template file');
+  }
+
+  // Build ordered location list: origin → waypoints → destination
+  const locations: Location[] = [];
+
+  if (data.route.origin) {
+    locations.push({
+      ...data.route.origin,
+      id: data.route.origin.id || crypto.randomUUID(),
+      type: 'origin',
+    });
+  }
+
+  // Add waypoints (skip if same as origin or destination)
+  const originName = data.route.origin?.name;
+  const destName = data.route.destination?.name;
+  for (const wp of data.route.waypoints || []) {
+    if (wp.name === originName || wp.name === destName) continue;
+    locations.push({
+      ...wp,
+      id: wp.id || crypto.randomUUID(),
+      type: 'waypoint',
+    });
+  }
+
+  if (data.route.destination) {
+    locations.push({
+      ...data.route.destination,
+      id: data.route.destination.id || crypto.randomUUID(),
+      type: 'destination',
+    });
+  }
+
+  return {
+    locations,
+    vehicle: data.vehicle,
+    settings: data.settings,
+    meta: {
+      title: data.trip.title,
+      author: data.author,
+      description: data.trip.description,
+      recommendations: data.recommendations,
+    },
+  };
+}
 
 export const parseStateFromURL = (): { locations?: Location[], vehicle?: Vehicle, settings?: TripSettings } | null => {
     const params = new URLSearchParams(window.location.search);

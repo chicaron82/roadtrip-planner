@@ -35,7 +35,7 @@ export const DEFAULT_SETTINGS: TripSettings = {
   gasPrice: 1.50,
   hotelPricePerNight: 150,
   mealPricePerDay: 50,
-  isRoundTrip: false,
+  isRoundTrip: true,
   avoidTolls: false,
   scenicMode: false,
   routePreference: 'fastest',

@@ -1,5 +1,8 @@
-import { Calendar } from 'lucide-react';
-import type { Location, TripSettings } from '../../types';
+import { Calendar, Upload } from 'lucide-react';
+import { useRef } from 'react';
+import type { Location, TripSettings, Vehicle } from '../../types';
+import { parseSharedTemplate, type TemplateImportResult } from '../../lib/url';
+import { showToast } from '../../lib/toast';
 import { LocationList } from '../Trip/LocationList';
 import { AdventureButton } from '../Trip/AdventureMode';
 import { Button } from '../UI/Button';
@@ -12,6 +15,7 @@ interface Step1ContentProps {
   settings: TripSettings;
   setSettings: React.Dispatch<React.SetStateAction<TripSettings>>;
   onShowAdventure: () => void;
+  onImportTemplate?: (result: TemplateImportResult) => void;
 }
 
 export function Step1Content({
@@ -20,7 +24,37 @@ export function Step1Content({
   settings,
   setSettings,
   onShowAdventure,
+  onImportTemplate,
 }: Step1ContentProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const result = parseSharedTemplate(reader.result as string);
+        onImportTemplate?.(result);
+        showToast({
+          message: `Loaded "${result.meta.title}" by ${result.meta.author}!`,
+          type: 'success',
+          duration: 4000,
+        });
+      } catch (err) {
+        showToast({
+          message: 'Invalid template file. Please use a file shared from Roadtrip Planner.',
+          type: 'error',
+          duration: 5000,
+        });
+      }
+    };
+    reader.readAsText(file);
+    // Reset input so same file can be re-imported
+    e.target.value = '';
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -36,30 +70,50 @@ export function Step1Content({
           hideCalculateButton
         />
 
-        {/* Round Trip Toggle */}
-        <div className="mt-4 flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200">
+        {/* One-Way Toggle (default is round trip) */}
+        <div className={`mt-4 flex items-center justify-between p-3 rounded-lg bg-gradient-to-r ${settings.isRoundTrip ? 'from-blue-50 to-cyan-50 border-blue-200' : 'from-amber-50 to-orange-50 border-amber-200'} border`}>
           <div className="flex items-center gap-3">
-            <div className="text-2xl">🔄</div>
+            <div className="text-2xl">{settings.isRoundTrip ? '🔄' : '➡️'}</div>
             <div>
-              <div className="text-sm font-semibold text-blue-900">Round Trip</div>
-              <div className="text-xs text-blue-600">
-                Return to starting point (doubles costs & distance)
+              <div className={`text-sm font-semibold ${settings.isRoundTrip ? 'text-blue-900' : 'text-amber-900'}`}>
+                {settings.isRoundTrip ? 'Round Trip' : 'One-Way Journey'}
+              </div>
+              <div className={`text-xs ${settings.isRoundTrip ? 'text-blue-600' : 'text-amber-600'}`}>
+                {settings.isRoundTrip
+                  ? 'Returning to starting point (doubles costs & distance)'
+                  : 'No return — costs & distance for outbound only'}
               </div>
             </div>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
             <input
               type="checkbox"
-              checked={settings.isRoundTrip}
-              onChange={(e) => setSettings((prev) => ({ ...prev, isRoundTrip: e.target.checked }))}
+              checked={!settings.isRoundTrip}
+              onChange={(e) => setSettings((prev) => ({ ...prev, isRoundTrip: !e.target.checked }))}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-amber-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
           </label>
         </div>
 
         {/* Adventure Mode Button */}
         <AdventureButton onClick={onShowAdventure} className="mt-4" />
+
+        {/* Import Shared Template */}
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="mt-3 w-full flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed border-gray-300 text-sm text-muted-foreground hover:border-green-400 hover:text-green-700 hover:bg-green-50 transition-all"
+        >
+          <Upload className="h-4 w-4" />
+          Load a Shared Trip Template
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json"
+          onChange={handleImportFile}
+          className="hidden"
+        />
       </div>
 
       <div className="border-t pt-4">

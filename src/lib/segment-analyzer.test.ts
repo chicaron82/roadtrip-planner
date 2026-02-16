@@ -62,8 +62,8 @@ function makeSettings(overrides: Partial<TripSettings> = {}): TripSettings {
     isRoundTrip: false,
     avoidTolls: false,
     scenicMode: false,
-    routePreference: 'balanced',
-    stopFrequency: 'normal',
+    routePreference: 'fastest',
+    stopFrequency: 'balanced',
     tripPreferences: [],
     ...overrides,
   };
