@@ -353,6 +353,36 @@ export function Step2Content({
         <p className="text-xs text-muted-foreground mb-3">
           Choose your preferences to get personalized POI suggestions
         </p>
+
+        {/* Avoid Borders Toggle */}
+        <button
+          onClick={() => setSettings((prev) => ({ ...prev, avoidBorders: !prev.avoidBorders }))}
+          className={`w-full mb-4 p-3 rounded-lg border-2 transition-all text-left flex items-center gap-3 ${
+            settings.avoidBorders
+              ? 'border-red-400 bg-red-50'
+              : 'border-gray-200 hover:border-gray-300'
+          }`}
+        >
+          <span className="text-xl">🛂</span>
+          <div className="flex-1">
+            <div className="text-sm font-semibold flex items-center gap-2">
+              Stay In-Country
+              {settings.avoidBorders && (
+                <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-medium">ON</span>
+              )}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {settings.avoidBorders
+                ? 'Route will avoid crossing international borders — no passport needed'
+                : 'Tap to keep your route from crossing into another country'}
+            </div>
+          </div>
+          <div className={`w-10 h-6 rounded-full transition-colors flex items-center px-0.5 ${
+            settings.avoidBorders ? 'bg-red-500 justify-end' : 'bg-gray-300 justify-start'
+          }`}>
+            <div className="w-5 h-5 bg-white rounded-full shadow-sm" />
+          </div>
+        </button>
         <div className="grid grid-cols-2 gap-2">
           {[
             { id: 'scenic' as const, label: 'Scenic', emoji: '🌿', desc: 'Viewpoints & nature' },

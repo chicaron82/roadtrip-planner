@@ -104,6 +104,7 @@ export interface TripSettings {
   mealPricePerDay: number; // Average meal budget per day
   isRoundTrip: boolean;
   avoidTolls: boolean;
+  avoidBorders: boolean;
   scenicMode: boolean;
   routePreference: RoutePreference;
   stopFrequency: StopFrequency;

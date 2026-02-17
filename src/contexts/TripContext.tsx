@@ -37,6 +37,7 @@ export const DEFAULT_SETTINGS: TripSettings = {
   mealPricePerDay: 50,
   isRoundTrip: true,
   avoidTolls: false,
+  avoidBorders: false,
   scenicMode: false,
   routePreference: 'fastest',
   stopFrequency: 'balanced',

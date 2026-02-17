@@ -1,4 +1,5 @@
 import type { Location, RouteSegment } from '../types';
+import { detectBorderCrossing, getGuardWaypoints, insertGuardWaypoints } from './border-avoidance';
 
 interface NominatimResult {
   lat: string;
@@ -34,16 +35,50 @@ export async function searchLocations(query: string): Promise<Partial<Location>[
   }
 }
 
-export async function calculateRoute(locations: Location[], options?: { avoidTolls?: boolean; scenicMode?: boolean }): Promise<{ segments: RouteSegment[], fullGeometry: [number, number][] } | null> {
+export async function calculateRoute(locations: Location[], options?: { avoidTolls?: boolean; avoidBorders?: boolean; scenicMode?: boolean }): Promise<{ segments: RouteSegment[], fullGeometry: [number, number][] } | null> {
   if (locations.length < 2) return null;
 
-  const waypoints = locations.map((loc) => `${loc.lng},${loc.lat}`).join(';');
   const parts: string[] = [];
-
   if (options?.avoidTolls) parts.push('toll');
   if (options?.scenicMode) parts.push('motorway');
-
   const excludeParam = parts.length > 0 ? `&exclude=${parts.join(',')}` : '';
+
+  // First pass: calculate the normal route
+  const result = await fetchOSRMRoute(locations, excludeParam);
+  if (!result) return null;
+
+  // If avoidBorders is enabled, check for border crossings and reroute
+  if (options?.avoidBorders && result.fullGeometry.length > 0) {
+    const { crossesUS, crossingRegions } = detectBorderCrossing(result.fullGeometry);
+
+    if (crossesUS) {
+      const guards = getGuardWaypoints(crossingRegions, locations);
+
+      if (guards.length > 0) {
+        const reroutedLocations = insertGuardWaypoints(locations, guards);
+        const safeResult = await fetchOSRMRoute(reroutedLocations, excludeParam);
+
+        if (safeResult) {
+          // Return the safe route but map segments back to original locations
+          // (guard waypoints appear as intermediate stops)
+          return safeResult;
+        }
+        // If reroute fails, fall through to the original route
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Core OSRM route fetch — extracted so border avoidance can call it twice.
+ */
+async function fetchOSRMRoute(
+  locations: Location[],
+  excludeParam: string
+): Promise<{ segments: RouteSegment[], fullGeometry: [number, number][] } | null> {
+  const waypoints = locations.map((loc) => `${loc.lng},${loc.lat}`).join(';');
 
   try {
     const response = await fetch(

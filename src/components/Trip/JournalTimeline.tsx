@@ -500,6 +500,7 @@ export function JournalTimeline({
                     numDrivers: settings.numDrivers,
                     isRoundTrip: settings.isRoundTrip,
                     avoidTolls: settings.avoidTolls,
+                    avoidBorders: settings.avoidBorders,
                     scenicMode: settings.scenicMode,
                     routePreference: settings.routePreference,
                     stopFrequency: settings.stopFrequency,

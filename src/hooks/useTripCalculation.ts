@@ -72,6 +72,7 @@ export function useTripCalculation({
     try {
       const routeData = await calculateRoute(locations, {
         avoidTolls: settings.avoidTolls,
+        avoidBorders: settings.avoidBorders,
         scenicMode: settings.scenicMode,
       });
 
