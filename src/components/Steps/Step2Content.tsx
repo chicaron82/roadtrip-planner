@@ -383,6 +383,11 @@ export function Step2Content({
             <div className="w-5 h-5 bg-white rounded-full shadow-sm" />
           </div>
         </button>
+
+        <p className="text-[10px] text-muted-foreground/70 mb-4 leading-relaxed">
+          Routes are suggestions only — use Google Maps or your preferred navigation app for turn-by-turn directions. You can export your trip from the results page.
+        </p>
+
         <div className="grid grid-cols-2 gap-2">
           {[
             { id: 'scenic' as const, label: 'Scenic', emoji: '🌿', desc: 'Viewpoints & nature' },
