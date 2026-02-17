@@ -4,7 +4,7 @@ import { TripSummaryCard } from './components/Trip/TripSummary';
 import { Button } from './components/UI/Button';
 import { Card, CardContent } from './components/UI/Card';
 import { StepIndicator } from './components/UI/StepIndicator';
-import type { Location, TripSummary } from './types';
+import type { Location, TripChallenge, TripSummary } from './types';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { getHistory } from './lib/storage';
 import { parseStateFromURL, type TemplateImportResult } from './lib/url';
@@ -253,6 +253,24 @@ function AppContent() {
     }
   }, [setLocations, setVehicle, setSettings, markStepComplete, forceStep]);
 
+  // Load a Chicharon's Challenge — converts challenge data into locations/settings/vehicle
+  const handleSelectChallenge = useCallback((challenge: TripChallenge) => {
+    if (challenge.locations.length > 0) {
+      setLocations(challenge.locations);
+    }
+    if (challenge.vehicle) {
+      setVehicle(challenge.vehicle);
+    }
+    if (challenge.settings) {
+      setSettings(prev => ({ ...prev, ...challenge.settings }));
+    }
+    markStepComplete(1);
+    if (challenge.vehicle) {
+      markStepComplete(2);
+      forceStep(2);
+    }
+  }, [setLocations, setVehicle, setSettings, markStepComplete, forceStep]);
+
   const openInGoogleMaps = useCallback(() => {
     const validLocations = locations.filter(loc => loc.lat !== 0 && loc.lng !== 0);
     if (validLocations.length < 2) return;
@@ -394,6 +412,7 @@ function AppContent() {
                   setSettings={setSettings}
                   onShowAdventure={() => setShowAdventureMode(true)}
                   onImportTemplate={handleImportTemplate}
+                  onSelectChallenge={handleSelectChallenge}
                 />
               )}
 

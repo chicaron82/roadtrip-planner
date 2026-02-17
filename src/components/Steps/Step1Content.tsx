@@ -1,10 +1,11 @@
 import { Calendar, Upload } from 'lucide-react';
 import { useRef } from 'react';
-import type { Location, TripSettings, Vehicle } from '../../types';
+import type { Location, TripChallenge, TripSettings } from '../../types';
 import { parseSharedTemplate, type TemplateImportResult } from '../../lib/url';
 import { showToast } from '../../lib/toast';
 import { LocationList } from '../Trip/LocationList';
 import { AdventureButton } from '../Trip/AdventureMode';
+import { ChallengeCards } from '../Trip/ChallengeCards';
 import { Button } from '../UI/Button';
 import { Input } from '../UI/Input';
 import { Label } from '../UI/Label';
@@ -16,6 +17,7 @@ interface Step1ContentProps {
   setSettings: React.Dispatch<React.SetStateAction<TripSettings>>;
   onShowAdventure: () => void;
   onImportTemplate?: (result: TemplateImportResult) => void;
+  onSelectChallenge?: (challenge: TripChallenge) => void;
 }
 
 export function Step1Content({
@@ -25,6 +27,7 @@ export function Step1Content({
   setSettings,
   onShowAdventure,
   onImportTemplate,
+  onSelectChallenge,
 }: Step1ContentProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -42,7 +45,7 @@ export function Step1Content({
           type: 'success',
           duration: 4000,
         });
-      } catch (err) {
+      } catch {
         showToast({
           message: 'Invalid template file. Please use a file shared from Roadtrip Planner.',
           type: 'error',
@@ -98,6 +101,13 @@ export function Step1Content({
 
         {/* Adventure Mode Button */}
         <AdventureButton onClick={onShowAdventure} className="mt-4" />
+
+        {/* Chicharon's Challenges */}
+        {onSelectChallenge && (
+          <div className="mt-4">
+            <ChallengeCards onSelectChallenge={onSelectChallenge} />
+          </div>
+        )}
 
         {/* Import Shared Template */}
         <button
