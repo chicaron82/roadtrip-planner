@@ -160,6 +160,7 @@ describe('calculateTripCosts', () => {
     mealPricePerDay: 50,
     isRoundTrip: false,
     avoidTolls: false,
+    avoidBorders: false,
     scenicMode: false,
     routePreference: 'fastest',
     stopFrequency: 'balanced',
