@@ -1,3 +1,6 @@
+// Trip mode determines the user's intent — plan, explore, or estimate
+export type TripMode = 'plan' | 'adventure' | 'estimate';
+
 export type LocationType = 'origin' | 'destination' | 'waypoint';
 
 export interface Location {

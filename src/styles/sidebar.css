@@ -1,0 +1,494 @@
+/**
+ * ═══════════════════════════════════════════════════════════
+ * SIDEBAR DARK THEME — "Mission Control"
+ * Scoped dark CSS variables for the wizard sidebar.
+ * Map stays light. Landing→sidebar transition continuity.
+ *
+ * 💚 The Experience Engine™
+ * ═══════════════════════════════════════════════════════════
+ */
+
+/* ── Dark sidebar scoping ── */
+.sidebar-dark {
+  /* Core surfaces — deep navy from landing screen */
+  --background: 225 30% 8%;
+  --foreground: 220 20% 92%;
+  --card: 225 28% 11%;
+  --card-foreground: 220 20% 92%;
+  --popover: 225 28% 11%;
+  --popover-foreground: 220 20% 92%;
+
+  /* Primary — amber/orange gradient accent (matches branding) */
+  --primary: 36 96% 56%;
+  --primary-foreground: 225 30% 8%;
+
+  /* Secondary — subtle panel */
+  --secondary: 225 22% 15%;
+  --secondary-foreground: 220 20% 85%;
+
+  /* Muted — deemphasized backgrounds */
+  --muted: 225 20% 14%;
+  --muted-foreground: 220 12% 58%;
+
+  /* Accent — interactive hover */
+  --accent: 225 22% 17%;
+  --accent-foreground: 220 20% 92%;
+
+  /* Destructive */
+  --destructive: 0 62% 42%;
+  --destructive-foreground: 0 0% 98%;
+
+  /* Borders + inputs — subtle contrast */
+  --border: 225 18% 20%;
+  --input: 225 18% 18%;
+  --ring: 36 96% 56%;
+
+  color-scheme: dark;
+}
+
+/* ── Sidebar header ── */
+.sidebar-header {
+  background: linear-gradient(
+    180deg,
+    hsl(225 30% 10%) 0%,
+    hsl(225 28% 8%) 100%
+  );
+  border-bottom: 1px solid hsl(225 18% 16%);
+}
+
+/* ── Sidebar brand ── */
+.sidebar-brand-title {
+  font-family: 'Sora', system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #F59E0B 0%, #EA580C 60%, #F97316 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.2;
+}
+
+.sidebar-brand-sub {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: hsl(220 12% 45%);
+  text-transform: uppercase;
+}
+
+/* ── Step indicator dark overrides ── */
+.sidebar-dark .step-circle {
+  background: hsl(225 22% 15%);
+  border-color: hsl(225 18% 22%);
+  color: hsl(220 12% 52%);
+  transition: all 0.3s ease;
+}
+
+.sidebar-dark .step-circle.is-active {
+  background: hsl(36 96% 56%);
+  border-color: hsl(36 96% 56%);
+  color: hsl(225 30% 8%);
+  box-shadow:
+    0 0 16px hsla(36, 96%, 56%, 0.35),
+    0 4px 12px hsla(36, 96%, 56%, 0.15);
+}
+
+.sidebar-dark .step-circle.is-completed {
+  background: hsl(142 70% 45%);
+  border-color: hsl(142 70% 45%);
+  color: white;
+}
+
+.sidebar-dark .step-title {
+  font-family: 'Sora', system-ui, sans-serif;
+  font-weight: 600;
+}
+
+.sidebar-dark .step-title.is-active {
+  color: hsl(36 96% 64%);
+}
+
+.sidebar-dark .step-title.is-completed {
+  color: hsl(142 70% 55%);
+}
+
+.sidebar-dark .step-desc {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: hsl(220 12% 45%);
+  text-transform: uppercase;
+}
+
+.sidebar-dark .step-connector {
+  background: hsl(225 18% 18%);
+}
+
+.sidebar-dark .step-connector.is-completed {
+  background: hsl(142 70% 45%);
+}
+
+.sidebar-dark .step-connector.is-active {
+  background: linear-gradient(90deg, hsl(36 96% 56%), hsl(225 18% 18%));
+}
+
+/* ── Nav footer ── */
+.sidebar-nav-footer {
+  background: linear-gradient(
+    0deg,
+    hsl(225 30% 8%) 0%,
+    hsl(225 28% 10%) 100%
+  );
+  border-top: 1px solid hsl(225 18% 16%);
+}
+
+/* ── Dark-aware form elements ── */
+.sidebar-dark input[type="date"],
+.sidebar-dark input[type="time"],
+.sidebar-dark input[type="text"],
+.sidebar-dark input[type="number"],
+.sidebar-dark select,
+.sidebar-dark textarea {
+  background: hsl(225 22% 13%) !important;
+  border-color: hsl(225 18% 22%) !important;
+  color: hsl(220 20% 90%) !important;
+}
+
+.sidebar-dark input::placeholder,
+.sidebar-dark textarea::placeholder {
+  color: hsl(220 12% 42%) !important;
+}
+
+.sidebar-dark input:focus,
+.sidebar-dark select:focus,
+.sidebar-dark textarea:focus {
+  border-color: hsl(36 96% 56%) !important;
+  box-shadow: 0 0 0 2px hsla(36, 96%, 56%, 0.15) !important;
+}
+
+/* Range slider thumb in dark */
+.sidebar-dark input[type="range"]::-webkit-slider-thumb {
+  background: hsl(36 96% 56%) !important;
+  border-color: hsl(225 30% 8%) !important;
+}
+
+.sidebar-dark input[type="range"]::-moz-range-thumb {
+  background: hsl(36 96% 56%) !important;
+  border-color: hsl(225 30% 8%) !important;
+}
+
+/* ── Info banners in dark ── */
+.sidebar-dark .info-banner-blue {
+  background: linear-gradient(135deg, hsla(220, 60%, 30%, 0.3), hsla(240, 50%, 25%, 0.3));
+  border-color: hsla(220, 50%, 40%, 0.4);
+  color: hsl(220 70% 75%);
+}
+
+.sidebar-dark .info-banner-purple {
+  background: linear-gradient(135deg, hsla(270, 50%, 25%, 0.3), hsla(260, 40%, 20%, 0.3));
+  border-color: hsla(270, 40%, 35%, 0.4);
+  color: hsl(270 50% 75%);
+}
+
+.sidebar-dark .info-banner-green {
+  background: linear-gradient(135deg, hsla(142, 50%, 20%, 0.3), hsla(142, 40%, 15%, 0.3));
+  border-color: hsla(142, 40%, 30%, 0.4);
+  color: hsl(142 50% 65%);
+}
+
+/* ── Toggle pills in dark context ── */
+.sidebar-dark .toggle-pill {
+  background: hsl(225 22% 15%);
+}
+
+/* ── Scrollbar ── */
+.sidebar-dark::-webkit-scrollbar,
+.sidebar-dark *::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-dark::-webkit-scrollbar-track,
+.sidebar-dark *::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-dark::-webkit-scrollbar-thumb,
+.sidebar-dark *::-webkit-scrollbar-thumb {
+  background: hsl(225 18% 22%);
+  border-radius: 3px;
+}
+
+.sidebar-dark::-webkit-scrollbar-thumb:hover,
+.sidebar-dark *::-webkit-scrollbar-thumb:hover {
+  background: hsl(225 18% 28%);
+}
+
+/* ── POI controls bar ── */
+.sidebar-dark .poi-bar {
+  background: hsl(225 25% 10%);
+  border-bottom: 1px solid hsl(225 18% 16%);
+}
+
+/* ── Crossfade entrance from landing ── */
+@keyframes sidebar-entrance {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.sidebar-entrance {
+  animation: sidebar-entrance 0.5s ease-out;
+}
+
+/* ── Ensure text readability ── */
+.sidebar-dark h2,
+.sidebar-dark h3 {
+  font-family: 'Sora', system-ui, sans-serif;
+  color: hsl(220 20% 92%);
+}
+
+.sidebar-dark p,
+.sidebar-dark span,
+.sidebar-dark label,
+.sidebar-dark div {
+  font-family: 'Sora', system-ui, sans-serif;
+}
+
+/* ── Reduce motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-entrance {
+    animation: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+ * BLANKET OVERRIDES — Tailwind light-mode classes inside dark sidebar
+ * These convert bg-*-50, border-*-200, text-*-900 etc.
+ * to dark-compatible equivalents so we don't touch 20+ files.
+ * ═══════════════════════════════════════════════════════════ */
+
+/* ── White / gray backgrounds → dark panels ── */
+.sidebar-dark .bg-white,
+.sidebar-dark .bg-gray-50,
+.sidebar-dark .bg-gray-100 {
+  background-color: hsl(225 22% 14%) !important;
+}
+
+.sidebar-dark .bg-gray-200 {
+  background-color: hsl(225 18% 20%) !important;
+}
+
+.sidebar-dark .bg-white\/70,
+.sidebar-dark .bg-white\/80 {
+  background-color: hsla(225, 22%, 14%, 0.7) !important;
+}
+
+/* ── Colored -50 backgrounds → translucent dark tints ── */
+.sidebar-dark .bg-blue-50,
+.sidebar-dark .bg-blue-50\/80 {
+  background-color: hsla(220, 60%, 30%, 0.2) !important;
+}
+
+.sidebar-dark .bg-purple-50,
+.sidebar-dark .bg-purple-50\/30,
+.sidebar-dark .bg-purple-50\/50 {
+  background-color: hsla(270, 50%, 30%, 0.2) !important;
+}
+
+.sidebar-dark .bg-green-50,
+.sidebar-dark .bg-green-50\/80 {
+  background-color: hsla(142, 50%, 25%, 0.2) !important;
+}
+
+.sidebar-dark .bg-amber-50,
+.sidebar-dark .bg-amber-50\/80 {
+  background-color: hsla(36, 60%, 30%, 0.2) !important;
+}
+
+.sidebar-dark .bg-orange-50 {
+  background-color: hsla(24, 60%, 30%, 0.2) !important;
+}
+
+.sidebar-dark .bg-red-50,
+.sidebar-dark .bg-red-50\/80 {
+  background-color: hsla(0, 50%, 30%, 0.2) !important;
+}
+
+.sidebar-dark .bg-yellow-50,
+.sidebar-dark .bg-yellow-50\/50 {
+  background-color: hsla(45, 50%, 30%, 0.2) !important;
+}
+
+.sidebar-dark .bg-indigo-50 {
+  background-color: hsla(240, 50%, 30%, 0.2) !important;
+}
+
+/* ── Colored -100 backgrounds → subtle dark tints ── */
+.sidebar-dark .bg-blue-100,
+.sidebar-dark .bg-green-100,
+.sidebar-dark .bg-purple-100,
+.sidebar-dark .bg-amber-100,
+.sidebar-dark .bg-orange-100,
+.sidebar-dark .bg-yellow-100,
+.sidebar-dark .bg-red-100,
+.sidebar-dark .bg-indigo-100 {
+  background-color: hsla(225, 22%, 18%, 0.6) !important;
+}
+
+/* ── Gradient stops ── */
+.sidebar-dark [class*="from-blue-50"],
+.sidebar-dark [class*="from-purple-50"],
+.sidebar-dark [class*="from-green-50"],
+.sidebar-dark [class*="from-amber-50"],
+.sidebar-dark [class*="from-orange-50"] {
+  --tw-gradient-from: hsla(225, 22%, 15%, 0.5) !important;
+}
+
+.sidebar-dark [class*="to-blue-50"],
+.sidebar-dark [class*="to-white"],
+.sidebar-dark [class*="to-cyan-50"],
+.sidebar-dark [class*="to-indigo-50"],
+.sidebar-dark [class*="to-pink-50"],
+.sidebar-dark [class*="to-orange-50"] {
+  --tw-gradient-to: hsla(225, 22%, 12%, 0.5) !important;
+}
+
+.sidebar-dark [class*="via-white"] {
+  --tw-gradient-via: hsla(225, 22%, 14%, 0.4) !important;
+}
+
+/* ── Borders: *-200 → dark border ── */
+.sidebar-dark .border-gray-200,
+.sidebar-dark .border-gray-200\/60,
+.sidebar-dark .border-gray-100,
+.sidebar-dark .border-slate-200 {
+  border-color: hsl(225 18% 20%) !important;
+}
+
+.sidebar-dark .border-blue-200,
+.sidebar-dark .border-blue-100 {
+  border-color: hsla(220, 50%, 40%, 0.3) !important;
+}
+
+.sidebar-dark .border-purple-200 {
+  border-color: hsla(270, 40%, 40%, 0.3) !important;
+}
+
+.sidebar-dark .border-green-200 {
+  border-color: hsla(142, 40%, 35%, 0.3) !important;
+}
+
+.sidebar-dark .border-amber-200 {
+  border-color: hsla(36, 50%, 40%, 0.3) !important;
+}
+
+.sidebar-dark .border-orange-200 {
+  border-color: hsla(24, 50%, 40%, 0.3) !important;
+}
+
+.sidebar-dark .border-yellow-200 {
+  border-color: hsla(45, 50%, 35%, 0.3) !important;
+}
+
+.sidebar-dark .border-red-200 {
+  border-color: hsla(0, 40%, 40%, 0.3) !important;
+}
+
+.sidebar-dark .border-indigo-200 {
+  border-color: hsla(240, 40%, 40%, 0.3) !important;
+}
+
+/* ── Dark text on light bg → light text ── */
+.sidebar-dark .text-gray-900 {
+  color: hsl(220 20% 92%) !important;
+}
+
+.sidebar-dark .text-blue-900 {
+  color: hsl(220 70% 75%) !important;
+}
+
+.sidebar-dark .text-purple-900 {
+  color: hsl(270 50% 75%) !important;
+}
+
+.sidebar-dark .text-green-900 {
+  color: hsl(142 50% 65%) !important;
+}
+
+.sidebar-dark .text-amber-900 {
+  color: hsl(36 60% 65%) !important;
+}
+
+.sidebar-dark .text-indigo-900 {
+  color: hsl(240 50% 75%) !important;
+}
+
+.sidebar-dark .text-blue-700 {
+  color: hsl(220 60% 65%) !important;
+}
+
+.sidebar-dark .text-blue-600 {
+  color: hsl(220 60% 60%) !important;
+}
+
+.sidebar-dark .text-purple-700 {
+  color: hsl(270 45% 65%) !important;
+}
+
+.sidebar-dark .text-green-600 {
+  color: hsl(142 50% 55%) !important;
+}
+
+.sidebar-dark .text-green-700 {
+  color: hsl(142 50% 55%) !important;
+}
+
+.sidebar-dark .text-amber-700 {
+  color: hsl(36 60% 60%) !important;
+}
+
+.sidebar-dark .text-red-600 {
+  color: hsl(0 60% 55%) !important;
+}
+
+/* ── Hover states ── */
+.sidebar-dark .hover\:bg-purple-50:hover,
+.sidebar-dark .hover\:bg-blue-50:hover,
+.sidebar-dark .hover\:bg-indigo-50:hover,
+.sidebar-dark .hover\:bg-green-50:hover,
+.sidebar-dark .hover\:bg-red-50:hover,
+.sidebar-dark .hover\:bg-yellow-50:hover,
+.sidebar-dark .hover\:bg-slate-50:hover,
+.sidebar-dark .hover\:bg-gray-100:hover {
+  background-color: hsla(225, 22%, 18%, 0.5) !important;
+}
+
+.sidebar-dark .hover\:border-gray-300:hover {
+  border-color: hsl(225 18% 25%) !important;
+}
+
+.sidebar-dark .hover\:border-blue-200:hover {
+  border-color: hsla(220, 50%, 45%, 0.4) !important;
+}
+
+.sidebar-dark .hover\:bg-white\/50:hover {
+  background-color: hsla(225, 22%, 16%, 0.5) !important;
+}
+
+/* ── Red error banner ── */
+.sidebar-dark .bg-red-50.text-red-600 {
+  background-color: hsla(0, 50%, 25%, 0.3) !important;
+  border-color: hsla(0, 40%, 35%, 0.3) !important;
+  color: hsl(0 60% 60%) !important;
+}
+
+/* ── Toggle switch track ── */
+.sidebar-dark .bg-gray-300 {
+  background-color: hsl(225 18% 25%) !important;
+}

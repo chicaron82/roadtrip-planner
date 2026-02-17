@@ -1,5 +1,5 @@
 import { Clock, Users, UserCheck } from 'lucide-react';
-import type { Vehicle, TripSettings, TripBudget } from '../../types';
+import type { Vehicle, TripSettings, TripBudget, TripMode } from '../../types';
 import { VehicleForm } from '../Vehicle/VehicleForm';
 import { BudgetInput } from '../Trip/BudgetInput';
 import { Button } from '../UI/Button';
@@ -10,6 +10,7 @@ interface Step2ContentProps {
   setVehicle: React.Dispatch<React.SetStateAction<Vehicle>>;
   settings: TripSettings;
   setSettings: React.Dispatch<React.SetStateAction<TripSettings>>;
+  tripMode: TripMode;
 }
 
 export function Step2Content({
@@ -17,6 +18,7 @@ export function Step2Content({
   setVehicle,
   settings,
   setSettings,
+  tripMode,
 }: Step2ContentProps) {
   return (
     <div className="space-y-6">
@@ -176,7 +178,7 @@ export function Step2Content({
         </div>
 
         {/* Smart Tip */}
-        <p className="text-xs text-muted-foreground mt-2 bg-blue-50 border border-blue-100 rounded-md p-2">
+        <p className="info-banner-blue text-xs text-muted-foreground mt-2 rounded-md p-2 border">
           💡{' '}
           {settings.numDrivers === 1
             ? 'Solo driver? Recommended max 8 hours per day for safety.'
@@ -199,29 +201,29 @@ export function Step2Content({
               <span className="text-2xl font-bold">{settings.maxDriveHours}</span>
               <span className="text-xs text-muted-foreground">hours</span>
               {settings.maxDriveHours <= 6 && (
-                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">
                   ✓ Short
                 </span>
               )}
               {settings.maxDriveHours > 6 && settings.maxDriveHours <= 10 && (
-                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">
                   ✓ Safe
                 </span>
               )}
               {settings.maxDriveHours > 10 &&
                 settings.maxDriveHours <= 14 &&
                 settings.numDrivers >= 2 && (
-                  <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">
+                  <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">
                     ! Extended
                   </span>
                 )}
               {settings.maxDriveHours > 10 && settings.numDrivers === 1 && (
-                <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
+                <span className="text-xs bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full">
                   ⚠ Long
                 </span>
               )}
               {settings.maxDriveHours > 14 && (
-                <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
+                <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full">
                   ⚠ Marathon
                 </span>
               )}
@@ -231,10 +233,10 @@ export function Step2Content({
           {/* Color-Coded Slider */}
           <div className="relative pt-1 pb-2">
             <div className="absolute inset-0 flex h-2 rounded-full overflow-hidden">
-              <div className="bg-green-200" style={{ width: '30%' }}></div>
-              <div className="bg-yellow-200" style={{ width: '20%' }}></div>
-              <div className="bg-orange-200" style={{ width: '25%' }}></div>
-              <div className="bg-red-200" style={{ width: '25%' }}></div>
+              <div className="bg-green-500/30" style={{ width: '30%' }}></div>
+              <div className="bg-yellow-500/30" style={{ width: '20%' }}></div>
+              <div className="bg-orange-500/30" style={{ width: '25%' }}></div>
+              <div className="bg-red-500/30" style={{ width: '25%' }}></div>
             </div>
 
             <input
@@ -279,7 +281,7 @@ export function Step2Content({
           </div>
 
           {/* Dynamic Recommendation */}
-          <p className="text-xs mt-3 p-2 rounded-md bg-blue-50 border border-blue-100 text-blue-700">
+          <p className="info-banner-blue text-xs mt-3 p-2 rounded-md border">
             {settings.numDrivers === 1 &&
               settings.maxDriveHours <= 8 &&
               '✨ Recommended: 8 hours max for safe solo driving.'}
@@ -321,8 +323,8 @@ export function Step2Content({
               onClick={() => setSettings((prev) => ({ ...prev, stopFrequency: freq }))}
               className={`p-3 rounded-lg border-2 transition-all ${
                 settings.stopFrequency === freq
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 hover:border-gray-300'
+                  ? 'border-blue-500 bg-blue-500/15'
+                  : 'border-border hover:border-muted-foreground/30'
               }`}
             >
               <div className="text-center">
@@ -337,7 +339,7 @@ export function Step2Content({
           ))}
         </div>
 
-        <p className="text-xs mt-3 p-2 rounded-md bg-purple-50 border border-purple-100 text-purple-700">
+        <p className="info-banner-purple text-xs mt-3 p-2 rounded-md border">
           {settings.stopFrequency === 'conservative' &&
             '🛡️ Conservative: Stop every 1.5 hours, refuel at 30% tank. Best for solo drivers or those with kids.'}
           {settings.stopFrequency === 'balanced' &&
@@ -359,8 +361,8 @@ export function Step2Content({
           onClick={() => setSettings((prev) => ({ ...prev, avoidBorders: !prev.avoidBorders }))}
           className={`w-full mb-4 p-3 rounded-lg border-2 transition-all text-left flex items-center gap-3 ${
             settings.avoidBorders
-              ? 'border-red-400 bg-red-50'
-              : 'border-gray-200 hover:border-gray-300'
+              ? 'border-red-500/40 bg-red-500/10'
+              : 'border-border hover:border-muted-foreground/30'
           }`}
         >
           <span className="text-xl">🛂</span>
@@ -368,7 +370,7 @@ export function Step2Content({
             <div className="text-sm font-semibold flex items-center gap-2">
               Stay In-Country
               {settings.avoidBorders && (
-                <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-medium">ON</span>
+                <span className="text-[10px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full font-medium">ON</span>
               )}
             </div>
             <div className="text-xs text-muted-foreground">
@@ -407,8 +409,8 @@ export function Step2Content({
               }}
               className={`p-3 rounded-lg border-2 transition-all text-left ${
                 settings.tripPreferences.includes(pref.id)
-                  ? 'border-primary bg-primary/10'
-                  : 'border-gray-200 hover:border-gray-300'
+                  ? 'border-primary bg-primary/15'
+                  : 'border-border hover:border-muted-foreground/30'
               }`}
             >
               <div className="flex items-center gap-2 mb-1">
@@ -421,17 +423,33 @@ export function Step2Content({
         </div>
       </div>
 
-      {/* Trip Budget */}
-      <div className="border-t pt-4">
-        <BudgetInput
-          budget={settings.budget}
-          onChange={(newBudget: TripBudget) =>
-            setSettings((prev) => ({ ...prev, budget: newBudget }))
-          }
-          currency={settings.currency}
-          numTravelers={settings.numTravelers}
-        />
-      </div>
+      {/* Trip Budget — hidden in estimate mode (we're calculating it for them) */}
+      {tripMode === 'estimate' ? (
+        <div className="border-t pt-4">
+          <div className="info-banner-blue p-4 rounded-xl border">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">💰</span>
+              <div>
+                <div className="text-sm font-semibold">We'll Calculate Your Budget</div>
+                <div className="text-xs text-muted-foreground">
+                  Hit "Estimate My Trip" and we'll break down gas, hotels, food, and activities based on your vehicle and route.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="border-t pt-4">
+          <BudgetInput
+            budget={settings.budget}
+            onChange={(newBudget: TripBudget) =>
+              setSettings((prev) => ({ ...prev, budget: newBudget }))
+            }
+            currency={settings.currency}
+            numTravelers={settings.numTravelers}
+          />
+        </div>
+      )}
     </div>
   );
 }

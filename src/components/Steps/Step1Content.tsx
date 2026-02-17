@@ -1,20 +1,26 @@
 import { Calendar, Upload } from 'lucide-react';
 import { useRef } from 'react';
-import type { Location, TripChallenge, TripSettings } from '../../types';
+import type { Location, TripChallenge, TripMode, TripSettings } from '../../types';
 import { parseSharedTemplate, type TemplateImportResult } from '../../lib/url';
 import { showToast } from '../../lib/toast';
 import { LocationList } from '../Trip/LocationList';
-import { AdventureButton } from '../Trip/AdventureMode';
 import { ChallengeCards } from '../Trip/ChallengeCards';
 import { Button } from '../UI/Button';
 import { Input } from '../UI/Input';
 import { Label } from '../UI/Label';
+
+const MODE_HEADERS: Record<TripMode, { title: string; subtitle: string }> = {
+  plan: { title: 'Where are you going?', subtitle: 'Add your starting point, destination, and any stops along the way.' },
+  adventure: { title: 'Where are you starting from?', subtitle: 'Set your origin — we\'ll find your adventure.' },
+  estimate: { title: 'What\'s the route?', subtitle: 'Add your stops — we\'ll calculate what it\'ll cost.' },
+};
 
 interface Step1ContentProps {
   locations: Location[];
   setLocations: React.Dispatch<React.SetStateAction<Location[]>>;
   settings: TripSettings;
   setSettings: React.Dispatch<React.SetStateAction<TripSettings>>;
+  tripMode: TripMode;
   onShowAdventure: () => void;
   onImportTemplate?: (result: TemplateImportResult) => void;
   onSelectChallenge?: (challenge: TripChallenge) => void;
@@ -25,6 +31,7 @@ export function Step1Content({
   setLocations,
   settings,
   setSettings,
+  tripMode,
   onShowAdventure,
   onImportTemplate,
   onSelectChallenge,
@@ -61,9 +68,9 @@ export function Step1Content({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold mb-1">Where are you going?</h2>
+        <h2 className="text-lg font-semibold mb-1">{MODE_HEADERS[tripMode].title}</h2>
         <p className="text-sm text-muted-foreground mb-4">
-          Add your starting point, destination, and any stops along the way.
+          {MODE_HEADERS[tripMode].subtitle}
         </p>
         <LocationList
           locations={locations}
@@ -74,14 +81,14 @@ export function Step1Content({
         />
 
         {/* One-Way Toggle (default is round trip) */}
-        <div className={`mt-4 flex items-center justify-between p-3 rounded-lg bg-gradient-to-r ${settings.isRoundTrip ? 'from-blue-50 to-cyan-50 border-blue-200' : 'from-amber-50 to-orange-50 border-amber-200'} border`}>
+        <div className={`mt-4 flex items-center justify-between p-3 rounded-lg border transition-colors ${settings.isRoundTrip ? 'border-blue-500/30 bg-blue-500/10' : 'border-amber-500/30 bg-amber-500/10'}`}>
           <div className="flex items-center gap-3">
             <div className="text-2xl">{settings.isRoundTrip ? '🔄' : '➡️'}</div>
             <div>
-              <div className={`text-sm font-semibold ${settings.isRoundTrip ? 'text-blue-900' : 'text-amber-900'}`}>
+              <div className={`text-sm font-semibold ${settings.isRoundTrip ? 'text-blue-300' : 'text-amber-300'}`}>
                 {settings.isRoundTrip ? 'Round Trip' : 'One-Way Journey'}
               </div>
-              <div className={`text-xs ${settings.isRoundTrip ? 'text-blue-600' : 'text-amber-600'}`}>
+              <div className="text-xs text-muted-foreground">
                 {settings.isRoundTrip
                   ? 'Returning to starting point (doubles costs & distance)'
                   : 'No return — costs & distance for outbound only'}
@@ -99,8 +106,15 @@ export function Step1Content({
           </label>
         </div>
 
-        {/* Adventure Mode Button */}
-        <AdventureButton onClick={onShowAdventure} className="mt-4" />
+        {/* Adventure Mode Button — only show in plan mode as secondary option */}
+        {tripMode === 'plan' && (
+          <button
+            onClick={onShowAdventure}
+            className="mt-4 w-full flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed border-amber-500/40 text-sm text-amber-400 hover:border-amber-400 hover:bg-amber-500/10 transition-all"
+          >
+            🧭 Switch to Adventure Mode
+          </button>
+        )}
 
         {/* Chicharon's Challenges */}
         {onSelectChallenge && (
@@ -112,7 +126,7 @@ export function Step1Content({
         {/* Import Shared Template */}
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="mt-3 w-full flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed border-gray-300 text-sm text-muted-foreground hover:border-green-400 hover:text-green-700 hover:bg-green-50 transition-all"
+          className="mt-3 w-full flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed border-green-500/30 text-sm text-muted-foreground hover:border-green-400 hover:text-green-400 hover:bg-green-500/10 transition-all"
         >
           <Upload className="h-4 w-4" />
           Load a Shared Trip Template
@@ -201,7 +215,7 @@ export function Step1Content({
         </div>
 
         {/* Smart Preview */}
-        <p className="text-xs text-muted-foreground mt-2 bg-purple-50 border border-purple-100 rounded-md p-2">
+        <p className="info-banner-purple text-xs mt-2 rounded-md p-2 border">
           {settings.useArrivalTime ? (
             <>
               🎯 <strong>Arrive by:</strong>{' '}

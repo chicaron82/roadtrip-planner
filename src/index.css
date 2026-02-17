@@ -55,6 +55,10 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Sora', system-ui, -apple-system, sans-serif;
+  }
+  code, .font-mono {
+    font-family: 'DM Mono', ui-monospace, monospace;
   }
 }
 

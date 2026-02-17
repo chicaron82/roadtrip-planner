@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Share2, Printer, Maximize2, Minimize2 } from 'lucide-react';
-import type { Location, Vehicle, TripSettings, TripSummary, POISuggestion, TripJournal, StopType, DayType, OvernightStop } from '../../types';
+import type { Location, Vehicle, TripSettings, TripSummary, POISuggestion, TripJournal, StopType, DayType, OvernightStop, TripMode } from '../../types';
 import { Button } from '../UI/Button';
 import { OvernightStopPrompt } from '../Trip/OvernightStopPrompt';
 import { DiscoveryPanel } from '../Trip/DiscoveryPanel';
@@ -8,12 +8,14 @@ import { JournalModeToggle, StartJournalCTA, type ViewMode } from '../Trip/Journ
 import { JournalTimeline } from '../Trip/JournalTimeline';
 import { ItineraryTimeline } from '../Trip/ItineraryTimeline';
 import { printTrip } from '../Trip/TripPrintView';
+import { generateEstimate } from '../../lib/estimate-service';
 import type { PlanningStep } from '../../hooks';
 
 interface Step3ContentProps {
   summary: TripSummary | null;
   settings: TripSettings;
   vehicle: Vehicle;
+  tripMode: TripMode;
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
   activeJournal: TripJournal | null;
@@ -42,6 +44,7 @@ export function Step3Content({
   summary,
   settings,
   vehicle,
+  tripMode,
   viewMode,
   setViewMode,
   activeJournal,
@@ -66,6 +69,12 @@ export function Step3Content({
   onGoToStep,
 }: Step3ContentProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Generate estimate when in estimate mode
+  const estimate = useMemo(() => {
+    if (tripMode !== 'estimate' || !summary) return null;
+    return generateEstimate(summary, vehicle, settings);
+  }, [tripMode, summary, vehicle, settings]);
 
   // Expanded itinerary mode — show only the itinerary with full space
   if (isExpanded && summary) {
@@ -112,6 +121,53 @@ export function Step3Content({
 
   return (
     <div className="space-y-4">
+      {/* Estimate Breakdown — shown in estimate mode */}
+      {estimate && (
+        <div className="rounded-xl border border-blue-500/30 p-5 space-y-4" style={{ background: 'linear-gradient(135deg, hsla(220, 60%, 20%, 0.5), hsla(240, 40%, 15%, 0.5))' }}>
+          <div className="text-center">
+            <p className="text-xs font-mono tracking-widest text-blue-400 uppercase mb-1">Estimated Trip Cost</p>
+            <div className="flex items-baseline justify-center gap-1">
+              <span className="text-sm text-muted-foreground">{estimate.currency}</span>
+              <span className="text-4xl font-extrabold text-blue-300">{estimate.totalMid.toLocaleString()}</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Range: {estimate.currency}{estimate.totalLow.toLocaleString()} – {estimate.currency}{estimate.totalHigh.toLocaleString()}
+            </p>
+            {estimate.numTravelers > 1 && (
+              <p className="text-xs text-blue-400 font-medium mt-1">
+                ~{estimate.currency}{estimate.perPersonMid.toLocaleString()} per person
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            {estimate.breakdown.map((item) => (
+              <div key={item.category} className="flex items-center justify-between p-2.5 rounded-lg border border-blue-500/20" style={{ background: 'hsla(225, 22%, 15%, 0.7)' }}>
+                <div className="flex items-center gap-2.5">
+                  <span className="text-lg">{item.emoji}</span>
+                  <div>
+                    <div className="text-sm font-medium">{item.category}</div>
+                    {item.note && <div className="text-[10px] text-muted-foreground">{item.note}</div>}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm font-bold">
+                    {estimate.currency}{item.mid.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {estimate.currency}{item.low.toLocaleString(undefined, { maximumFractionDigits: 0 })} – {estimate.currency}{item.high.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-[10px] text-center text-muted-foreground/60 leading-relaxed">
+            Estimates based on regional averages. Actual costs depend on season, location, and personal spending habits.
+          </p>
+        </div>
+      )}
+
       <div className="flex flex-col gap-3">
         <div className="flex justify-between items-center">
           <div>

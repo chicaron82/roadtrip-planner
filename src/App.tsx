@@ -4,7 +4,7 @@ import { TripSummaryCard } from './components/Trip/TripSummary';
 import { Button } from './components/UI/Button';
 import { Card, CardContent } from './components/UI/Card';
 import { StepIndicator } from './components/UI/StepIndicator';
-import type { Location, TripChallenge, TripSummary } from './types';
+import type { Location, TripChallenge, TripSummary, TripMode } from './types';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { getHistory } from './lib/storage';
 import { parseStateFromURL, type TemplateImportResult } from './lib/url';
@@ -12,6 +12,8 @@ import { Spinner } from './components/UI/Spinner';
 import { AdventureMode, type AdventureSelection } from './components/Trip/AdventureMode';
 import { buildAdventureBudget } from './lib/adventure-service';
 import { Step1Content, Step2Content, Step3Content } from './components/Steps';
+import { LandingScreen } from './components/Landing/LandingScreen';
+import './styles/sidebar.css';
 
 // Import contexts and hooks
 import { TripProvider, useTripContext, DEFAULT_LOCATIONS } from './contexts';
@@ -138,6 +140,7 @@ function AppContent() {
   const [tripActive, setTripActive] = useState(false);
   const [history] = useState<TripSummary[]>(() => getHistory());
   const [showAdventureMode, setShowAdventureMode] = useState(false);
+  const [tripMode, setTripMode] = useState<TripMode | null>(null);
 
   // Combined error state
   const error = poiError || calcError;
@@ -336,25 +339,50 @@ function AppContent() {
     setLocations(DEFAULT_LOCATIONS);
     setSummary(null);
     resetWizard();
+    setTripMode(null);
   }, [setLocations, setSummary, resetWizard]);
+
+  // Handle mode selection from landing screen
+  const handleSelectMode = useCallback((mode: TripMode) => {
+    setTripMode(mode);
+    if (mode === 'adventure') {
+      setShowAdventureMode(true);
+    }
+  }, []);
+
+  // Handle continue saved trip from landing
+  const handleContinueSavedTrip = useCallback(() => {
+    setTripMode('plan');
+  }, []);
 
   // ==================== RENDER ====================
 
+  // Show landing screen when no mode is selected
+  if (!tripMode) {
+    return (
+      <LandingScreen
+        onSelectMode={handleSelectMode}
+        hasSavedTrip={history.length > 0}
+        onContinueSavedTrip={handleContinueSavedTrip}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col md:flex-row h-screen w-full overflow-hidden bg-background text-foreground">
-      {/* Sidebar */}
-      <div className={`w-full md:w-[420px] ${
+      {/* Sidebar — dark mission control */}
+      <div className={`sidebar-dark sidebar-entrance w-full md:w-[420px] ${
         planningStep === 3 && mobileView === 'plan' ? 'h-full' : 'h-[45vh]'
-      } md:h-full flex flex-col border-b md:border-b-0 md:border-r bg-card z-10 shadow-xl order-2 md:order-1 ${
+      } md:h-full flex flex-col z-10 shadow-2xl order-2 md:order-1 ${
         planningStep === 3 && mobileView === 'map' ? 'hidden md:flex' : ''
-      }`}>
+      }`} style={{ background: 'hsl(225 30% 8%)' }}>
         {/* Header */}
-        <div className="p-4 border-b bg-card">
+        <div className="sidebar-header p-4">
           <div className="mb-3">
-            <h1 className="text-xl font-bold bg-gradient-to-r from-amber-500 to-orange-600 bg-clip-text text-transparent leading-tight">
+            <h1 className="sidebar-brand-title">
               The Experience Engine
             </h1>
-            <p className="text-[11px] text-muted-foreground tracking-wide">
+            <p className="sidebar-brand-sub">
               Road trips worth remembering
             </p>
           </div>
@@ -367,7 +395,7 @@ function AppContent() {
 
         {/* Mobile View Toggle */}
         {planningStep === 3 && (
-          <div className="md:hidden px-4 py-2 border-b bg-muted/10">
+          <div className="md:hidden px-4 py-2" style={{ borderBottom: '1px solid hsl(225 18% 16%)' }}>
             <div className="flex gap-2">
               <button
                 onClick={() => setMobileView('plan')}
@@ -391,7 +419,7 @@ function AppContent() {
 
         {/* POI Controls */}
         {planningStep === 3 && (
-          <div className="px-4 py-2 border-b bg-muted/20 flex gap-2 overflow-x-auto no-scrollbar items-center">
+          <div className="poi-bar px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar items-center">
             {markerCategories.map(cat => (
               <button
                 key={cat.id}
@@ -427,6 +455,7 @@ function AppContent() {
                   setLocations={setLocations}
                   settings={settings}
                   setSettings={setSettings}
+                  tripMode={tripMode}
                   onShowAdventure={() => setShowAdventureMode(true)}
                   onImportTemplate={handleImportTemplate}
                   onSelectChallenge={handleSelectChallenge}
@@ -440,6 +469,7 @@ function AppContent() {
                   setVehicle={setVehicle}
                   settings={settings}
                   setSettings={setSettings}
+                  tripMode={tripMode}
                 />
               )}
 
@@ -449,6 +479,7 @@ function AppContent() {
                   summary={summary}
                   settings={settings}
                   vehicle={vehicle}
+                  tripMode={tripMode}
                   viewMode={viewMode}
                   setViewMode={setViewMode}
                   activeJournal={activeJournal}
@@ -478,7 +509,7 @@ function AppContent() {
         </div>
 
         {/* Navigation Footer */}
-        <div className="p-4 border-t bg-card">
+        <div className="sidebar-nav-footer p-4">
           <div className="flex gap-2">
             {planningStep > 1 && (
               <Button variant="outline" onClick={goToPrevStep} className="flex-1">
@@ -494,7 +525,7 @@ function AppContent() {
                 {isCalculating ? (
                   <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Calculating...</>
                 ) : planningStep === 2 ? (
-                  <>Plan My Trip <ChevronRight className="h-4 w-4 ml-1" /></>
+                  <>{tripMode === 'estimate' ? 'Estimate My Trip' : 'Plan My Trip'} <ChevronRight className="h-4 w-4 ml-1" /></>
                 ) : (
                   <>Next <ChevronRight className="h-4 w-4 ml-1" /></>
                 )}
