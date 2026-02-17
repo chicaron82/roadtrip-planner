@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { Location, POI, POICategory, MarkerCategory, POISuggestion, TripSummary, TripPreference } from '../types';
-import { searchNearbyPOIs } from '../lib/poi';
+import { searchNearbyPOIs, searchPOIsAlongRoute } from '../lib/poi';
 import { fetchPOISuggestions } from '../lib/poi-service';
 import { rankAndFilterPOIs, rankDestinationPOIs } from '../lib/poi-ranking';
 
@@ -25,7 +25,7 @@ interface UsePOIReturn {
   error: string | null;
 
   // Actions
-  toggleCategory: (id: POICategory, searchLocation: Location | null) => Promise<void>;
+  toggleCategory: (id: POICategory, searchLocation: Location | null, routeGeometry?: [number, number][] | null) => Promise<void>;
   addPOI: (poiId: string) => void;
   dismissPOI: (poiId: string) => void;
   fetchRoutePOIs: (
@@ -53,7 +53,7 @@ export function usePOI(): UsePOIReturn {
   const [error, setError] = useState<string | null>(null);
 
   // Toggle POI category on map
-  const toggleCategory = useCallback(async (id: POICategory, searchLocation: Location | null) => {
+  const toggleCategory = useCallback(async (id: POICategory, searchLocation: Location | null, routeGeometry?: [number, number][] | null) => {
     setError(null);
 
     const newCategories = markerCategories.map((c) =>
@@ -64,8 +64,9 @@ export function usePOI(): UsePOIReturn {
     const targetCategory = newCategories.find((c) => c.id === id);
 
     if (targetCategory?.visible) {
-      if (!searchLocation || searchLocation.lat === 0) {
-        setError('Please select a location first.');
+      // Need either a route or a search location
+      if ((!routeGeometry || routeGeometry.length < 2) && (!searchLocation || searchLocation.lat === 0)) {
+        setError('Please calculate a route first.');
         setMarkerCategories((prev) =>
           prev.map((c) => (c.id === id ? { ...c, visible: false } : c))
         );
@@ -74,10 +75,13 @@ export function usePOI(): UsePOIReturn {
 
       setLoadingCategory(id);
       try {
-        const newPois = await searchNearbyPOIs(searchLocation.lat, searchLocation.lng, id);
+        // Use route-corridor search when route exists, fall back to point search
+        const newPois = routeGeometry && routeGeometry.length >= 2
+          ? await searchPOIsAlongRoute(routeGeometry, id)
+          : await searchNearbyPOIs(searchLocation!.lat, searchLocation!.lng, id);
 
         if (newPois.length === 0) {
-          setError(`No ${targetCategory.label} found nearby.`);
+          setError(`No ${targetCategory.label} found along your route.`);
         }
 
         setPois((prev) => {

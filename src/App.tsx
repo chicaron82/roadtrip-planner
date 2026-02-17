@@ -208,8 +208,8 @@ function AppContent() {
 
   const handleToggleCategory = useCallback((id: import('./types').POICategory) => {
     const searchLocation = locations.find(l => l.type === 'destination' && l.lat !== 0) || locations[0];
-    toggleCategory(id, searchLocation.lat !== 0 ? searchLocation : null);
-  }, [locations, toggleCategory]);
+    toggleCategory(id, searchLocation.lat !== 0 ? searchLocation : null, validRouteGeometry);
+  }, [locations, toggleCategory, validRouteGeometry]);
 
   const handleMapClick = useCallback(async (lat: number, lng: number) => {
     try {
