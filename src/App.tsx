@@ -338,9 +338,14 @@ function AppContent() {
       }`}>
         {/* Header */}
         <div className="p-4 border-b bg-card">
-          <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
-            Roadtrip Planner
-          </h1>
+          <div className="mb-3">
+            <h1 className="text-xl font-bold bg-gradient-to-r from-amber-500 to-orange-600 bg-clip-text text-transparent leading-tight">
+              The Experience Engine
+            </h1>
+            <p className="text-[11px] text-muted-foreground tracking-wide">
+              Road trips worth remembering
+            </p>
+          </div>
           <StepIndicator
             currentStep={planningStep}
             onStepClick={handleStepClick}

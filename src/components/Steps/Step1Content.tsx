@@ -47,7 +47,7 @@ export function Step1Content({
         });
       } catch {
         showToast({
-          message: 'Invalid template file. Please use a file shared from Roadtrip Planner.',
+          message: 'Invalid template file. Please use a file shared from The Experience Engine.',
           type: 'error',
           duration: 5000,
         });
