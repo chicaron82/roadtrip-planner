@@ -73,6 +73,24 @@ function AppContent() {
     onCalculationComplete: () => onCalcCompleteRef.current(),
   });
 
+  // Calculate trip + fetch POIs together (used by both wizard and direct button)
+  const calculateAndDiscover = useCallback(async () => {
+    const tripResult = await calculateTrip();
+    if (!tripResult) return;
+    // Fetch POIs using returned summary (avoids stale closure)
+    const origin = locations.find(l => l.type === 'origin');
+    const destination = locations.find(l => l.type === 'destination');
+    if (origin && destination && tripResult.fullGeometry) {
+      fetchRoutePOIs(
+        tripResult.fullGeometry as [number, number][],
+        origin,
+        destination,
+        settings.tripPreferences,
+        tripResult.segments
+      );
+    }
+  }, [calculateTrip, locations, settings.tripPreferences, fetchRoutePOIs]);
+
   // Wizard Hook
   const {
     planningStep,
@@ -88,21 +106,7 @@ function AppContent() {
   } = useWizard({
     locations,
     vehicle,
-    onCalculate: async () => {
-      const tripResult = await calculateTrip();
-      // Fetch POIs after calculation using returned summary (avoids stale closure)
-      const origin = locations.find(l => l.type === 'origin');
-      const destination = locations.find(l => l.type === 'destination');
-      if (origin && destination && tripResult?.fullGeometry) {
-        await fetchRoutePOIs(
-          tripResult.fullGeometry as [number, number][],
-          origin,
-          destination,
-          settings.tripPreferences,
-          tripResult.segments
-        );
-      }
-    },
+    onCalculate: calculateAndDiscover,
   });
 
   // Wire up the calculation-complete callback now that markStepComplete is available
@@ -184,11 +188,11 @@ function AppContent() {
   // Handlers
   const goToNextStep = useCallback(() => {
     if (planningStep === 2) {
-      calculateTrip();
+      calculateAndDiscover();
     } else {
       wizardNext();
     }
-  }, [planningStep, calculateTrip, wizardNext]);
+  }, [planningStep, calculateAndDiscover, wizardNext]);
 
   const handleStepClick = useCallback((step: PlanningStep) => {
     goToStep(step);
