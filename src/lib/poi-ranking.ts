@@ -105,9 +105,9 @@ function calculateCategoryMatchScore(
 
   // Check if POI category matches any preference
   const preferenceMap: Record<TripPreference, POISuggestionCategory[]> = {
-    scenic: ['viewpoint', 'park'],
-    family: ['attraction', 'park', 'entertainment'],
-    budget: ['viewpoint', 'park', 'cafe'],
+    scenic: ['viewpoint', 'park', 'waterfall', 'landmark'],
+    family: ['attraction', 'park', 'entertainment', 'landmark'],
+    budget: ['viewpoint', 'park', 'cafe', 'waterfall'],
     foodie: ['restaurant', 'cafe'],
   };
 
@@ -121,6 +121,8 @@ function calculateCategoryMatchScore(
   // Universal boosts
   if (poiCategory === 'viewpoint') score += 10; // Viewpoints always valuable
   if (poiCategory === 'attraction') score += 5; // Attractions slightly favored
+  if (poiCategory === 'landmark') score += 8;   // Landmarks are discovery gold
+  if (poiCategory === 'waterfall') score += 8;  // Waterfalls are universally cool
 
   return Math.min(score, 100);
 }

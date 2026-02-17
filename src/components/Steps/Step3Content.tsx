@@ -2,7 +2,7 @@ import { Share2, Printer } from 'lucide-react';
 import type { Location, Vehicle, TripSettings, TripSummary, POISuggestion, TripJournal, StopType, DayType, OvernightStop } from '../../types';
 import { Button } from '../UI/Button';
 import { OvernightStopPrompt } from '../Trip/OvernightStopPrompt';
-import { POISuggestionsPanel } from '../Trip/POISuggestionsPanel';
+import { DiscoveryPanel } from '../Trip/DiscoveryPanel';
 import { JournalModeToggle, StartJournalCTA, type ViewMode } from '../Trip/JournalModeToggle';
 import { JournalTimeline } from '../Trip/JournalTimeline';
 import { ItineraryTimeline } from '../Trip/ItineraryTimeline';
@@ -127,8 +127,8 @@ export function Step3Content({
         />
       )}
 
-      {/* POI Suggestions */}
-      <POISuggestionsPanel
+      {/* Discovery Panel — "Make This Trip Legendary" */}
+      <DiscoveryPanel
         suggestions={poiSuggestions}
         isLoading={isLoadingPOIs}
         onAdd={onAddPOI}

@@ -139,20 +139,20 @@ export function usePOI(): UsePOIReturn {
           tripPreferences
         );
 
-        // Rank and filter along-way POIs (top 5)
+        // Rank and filter along-way POIs (top 15 for discovery)
         const rankedAlongWay = rankAndFilterPOIs(
           poiData.alongWay,
           routeGeometry,
           segments,
           tripPreferences,
-          5
+          15
         );
 
-        // Rank and filter destination POIs (top 5)
+        // Rank and filter destination POIs (top 8)
         const rankedDestination = rankDestinationPOIs(
           poiData.atDestination,
           tripPreferences,
-          5
+          8
         );
 
         setPoiSuggestions([...rankedAlongWay, ...rankedDestination]);

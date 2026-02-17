@@ -301,6 +301,8 @@ export type POISuggestionCategory =
   | 'attraction'     // Tourist attractions, landmarks
   | 'museum'         // Museums, galleries, cultural sites
   | 'park'           // National parks, nature reserves
+  | 'landmark'       // Memorials, monuments, historic markers
+  | 'waterfall'      // Waterfalls, natural wonders
   | 'restaurant'     // Full-service dining
   | 'cafe'           // Coffee shops, quick bites
   | 'gas'            // Gas stations (can overlap with fuel stops)

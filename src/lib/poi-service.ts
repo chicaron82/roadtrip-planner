@@ -20,6 +20,8 @@ const CATEGORY_TAG_QUERIES: Record<POISuggestionCategory, string> = {
   attraction: '["tourism"~"attraction|theme_park|zoo"]',
   museum: '["tourism"~"museum|gallery|artwork"]',
   park: '["leisure"~"park|nature_reserve"]["boundary"!="national_park"]',
+  landmark: '["historic"~"memorial|monument|castle|ruins|archaeological_site"]',
+  waterfall: '["waterfall"="yes"]["natural"="waterfall"]',
   restaurant: '["amenity"="restaurant"]',
   cafe: '["amenity"~"cafe|fast_food"]',
   gas: '["amenity"="fuel"]',
@@ -32,11 +34,30 @@ const CATEGORY_TAG_QUERIES: Record<POISuggestionCategory, string> = {
  * Map trip preferences to POI categories
  */
 const PREFERENCE_CATEGORY_MAP: Record<TripPreference, POISuggestionCategory[]> = {
-  scenic: ['viewpoint', 'park'],
-  family: ['attraction', 'park', 'entertainment'],
-  budget: ['viewpoint', 'park', 'cafe'],
+  scenic: ['viewpoint', 'park', 'waterfall', 'landmark'],
+  family: ['attraction', 'park', 'entertainment', 'landmark'],
+  budget: ['viewpoint', 'park', 'cafe', 'waterfall'],
   foodie: ['restaurant', 'cafe'],
 };
+
+/**
+ * Estimate total route distance from geometry (Haversine sum)
+ */
+function estimateRouteDistanceKm(geometry: [number, number][]): number {
+  let total = 0;
+  for (let i = 1; i < geometry.length; i++) {
+    const [lat1, lng1] = geometry[i - 1];
+    const [lat2, lng2] = geometry[i];
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLng / 2) ** 2;
+    total += R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+  return total;
+}
 
 /**
  * Build Overpass QL query for corridor search
@@ -164,7 +185,10 @@ function determineCategoryFromTags(tags: Record<string, string>): POISuggestionC
   if (tags.tourism === 'viewpoint') return 'viewpoint';
   if (tags.tourism === 'museum' || tags.tourism === 'gallery') return 'museum';
   if (tags.tourism === 'attraction' || tags.tourism === 'theme_park' || tags.tourism === 'zoo') return 'attraction';
+  if (tags.tourism === 'artwork') return 'landmark';
   if (tags.tourism === 'hotel' || tags.tourism === 'motel' || tags.tourism === 'guest_house') return 'hotel';
+  if (tags.historic) return 'landmark';
+  if (tags.natural === 'waterfall' || tags.waterfall === 'yes') return 'waterfall';
   if (tags.leisure === 'park' || tags.leisure === 'nature_reserve') return 'park';
   if (tags.amenity === 'restaurant') return 'restaurant';
   if (tags.amenity === 'cafe' || tags.amenity === 'fast_food') return 'cafe';
@@ -215,8 +239,10 @@ function getRelevantCategories(tripPreferences: TripPreference[]): POISuggestion
     PREFERENCE_CATEGORY_MAP[pref].forEach(cat => categories.add(cat));
   });
 
-  // Always include viewpoints for scenic value
+  // Always include discovery-friendly categories
   categories.add('viewpoint');
+  categories.add('landmark');
+  categories.add('waterfall');
 
   return Array.from(categories);
 }
@@ -235,8 +261,14 @@ export async function fetchPOISuggestions(
   // Determine relevant categories from user preferences
   const categories = getRelevantCategories(tripPreferences);
 
+  // Scale corridor width to trip distance (longer trips = wider scan)
+  const routeDistanceKm = estimateRouteDistanceKm(routeGeometry);
+  const corridorWidth = routeDistanceKm > 1000 ? 40000
+    : routeDistanceKm > 500 ? 25000
+    : CORRIDOR_WIDTHS.worthIt;
+
   // Fetch corridor POIs (along the way)
-  const corridorQuery = buildCorridorQuery(routeGeometry, categories, CORRIDOR_WIDTHS.worthIt);
+  const corridorQuery = buildCorridorQuery(routeGeometry, categories, corridorWidth);
   const corridorElements = await executeOverpassQuery(corridorQuery);
 
   // Fetch destination POIs
