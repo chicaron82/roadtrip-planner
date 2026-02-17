@@ -32,24 +32,29 @@ export function AnimatedPolyline({
     setVisiblePositions([]);
     setIsAnimating(true);
 
-    // Animate the polyline drawing
     const totalPoints = validPositions.length;
     if (totalPoints === 0) {
       setIsAnimating(false);
       return;
     }
 
-    const intervalDuration = animationDuration / totalPoints;
+    // For large routes, add points in batches instead of one-by-one
+    // This keeps the animation fast regardless of route length
+    const targetFrames = Math.min(totalPoints, 60); // cap at ~60 visual steps
+    const batchSize = Math.max(1, Math.ceil(totalPoints / targetFrames));
+    const intervalDuration = animationDuration / targetFrames;
     let currentIndex = 0;
 
     const interval = setInterval(() => {
-      if (currentIndex < totalPoints && validPositions[currentIndex]) {
-        // Double-check the position is still valid before adding
-        const nextPos = validPositions[currentIndex];
-        if (nextPos && Array.isArray(nextPos) && nextPos.length === 2) {
-          setVisiblePositions(prev => [...prev, nextPos]);
+      if (currentIndex < totalPoints) {
+        const endIndex = Math.min(currentIndex + batchSize, totalPoints);
+        const batch = validPositions.slice(currentIndex, endIndex).filter(
+          pos => pos && Array.isArray(pos) && pos.length === 2
+        );
+        if (batch.length > 0) {
+          setVisiblePositions(prev => [...prev, ...batch]);
         }
-        currentIndex++;
+        currentIndex = endIndex;
       } else {
         clearInterval(interval);
         setIsAnimating(false);

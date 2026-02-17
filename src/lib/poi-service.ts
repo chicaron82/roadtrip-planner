@@ -68,28 +68,30 @@ function buildCorridorQuery(
   categories: POISuggestionCategory[],
   corridorWidth: number
 ): string {
-  // Calculate bounding box with buffer
-  const lats = routeGeometry.map(c => c[0]);
-  const lngs = routeGeometry.map(c => c[1]);
-
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const minLng = Math.min(...lngs);
-  const maxLng = Math.max(...lngs);
+  // Calculate bounding box with buffer (safe for large arrays — no spread)
+  let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+  for (const [lat, lng] of routeGeometry) {
+    if (lat < minLat) minLat = lat;
+    if (lat > maxLat) maxLat = lat;
+    if (lng < minLng) minLng = lng;
+    if (lng > maxLng) maxLng = lng;
+  }
 
   // Add buffer (rough conversion: 1 degree ≈ 111km)
   const buffer = corridorWidth / 111000;
 
   const bbox = `${minLat - buffer},${minLng - buffer},${maxLat + buffer},${maxLng + buffer}`;
 
-  // Build union query for all categories
-  const tagQueries = categories.map(cat => CATEGORY_TAG_QUERIES[cat]).join('');
+  // Build UNION query — one node+way line per category (OR logic)
+  const lines = categories.map(cat => {
+    const tag = CATEGORY_TAG_QUERIES[cat];
+    return `      node${tag}(${bbox});\n      way${tag}(${bbox});`;
+  }).join('\n');
 
   return `
-    [out:json][timeout:25];
+    [out:json][timeout:30][maxsize:5242880];
     (
-      node${tagQueries}(${bbox});
-      way${tagQueries}(${bbox});
+${lines}
     );
     out center;
   `.trim();
@@ -103,13 +105,16 @@ function buildDestinationQuery(
   categories: POISuggestionCategory[],
   radius: number
 ): string {
-  const tagQueries = categories.map(cat => CATEGORY_TAG_QUERIES[cat]).join('');
+  // Build UNION query — one node+way line per category (OR logic)
+  const lines = categories.map(cat => {
+    const tag = CATEGORY_TAG_QUERIES[cat];
+    return `      node${tag}(around:${radius},${destination.lat},${destination.lng});\n      way${tag}(around:${radius},${destination.lat},${destination.lng});`;
+  }).join('\n');
 
   return `
-    [out:json][timeout:25];
+    [out:json][timeout:30];
     (
-      node${tagQueries}(around:${radius},${destination.lat},${destination.lng});
-      way${tagQueries}(around:${radius},${destination.lat},${destination.lng});
+${lines}
     );
     out center;
   `.trim();
