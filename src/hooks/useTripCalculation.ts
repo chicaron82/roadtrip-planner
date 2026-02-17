@@ -37,7 +37,7 @@ interface UseTripCalculationReturn {
   dismissOvernightPrompt: () => void;
 
   // Actions
-  calculateTrip: () => Promise<void>;
+  calculateTrip: () => Promise<TripSummary | null>;
   updateStopType: (segmentIndex: number, newStopType: import('../types').StopType) => void;
   updateDayNotes: (dayNumber: number, notes: string) => void;
   updateDayTitle: (dayNumber: number, title: string) => void;
@@ -65,7 +65,7 @@ export function useTripCalculation({
   // Store summary locally for updateStopType
   const [localSummary, setLocalSummary] = useState<TripSummary | null>(null);
 
-  const calculateTrip = useCallback(async () => {
+  const calculateTrip = useCallback(async (): Promise<TripSummary | null> => {
     setIsCalculating(true);
     setError(null);
 
@@ -77,7 +77,7 @@ export function useTripCalculation({
 
       if (!routeData) {
         setError('Could not calculate route. Please check your locations.');
-        return;
+        return null;
       }
 
       // Calculate base trip costs
@@ -197,9 +197,12 @@ export function useTripCalculation({
       setLocalSummary(tripSummary);
       onSummaryChange(tripSummary);
       onCalculationComplete?.();
+
+      return tripSummary;
     } catch (e) {
       console.error(e);
       setError('An error occurred while calculating the route.');
+      return null;
     } finally {
       setIsCalculating(false);
     }

@@ -89,17 +89,17 @@ function AppContent() {
     locations,
     vehicle,
     onCalculate: async () => {
-      await calculateTrip();
-      // Fetch POIs after calculation
+      const tripResult = await calculateTrip();
+      // Fetch POIs after calculation using returned summary (avoids stale closure)
       const origin = locations.find(l => l.type === 'origin');
       const destination = locations.find(l => l.type === 'destination');
-      if (origin && destination && summary?.fullGeometry) {
+      if (origin && destination && tripResult?.fullGeometry) {
         await fetchRoutePOIs(
-          summary.fullGeometry as [number, number][],
+          tripResult.fullGeometry as [number, number][],
           origin,
           destination,
           settings.tripPreferences,
-          summary.segments
+          tripResult.segments
         );
       }
     },
