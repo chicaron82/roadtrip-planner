@@ -74,6 +74,7 @@ function makeSettings(overrides: Partial<TripSettings> = {}): TripSettings {
     mealPricePerDay: 50,
     isRoundTrip: false,
     avoidTolls: false,
+    avoidBorders: false,
     scenicMode: false,
     routePreference: 'fastest',
     stopFrequency: 'balanced',
