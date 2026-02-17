@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { Map } from './components/Map/Map';
 import { TripSummaryCard } from './components/Trip/TripSummary';
 import { Button } from './components/UI/Button';
@@ -33,6 +33,9 @@ function AppContent() {
 
   // Stable ref for post-calculation callback (breaks circular dep between hooks)
   const onCalcCompleteRef = React.useRef<() => void>(() => {});
+
+  // Ref to scroll sidebar to top on step change
+  const sidebarScrollRef = useRef<HTMLDivElement>(null);
 
   // POI Hook
   const {
@@ -172,6 +175,11 @@ function AppContent() {
       }
     }
   }, [settings.useArrivalTime, settings.arrivalDate, settings.arrivalTime, summary, settings.departureDate, settings.departureTime, setSettings]);
+
+  // Scroll sidebar to top when step changes
+  useEffect(() => {
+    sidebarScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+  }, [planningStep]);
 
   // Valid route geometry for map
   const validRouteGeometry = useMemo(() => {
@@ -409,7 +417,7 @@ function AppContent() {
         )}
 
         {/* Step Content */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div ref={sidebarScrollRef} className="flex-1 overflow-y-auto p-4">
           <Card className="border-0 shadow-none">
             <CardContent className="px-0 pt-0">
               {/* STEP 1 */}

@@ -1,4 +1,5 @@
-import { Share2, Printer } from 'lucide-react';
+import { useState } from 'react';
+import { Share2, Printer, Maximize2, Minimize2 } from 'lucide-react';
 import type { Location, Vehicle, TripSettings, TripSummary, POISuggestion, TripJournal, StopType, DayType, OvernightStop } from '../../types';
 import { Button } from '../UI/Button';
 import { OvernightStopPrompt } from '../Trip/OvernightStopPrompt';
@@ -64,6 +65,51 @@ export function Step3Content({
   onDismissPOI,
   onGoToStep,
 }: Step3ContentProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Expanded itinerary mode — show only the itinerary with full space
+  if (isExpanded && summary) {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Itinerary</h2>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1"
+            onClick={() => setIsExpanded(false)}
+          >
+            <Minimize2 className="h-3 w-3" /> Collapse
+          </Button>
+        </div>
+        {viewMode === 'journal' ? (
+          activeJournal ? (
+            <JournalTimeline
+              summary={summary}
+              settings={settings}
+              journal={activeJournal}
+              onUpdateJournal={onUpdateJournal}
+            />
+          ) : (
+            <StartJournalCTA onStart={onStartJournal} />
+          )
+        ) : (
+          <ItineraryTimeline
+            summary={summary}
+            settings={settings}
+            vehicle={vehicle}
+            days={summary.days}
+            onUpdateStopType={onUpdateStopType}
+            onUpdateDayNotes={onUpdateDayNotes}
+            onUpdateDayTitle={onUpdateDayTitle}
+            onUpdateDayType={onUpdateDayType}
+            onUpdateOvernight={onUpdateOvernight}
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3">
@@ -104,6 +150,14 @@ export function Step3Content({
         )}
       </div>
 
+      {/* Discovery Panel — "Make This Trip Legendary" */}
+      <DiscoveryPanel
+        suggestions={poiSuggestions}
+        isLoading={isLoadingPOIs}
+        onAdd={onAddPOI}
+        onDismiss={onDismissPOI}
+      />
+
       {/* Overnight Stop Prompt */}
       {showOvernightPrompt && suggestedOvernightStop && summary && (
         <OvernightStopPrompt
@@ -127,39 +181,46 @@ export function Step3Content({
         />
       )}
 
-      {/* Discovery Panel — "Make This Trip Legendary" */}
-      <DiscoveryPanel
-        suggestions={poiSuggestions}
-        isLoading={isLoadingPOIs}
-        onAdd={onAddPOI}
-        onDismiss={onDismissPOI}
-      />
-
       {summary ? (
-        viewMode === 'journal' ? (
-          activeJournal ? (
-            <JournalTimeline
+        <>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-muted-foreground">
+              {viewMode === 'journal' ? 'Journal' : 'Itinerary'}
+            </h3>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="gap-1 h-7 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setIsExpanded(true)}
+            >
+              <Maximize2 className="h-3 w-3" /> Expand
+            </Button>
+          </div>
+          {viewMode === 'journal' ? (
+            activeJournal ? (
+              <JournalTimeline
+                summary={summary}
+                settings={settings}
+                journal={activeJournal}
+                onUpdateJournal={onUpdateJournal}
+              />
+            ) : (
+              <StartJournalCTA onStart={onStartJournal} />
+            )
+          ) : (
+            <ItineraryTimeline
               summary={summary}
               settings={settings}
-              journal={activeJournal}
-              onUpdateJournal={onUpdateJournal}
+              vehicle={vehicle}
+              days={summary.days}
+              onUpdateStopType={onUpdateStopType}
+              onUpdateDayNotes={onUpdateDayNotes}
+              onUpdateDayTitle={onUpdateDayTitle}
+              onUpdateDayType={onUpdateDayType}
+              onUpdateOvernight={onUpdateOvernight}
             />
-          ) : (
-            <StartJournalCTA onStart={onStartJournal} />
-          )
-        ) : (
-          <ItineraryTimeline
-            summary={summary}
-            settings={settings}
-            vehicle={vehicle}
-            days={summary.days}
-            onUpdateStopType={onUpdateStopType}
-            onUpdateDayNotes={onUpdateDayNotes}
-            onUpdateDayTitle={onUpdateDayTitle}
-            onUpdateDayType={onUpdateDayType}
-            onUpdateOvernight={onUpdateOvernight}
-          />
-        )
+          )}
+        </>
       ) : (
         <div className="text-center py-12 text-muted-foreground">
           <div className="mb-2">🗺️</div>

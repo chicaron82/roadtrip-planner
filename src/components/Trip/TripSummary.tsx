@@ -6,8 +6,6 @@ import { getWeatherEmoji } from '../../lib/weather';
 import { Button } from '../UI/Button';
 import { Car, Clock, Fuel, Users, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 import { TripOverview } from './TripOverview';
-import { ItineraryModal } from './ItineraryModal';
-import { ItineraryTimeline } from './ItineraryTimeline';
 import { FeasibilityBanner } from './FeasibilityBanner';
 import { analyzeFeasibility } from '../../lib/feasibility';
 
@@ -20,9 +18,7 @@ interface TripSummaryProps {
 }
 
 export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenVehicleTab }: TripSummaryProps) {
-  const [itineraryModalOpen, setItineraryModalOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'itinerary'>('overview');
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   const feasibility = useMemo(
     () => summary ? analyzeFeasibility(summary, settings) : null,
@@ -77,29 +73,8 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
             <FeasibilityBanner result={feasibility} className="mb-4" defaultCollapsed />
           )}
 
-          {/* Tab Navigation */}
-          {!isCollapsed && (
-            <div className="flex gap-1 mb-4 bg-muted/40 rounded-lg p-1">
-              <Button
-                variant={activeTab === 'overview' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setActiveTab('overview')}
-                className="flex-1 h-8 text-xs"
-              >
-                Overview
-              </Button>
-              <Button
-                variant={activeTab === 'itinerary' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setActiveTab('itinerary')}
-                className="flex-1 h-8 text-xs"
-              >
-                Full Itinerary
-              </Button>
-            </div>
-          )}
 
-          {activeTab === 'overview' && (
+
           <div className={`grid grid-cols-2 md:grid-cols-4 gap-3 ${isCollapsed ? '' : ''}`}>
             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3 border border-blue-100 dark:border-blue-800">
                 <div className="flex items-center gap-2 mb-1">
@@ -142,9 +117,8 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
                 </div>
             </div>
           </div>
-          )}
 
-          {activeTab === 'overview' && !isCollapsed && (
+          {!isCollapsed && (
           <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 max-h-68 overflow-y-auto">
             <div className="flex items-center justify-between mb-3">
                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Itinerary Preview</h3>
@@ -203,23 +177,8 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
             </div>
           </div>
           )}
-
-          {/* Full Itinerary Tab */}
-          {activeTab === 'itinerary' && !isCollapsed && (
-            <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 max-h-96 overflow-y-auto">
-              <ItineraryTimeline summary={summary} settings={settings} />
-            </div>
-          )}
         </CardContent>
       </Card>
-
-      {/* Itinerary Modal */}
-      <ItineraryModal
-        open={itineraryModalOpen}
-        onClose={() => setItineraryModalOpen(false)}
-        summary={summary}
-        settings={settings}
-      />
     </div>
   );
 }
