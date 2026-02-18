@@ -21,13 +21,13 @@ const CATEGORY_TAG_QUERIES: Record<POISuggestionCategory, string> = {
   museum: '["tourism"~"museum|gallery|artwork"]',
   park: '["leisure"~"park|nature_reserve"]["boundary"!="national_park"]',
   landmark: '["historic"~"memorial|monument|castle|ruins|archaeological_site"]',
-  waterfall: '["waterfall"="yes"]["natural"="waterfall"]',
+  waterfall: '["natural"="waterfall"]',
   restaurant: '["amenity"="restaurant"]',
-  cafe: '["amenity"~"cafe|fast_food"]',
+  cafe: '["amenity"="cafe"]',
   gas: '["amenity"="fuel"]',
   hotel: '["tourism"~"hotel|motel|guest_house"]',
   shopping: '["shop"~"supermarket|mall|department_store"]',
-  entertainment: '["leisure"~"amusement_arcade|bowling_alley"]["amenity"~"cinema|theatre"]',
+  entertainment: '["leisure"~"amusement_arcade|bowling_alley|water_park"]',
 };
 
 /**
@@ -270,8 +270,8 @@ function calculatePopularityScore(tags: Record<string, string>): number {
  */
 function getRelevantCategories(tripPreferences: TripPreference[]): POISuggestionCategory[] {
   if (tripPreferences.length === 0) {
-    // Default: balanced mix
-    return ['viewpoint', 'attraction', 'restaurant', 'park'];
+    // Default: discovery-focused mix (skip food/gas — not interesting discoveries)
+    return ['viewpoint', 'attraction', 'landmark', 'park', 'waterfall', 'museum'];
   }
 
   // Combine categories from selected preferences

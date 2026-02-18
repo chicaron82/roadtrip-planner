@@ -118,11 +118,17 @@ function calculateCategoryMatchScore(
     }
   });
 
-  // Universal boosts
+  // Universal boosts — discovery-worthy categories rank higher
   if (poiCategory === 'viewpoint') score += 10; // Viewpoints always valuable
+  if (poiCategory === 'waterfall') score += 12; // Waterfalls are universally cool
+  if (poiCategory === 'landmark') score += 10;  // Landmarks are discovery gold
   if (poiCategory === 'attraction') score += 5; // Attractions slightly favored
-  if (poiCategory === 'landmark') score += 8;   // Landmarks are discovery gold
-  if (poiCategory === 'waterfall') score += 8;  // Waterfalls are universally cool
+  if (poiCategory === 'museum') score += 5;     // Museums are interesting
+
+  // Penalties for generic/utilitarian POIs (not "cool discoveries")
+  if (poiCategory === 'cafe') score -= 10;      // Cafes/fast food aren't discoveries
+  if (poiCategory === 'gas') score -= 15;       // Gas stations definitely aren't
+  if (poiCategory === 'restaurant') score -= 5; // Restaurants are less interesting unless foodie
 
   return Math.min(score, 100);
 }
@@ -244,7 +250,9 @@ function rankPOI(
 }
 
 /**
- * Rank and filter POIs to top picks
+ * Rank and filter POIs to top picks.
+ * Enforces category diversity: max 3 POIs per category to prevent
+ * one type (e.g. restaurants) from flooding the results.
  */
 export function rankAndFilterPOIs(
   pois: POISuggestion[],
@@ -262,8 +270,21 @@ export function rankAndFilterPOIs(
   // Sort by ranking score (descending)
   const sorted = filtered.sort((a, b) => b.rankingScore - a.rankingScore);
 
-  // Return top N
-  return sorted.slice(0, topN);
+  // Category-diverse selection: max 3 per category
+  const MAX_PER_CATEGORY = 3;
+  const categoryCounts = new Map<string, number>();
+  const diverse: POISuggestion[] = [];
+
+  for (const poi of sorted) {
+    const count = categoryCounts.get(poi.category) || 0;
+    if (count < MAX_PER_CATEGORY) {
+      diverse.push(poi);
+      categoryCounts.set(poi.category, count + 1);
+    }
+    if (diverse.length >= topN) break;
+  }
+
+  return diverse;
 }
 
 /**
