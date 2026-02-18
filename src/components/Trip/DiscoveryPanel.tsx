@@ -262,13 +262,27 @@ function DiscoveryCard({
                 {poi.name}
               </h5>
               <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
-                <span>{poi.distanceFromRoute.toFixed(1)}km away</span>
-                <span>·</span>
-                <span>+{poi.detourTimeMinutes}min</span>
-                {poi.fitsInBreakWindow && (
+                {poi.bucket === 'destination' ? (
                   <>
+                    <span className="text-blue-600 font-medium">📍 At destination</span>
+                    {poi.distanceFromRoute > 0.5 && (
+                      <>
+                        <span>·</span>
+                        <span>{poi.distanceFromRoute.toFixed(1)}km from center</span>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <span>{poi.distanceFromRoute.toFixed(1)}km away</span>
                     <span>·</span>
-                    <span className="text-green-600 font-medium">Quick stop</span>
+                    <span>+{poi.detourTimeMinutes}min</span>
+                    {poi.fitsInBreakWindow && (
+                      <>
+                        <span>·</span>
+                        <span className="text-green-600 font-medium">Quick stop</span>
+                      </>
+                    )}
                   </>
                 )}
               </div>

@@ -289,21 +289,29 @@ export function rankAndFilterPOIs(
 
 /**
  * Rank destination-area POIs (different logic - no detour cost, focus on quality)
+ * Calculates distance from destination point so the UI can display meaningful info.
  */
 export function rankDestinationPOIs(
   pois: POISuggestion[],
   tripPreferences: TripPreference[],
+  destination: { lat: number; lng: number },
   topN: number = 5
 ): POISuggestion[] {
   const rankedPOIs = pois.map(poi => {
     const categoryMatchScore = calculateCategoryMatchScore(poi.category, tripPreferences);
     const popularityScore = poi.popularityScore;
 
+    // Distance from the destination point (for informational display)
+    const distanceFromDest = haversineDistance(poi.lat, poi.lng, destination.lat, destination.lng);
+
     // For destination POIs, only use category match + popularity (50/50 weight)
     const rankingScore = categoryMatchScore * 0.5 + popularityScore * 0.5;
 
     return {
       ...poi,
+      distanceFromRoute: Math.round(distanceFromDest * 10) / 10, // km from destination center
+      detourTimeMinutes: 0, // No detour — you're already at destination
+      fitsInBreakWindow: true,
       rankingScore: Math.round(rankingScore),
       categoryMatchScore: Math.round(categoryMatchScore),
     };

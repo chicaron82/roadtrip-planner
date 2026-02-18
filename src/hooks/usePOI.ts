@@ -156,6 +156,7 @@ export function usePOI(): UsePOIReturn {
         const rankedDestination = rankDestinationPOIs(
           poiData.atDestination,
           tripPreferences,
+          { lat: destination.lat!, lng: destination.lng! },
           8
         );
 
