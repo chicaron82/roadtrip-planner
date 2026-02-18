@@ -60,6 +60,7 @@ export function generateSmartStops(
   // Track simulation state
   let currentFuel = config.tankSizeLitres;
   let distanceSinceLastFill = 0;
+  let hoursSinceLastFill = 0;
   let currentTime = new Date(config.departureTime);
   let hoursOnRoad = 0;
   let totalDrivingToday = 0;
@@ -68,18 +69,28 @@ export function generateSmartStops(
   const REST_BREAK_INTERVAL = stopFrequency === 'conservative' ? 1.5 : stopFrequency === 'balanced' ? 2 : 2.5;
   const MEAL_TIMES = { breakfast: 8, lunch: 12, dinner: 18 }; // 24h format
 
+  // Comfort refuel interval — real drivers don't push to empty.
+  // Trigger a fuel stop every ~3-4 hours of driving, even if tank isn't low.
+  const COMFORT_REFUEL_HOURS = stopFrequency === 'conservative' ? 2.5 : stopFrequency === 'balanced' ? 3.5 : 4.5;
+
   segments.forEach((segment, index) => {
     const segmentHours = segment.durationMinutes / 60;
     const fuelNeeded = segment.fuelNeededLitres || (segment.distanceKm / 100) * config.fuelEconomyL100km;
 
-    // === FUEL STOP CHECK (using safe range approach) ===
+    // === FUEL STOP CHECK ===
     distanceSinceLastFill += segment.distanceKm;
+    hoursSinceLastFill += segmentHours;
 
-    // Check if we've exceeded safe range OR will run critically low
+    // Three triggers (any one fires a fuel stop):
+    // 1. Would drop below 15% tank capacity (critical)
+    // 2. Exceeded calculated safe range based on tank/economy
+    // 3. Comfort refuel — been driving 3-4+ hours since last fill
+    //    (realistic behavior: top up at a midpoint town, don't push to empty)
     const wouldRunCriticallyLow = (currentFuel - fuelNeeded) < (config.tankSizeLitres * 0.15); // Critical: below 15%
     const exceededSafeRange = distanceSinceLastFill >= safeRangeKm;
+    const comfortRefuelDue = hoursSinceLastFill >= COMFORT_REFUEL_HOURS && index > 0;
 
-    if (exceededSafeRange || wouldRunCriticallyLow) {
+    if (exceededSafeRange || wouldRunCriticallyLow || comfortRefuelDue) {
       const refillAmount = config.tankSizeLitres - currentFuel;
       const refillCost = refillAmount * config.gasPrice;
       const tankPercent = Math.round((currentFuel / config.tankSizeLitres) * 100);
@@ -88,6 +99,8 @@ export function generateSmartStops(
       let reason = '';
       if (wouldRunCriticallyLow) {
         reason = `Tank at ${tankPercent}% (${litresRemaining}L remaining). ~$${refillCost.toFixed(2)} to refill. Critical: refuel before continuing to ${segment.to.name}.`;
+      } else if (comfortRefuelDue && !exceededSafeRange) {
+        reason = `${hoursSinceLastFill.toFixed(1)} hours since last fill — good time to top up. Tank at ${tankPercent}% (${litresRemaining}L). ~$${refillCost.toFixed(2)} to refill.`;
       } else {
         reason = `Tank at ${tankPercent}% (${litresRemaining}L remaining). ~$${refillCost.toFixed(2)} to refill. You've driven ${distanceSinceLastFill.toFixed(0)} km since last fill.`;
       }
@@ -117,6 +130,7 @@ export function generateSmartStops(
 
       currentFuel = config.tankSizeLitres; // Simulated refill
       distanceSinceLastFill = 0; // Reset distance tracker
+      hoursSinceLastFill = 0; // Reset comfort timer
       currentTime = new Date(currentTime.getTime() + 15 * 60 * 1000); // Add 15 min
     }
 
