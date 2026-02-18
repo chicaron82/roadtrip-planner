@@ -17,11 +17,11 @@ const DESTINATION_RADIUS = 50000; // 50km around destination
  */
 const CATEGORY_TAG_QUERIES: Record<POISuggestionCategory, string> = {
   viewpoint: '["tourism"="viewpoint"]',
-  attraction: '["tourism"~"attraction|theme_park|zoo"]',
+  attraction: '["tourism"~"attraction|theme_park|zoo|camp_site|picnic_site|information"]',
   museum: '["tourism"~"museum|gallery|artwork"]',
-  park: '["leisure"~"park|nature_reserve"]["boundary"!="national_park"]',
-  landmark: '["historic"~"memorial|monument|castle|ruins|archaeological_site"]',
-  waterfall: '["natural"="waterfall"]',
+  park: '["leisure"~"park|nature_reserve"]',
+  landmark: '["historic"~"memorial|monument|castle|ruins|archaeological_site|heritage"]',
+  waterfall: '["natural"~"waterfall|cave_entrance|beach|arch|cliff"]',
   restaurant: '["amenity"="restaurant"]',
   cafe: '["amenity"="cafe"]',
   gas: '["amenity"="fuel"]',
@@ -191,8 +191,9 @@ function overpassElementToPOI(element: OverpassElement): POISuggestion | null {
 
   if (!lat || !lng) return null;
 
-  // Extract name
-  const name = element.tags?.name || element.tags?.['name:en'] || 'Unnamed';
+  // Extract name — skip unnamed POIs (they're useless as discoveries)
+  const name = element.tags?.name || element.tags?.['name:en'];
+  if (!name) return null;
 
   // Determine category from tags
   const category = determineCategoryFromTags(element.tags || {});
@@ -226,13 +227,17 @@ function determineCategoryFromTags(tags: Record<string, string>): POISuggestionC
   if (tags.tourism === 'viewpoint') return 'viewpoint';
   if (tags.tourism === 'museum' || tags.tourism === 'gallery') return 'museum';
   if (tags.tourism === 'attraction' || tags.tourism === 'theme_park' || tags.tourism === 'zoo') return 'attraction';
+  if (tags.tourism === 'camp_site' || tags.tourism === 'picnic_site') return 'attraction';
+  if (tags.tourism === 'information') return 'attraction'; // Visitor centers
   if (tags.tourism === 'artwork') return 'landmark';
   if (tags.tourism === 'hotel' || tags.tourism === 'motel' || tags.tourism === 'guest_house') return 'hotel';
   if (tags.historic) return 'landmark';
   if (tags.natural === 'waterfall' || tags.waterfall === 'yes') return 'waterfall';
+  if (tags.natural === 'beach' || tags.natural === 'cave_entrance' || tags.natural === 'arch' || tags.natural === 'cliff') return 'waterfall'; // Natural wonders bucket
   if (tags.leisure === 'park' || tags.leisure === 'nature_reserve') return 'park';
+  if (tags.boundary === 'national_park' || tags.boundary === 'protected_area') return 'park';
   if (tags.amenity === 'restaurant') return 'restaurant';
-  if (tags.amenity === 'cafe' || tags.amenity === 'fast_food') return 'cafe';
+  if (tags.amenity === 'cafe') return 'cafe';
   if (tags.amenity === 'fuel') return 'gas';
   if (tags.shop) return 'shopping';
   if (tags.leisure === 'amusement_arcade' || tags.amenity === 'cinema') return 'entertainment';
@@ -316,9 +321,11 @@ export async function fetchPOISuggestions(
   const destinationQuery = buildDestinationQuery(destination, categories, DESTINATION_RADIUS);
   const destinationElements = await executeOverpassQuery(destinationQuery);
 
-  // Exclusion radius: corridor POIs within this distance of origin/destination
-  // are not "along the way" discoveries. Scale with trip length.
-  const exclusionKm = Math.max(50, routeDistanceKm * 0.1);
+  // Exclusion radius: corridor POIs near origin/destination are not
+  // "along the way" discoveries. Keep this tight — 25km for short trips,
+  // scaling up to max 40km for long trips. Too large and interesting stops
+  // just outside cities get excluded (e.g. Kakabeka Falls 30km from Thunder Bay).
+  const exclusionKm = Math.min(40, Math.max(25, routeDistanceKm * 0.04));
 
   // Convert to POISuggestion objects
   const allCorridorPOIs = corridorElements
