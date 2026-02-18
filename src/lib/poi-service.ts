@@ -14,22 +14,27 @@ const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 2000;
 
 /**
- * OSM tag mapping for POI categories
- * Maps our POISuggestionCategory to Overpass QL queries
+ * OSM tag mapping for POI categories.
+ * Each category maps to one or more Overpass QL tag filters.
+ * Multiple filters are OR'd together in the union query.
+ *
+ * Park uses two filters: leisure=nature_reserve catches smaller reserves,
+ * boundary=protected_area catches Canadian/US provincial & national parks
+ * (which are stored as relations in OSM, not nodes/ways with leisure tags).
  */
-const CATEGORY_TAG_QUERIES: Record<POISuggestionCategory, string> = {
-  viewpoint: '["tourism"="viewpoint"]',
-  attraction: '["tourism"~"attraction|theme_park|zoo|camp_site|picnic_site|information"]',
-  museum: '["tourism"~"museum|gallery|artwork"]',
-  park: '["leisure"~"park|nature_reserve"]',
-  landmark: '["historic"~"memorial|monument|castle|ruins|archaeological_site|heritage"]',
-  waterfall: '["natural"~"waterfall|cave_entrance|beach|arch|cliff"]',
-  restaurant: '["amenity"="restaurant"]',
-  cafe: '["amenity"="cafe"]',
-  gas: '["amenity"="fuel"]',
-  hotel: '["tourism"~"hotel|motel|guest_house"]',
-  shopping: '["shop"~"supermarket|mall|department_store"]',
-  entertainment: '["leisure"~"amusement_arcade|bowling_alley|water_park"]',
+const CATEGORY_TAG_QUERIES: Record<POISuggestionCategory, string[]> = {
+  viewpoint:     ['["tourism"="viewpoint"]'],
+  attraction:    ['["tourism"~"attraction|theme_park|zoo|camp_site|picnic_site|information"]'],
+  museum:        ['["tourism"~"museum|gallery|artwork"]'],
+  park:          ['["leisure"~"park|nature_reserve"]', '["boundary"="protected_area"]'],
+  landmark:      ['["historic"~"memorial|monument|castle|ruins|archaeological_site|heritage"]'],
+  waterfall:     ['["natural"~"waterfall|cave_entrance|beach|arch|cliff"]'],
+  restaurant:    ['["amenity"="restaurant"]'],
+  cafe:          ['["amenity"="cafe"]'],
+  gas:           ['["amenity"="fuel"]'],
+  hotel:         ['["tourism"~"hotel|motel|guest_house"]'],
+  shopping:      ['["shop"~"supermarket|mall|department_store"]'],
+  entertainment: ['["leisure"~"amusement_arcade|bowling_alley|water_park"]'],
 };
 
 /**
@@ -94,20 +99,71 @@ function computeRouteBbox(routeGeometry: [number, number][], bufferKm: number): 
 
 /**
  * Build a single Overpass union query for ALL discovery categories in one bbox.
- * Same pattern as buildDestinationQuery — all categories in one `(union);
- * out center;` call. This means ONE API call for the entire corridor instead
- * of one-per-category, avoiding 429 rate limits.
+ * Queries node + way only — relation queries over large bboxes are too expensive
+ * and timeout silently. Provincial parks (relations) are handled separately
+ * by buildParkRelationQuery() using targeted around: sample points.
  */
 function buildCorridorQuery(bbox: string, categories: POISuggestionCategory[]): string {
-  const lines = categories.map(cat => {
-    const tag = CATEGORY_TAG_QUERIES[cat];
-    return `      node${tag}(${bbox});\n      way${tag}(${bbox});`;
-  }).join('\n');
+  const lines: string[] = [];
+  for (const cat of categories) {
+    for (const tag of CATEGORY_TAG_QUERIES[cat]) {
+      lines.push(`      node${tag}(${bbox});`);
+      lines.push(`      way${tag}(${bbox});`);
+    }
+  }
 
   return `
-    [out:json][timeout:30][maxsize:5242880];
+    [out:json][timeout:45][maxsize:5242880];
     (
-${lines}
+${lines.join('\n')}
+    );
+    out center;
+  `.trim();
+}
+
+/**
+ * Sample the route polyline at regular km intervals.
+ * Returns at most maxSamples evenly-spaced coordinate pairs.
+ */
+function sampleRouteByKm(
+  geometry: [number, number][],
+  stepKm: number,
+  maxSamples: number = 15
+): [number, number][] {
+  if (geometry.length === 0) return [];
+  const samples: [number, number][] = [geometry[0]];
+  let accumulated = 0;
+  for (let i = 1; i < geometry.length; i++) {
+    const [lat1, lng1] = geometry[i - 1];
+    const [lat2, lng2] = geometry[i];
+    accumulated += haversineDistanceSimple(lat1, lng1, lat2, lng2);
+    if (accumulated >= stepKm) {
+      samples.push(geometry[i]);
+      accumulated = 0;
+      if (samples.length >= maxSamples) break;
+    }
+  }
+  return samples;
+}
+
+/**
+ * Build a targeted Overpass query for named boundary=protected_area relations
+ * at multiple sample points along the route using around: queries.
+ *
+ * Why relations, why around: ?
+ * Canadian/US provincial and national parks are stored as OSM relations tagged
+ * boundary=protected_area. Querying relations over a large bbox times out.
+ * Small around: circles at sample points are fast and hit the actual corridor.
+ * The ["name"] filter ensures we only return named parks worth discovering.
+ */
+function buildParkRelationQuery(samplePoints: [number, number][], radiusM: number = 20000): string {
+  const lines = samplePoints.map(
+    ([lat, lng]) => `      relation["boundary"="protected_area"]["name"](around:${radiusM},${lat},${lng});`
+  );
+  return `
+    [out:json][timeout:30];
+    (
+${lines.join('\n')}
     );
     out center;
   `.trim();
@@ -133,23 +189,29 @@ function delay(ms: number): Promise<void> {
 }
 
 /**
- * Build Overpass QL query for destination area search
+ * Build Overpass QL query for destination area search.
+ * Queries node + way + relation for each tag filter — relations catch
+ * provincial/national parks near the destination (e.g. Sleeping Giant PP
+ * near Thunder Bay is a boundary=protected_area relation).
  */
 function buildDestinationQuery(
   destination: Location,
   categories: POISuggestionCategory[],
   radius: number
 ): string {
-  // Build UNION query — one node+way line per category (OR logic)
-  const lines = categories.map(cat => {
-    const tag = CATEGORY_TAG_QUERIES[cat];
-    return `      node${tag}(around:${radius},${destination.lat},${destination.lng});\n      way${tag}(around:${radius},${destination.lat},${destination.lng});`;
-  }).join('\n');
+  const lines: string[] = [];
+  for (const cat of categories) {
+    for (const tag of CATEGORY_TAG_QUERIES[cat]) {
+      lines.push(`      node${tag}(around:${radius},${destination.lat},${destination.lng});`);
+      lines.push(`      way${tag}(around:${radius},${destination.lat},${destination.lng});`);
+      lines.push(`      relation${tag}(around:${radius},${destination.lat},${destination.lng});`);
+    }
+  }
 
   return `
-    [out:json][timeout:30];
+    [out:json][timeout:45];
     (
-${lines}
+${lines.join('\n')}
     );
     out center;
   `.trim();
@@ -311,12 +373,14 @@ function getRelevantCategories(tripPreferences: TripPreference[]): POISuggestion
 /**
  * Main function: Fetch POI suggestions for a route
  *
- * Makes exactly TWO Overpass API calls:
- *  1. Corridor query — all discovery categories in one union bbox query
- *  2. Destination query — all categories in one around: query
+ * Makes THREE Overpass API calls:
+ *  1. Corridor query — node+way for all categories, single union bbox
+ *  2. Park relation query — concurrent with corridor, targeted around: sample
+ *     points for boundary=protected_area relations (provincial/national parks)
+ *  3. Destination query — all categories in one around: query
  *
- * Separated by a delay to stay under Overpass rate limits.
- * Both queries use retry with backoff on 429 responses.
+ * Calls 1 and 2 run concurrently (both are fast independently).
+ * Call 3 runs after a delay to stay under Overpass rate limits.
  */
 export async function fetchPOISuggestions(
   routeGeometry: [number, number][],
@@ -331,15 +395,34 @@ export async function fetchPOISuggestions(
 
   const routeDistanceKm = estimateRouteDistanceKm(routeGeometry);
 
-  // ── Query 1: Corridor (all categories, one union, one API call) ──
+  // ── Queries 1 + 2: Corridor (node/way bbox) + Park relations (sampled around:) ──
+  // Run concurrently — park relation query uses small targeted circles so it's
+  // fast and won't contend with the corridor bbox query.
   const bbox = computeRouteBbox(routeGeometry, 15);
   const corridorQuery = buildCorridorQuery(bbox, categories);
-  const corridorElements = await executeOverpassQuery(corridorQuery);
 
-  const allCorridorPOIs = corridorElements
-    .map(el => overpassElementToPOI(el))
-    .filter((poi): poi is POISuggestion => poi !== null)
-    .map(poi => ({ ...poi, bucket: 'along-way' as const }));
+  // Sample one point every ~60km (cap at 15), used for the park relation query.
+  const stepKm = Math.max(40, routeDistanceKm / 12);
+  const samplePoints = sampleRouteByKm(routeGeometry, stepKm);
+
+  const parkQueryPromise = categories.includes('park') && samplePoints.length > 0
+    ? executeOverpassQuery(buildParkRelationQuery(samplePoints))
+    : Promise.resolve<OverpassElement[]>([]);
+
+  const [corridorElements, parkRelationElements] = await Promise.all([
+    executeOverpassQuery(corridorQuery),
+    parkQueryPromise,
+  ]);
+
+  const toPOI = (bucket: 'along-way') => (el: OverpassElement): POISuggestion | null => {
+    const poi = overpassElementToPOI(el);
+    return poi ? { ...poi, bucket } : null;
+  };
+
+  const allCorridorPOIs = [
+    ...corridorElements.map(toPOI('along-way')),
+    ...parkRelationElements.map(toPOI('along-way')),
+  ].filter((poi): poi is POISuggestion => poi !== null);
 
   const dedupedPOIs = deduplicatePOIs(allCorridorPOIs);
 
@@ -355,7 +438,7 @@ export async function fetchPOISuggestions(
   // ── Breathing room between queries to avoid 429 ──
   await delay(INTER_QUERY_DELAY);
 
-  // ── Query 2: Destination (all categories, one around: query) ──
+  // ── Query 3: Destination (all categories, one around: query) ──
   const destinationQuery = buildDestinationQuery(destination, categories, DESTINATION_RADIUS);
   const destinationElements = await executeOverpassQuery(destinationQuery);
 

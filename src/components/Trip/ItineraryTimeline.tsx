@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
 import { Sparkles } from 'lucide-react';
-import type { TripSummary, TripSettings, Vehicle, StopType, TripDay, DayType, Activity, DayOption, RouteSegment, OvernightStop } from '../../types';
+import type { TripSummary, TripSettings, Vehicle, StopType, TripDay, DayType, Activity, DayOption, RouteSegment, OvernightStop, POISuggestion } from '../../types';
 import { SmartSuggestions } from './SmartSuggestions';
 import { SuggestedStopCard } from './SuggestedStopCard';
+import { DiscoveryPanel } from './DiscoveryPanel';
 import { generatePacingSuggestions } from '../../lib/segment-analyzer';
 import { generateSmartStops, createStopConfig, type SuggestedStop } from '../../lib/stop-suggestions';
 import { assignDrivers, extractFuelStopIndices } from '../../lib/driver-rotation';
@@ -27,6 +28,11 @@ interface ItineraryTimelineProps {
   onRemoveDayOption?: (dayNumber: number, optionIndex: number) => void;
   onSelectDayOption?: (dayNumber: number, optionIndex: number) => void;
   onUpdateOvernight?: (dayNumber: number, overnight: OvernightStop) => void;
+  // Destination discovery
+  poiSuggestions?: POISuggestion[];
+  isLoadingPOIs?: boolean;
+  onAddPOI?: (poiId: string) => void;
+  onDismissPOI?: (poiId: string) => void;
 }
 
 export function ItineraryTimeline({
@@ -43,6 +49,10 @@ export function ItineraryTimeline({
   onRemoveDayOption,
   onSelectDayOption,
   onUpdateOvernight,
+  poiSuggestions,
+  isLoadingPOIs,
+  onAddPOI,
+  onDismissPOI,
 }: ItineraryTimelineProps) {
   const startTime = useMemo(
     () => new Date(`${settings.departureDate}T${settings.departureTime}`),
@@ -353,6 +363,34 @@ export function ItineraryTimeline({
       {driverRotation && driverRotation.stats.length > 1 && (
         <DriverStatsPanel stats={driverRotation.stats} />
       )}
+
+      {/* Destination Discovery — "Things to Do" at final stop */}
+      {onAddPOI && onDismissPOI && (poiSuggestions?.length || isLoadingPOIs) && (() => {
+        // For round trips, the last segment returns to origin — find the actual destination
+        // by looking at the midpoint segment's to.name (the turnaround point)
+        const segs = summary.segments;
+        const originName = segs[0]?.from.name;
+        const lastSegTo = segs[segs.length - 1]?.to.name;
+        const isRoundTrip = originName && lastSegTo && originName === lastSegTo;
+        // For a round trip with N segments, the first N/2 are outbound.
+        // The last outbound segment's `to` is the actual destination.
+        const destinationName = isRoundTrip
+          ? segs[Math.ceil(segs.length / 2) - 1]?.to.name || 'Destination'
+          : lastSegTo || 'Destination';
+        const destinationSuggestions = (poiSuggestions || []).filter(
+          p => p.bucket === 'destination' && p.category !== 'gas'
+        );
+        return (
+          <DiscoveryPanel
+            title={`Things to Do in ${destinationName}`}
+            suggestions={destinationSuggestions}
+            isLoading={!!isLoadingPOIs}
+            onAdd={onAddPOI}
+            onDismiss={onDismissPOI}
+            className="mt-4"
+          />
+        );
+      })()}
 
       {/* Activity Editor Dialog */}
       {editingActivity && onUpdateActivity && (

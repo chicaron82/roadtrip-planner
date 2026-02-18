@@ -3,7 +3,6 @@ import { Share2, Printer, Maximize2, Minimize2 } from 'lucide-react';
 import type { Location, Vehicle, TripSettings, TripSummary, POISuggestion, TripJournal, StopType, DayType, OvernightStop, TripMode } from '../../types';
 import { Button } from '../UI/Button';
 import { OvernightStopPrompt } from '../Trip/OvernightStopPrompt';
-import { DiscoveryPanel } from '../Trip/DiscoveryPanel';
 import { JournalModeToggle, StartJournalCTA, type ViewMode } from '../Trip/JournalModeToggle';
 import { JournalTimeline } from '../Trip/JournalTimeline';
 import { ItineraryTimeline } from '../Trip/ItineraryTimeline';
@@ -113,6 +112,10 @@ export function Step3Content({
             onUpdateDayTitle={onUpdateDayTitle}
             onUpdateDayType={onUpdateDayType}
             onUpdateOvernight={onUpdateOvernight}
+            poiSuggestions={poiSuggestions}
+            isLoadingPOIs={isLoadingPOIs}
+            onAddPOI={onAddPOI}
+            onDismissPOI={onDismissPOI}
           />
         )}
       </div>
@@ -206,14 +209,6 @@ export function Step3Content({
         )}
       </div>
 
-      {/* Discovery Panel — "Make This Trip Legendary" */}
-      <DiscoveryPanel
-        suggestions={poiSuggestions}
-        isLoading={isLoadingPOIs}
-        onAdd={onAddPOI}
-        onDismiss={onDismissPOI}
-      />
-
       {/* Overnight Stop Prompt */}
       {showOvernightPrompt && suggestedOvernightStop && summary && (
         <OvernightStopPrompt
@@ -274,6 +269,10 @@ export function Step3Content({
               onUpdateDayTitle={onUpdateDayTitle}
               onUpdateDayType={onUpdateDayType}
               onUpdateOvernight={onUpdateOvernight}
+              poiSuggestions={poiSuggestions}
+              isLoadingPOIs={isLoadingPOIs}
+              onAddPOI={onAddPOI}
+              onDismissPOI={onDismissPOI}
             />
           )}
         </>

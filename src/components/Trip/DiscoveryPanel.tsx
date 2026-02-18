@@ -36,6 +36,8 @@ const CATEGORY_ICONS: Record<POISuggestionCategory, string> = {
 // ==================== PROPS ====================
 
 interface DiscoveryPanelProps {
+  /** Custom header title. Defaults to "Discover Cool Stops". */
+  title?: string;
   suggestions: POISuggestion[];
   isLoading: boolean;
   onAdd: (poiId: string) => void;
@@ -58,6 +60,7 @@ const BUDGET_MARKS = [
 // ==================== COMPONENT ====================
 
 export function DiscoveryPanel({
+  title,
   suggestions,
   isLoading,
   onAdd,
@@ -129,7 +132,7 @@ export function DiscoveryPanel({
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-amber-600" />
           <h3 className="font-bold text-amber-900">
-            Discover Cool Stops
+            {title || 'Discover Cool Stops'}
           </h3>
           <span className="text-xs font-semibold text-amber-700 bg-amber-200 px-2 py-0.5 rounded-full">
             {visibleCount} found
