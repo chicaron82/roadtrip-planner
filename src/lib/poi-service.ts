@@ -3,13 +3,32 @@ import type { POISuggestion, POISuggestionCategory, POISuggestionGroup, Location
 // Overpass API endpoint
 const OVERPASS_API = 'https://overpass-api.de/api/interpreter';
 
-// Corridor widths for different detour tolerances
-const CORRIDOR_WIDTHS = {
-  quick: 5000,      // 5km - minimal detour
-  worthIt: 20000,   // 20km - worth the detour
+// Destination search radius (50km around destination city center)
+const DESTINATION_RADIUS = 50000;
+
+// ==================== ROUTE SAMPLING CONFIG ====================
+
+/** Corridor radius (meters) by category type — scenic searches wider, utilitarian tighter */
+const CATEGORY_RADIUS: Record<POISuggestionCategory, number> = {
+  viewpoint: 15000,
+  park: 15000,
+  waterfall: 15000,
+  landmark: 15000,
+  attraction: 10000,
+  museum: 10000,
+  entertainment: 10000,
+  restaurant: 5000,
+  cafe: 5000,
+  gas: 5000,
+  hotel: 5000,
+  shopping: 5000,
 };
 
-const DESTINATION_RADIUS = 50000; // 50km around destination
+/** How many sample points to group into a single Overpass call */
+const SAMPLES_PER_BATCH = 4;
+
+/** Max parallel Overpass requests for corridor sampling */
+const CONCURRENCY_LIMIT = 2;
 
 /**
  * OSM tag mapping for POI categories
@@ -72,65 +91,140 @@ function haversineDistanceSimple(lat1: number, lng1: number, lat2: number, lng2:
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// ==================== ROUTE SAMPLING PIPELINE ====================
+
+type LatLng = { lat: number; lng: number };
+
 /**
- * Check if a point is within `maxDistKm` of ANY segment of a polyline.
- * Samples every ~20th point for performance on large geometries.
+ * Sample points along a polyline at fixed distance intervals.
+ * Uses distance-traveled (not array index) so spacing is consistent
+ * regardless of polyline density.
+ *
+ * Dynamic step size:
+ *   < 500 km  → every 30 km
+ *   500–1500  → every 60 km
+ *   1500+     → every 100 km
+ *
+ * Always includes origin and destination.
  */
-function isNearPolyline(
-  lat: number,
-  lng: number,
-  polyline: [number, number][],
-  maxDistKm: number
-): boolean {
-  // Sample the polyline — check every Nth point so we don't do 10k haversines per POI
-  const step = Math.max(1, Math.floor(polyline.length / 200));
-  for (let i = 0; i < polyline.length; i += step) {
-    const [pLat, pLng] = polyline[i];
-    const dist = haversineDistanceSimple(lat, lng, pLat, pLng);
-    if (dist <= maxDistKm) return true;
+export function sampleRouteByKm(
+  points: [number, number][],
+  routeDistanceKm: number,
+  maxSamples = 30
+): LatLng[] {
+  if (points.length < 2) {
+    return points.map(([lat, lng]) => ({ lat, lng }));
   }
-  // Always check last point
-  const [lastLat, lastLng] = polyline[polyline.length - 1];
-  if (haversineDistanceSimple(lat, lng, lastLat, lastLng) <= maxDistKm) return true;
-  return false;
+
+  // Dynamic step based on route length
+  const stepKm = routeDistanceKm < 500 ? 30
+    : routeDistanceKm < 1500 ? 60
+    : 100;
+
+  const samples: LatLng[] = [{ lat: points[0][0], lng: points[0][1] }];
+  let sinceLast = 0;
+
+  for (let i = 1; i < points.length; i++) {
+    const [lat1, lng1] = points[i - 1];
+    const [lat2, lng2] = points[i];
+    const segKm = haversineDistanceSimple(lat1, lng1, lat2, lng2);
+
+    sinceLast += segKm;
+    if (sinceLast >= stepKm) {
+      samples.push({ lat: lat2, lng: lng2 });
+      sinceLast = 0;
+      if (samples.length >= maxSamples) break;
+    }
+  }
+
+  // Always include destination
+  const last = points[points.length - 1];
+  const lastSample = samples[samples.length - 1];
+  if (haversineDistanceSimple(lastSample.lat, lastSample.lng, last[0], last[1]) > 1) {
+    samples.push({ lat: last[0], lng: last[1] });
+  }
+
+  return samples;
 }
 
 /**
- * Build Overpass QL query for corridor search
- * Uses a bounding box around the route polyline
+ * Group sample points into batches for fewer Overpass API calls.
+ * Each batch produces one combined `around:` union query.
  */
-function buildCorridorQuery(
-  routeGeometry: [number, number][],
-  categories: POISuggestionCategory[],
-  corridorWidth: number
-): string {
-  // Calculate bounding box with buffer (safe for large arrays — no spread)
-  let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
-  for (const [lat, lng] of routeGeometry) {
-    if (lat < minLat) minLat = lat;
-    if (lat > maxLat) maxLat = lat;
-    if (lng < minLng) minLng = lng;
-    if (lng > maxLng) maxLng = lng;
+function batchSamplePoints(samples: LatLng[], batchSize: number): LatLng[][] {
+  const batches: LatLng[][] = [];
+  for (let i = 0; i < samples.length; i += batchSize) {
+    batches.push(samples.slice(i, i + batchSize));
   }
+  return batches;
+}
 
-  // Add buffer (rough conversion: 1 degree ≈ 111km)
-  const buffer = corridorWidth / 111000;
+/**
+ * Build an Overpass query for a batch of sample points.
+ * Uses `around:R,lat,lng` per point × per category, all in one union.
+ * Category-specific radius: scenic gets wider corridor, food gets tighter.
+ */
+function buildSampledQuery(
+  sampleBatch: LatLng[],
+  categories: POISuggestionCategory[]
+): string {
+  const lines: string[] = [];
 
-  const bbox = `${minLat - buffer},${minLng - buffer},${maxLat + buffer},${maxLng + buffer}`;
-
-  // Build UNION query — one node+way line per category (OR logic)
-  const lines = categories.map(cat => {
+  for (const cat of categories) {
     const tag = CATEGORY_TAG_QUERIES[cat];
-    return `      node${tag}(${bbox});\n      way${tag}(${bbox});`;
-  }).join('\n');
+    const radiusM = CATEGORY_RADIUS[cat];
+
+    for (const pt of sampleBatch) {
+      const around = `around:${radiusM},${pt.lat.toFixed(5)},${pt.lng.toFixed(5)}`;
+      lines.push(`      node${tag}(${around});`);
+      lines.push(`      way${tag}(${around});`);
+    }
+  }
 
   return `
     [out:json][timeout:30][maxsize:5242880];
     (
-${lines}
+${lines.join('\n')}
     );
     out center;
   `.trim();
+}
+
+/**
+ * Run async tasks with a concurrency limit.
+ * Prevents overwhelming the Overpass API with too many parallel requests.
+ */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, idx: number) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let nextIdx = 0;
+
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (nextIdx < items.length) {
+      const idx = nextIdx++;
+      results[idx] = await fn(items[idx], idx);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
+}
+
+/**
+ * De-duplicate POIs by OSM type + id.
+ * Overlapping sample circles will return the same POI multiple times.
+ */
+function deduplicatePOIs(pois: POISuggestion[]): POISuggestion[] {
+  const seen = new Set<string>();
+  return pois.filter(poi => {
+    const key = `${poi.osmType}-${poi.osmId}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 /**
@@ -295,6 +389,18 @@ function getRelevantCategories(tripPreferences: TripPreference[]): POISuggestion
 
 /**
  * Main function: Fetch POI suggestions for a route
+ *
+ * Uses route-sampling with Overpass `around:` queries instead of a single
+ * bounding-box. This hugs the actual road geometry, producing far better
+ * results on diagonal / long-haul routes (e.g. Winnipeg → Thunder Bay).
+ *
+ * Pipeline:
+ *  1. Sample the polyline every N km (dynamic by route length)
+ *  2. Batch sample points (4 per Overpass call)
+ *  3. Query with concurrency limit (2 parallel)
+ *  4. De-duplicate overlapping results by OSM id
+ *  5. Filter out origin/destination zone → along-way bucket
+ *  6. Separate destination query as before
  */
 export async function fetchPOISuggestions(
   routeGeometry: [number, number][],
@@ -307,47 +413,49 @@ export async function fetchPOISuggestions(
   // Determine relevant categories from user preferences
   const categories = getRelevantCategories(tripPreferences);
 
-  // Scale corridor width to trip distance (longer trips = wider scan)
+  // Route distance drives sampling density
   const routeDistanceKm = estimateRouteDistanceKm(routeGeometry);
-  const corridorWidth = routeDistanceKm > 1000 ? 40000
-    : routeDistanceKm > 500 ? 25000
-    : CORRIDOR_WIDTHS.worthIt;
 
-  // Fetch corridor POIs (along the way)
-  const corridorQuery = buildCorridorQuery(routeGeometry, categories, corridorWidth);
-  const corridorElements = await executeOverpassQuery(corridorQuery);
+  // ── Step 1: Sample the polyline ──
+  const samples = sampleRouteByKm(routeGeometry, routeDistanceKm);
 
-  // Fetch destination POIs
-  const destinationQuery = buildDestinationQuery(destination, categories, DESTINATION_RADIUS);
-  const destinationElements = await executeOverpassQuery(destinationQuery);
+  // ── Step 2: Batch samples into groups for fewer API calls ──
+  const batches = batchSamplePoints(samples, SAMPLES_PER_BATCH);
 
-  // Exclusion radius: corridor POIs near origin/destination are not
-  // "along the way" discoveries. Keep this tight — 25km for short trips,
-  // scaling up to max 40km for long trips. Too large and interesting stops
-  // just outside cities get excluded (e.g. Kakabeka Falls 30km from Thunder Bay).
-  const exclusionKm = Math.min(40, Math.max(25, routeDistanceKm * 0.04));
+  // ── Step 3: Query Overpass with concurrency limit ──
+  const batchResults = await mapWithConcurrency(
+    batches,
+    CONCURRENCY_LIMIT,
+    async (batch) => {
+      const query = buildSampledQuery(batch, categories);
+      return executeOverpassQuery(query);
+    }
+  );
 
-  // Convert to POISuggestion objects
-  const allCorridorPOIs = corridorElements
+  // Flatten all elements from all batches
+  const allCorridorElements = batchResults.flat();
+
+  // ── Step 4: Convert + de-duplicate ──
+  const allCorridorPOIs = allCorridorElements
     .map(el => overpassElementToPOI(el))
     .filter((poi): poi is POISuggestion => poi !== null)
     .map(poi => ({ ...poi, bucket: 'along-way' as const }));
 
-  // Polyline proximity filter: the bounding box query is very coarse, so we
-  // post-filter to only keep POIs that are actually near the route polyline.
-  // This prevents a diagonal route (e.g. Winnipeg→Thunder Bay) from returning
-  // POIs that are inside the bbox but far from the actual road.
-  const corridorKm = corridorWidth / 1000;
-  const polylineFilteredPOIs = allCorridorPOIs.filter(poi => {
-    return isNearPolyline(poi.lat, poi.lng, routeGeometry, corridorKm);
-  });
+  const dedupedCorridorPOIs = deduplicatePOIs(allCorridorPOIs);
 
-  // Filter out corridor POIs that are near origin or destination
-  const alongWayPOIs = polylineFilteredPOIs.filter(poi => {
-    const distToDest = haversineDistanceSimple(poi.lat, poi.lng, destination.lat, destination.lng);
-    const distToOrigin = haversineDistanceSimple(poi.lat, poi.lng, origin.lat, origin.lng);
+  // ── Step 5: Strip origin/destination zone → along-way only ──
+  // Keep exclusion tight so nearby gems aren't dropped
+  const exclusionKm = Math.min(40, Math.max(25, routeDistanceKm * 0.04));
+
+  const alongWayPOIs = dedupedCorridorPOIs.filter(poi => {
+    const distToDest = haversineDistanceSimple(poi.lat, poi.lng, destination.lat!, destination.lng!);
+    const distToOrigin = haversineDistanceSimple(poi.lat, poi.lng, origin.lat!, origin.lng!);
     return distToDest > exclusionKm && distToOrigin > exclusionKm;
   });
+
+  // ── Step 6: Destination query (unchanged — around: on destination point) ──
+  const destinationQuery = buildDestinationQuery(destination, categories, DESTINATION_RADIUS);
+  const destinationElements = await executeOverpassQuery(destinationQuery);
 
   const destinationPOIs = destinationElements
     .map(el => overpassElementToPOI(el))
@@ -357,8 +465,8 @@ export async function fetchPOISuggestions(
   const endTime = performance.now();
 
   return {
-    alongWay: alongWayPOIs, // Filtered: excludes destination-area POIs
-    atDestination: destinationPOIs, // Dedicated destination search
+    alongWay: alongWayPOIs,
+    atDestination: destinationPOIs,
     totalFound: alongWayPOIs.length + destinationPOIs.length,
     queryDurationMs: endTime - startTime,
   };
