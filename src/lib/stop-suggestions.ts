@@ -112,6 +112,7 @@ export function generateSmartStops(
           fuelCost: refillCost,
         },
         warning: sparseWarning,
+        accepted: true, // Fuel stops auto-added to itinerary by default
       });
 
       currentFuel = config.tankSizeLitres; // Simulated refill

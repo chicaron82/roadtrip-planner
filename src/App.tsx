@@ -52,6 +52,7 @@ function AppContent() {
     dismissPOI,
     fetchRoutePOIs,
     clearError: clearPOIError,
+    resetPOIs,
   } = usePOI();
 
   // Trip Calculation Hook
@@ -352,17 +353,20 @@ function AppContent() {
   const resetTrip = useCallback(() => {
     setLocations(DEFAULT_LOCATIONS);
     setSummary(null);
+    resetPOIs();
     resetWizard();
-    setTripMode(null);
-  }, [setLocations, setSummary, resetWizard]);
+    // Stay in current mode — go to Step 1, not landing
+  }, [setLocations, setSummary, resetWizard, resetPOIs]);
 
   // Handle mode selection from landing screen
   const handleSelectMode = useCallback((mode: TripMode) => {
+    // Reset wizard to Step 1 so stale URL state doesn't jump to results
+    resetWizard();
     setTripMode(mode);
     if (mode === 'adventure') {
       setShowAdventureMode(true);
     }
-  }, []);
+  }, [resetWizard]);
 
   // Handle continue saved trip from landing
   const handleContinueSavedTrip = useCallback(() => {

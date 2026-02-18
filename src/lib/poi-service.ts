@@ -60,6 +60,19 @@ function estimateRouteDistanceKm(geometry: [number, number][]): number {
 }
 
 /**
+ * Haversine distance between two points (km)
+ */
+function haversineDistanceSimple(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
  * Build Overpass QL query for corridor search
  * Uses a bounding box around the route polyline
  */
@@ -257,7 +270,7 @@ function getRelevantCategories(tripPreferences: TripPreference[]): POISuggestion
  */
 export async function fetchPOISuggestions(
   routeGeometry: [number, number][],
-  _origin: Location,
+  origin: Location,
   destination: Location,
   tripPreferences: TripPreference[]
 ): Promise<POISuggestionGroup> {
@@ -280,11 +293,22 @@ export async function fetchPOISuggestions(
   const destinationQuery = buildDestinationQuery(destination, categories, DESTINATION_RADIUS);
   const destinationElements = await executeOverpassQuery(destinationQuery);
 
+  // Exclusion radius: corridor POIs within this distance of origin/destination
+  // are not "along the way" discoveries. Scale with trip length.
+  const exclusionKm = Math.max(50, routeDistanceKm * 0.1);
+
   // Convert to POISuggestion objects
-  const alongWayPOIs = corridorElements
+  const allCorridorPOIs = corridorElements
     .map(el => overpassElementToPOI(el))
     .filter((poi): poi is POISuggestion => poi !== null)
     .map(poi => ({ ...poi, bucket: 'along-way' as const }));
+
+  // Filter out corridor POIs that are near origin or destination
+  const alongWayPOIs = allCorridorPOIs.filter(poi => {
+    const distToDest = haversineDistanceSimple(poi.lat, poi.lng, destination.lat, destination.lng);
+    const distToOrigin = haversineDistanceSimple(poi.lat, poi.lng, origin.lat, origin.lng);
+    return distToDest > exclusionKm && distToOrigin > exclusionKm;
+  });
 
   const destinationPOIs = destinationElements
     .map(el => overpassElementToPOI(el))
@@ -294,8 +318,8 @@ export async function fetchPOISuggestions(
   const endTime = performance.now();
 
   return {
-    alongWay: alongWayPOIs, // Will be ranked and filtered later
-    atDestination: destinationPOIs, // Will be ranked and filtered later
+    alongWay: alongWayPOIs, // Filtered: excludes destination-area POIs
+    atDestination: destinationPOIs, // Dedicated destination search
     totalFound: alongWayPOIs.length + destinationPOIs.length,
     queryDurationMs: endTime - startTime,
   };

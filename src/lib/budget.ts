@@ -138,13 +138,19 @@ export function createSmartBudget(
 }
 
 /**
- * Split a trip into days based on max drive hours and overnight stops
+ * Split a trip into days based on max drive hours and overnight stops.
+ * For round trips with a returnDate, free days are inserted at the destination
+ * (between outbound and return legs) rather than at the end.
+ *
+ * @param roundTripMidpoint - Segment index where outbound ends and return begins.
+ *   When set, free days are inserted at this boundary.
  */
 export function splitTripByDays(
   segments: RouteSegment[],
   settings: TripSettings,
   departureDate: string,
-  departureTime: string
+  departureTime: string,
+  roundTripMidpoint?: number
 ): TripDay[] {
   if (segments.length === 0) return [];
 
@@ -161,8 +167,100 @@ export function splitTripByDays(
 
   const maxDriveMinutes = settings.maxDriveHours * 60;
 
+  // Track whether we've inserted the destination free days
+  let insertedFreeDays = false;
+
   for (let index = 0; index < segments.length; index++) {
     const segment = segments[index];
+
+    // === INSERT FREE DAYS AT ROUND-TRIP MIDPOINT ===
+    if (
+      !insertedFreeDays &&
+      roundTripMidpoint !== undefined &&
+      index === roundTripMidpoint &&
+      settings.returnDate &&
+      settings.departureDate
+    ) {
+      // Finalize outbound's last day before inserting free days
+      if (currentDay && currentDay.segments.length > 0) {
+        finalizeTripDay(currentDay, gasRemaining, hotelRemaining, foodRemaining, settings);
+        gasRemaining -= currentDay.budget.gasUsed;
+        hotelRemaining -= currentDay.budget.hotelCost;
+        foodRemaining -= currentDay.budget.foodEstimate;
+        days.push(currentDay);
+        currentDay = null;
+        currentDayDriveMinutes = 0;
+      }
+
+      // Calculate how many total calendar days the trip spans (inclusive of departure and return)
+      const departureDateObj = new Date(settings.departureDate + 'T00:00:00');
+      const returnDateObj = new Date(settings.returnDate + 'T00:00:00');
+      const totalTripDays = Math.max(1, Math.round((returnDateObj.getTime() - departureDateObj.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+
+      // Outbound driving days already consumed
+      const outboundDrivingDays = days.length;
+      // Return driving will be approximately the same as outbound
+      const returnDrivingDays = outboundDrivingDays;
+      // Free days = total trip days - outbound driving - return driving
+      const freeDaysCount = Math.max(0, totalTripDays - outboundDrivingDays - returnDrivingDays);
+
+      if (freeDaysCount > 0) {
+        // Destination is the last stop of the outbound leg
+        const lastOutboundDay = days[days.length - 1];
+        const destination = lastOutboundDay.segments.length > 0
+          ? lastOutboundDay.segments[lastOutboundDay.segments.length - 1].to
+          : null;
+        const destName = destination?.name || 'Destination';
+
+        for (let i = 0; i < freeDaysCount; i++) {
+          dayNumber++;
+          const lastDay = days[days.length - 1];
+          const freeDate = new Date(new Date(lastDay.date + 'T00:00:00').getTime() + 24 * 60 * 60 * 1000);
+          const freeDay = createEmptyDay(dayNumber, freeDate, settings);
+          freeDay.route = `📍 ${destName}`;
+          freeDay.dayType = 'free';
+          freeDay.title = i === 0 ? 'Explore!' : `Day ${i + 1} at ${destName}`;
+
+          const roomsNeeded = Math.ceil(settings.numTravelers / 2);
+          const hotelCost = roomsNeeded * settings.hotelPricePerNight;
+          const foodCost = settings.mealPricePerDay * settings.numTravelers;
+
+          hotelRemaining -= hotelCost;
+          foodRemaining -= foodCost;
+
+          freeDay.budget = {
+            gasUsed: 0,
+            hotelCost,
+            foodEstimate: Math.round(foodCost * 100) / 100,
+            miscCost: 0,
+            dayTotal: Math.round((hotelCost + foodCost) * 100) / 100,
+            gasRemaining: Math.round(gasRemaining * 100) / 100,
+            hotelRemaining: Math.round(hotelRemaining * 100) / 100,
+            foodRemaining: Math.round(foodRemaining * 100) / 100,
+          };
+
+          if (destination) {
+            freeDay.overnight = {
+              location: destination,
+              cost: hotelCost,
+              roomsNeeded,
+            };
+          }
+
+          days.push(freeDay);
+          currentDate = freeDate;
+        }
+      }
+
+      insertedFreeDays = true;
+
+      // Set up for the return leg — next morning after free days
+      dayNumber++;
+      currentDate = new Date(new Date(days[days.length - 1].date + 'T00:00:00').getTime() + 24 * 60 * 60 * 1000);
+      currentDate.setHours(9, 0, 0, 0);
+      currentDay = createEmptyDay(dayNumber, currentDate, settings);
+      currentDayDriveMinutes = 0;
+    }
 
     // Start a new day if needed
     if (!currentDay) {
@@ -229,6 +327,61 @@ export function splitTripByDays(
   if (currentDay && currentDay.segments.length > 0) {
     finalizeTripDay(currentDay, gasRemaining, hotelRemaining, foodRemaining, settings);
     days.push(currentDay);
+  }
+
+  // Insert free days at destination for ONE-WAY trips only
+  // (Round trips handle free days at the midpoint above)
+  if (!insertedFreeDays && settings.returnDate && settings.departureDate && days.length > 0) {
+    const lastDrivingDay = days[days.length - 1];
+    const lastDriveDate = new Date(lastDrivingDay.date + 'T00:00:00');
+    const returnDate = new Date(settings.returnDate + 'T00:00:00');
+    const gapDays = Math.round((returnDate.getTime() - lastDriveDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (gapDays > 1) {
+      // Determine destination name from the last segment's endpoint
+      const destination = lastDrivingDay.segments.length > 0
+        ? lastDrivingDay.segments[lastDrivingDay.segments.length - 1].to
+        : null;
+      const destName = destination?.name || 'Destination';
+
+      for (let i = 1; i < gapDays; i++) {
+        dayNumber++;
+        const freeDate = new Date(lastDriveDate.getTime() + i * 24 * 60 * 60 * 1000);
+        const freeDay = createEmptyDay(dayNumber, freeDate, settings);
+        freeDay.route = `📍 ${destName}`;
+        freeDay.dayType = 'free';
+        freeDay.title = i === 1 ? 'Explore!' : `Day ${i} at ${destName}`;
+
+        // Budget: food + hotel for free days (no gas)
+        const roomsNeeded = Math.ceil(settings.numTravelers / 2);
+        const hotelCost = roomsNeeded * settings.hotelPricePerNight;
+        const foodCost = settings.mealPricePerDay * settings.numTravelers;
+
+        hotelRemaining -= hotelCost;
+        foodRemaining -= foodCost;
+
+        freeDay.budget = {
+          gasUsed: 0,
+          hotelCost,
+          foodEstimate: Math.round(foodCost * 100) / 100,
+          miscCost: 0,
+          dayTotal: Math.round((hotelCost + foodCost) * 100) / 100,
+          gasRemaining: Math.round(gasRemaining * 100) / 100,
+          hotelRemaining: Math.round(hotelRemaining * 100) / 100,
+          foodRemaining: Math.round(foodRemaining * 100) / 100,
+        };
+
+        if (destination) {
+          freeDay.overnight = {
+            location: destination,
+            cost: hotelCost,
+            roomsNeeded,
+          };
+        }
+
+        days.push(freeDay);
+      }
+    }
   }
 
   return days;

@@ -101,8 +101,10 @@ export function useTripCalculation({
       );
 
       // For round trips, duplicate segments in reverse for return journey
+      let roundTripMidpoint: number | undefined;
       if (settings.isRoundTrip) {
         const outboundSegments = segmentsWithTimes;
+        roundTripMidpoint = outboundSegments.length; // Index where return leg begins
         const returnSegments = [...outboundSegments].reverse().map((seg) => ({
           ...seg,
           from: seg.to,
@@ -141,7 +143,8 @@ export function useTripCalculation({
         segmentsWithTimes,
         settings,
         settings.departureDate,
-        settings.departureTime
+        settings.departureTime,
+        roundTripMidpoint
       );
       tripSummary.days = tripDays;
 

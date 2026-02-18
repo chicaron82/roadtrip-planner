@@ -216,18 +216,21 @@ export function Step1Content({
           {(() => {
             const depDate = settings.departureDate;
             const retDate = settings.returnDate;
+            // Append T00:00:00 to parse as local time, not UTC
+            // (bare 'YYYY-MM-DD' is parsed as UTC midnight → rolls back a day in western timezones)
+            const parseLocal = (d: string) => new Date(d + 'T00:00:00');
             const tripDays = depDate && retDate
-              ? Math.max(1, Math.ceil((new Date(retDate).getTime() - new Date(depDate).getTime()) / (1000 * 60 * 60 * 24)))
+              ? Math.max(1, Math.ceil((parseLocal(retDate).getTime() - parseLocal(depDate).getTime()) / (1000 * 60 * 60 * 24)))
               : 0;
-            const daysUntilTrip = depDate && new Date(depDate) > new Date()
-              ? Math.ceil((new Date(depDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+            const daysUntilTrip = depDate && parseLocal(depDate) > new Date()
+              ? Math.ceil((parseLocal(depDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
               : 0;
 
             const depFormatted = depDate
-              ? new Date(depDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+              ? parseLocal(depDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
               : '';
             const retFormatted = retDate
-              ? new Date(retDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+              ? parseLocal(retDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
               : '';
 
             if (depDate && retDate) {

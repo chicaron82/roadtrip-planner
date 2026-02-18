@@ -95,8 +95,9 @@ export function generateEstimate(
     : summary.totalDistanceKm;
 
   // Use returnDate if set (user-defined trip length), otherwise derive from route
+  // Append T00:00:00 to avoid UTC-midnight timezone shift on date-only strings
   const daysFromDates = settings.returnDate && settings.departureDate
-    ? Math.max(1, Math.ceil((new Date(settings.returnDate).getTime() - new Date(settings.departureDate).getTime()) / (1000 * 60 * 60 * 24)))
+    ? Math.max(1, Math.ceil((new Date(settings.returnDate + 'T00:00:00').getTime() - new Date(settings.departureDate + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24)))
     : 0;
   const days = daysFromDates || summary.days?.length || Math.max(1, Math.ceil(summary.totalDurationMinutes / (settings.maxDriveHours * 60)));
   const nights = Math.max(0, days - 1);

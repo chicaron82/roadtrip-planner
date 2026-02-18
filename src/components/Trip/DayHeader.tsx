@@ -27,8 +27,9 @@ export function DayHeader({
   const dayType = day.dayType || 'planned';
   const [editingTitle, setEditingTitle] = useState(false);
   const formatDuration = (minutes: number): string => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
+    const rounded = Math.round(minutes);
+    const hours = Math.floor(rounded / 60);
+    const mins = rounded % 60;
     if (hours === 0) return `${mins} min`;
     if (mins === 0) return `${hours} hr${hours > 1 ? 's' : ''}`;
     return `${hours}h ${mins}m`;
