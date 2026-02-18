@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import type { Location, AdventureDestination, TripPreference } from '../../types';
 import { findAdventureDestinations, calculateMaxDistance } from '../../lib/adventure-service';
+import { LocationSearchInput } from './LocationSearchInput';
 import { Button } from '../UI/Button';
 import { Input } from '../UI/Input';
 import { Label } from '../UI/Label';
@@ -36,17 +37,22 @@ export interface AdventureSelection {
 
 interface AdventureModeProps {
   origin: Location | null;
+  onOriginChange?: (origin: Location) => void;
   onSelectDestination: (selection: AdventureSelection) => void;
   onClose: () => void;
   className?: string;
 }
 
 export function AdventureMode({
-  origin,
+  origin: externalOrigin,
+  onOriginChange,
   onSelectDestination,
   onClose,
   className,
 }: AdventureModeProps) {
+  // Local origin — allows inline city search when no origin is set
+  const [localOrigin, setLocalOrigin] = useState<Location | null>(externalOrigin);
+  const origin = localOrigin;
   // Form state
   const [budget, setBudget] = useState(1000);
   const [days, setDays] = useState(3);
@@ -155,15 +161,47 @@ export function AdventureMode({
           </div>
         </div>
 
-        {/* Origin Check */}
+        {/* Origin Search — inline when no starting location */}
         {(!origin || origin.lat === 0) && (
-          <div className="p-4 md:p-6 bg-amber-50 border-b border-amber-200 flex-shrink-0">
-            <div className="flex items-center gap-3 text-amber-800">
-              <MapPin className="h-5 w-5" />
-              <p className="text-sm font-medium">
-                First, enter your starting location in Step 1, then come back here!
-              </p>
+          <div className="px-4 pt-4 pb-3 md:px-6 md:pt-5 md:pb-4 border-b border-purple-200 bg-purple-50 flex-shrink-0">
+            <div className="flex items-center gap-2 mb-2 text-purple-800">
+              <MapPin className="h-4 w-4" />
+              <p className="text-sm font-semibold">Where are you starting from?</p>
             </div>
+            <LocationSearchInput
+              value=""
+              placeholder="Search a city…"
+              onSelect={(loc) => {
+                if (loc.lat && loc.lng) {
+                  const newOrigin: Location = {
+                    id: 'origin',
+                    name: loc.name || '',
+                    address: loc.address,
+                    lat: loc.lat,
+                    lng: loc.lng,
+                    type: 'origin',
+                  };
+                  setLocalOrigin(newOrigin);
+                  onOriginChange?.(newOrigin);
+                }
+              }}
+            />
+          </div>
+        )}
+
+        {/* Origin indicator — show selected city when set */}
+        {origin && origin.lat !== 0 && (
+          <div className="px-4 py-2 md:px-6 border-b border-purple-100 bg-purple-50/50 flex-shrink-0 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-purple-700 text-sm">
+              <MapPin className="h-3.5 w-3.5" />
+              <span>Starting from <strong>{origin.name}</strong></span>
+            </div>
+            <button
+              onClick={() => setLocalOrigin(null)}
+              className="text-xs text-purple-400 hover:text-purple-600 transition-colors"
+            >
+              Change
+            </button>
           </div>
         )}
 

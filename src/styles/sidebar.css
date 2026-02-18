@@ -143,6 +143,20 @@
   border-top: 1px solid hsl(225 18% 16%);
 }
 
+/* ── Button overrides in dark sidebar ── */
+.sidebar-dark button[class*="border-input"],
+.sidebar-dark .border-input {
+  border-color: hsl(225 18% 22%) !important;
+  color: hsl(220 20% 85%) !important;
+}
+
+.sidebar-dark button[class*="border-input"]:hover,
+.sidebar-dark .border-input:hover {
+  background: hsl(225 22% 15%) !important;
+  color: hsl(220 20% 95%) !important;
+  border-color: hsl(225 18% 30%) !important;
+}
+
 /* ── Dark-aware form elements ── */
 .sidebar-dark input[type="date"],
 .sidebar-dark input[type="time"],
@@ -228,6 +242,48 @@
 .sidebar-dark .poi-bar {
   background: hsl(225 25% 10%);
   border-bottom: 1px solid hsl(225 18% 16%);
+}
+
+/* ── Mode switcher dropdown ── */
+.mode-switcher-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 210px;
+  background: hsl(225 28% 11%);
+  border: 1px solid hsl(225 18% 20%);
+  border-radius: 12px;
+  padding: 4px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  z-index: 20;
+  animation: mode-switcher-enter 0.15s ease-out;
+}
+
+@keyframes mode-switcher-enter {
+  from { opacity: 0; transform: translateY(-4px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.mode-switcher-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  font-family: 'Sora', system-ui, sans-serif;
+}
+
+.mode-switcher-option:hover:not(:disabled) {
+  background: var(--mode-bg, hsl(225 22% 15%));
+}
+
+.mode-switcher-option:disabled {
+  cursor: default;
 }
 
 /* ── Crossfade entrance from landing ── */

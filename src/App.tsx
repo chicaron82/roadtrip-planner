@@ -141,6 +141,20 @@ function AppContent() {
   const [history] = useState<TripSummary[]>(() => getHistory());
   const [showAdventureMode, setShowAdventureMode] = useState(false);
   const [tripMode, setTripMode] = useState<TripMode | null>(null);
+  const [showModeSwitcher, setShowModeSwitcher] = useState(false);
+  const modeSwitcherRef = useRef<HTMLDivElement>(null);
+
+  // Click-outside to close mode switcher
+  useEffect(() => {
+    if (!showModeSwitcher) return;
+    const handler = (e: MouseEvent) => {
+      if (modeSwitcherRef.current && !modeSwitcherRef.current.contains(e.target as Node)) {
+        setShowModeSwitcher(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showModeSwitcher]);
 
   // Combined error state
   const error = poiError || calcError;
@@ -379,9 +393,68 @@ function AppContent() {
         {/* Header */}
         <div className="sidebar-header p-4">
           <div className="mb-3">
-            <h1 className="sidebar-brand-title">
-              The Experience Engine
-            </h1>
+            <div className="flex items-center gap-2.5">
+              <h1 className="sidebar-brand-title">
+                The Experience Engine
+              </h1>
+              {/* Mode badge — click to switch modes */}
+              <div className="relative" ref={modeSwitcherRef}>
+                <button
+                  onClick={() => setShowModeSwitcher(prev => !prev)}
+                  className="mode-badge text-[9px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full whitespace-nowrap cursor-pointer transition-all hover:brightness-125"
+                  style={{
+                    fontFamily: "'DM Mono', monospace",
+                    background: tripMode === 'estimate' ? 'rgba(59, 130, 246, 0.15)' : tripMode === 'adventure' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                    color: tripMode === 'estimate' ? '#93C5FD' : tripMode === 'adventure' ? '#FDE68A' : '#BBF7D0',
+                    border: `1px solid ${tripMode === 'estimate' ? 'rgba(59, 130, 246, 0.3)' : tripMode === 'adventure' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`,
+                  }}
+                  aria-label="Switch trip mode"
+                >
+                  {tripMode === 'estimate' ? '💰 Estimate' : tripMode === 'adventure' ? '🧭 Adventure' : '📋 Plan'}
+                  <span className="ml-1 opacity-50">▾</span>
+                </button>
+
+                {/* Mode switcher dropdown */}
+                {showModeSwitcher && (
+                  <div className="mode-switcher-dropdown">
+                    {[
+                      { mode: 'plan' as TripMode, icon: '📋', label: 'Plan', desc: 'Full route control', color: '#22C55E', bg: 'rgba(34, 197, 94, 0.1)' },
+                      { mode: 'estimate' as TripMode, icon: '💰', label: 'Estimate', desc: 'What will it cost?', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.1)' },
+                      { mode: 'adventure' as TripMode, icon: '🧭', label: 'Adventure', desc: 'Surprise me', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.1)' },
+                    ].map(({ mode, icon, label, desc, color, bg }) => (
+                      <button
+                        key={mode}
+                        disabled={mode === tripMode}
+                        onClick={() => {
+                          setShowModeSwitcher(false);
+                          if (mode === 'adventure') {
+                            setTripMode('adventure');
+                            setShowAdventureMode(true);
+                          } else {
+                            setTripMode(mode);
+                          }
+                        }}
+                        className="mode-switcher-option"
+                        style={{
+                          '--mode-color': color,
+                          '--mode-bg': bg,
+                          opacity: mode === tripMode ? 0.5 : 1,
+                        } as React.CSSProperties}
+                      >
+                        <span className="text-base">{icon}</span>
+                        <div className="flex-1 text-left">
+                          <div className="text-xs font-bold" style={{ color }}>{label}</div>
+                          <div className="text-[10px] text-muted-foreground">{desc}</div>
+                        </div>
+                        {mode === tripMode && (
+                          <span className="text-[9px] tracking-wider uppercase" style={{ color }}>Current</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
             <p className="sidebar-brand-sub">
               Road trips worth remembering
             </p>
@@ -570,6 +643,11 @@ function AppContent() {
       {showAdventureMode && (
         <AdventureMode
           origin={locations.find(l => l.type === 'origin') || null}
+          onOriginChange={(newOrigin) => {
+            setLocations(prev => prev.map(loc =>
+              loc.type === 'origin' ? { ...loc, ...newOrigin } : loc
+            ));
+          }}
           onSelectDestination={handleAdventureSelect}
           onClose={() => setShowAdventureMode(false)}
         />
