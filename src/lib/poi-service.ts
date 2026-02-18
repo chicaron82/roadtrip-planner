@@ -6,11 +6,12 @@ const OVERPASS_API = 'https://overpass-api.de/api/interpreter';
 // Destination search radius (50km around destination city center)
 const DESTINATION_RADIUS = 50000;
 
-// Max results per category for corridor search (keeps queries fast)
-const MAX_PER_CATEGORY = 40;
+// Delay between corridor and destination queries to avoid 429 (ms)
+const INTER_QUERY_DELAY = 1500;
 
-// Max parallel Overpass requests (don't overwhelm the API)
-const CONCURRENCY_LIMIT = 3;
+// Max Overpass retries on 429 (rate limit)
+const MAX_RETRIES = 2;
+const RETRY_DELAY_MS = 2000;
 
 /**
  * OSM tag mapping for POI categories
@@ -73,7 +74,7 @@ function haversineDistanceSimple(lat1: number, lng1: number, lat2: number, lng2:
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// ==================== CORRIDOR QUERY (per-category bbox) ====================
+// ==================== CORRIDOR QUERY (single union bbox) ====================
 
 /**
  * Compute a bounding box from route geometry with a buffer in km.
@@ -92,48 +93,29 @@ function computeRouteBbox(routeGeometry: [number, number][], bufferKm: number): 
 }
 
 /**
- * Build a single-category Overpass query within a bbox.
- * Same proven pattern used by the map marker toggles (poi.ts).
- * `out center N` caps results to prevent massive responses.
+ * Build a single Overpass union query for ALL discovery categories in one bbox.
+ * Same pattern as buildDestinationQuery — all categories in one `(union);
+ * out center;` call. This means ONE API call for the entire corridor instead
+ * of one-per-category, avoiding 429 rate limits.
  */
-function buildCategoryQuery(bbox: string, category: POISuggestionCategory): string {
-  const tag = CATEGORY_TAG_QUERIES[category];
+function buildCorridorQuery(bbox: string, categories: POISuggestionCategory[]): string {
+  const lines = categories.map(cat => {
+    const tag = CATEGORY_TAG_QUERIES[cat];
+    return `      node${tag}(${bbox});\n      way${tag}(${bbox});`;
+  }).join('\n');
+
   return `
-    [out:json][timeout:25][maxsize:2097152];
+    [out:json][timeout:30][maxsize:5242880];
     (
-      node${tag}(${bbox});
-      way${tag}(${bbox});
+${lines}
     );
-    out center ${MAX_PER_CATEGORY};
+    out center;
   `.trim();
 }
 
 /**
- * Run async tasks with a concurrency limit.
- * Prevents overwhelming the Overpass API with too many parallel requests.
- */
-async function mapWithConcurrency<T, R>(
-  items: T[],
-  limit: number,
-  fn: (item: T, idx: number) => Promise<R>
-): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let nextIdx = 0;
-
-  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (nextIdx < items.length) {
-      const idx = nextIdx++;
-      results[idx] = await fn(items[idx], idx);
-    }
-  });
-
-  await Promise.all(workers);
-  return results;
-}
-
-/**
  * De-duplicate POIs by OSM type + id.
- * Multiple category queries may return the same POI.
+ * Multiple categories in a union may return overlapping results.
  */
 function deduplicatePOIs(pois: POISuggestion[]): POISuggestion[] {
   const seen = new Set<string>();
@@ -143,6 +125,11 @@ function deduplicatePOIs(pois: POISuggestion[]): POISuggestion[] {
     seen.add(key);
     return true;
   });
+}
+
+/** Simple delay helper */
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**
@@ -169,28 +156,44 @@ ${lines}
 }
 
 /**
- * Execute Overpass API query
+ * Execute Overpass API query with retry on 429 (rate limit).
+ * Overpass public API has aggressive rate limiting — retries with
+ * exponential backoff keep us friendly.
  */
 async function executeOverpassQuery(query: string): Promise<OverpassElement[]> {
-  try {
-    const response = await fetch(OVERPASS_API, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: `data=${encodeURIComponent(query)}`,
-    });
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetch(OVERPASS_API, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `data=${encodeURIComponent(query)}`,
+      });
 
-    if (!response.ok) {
-      throw new Error(`Overpass API error: ${response.status}`);
+      if (response.status === 429 && attempt < MAX_RETRIES) {
+        console.warn(`Overpass 429 rate limit — retrying in ${RETRY_DELAY_MS * (attempt + 1)}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+        await delay(RETRY_DELAY_MS * (attempt + 1));
+        continue;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Overpass API error: ${response.status}`);
+      }
+
+      const data: OverpassResponse = await response.json();
+      return data.elements || [];
+    } catch (error) {
+      if (attempt < MAX_RETRIES) {
+        console.warn(`Overpass query failed, retrying... (attempt ${attempt + 1}/${MAX_RETRIES})`);
+        await delay(RETRY_DELAY_MS * (attempt + 1));
+        continue;
+      }
+      console.error('Overpass query failed after retries:', error);
+      return [];
     }
-
-    const data: OverpassResponse = await response.json();
-    return data.elements || [];
-  } catch (error) {
-    console.error('Overpass query failed:', error);
-    return [];
   }
+  return [];
 }
 
 /**
@@ -308,19 +311,12 @@ function getRelevantCategories(tripPreferences: TripPreference[]): POISuggestion
 /**
  * Main function: Fetch POI suggestions for a route
  *
- * Uses the same proven per-category bbox query pattern as the map marker
- * toggles (poi.ts → searchPOIsAlongRoute). Each category gets its own small,
- * fast Overpass query with capped results. This is the pattern the user
- * confirmed works — sights, gas, food, hotels all show up scattered along
- * the route when toggled on the map.
+ * Makes exactly TWO Overpass API calls:
+ *  1. Corridor query — all discovery categories in one union bbox query
+ *  2. Destination query — all categories in one around: query
  *
- * Pipeline:
- *  1. Compute bbox from route geometry (15km buffer)
- *  2. Query each discovery category separately (capped at 40 results each)
- *  3. Run queries with concurrency limit (3 parallel)
- *  4. Convert to POISuggestion[], de-duplicate
- *  5. Filter out origin/destination zone → along-way bucket
- *  6. Separate destination query (around: on destination point)
+ * Separated by a delay to stay under Overpass rate limits.
+ * Both queries use retry with backoff on 429 responses.
  */
 export async function fetchPOISuggestions(
   routeGeometry: [number, number][],
@@ -335,30 +331,19 @@ export async function fetchPOISuggestions(
 
   const routeDistanceKm = estimateRouteDistanceKm(routeGeometry);
 
-  // ── Step 1: Compute bbox with 15km buffer (same as map marker toggles) ──
+  // ── Query 1: Corridor (all categories, one union, one API call) ──
   const bbox = computeRouteBbox(routeGeometry, 15);
+  const corridorQuery = buildCorridorQuery(bbox, categories);
+  const corridorElements = await executeOverpassQuery(corridorQuery);
 
-  // ── Step 2-3: Query each category separately, with concurrency limit ──
-  const categoryResults = await mapWithConcurrency(
-    categories,
-    CONCURRENCY_LIMIT,
-    async (category) => {
-      const query = buildCategoryQuery(bbox, category);
-      return executeOverpassQuery(query);
-    }
-  );
-
-  // ── Step 4: Flatten, convert, de-duplicate ──
-  const allElements = categoryResults.flat();
-
-  const allCorridorPOIs = allElements
+  const allCorridorPOIs = corridorElements
     .map(el => overpassElementToPOI(el))
     .filter((poi): poi is POISuggestion => poi !== null)
     .map(poi => ({ ...poi, bucket: 'along-way' as const }));
 
   const dedupedPOIs = deduplicatePOIs(allCorridorPOIs);
 
-  // ── Step 5: Strip origin/destination zone → along-way only ──
+  // Strip origin/destination zone → along-way only
   const exclusionKm = Math.min(40, Math.max(25, routeDistanceKm * 0.04));
 
   const alongWayPOIs = dedupedPOIs.filter(poi => {
@@ -367,7 +352,10 @@ export async function fetchPOISuggestions(
     return distToDest > exclusionKm && distToOrigin > exclusionKm;
   });
 
-  // ── Step 6: Destination query (unchanged — around: on destination point) ──
+  // ── Breathing room between queries to avoid 429 ──
+  await delay(INTER_QUERY_DELAY);
+
+  // ── Query 2: Destination (all categories, one around: query) ──
   const destinationQuery = buildDestinationQuery(destination, categories, DESTINATION_RADIUS);
   const destinationElements = await executeOverpassQuery(destinationQuery);
 
