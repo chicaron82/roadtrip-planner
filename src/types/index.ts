@@ -99,6 +99,7 @@ export interface TripSettings {
   budget: TripBudget; // Enhanced from single number
   departureDate: string;
   departureTime: string;
+  returnDate: string;
   arrivalDate: string;
   arrivalTime: string;
   useArrivalTime: boolean;

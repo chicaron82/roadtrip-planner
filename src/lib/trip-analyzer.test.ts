@@ -66,6 +66,7 @@ function makeSettings(overrides: Partial<TripSettings> = {}): TripSettings {
     },
     departureDate: '2025-08-16',
     departureTime: '09:00',
+    returnDate: '',
     arrivalDate: '',
     arrivalTime: '',
     useArrivalTime: false,

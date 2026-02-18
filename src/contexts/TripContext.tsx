@@ -29,6 +29,7 @@ export const DEFAULT_SETTINGS: TripSettings = {
   budget: DEFAULT_BUDGET,
   departureDate: new Date().toISOString().split('T')[0],
   departureTime: '09:00',
+  returnDate: '',
   arrivalDate: '',
   arrivalTime: '',
   useArrivalTime: false,

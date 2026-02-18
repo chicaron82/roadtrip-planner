@@ -94,7 +94,11 @@ export function generateEstimate(
     ? summary.totalDistanceKm * 2
     : summary.totalDistanceKm;
 
-  const days = summary.days?.length || Math.max(1, Math.ceil(summary.totalDurationMinutes / (settings.maxDriveHours * 60)));
+  // Use returnDate if set (user-defined trip length), otherwise derive from route
+  const daysFromDates = settings.returnDate && settings.departureDate
+    ? Math.max(1, Math.ceil((new Date(settings.returnDate).getTime() - new Date(settings.departureDate).getTime()) / (1000 * 60 * 60 * 24)))
+    : 0;
+  const days = daysFromDates || summary.days?.length || Math.max(1, Math.ceil(summary.totalDurationMinutes / (settings.maxDriveHours * 60)));
   const nights = Math.max(0, days - 1);
   const numTravelers = settings.numTravelers || 1;
   const roomsNeeded = Math.ceil(numTravelers / ESTIMATES.travelersPerRoom);

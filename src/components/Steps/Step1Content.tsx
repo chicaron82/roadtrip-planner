@@ -141,14 +141,57 @@ export function Step1Content({
       </div>
 
       <div className="border-t pt-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-primary" />
-            When?
-          </h3>
+        <h3 className="text-sm font-semibold flex items-center gap-2 mb-3">
+          <Calendar className="h-4 w-4 text-primary" />
+          When?
+        </h3>
 
-          {/* Depart/Arrive Toggle */}
-          <div className="flex items-center gap-1 bg-muted/40 rounded-lg p-1">
+        {/* Date Range — Departure + Return */}
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <Label htmlFor="depDate" className="text-xs">Departure Date</Label>
+            <Input
+              id="depDate"
+              type="date"
+              value={settings.departureDate}
+              onChange={(e) => setSettings((prev) => ({ ...prev, departureDate: e.target.value }))}
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label htmlFor="returnDate" className="text-xs">Return Date</Label>
+            <Input
+              id="returnDate"
+              type="date"
+              value={settings.returnDate}
+              min={settings.departureDate}
+              onChange={(e) => setSettings((prev) => ({ ...prev, returnDate: e.target.value }))}
+              className="mt-1"
+            />
+          </div>
+        </div>
+
+        {/* Time + Arrive By toggle */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <Label htmlFor="depTime" className="text-xs">
+              {settings.useArrivalTime ? 'Arrive By' : 'Departure Time'}
+            </Label>
+            <Input
+              id="depTime"
+              type="time"
+              value={settings.useArrivalTime ? settings.arrivalTime : settings.departureTime}
+              onChange={(e) =>
+                setSettings((prev) =>
+                  settings.useArrivalTime
+                    ? { ...prev, arrivalTime: e.target.value }
+                    : { ...prev, departureTime: e.target.value }
+                )
+              }
+              className="mt-1"
+            />
+          </div>
+          <div className="flex items-center gap-1 bg-muted/40 rounded-lg p-1 mt-5">
             <Button
               variant={!settings.useArrivalTime ? 'default' : 'ghost'}
               size="sm"
@@ -168,84 +211,48 @@ export function Step1Content({
           </div>
         </div>
 
-        {/* Date/Time Inputs */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label
-              htmlFor={settings.useArrivalTime ? 'arrDate' : 'depDate'}
-              className="text-xs"
-            >
-              {settings.useArrivalTime ? 'Arrival Date' : 'Departure Date'}
-            </Label>
-            <Input
-              id={settings.useArrivalTime ? 'arrDate' : 'depDate'}
-              type="date"
-              value={settings.useArrivalTime ? settings.arrivalDate : settings.departureDate}
-              onChange={(e) =>
-                setSettings((prev) =>
-                  settings.useArrivalTime
-                    ? { ...prev, arrivalDate: e.target.value }
-                    : { ...prev, departureDate: e.target.value }
-                )
-              }
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <Label
-              htmlFor={settings.useArrivalTime ? 'arrTime' : 'depTime'}
-              className="text-xs"
-            >
-              {settings.useArrivalTime ? 'Arrival Time' : 'Departure Time'}
-            </Label>
-            <Input
-              id={settings.useArrivalTime ? 'arrTime' : 'depTime'}
-              type="time"
-              value={settings.useArrivalTime ? settings.arrivalTime : settings.departureTime}
-              onChange={(e) =>
-                setSettings((prev) =>
-                  settings.useArrivalTime
-                    ? { ...prev, arrivalTime: e.target.value }
-                    : { ...prev, departureTime: e.target.value }
-                )
-              }
-              className="mt-1"
-            />
-          </div>
-        </div>
-
         {/* Smart Preview */}
-        <p className="info-banner-purple text-xs mt-2 rounded-md p-2 border">
-          {settings.useArrivalTime ? (
-            <>
-              🎯 <strong>Arrive by:</strong>{' '}
-              {settings.arrivalDate && settings.arrivalTime
-                ? `${new Date(settings.arrivalDate).toLocaleDateString('en-US', {
-                    weekday: 'short',
-                    month: 'short',
-                    day: 'numeric',
-                  })} at ${settings.arrivalTime}`
-                : 'Set your target arrival time'}
-              {settings.arrivalDate && " - We'll calculate when you need to leave!"}
-            </>
-          ) : (
-            <>
-              🚗 <strong>Depart:</strong>{' '}
-              {settings.departureDate && settings.departureTime
-                ? `${new Date(settings.departureDate).toLocaleDateString('en-US', {
-                    weekday: 'short',
-                    month: 'short',
-                    day: 'numeric',
-                  })} at ${settings.departureTime}`
-                : 'Set your departure time'}
-              {settings.departureDate &&
-                new Date(settings.departureDate) > new Date() &&
-                ` - Leaving in ${Math.ceil(
-                  (new Date(settings.departureDate).getTime() - new Date().getTime()) /
-                    (1000 * 60 * 60 * 24)
-                )} days!`}
-            </>
-          )}
+        <p className="info-banner-purple text-xs mt-3 rounded-md p-2 border">
+          {(() => {
+            const depDate = settings.departureDate;
+            const retDate = settings.returnDate;
+            const tripDays = depDate && retDate
+              ? Math.max(1, Math.ceil((new Date(retDate).getTime() - new Date(depDate).getTime()) / (1000 * 60 * 60 * 24)))
+              : 0;
+            const daysUntilTrip = depDate && new Date(depDate) > new Date()
+              ? Math.ceil((new Date(depDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+              : 0;
+
+            const depFormatted = depDate
+              ? new Date(depDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+              : '';
+            const retFormatted = retDate
+              ? new Date(retDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+              : '';
+
+            if (depDate && retDate) {
+              return (
+                <>
+                  🗓️ <strong>{depFormatted}</strong> → <strong>{retFormatted}</strong>
+                  {' · '}{tripDays}-day trip
+                  {settings.useArrivalTime && settings.arrivalTime && ` · Arrive by ${settings.arrivalTime}`}
+                  {!settings.useArrivalTime && settings.departureTime && ` · Leaving at ${settings.departureTime}`}
+                  {daysUntilTrip > 0 && ` · ${daysUntilTrip} days away!`}
+                </>
+              );
+            }
+            if (depDate) {
+              return (
+                <>
+                  🚗 <strong>Depart:</strong> {depFormatted}
+                  {settings.departureTime && ` at ${settings.departureTime}`}
+                  {daysUntilTrip > 0 && ` · ${daysUntilTrip} days away!`}
+                  {' · '}Set a return date for trip duration
+                </>
+              );
+            }
+            return <>Set your departure and return dates</>;
+          })()}
         </p>
       </div>
     </div>

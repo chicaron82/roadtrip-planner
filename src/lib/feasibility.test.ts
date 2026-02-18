@@ -42,6 +42,7 @@ function makeSettings(overrides: Partial<TripSettings> = {}): TripSettings {
     budget: makeBudget(),
     departureDate: '2025-08-16',
     departureTime: '03:30',
+    returnDate: '',
     arrivalDate: '2025-08-21',
     arrivalTime: '22:00',
     useArrivalTime: false,

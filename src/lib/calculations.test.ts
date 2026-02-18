@@ -152,6 +152,7 @@ describe('calculateTripCosts', () => {
     budget: DEFAULT_BUDGET,
     departureDate: '2024-08-16',
     departureTime: '09:00',
+    returnDate: '',
     arrivalDate: '',
     arrivalTime: '',
     useArrivalTime: false,
