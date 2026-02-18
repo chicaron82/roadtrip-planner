@@ -6,29 +6,11 @@ const OVERPASS_API = 'https://overpass-api.de/api/interpreter';
 // Destination search radius (50km around destination city center)
 const DESTINATION_RADIUS = 50000;
 
-// ==================== ROUTE SAMPLING CONFIG ====================
+// Max results per category for corridor search (keeps queries fast)
+const MAX_PER_CATEGORY = 40;
 
-/** Corridor radius (meters) by category type — scenic searches wider, utilitarian tighter */
-const CATEGORY_RADIUS: Record<POISuggestionCategory, number> = {
-  viewpoint: 15000,
-  park: 15000,
-  waterfall: 15000,
-  landmark: 15000,
-  attraction: 10000,
-  museum: 10000,
-  entertainment: 10000,
-  restaurant: 5000,
-  cafe: 5000,
-  gas: 5000,
-  hotel: 5000,
-  shopping: 5000,
-};
-
-/** How many sample points to group into a single Overpass call */
-const SAMPLES_PER_BATCH = 4;
-
-/** Max parallel Overpass requests for corridor sampling */
-const CONCURRENCY_LIMIT = 2;
+// Max parallel Overpass requests (don't overwhelm the API)
+const CONCURRENCY_LIMIT = 3;
 
 /**
  * OSM tag mapping for POI categories
@@ -91,102 +73,38 @@ function haversineDistanceSimple(lat1: number, lng1: number, lat2: number, lng2:
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// ==================== ROUTE SAMPLING PIPELINE ====================
-
-type LatLng = { lat: number; lng: number };
+// ==================== CORRIDOR QUERY (per-category bbox) ====================
 
 /**
- * Sample points along a polyline at fixed distance intervals.
- * Uses distance-traveled (not array index) so spacing is consistent
- * regardless of polyline density.
- *
- * Dynamic step size:
- *   < 500 km  → every 30 km
- *   500–1500  → every 60 km
- *   1500+     → every 100 km
- *
- * Always includes origin and destination.
+ * Compute a bounding box from route geometry with a buffer in km.
+ * Returns "south,west,north,east" Overpass bbox string.
  */
-export function sampleRouteByKm(
-  points: [number, number][],
-  routeDistanceKm: number,
-  maxSamples = 30
-): LatLng[] {
-  if (points.length < 2) {
-    return points.map(([lat, lng]) => ({ lat, lng }));
+function computeRouteBbox(routeGeometry: [number, number][], bufferKm: number): string {
+  let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+  for (const [lat, lng] of routeGeometry) {
+    if (lat < minLat) minLat = lat;
+    if (lat > maxLat) maxLat = lat;
+    if (lng < minLng) minLng = lng;
+    if (lng > maxLng) maxLng = lng;
   }
-
-  // Dynamic step based on route length
-  const stepKm = routeDistanceKm < 500 ? 30
-    : routeDistanceKm < 1500 ? 60
-    : 100;
-
-  const samples: LatLng[] = [{ lat: points[0][0], lng: points[0][1] }];
-  let sinceLast = 0;
-
-  for (let i = 1; i < points.length; i++) {
-    const [lat1, lng1] = points[i - 1];
-    const [lat2, lng2] = points[i];
-    const segKm = haversineDistanceSimple(lat1, lng1, lat2, lng2);
-
-    sinceLast += segKm;
-    if (sinceLast >= stepKm) {
-      samples.push({ lat: lat2, lng: lng2 });
-      sinceLast = 0;
-      if (samples.length >= maxSamples) break;
-    }
-  }
-
-  // Always include destination
-  const last = points[points.length - 1];
-  const lastSample = samples[samples.length - 1];
-  if (haversineDistanceSimple(lastSample.lat, lastSample.lng, last[0], last[1]) > 1) {
-    samples.push({ lat: last[0], lng: last[1] });
-  }
-
-  return samples;
+  const buffer = bufferKm / 111; // ~1 degree ≈ 111km
+  return `${minLat - buffer},${minLng - buffer},${maxLat + buffer},${maxLng + buffer}`;
 }
 
 /**
- * Group sample points into batches for fewer Overpass API calls.
- * Each batch produces one combined `around:` union query.
+ * Build a single-category Overpass query within a bbox.
+ * Same proven pattern used by the map marker toggles (poi.ts).
+ * `out center N` caps results to prevent massive responses.
  */
-function batchSamplePoints(samples: LatLng[], batchSize: number): LatLng[][] {
-  const batches: LatLng[][] = [];
-  for (let i = 0; i < samples.length; i += batchSize) {
-    batches.push(samples.slice(i, i + batchSize));
-  }
-  return batches;
-}
-
-/**
- * Build an Overpass query for a batch of sample points.
- * Uses `around:R,lat,lng` per point × per category, all in one union.
- * Category-specific radius: scenic gets wider corridor, food gets tighter.
- */
-function buildSampledQuery(
-  sampleBatch: LatLng[],
-  categories: POISuggestionCategory[]
-): string {
-  const lines: string[] = [];
-
-  for (const cat of categories) {
-    const tag = CATEGORY_TAG_QUERIES[cat];
-    const radiusM = CATEGORY_RADIUS[cat];
-
-    for (const pt of sampleBatch) {
-      const around = `around:${radiusM},${pt.lat.toFixed(5)},${pt.lng.toFixed(5)}`;
-      lines.push(`      node${tag}(${around});`);
-      lines.push(`      way${tag}(${around});`);
-    }
-  }
-
+function buildCategoryQuery(bbox: string, category: POISuggestionCategory): string {
+  const tag = CATEGORY_TAG_QUERIES[category];
   return `
-    [out:json][timeout:30][maxsize:5242880];
+    [out:json][timeout:25][maxsize:2097152];
     (
-${lines.join('\n')}
+      node${tag}(${bbox});
+      way${tag}(${bbox});
     );
-    out center;
+    out center ${MAX_PER_CATEGORY};
   `.trim();
 }
 
@@ -215,7 +133,7 @@ async function mapWithConcurrency<T, R>(
 
 /**
  * De-duplicate POIs by OSM type + id.
- * Overlapping sample circles will return the same POI multiple times.
+ * Multiple category queries may return the same POI.
  */
 function deduplicatePOIs(pois: POISuggestion[]): POISuggestion[] {
   const seen = new Set<string>();
@@ -390,17 +308,19 @@ function getRelevantCategories(tripPreferences: TripPreference[]): POISuggestion
 /**
  * Main function: Fetch POI suggestions for a route
  *
- * Uses route-sampling with Overpass `around:` queries instead of a single
- * bounding-box. This hugs the actual road geometry, producing far better
- * results on diagonal / long-haul routes (e.g. Winnipeg → Thunder Bay).
+ * Uses the same proven per-category bbox query pattern as the map marker
+ * toggles (poi.ts → searchPOIsAlongRoute). Each category gets its own small,
+ * fast Overpass query with capped results. This is the pattern the user
+ * confirmed works — sights, gas, food, hotels all show up scattered along
+ * the route when toggled on the map.
  *
  * Pipeline:
- *  1. Sample the polyline every N km (dynamic by route length)
- *  2. Batch sample points (4 per Overpass call)
- *  3. Query with concurrency limit (2 parallel)
- *  4. De-duplicate overlapping results by OSM id
+ *  1. Compute bbox from route geometry (15km buffer)
+ *  2. Query each discovery category separately (capped at 40 results each)
+ *  3. Run queries with concurrency limit (3 parallel)
+ *  4. Convert to POISuggestion[], de-duplicate
  *  5. Filter out origin/destination zone → along-way bucket
- *  6. Separate destination query as before
+ *  6. Separate destination query (around: on destination point)
  */
 export async function fetchPOISuggestions(
   routeGeometry: [number, number][],
@@ -413,41 +333,35 @@ export async function fetchPOISuggestions(
   // Determine relevant categories from user preferences
   const categories = getRelevantCategories(tripPreferences);
 
-  // Route distance drives sampling density
   const routeDistanceKm = estimateRouteDistanceKm(routeGeometry);
 
-  // ── Step 1: Sample the polyline ──
-  const samples = sampleRouteByKm(routeGeometry, routeDistanceKm);
+  // ── Step 1: Compute bbox with 15km buffer (same as map marker toggles) ──
+  const bbox = computeRouteBbox(routeGeometry, 15);
 
-  // ── Step 2: Batch samples into groups for fewer API calls ──
-  const batches = batchSamplePoints(samples, SAMPLES_PER_BATCH);
-
-  // ── Step 3: Query Overpass with concurrency limit ──
-  const batchResults = await mapWithConcurrency(
-    batches,
+  // ── Step 2-3: Query each category separately, with concurrency limit ──
+  const categoryResults = await mapWithConcurrency(
+    categories,
     CONCURRENCY_LIMIT,
-    async (batch) => {
-      const query = buildSampledQuery(batch, categories);
+    async (category) => {
+      const query = buildCategoryQuery(bbox, category);
       return executeOverpassQuery(query);
     }
   );
 
-  // Flatten all elements from all batches
-  const allCorridorElements = batchResults.flat();
+  // ── Step 4: Flatten, convert, de-duplicate ──
+  const allElements = categoryResults.flat();
 
-  // ── Step 4: Convert + de-duplicate ──
-  const allCorridorPOIs = allCorridorElements
+  const allCorridorPOIs = allElements
     .map(el => overpassElementToPOI(el))
     .filter((poi): poi is POISuggestion => poi !== null)
     .map(poi => ({ ...poi, bucket: 'along-way' as const }));
 
-  const dedupedCorridorPOIs = deduplicatePOIs(allCorridorPOIs);
+  const dedupedPOIs = deduplicatePOIs(allCorridorPOIs);
 
   // ── Step 5: Strip origin/destination zone → along-way only ──
-  // Keep exclusion tight so nearby gems aren't dropped
   const exclusionKm = Math.min(40, Math.max(25, routeDistanceKm * 0.04));
 
-  const alongWayPOIs = dedupedCorridorPOIs.filter(poi => {
+  const alongWayPOIs = dedupedPOIs.filter(poi => {
     const distToDest = haversineDistanceSimple(poi.lat, poi.lng, destination.lat!, destination.lng!);
     const distToOrigin = haversineDistanceSimple(poi.lat, poi.lng, origin.lat!, origin.lng!);
     return distToDest > exclusionKm && distToOrigin > exclusionKm;
