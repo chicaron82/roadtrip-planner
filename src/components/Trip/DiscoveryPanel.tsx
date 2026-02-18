@@ -161,9 +161,13 @@ export function DiscoveryPanel({
               onChange={e => setTimeBudget(Number(e.target.value))}
               className="w-full h-2 bg-amber-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
             />
-            <div className="flex justify-between mt-1">
+            <div className="relative mt-1 h-4">
               {BUDGET_MARKS.map(m => (
-                <span key={m.value} className="text-[10px] text-amber-600">{m.label}</span>
+                <span
+                  key={m.value}
+                  className="absolute text-[10px] text-amber-600 -translate-x-1/2"
+                  style={{ left: `${(m.value / 240) * 100}%` }}
+                >{m.label}</span>
               ))}
             </div>
             <p className="text-[11px] text-amber-600 mt-1">

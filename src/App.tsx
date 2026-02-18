@@ -194,9 +194,12 @@ function AppContent() {
     }
   }, [settings.useArrivalTime, settings.arrivalDate, settings.arrivalTime, summary, settings.departureDate, settings.departureTime, setSettings]);
 
-  // Scroll sidebar to top when step changes
+  // Scroll sidebar to top when step changes & show plan on mobile at step 3
   useEffect(() => {
     sidebarScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+    if (planningStep === 3) {
+      setMobileView('plan');
+    }
   }, [planningStep]);
 
   // Valid route geometry for map

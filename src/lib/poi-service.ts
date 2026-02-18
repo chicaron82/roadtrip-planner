@@ -73,6 +73,29 @@ function haversineDistanceSimple(lat1: number, lng1: number, lat2: number, lng2:
 }
 
 /**
+ * Check if a point is within `maxDistKm` of ANY segment of a polyline.
+ * Samples every ~20th point for performance on large geometries.
+ */
+function isNearPolyline(
+  lat: number,
+  lng: number,
+  polyline: [number, number][],
+  maxDistKm: number
+): boolean {
+  // Sample the polyline — check every Nth point so we don't do 10k haversines per POI
+  const step = Math.max(1, Math.floor(polyline.length / 200));
+  for (let i = 0; i < polyline.length; i += step) {
+    const [pLat, pLng] = polyline[i];
+    const dist = haversineDistanceSimple(lat, lng, pLat, pLng);
+    if (dist <= maxDistKm) return true;
+  }
+  // Always check last point
+  const [lastLat, lastLng] = polyline[polyline.length - 1];
+  if (haversineDistanceSimple(lat, lng, lastLat, lastLng) <= maxDistKm) return true;
+  return false;
+}
+
+/**
  * Build Overpass QL query for corridor search
  * Uses a bounding box around the route polyline
  */
@@ -303,8 +326,17 @@ export async function fetchPOISuggestions(
     .filter((poi): poi is POISuggestion => poi !== null)
     .map(poi => ({ ...poi, bucket: 'along-way' as const }));
 
+  // Polyline proximity filter: the bounding box query is very coarse, so we
+  // post-filter to only keep POIs that are actually near the route polyline.
+  // This prevents a diagonal route (e.g. Winnipeg→Thunder Bay) from returning
+  // POIs that are inside the bbox but far from the actual road.
+  const corridorKm = corridorWidth / 1000;
+  const polylineFilteredPOIs = allCorridorPOIs.filter(poi => {
+    return isNearPolyline(poi.lat, poi.lng, routeGeometry, corridorKm);
+  });
+
   // Filter out corridor POIs that are near origin or destination
-  const alongWayPOIs = allCorridorPOIs.filter(poi => {
+  const alongWayPOIs = polylineFilteredPOIs.filter(poi => {
     const distToDest = haversineDistanceSimple(poi.lat, poi.lng, destination.lat, destination.lng);
     const distToOrigin = haversineDistanceSimple(poi.lat, poi.lng, origin.lat, origin.lng);
     return distToDest > exclusionKm && distToOrigin > exclusionKm;
