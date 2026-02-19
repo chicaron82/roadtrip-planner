@@ -57,6 +57,9 @@ function MapUpdater({ locations, routeGeometry }: { locations: Location[], route
         });
       }
       map.fitBounds(bounds, { padding: [50, 50] });
+    } else {
+      // No valid locations (reset state) — fly back to default view
+      map.setView([49.8951, -97.1384], 5);
     }
   }, [locations, routeGeometry, map]);
 
