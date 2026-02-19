@@ -76,7 +76,7 @@ const DialogOverlay = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "fixed inset-0 z-[200] bg-black/80 animate-in fade-in-0",
+      "fixed inset-0 z-[1100] bg-black/80 animate-in fade-in-0",
       className
     )}
     {...props}
@@ -141,7 +141,7 @@ const DialogContent = React.forwardRef<
         role="dialog"
         aria-modal="true"
         className={cn(
-          "fixed left-[50%] top-[50%] z-[201] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 animate-in fade-in-0 zoom-in-95 slide-in-from-left-1/2 slide-in-from-top-[48%] rounded-lg",
+          "fixed left-[50%] top-[50%] z-[1101] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 animate-in fade-in-0 zoom-in-95 slide-in-from-left-1/2 slide-in-from-top-[48%] rounded-lg",
           className
         )}
         {...props}
