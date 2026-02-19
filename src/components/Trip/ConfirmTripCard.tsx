@@ -1,4 +1,4 @@
-import { Check, CheckCircle2, Pencil, Sparkles } from 'lucide-react';
+import { Check, CheckCircle2, BookOpen, Pencil, Sparkles } from 'lucide-react';
 
 interface ConfirmTripCardProps {
   confirmed: boolean;
@@ -6,6 +6,7 @@ interface ConfirmTripCardProps {
   totalDays: number;
   onConfirm: () => void;
   onUnconfirm: () => void;
+  onGoToJournal?: () => void;
 }
 
 export function ConfirmTripCard({
@@ -14,6 +15,7 @@ export function ConfirmTripCard({
   totalDays,
   onConfirm,
   onUnconfirm,
+  onGoToJournal,
 }: ConfirmTripCardProps) {
   if (confirmed) {
     return (
@@ -23,15 +25,26 @@ export function ConfirmTripCard({
         </div>
         <h3 className="font-bold text-green-900 mb-1">Trip Confirmed</h3>
         <p className="text-xs text-green-700 mb-3">
-          Your plan is locked in. Switch to the Journal tab to start capturing your trip!
+          Your plan is locked in. Ready to start capturing your trip?
         </p>
-        <button
-          onClick={onUnconfirm}
-          className="inline-flex items-center gap-1.5 text-xs text-green-600 hover:text-green-800 font-medium transition-colors"
-        >
-          <Pencil className="h-3 w-3" />
-          Modify Plan
-        </button>
+        <div className="flex items-center justify-center gap-3">
+          {onGoToJournal && (
+            <button
+              onClick={onGoToJournal}
+              className="inline-flex items-center gap-1.5 text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg font-semibold transition-colors"
+            >
+              <BookOpen className="h-3 w-3" />
+              Open Journal
+            </button>
+          )}
+          <button
+            onClick={onUnconfirm}
+            className="inline-flex items-center gap-1.5 text-xs text-green-600 hover:text-green-800 font-medium transition-colors"
+          >
+            <Pencil className="h-3 w-3" />
+            Modify Plan
+          </button>
+        </div>
       </div>
     );
   }

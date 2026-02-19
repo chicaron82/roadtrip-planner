@@ -307,6 +307,7 @@ export function Step3Content({
               totalDays={summary.days?.length ?? 1}
               onConfirm={onConfirmTrip}
               onUnconfirm={onUnconfirmTrip}
+              onGoToJournal={() => setViewMode('journal')}
             />
           )}
         </>
