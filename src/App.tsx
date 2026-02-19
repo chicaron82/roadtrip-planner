@@ -58,11 +58,15 @@ function AppContent() {
 
   // Added Stops Hook (map-click → add to plan)
   const {
+    addedStops,
     addedPOIIds,
     addStop,
     removeStop,
     asSuggestedStops,
   } = useAddedStops();
+
+  // Trip confirmation gate (Phase 3)
+  const [tripConfirmed, setTripConfirmed] = useState(false);
 
   const handleAddPOIFromMap = useCallback((poi: import('./types').POI, afterSegmentIndex?: number) => {
     if (!summary) return;
@@ -404,6 +408,7 @@ function AppContent() {
     resetWizard();
     setActiveChallenge(null);
     setTripOrigin(null);
+    setTripConfirmed(false);
     // Stay in current mode — go to Step 1, not landing
   }, [setLocations, setSummary, resetWizard, resetPOIs, setTripOrigin]);
 
@@ -630,6 +635,10 @@ function AppContent() {
                   onDismissPOI={dismissPOI}
                   onGoToStep={goToStep}
                   externalStops={asSuggestedStops}
+                  tripConfirmed={tripConfirmed}
+                  addedStopCount={addedStops.length}
+                  onConfirmTrip={() => setTripConfirmed(true)}
+                  onUnconfirmTrip={() => { setTripConfirmed(false); setViewMode('plan'); }}
                 />
               )}
             </CardContent>

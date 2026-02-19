@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Map, BookOpen } from 'lucide-react';
+import { Map, BookOpen, Lock } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 export type ViewMode = 'plan' | 'journal';
@@ -8,6 +8,7 @@ interface JournalModeToggleProps {
   mode: ViewMode;
   onChange: (mode: ViewMode) => void;
   hasActiveJournal: boolean;
+  disabled?: boolean;
   className?: string;
 }
 
@@ -15,8 +16,10 @@ export function JournalModeToggle({
   mode,
   onChange,
   hasActiveJournal,
+  disabled,
   className,
 }: JournalModeToggleProps) {
+  const journalDisabled = disabled && mode !== 'journal';
   return (
     <div className={cn('flex items-center gap-1 p-1 rounded-lg bg-muted/50', className)}>
       {/* Plan Mode Button */}
@@ -35,17 +38,25 @@ export function JournalModeToggle({
 
       {/* Journal Mode Button */}
       <button
-        onClick={() => onChange('journal')}
+        onClick={() => !journalDisabled && onChange('journal')}
         className={cn(
           'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all',
-          mode === 'journal'
-            ? 'bg-white text-purple-600 shadow-sm'
-            : 'text-muted-foreground hover:text-foreground hover:bg-white/50'
+          journalDisabled
+            ? 'text-muted-foreground/50 cursor-not-allowed'
+            : mode === 'journal'
+              ? 'bg-white text-purple-600 shadow-sm'
+              : 'text-muted-foreground hover:text-foreground hover:bg-white/50'
         )}
+        title={journalDisabled ? 'Confirm your trip first' : undefined}
       >
-        <BookOpen className="h-4 w-4" />
+        {journalDisabled ? <Lock className="h-3.5 w-3.5" /> : <BookOpen className="h-4 w-4" />}
         <span>Journal</span>
-        {!hasActiveJournal && mode !== 'journal' && (
+        {journalDisabled && (
+          <span className="text-[10px] text-muted-foreground/50 hidden sm:inline">
+            Confirm first
+          </span>
+        )}
+        {!journalDisabled && !hasActiveJournal && mode !== 'journal' && (
           <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-bold">
             NEW
           </span>

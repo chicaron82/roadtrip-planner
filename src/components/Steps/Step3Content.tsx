@@ -6,6 +6,7 @@ import { OvernightStopPrompt } from '../Trip/OvernightStopPrompt';
 import { JournalModeToggle, StartJournalCTA, type ViewMode } from '../Trip/JournalModeToggle';
 import { JournalTimeline } from '../Trip/JournalTimeline';
 import { ItineraryTimeline } from '../Trip/ItineraryTimeline';
+import { ConfirmTripCard } from '../Trip/ConfirmTripCard';
 import { printTrip } from '../Trip/TripPrintView';
 import { generateEstimate } from '../../lib/estimate-service';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
@@ -40,6 +41,10 @@ interface Step3ContentProps {
   onDismissPOI: (poiId: string) => void;
   onGoToStep: (step: PlanningStep) => void;
   externalStops?: SuggestedStop[];
+  tripConfirmed: boolean;
+  addedStopCount: number;
+  onConfirmTrip: () => void;
+  onUnconfirmTrip: () => void;
 }
 
 export function Step3Content({
@@ -71,6 +76,10 @@ export function Step3Content({
   onDismissPOI,
   onGoToStep,
   externalStops,
+  tripConfirmed,
+  addedStopCount,
+  onConfirmTrip,
+  onUnconfirmTrip,
 }: Step3ContentProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -214,6 +223,7 @@ export function Step3Content({
             mode={viewMode}
             onChange={setViewMode}
             hasActiveJournal={!!activeJournal}
+            disabled={!tripConfirmed}
           />
         )}
       </div>
@@ -286,6 +296,17 @@ export function Step3Content({
               onAddPOI={onAddPOI}
               onDismissPOI={onDismissPOI}
               externalStops={externalStops}
+            />
+          )}
+
+          {/* Confirm Trip Card — shown in plan view */}
+          {viewMode === 'plan' && (
+            <ConfirmTripCard
+              confirmed={tripConfirmed}
+              addedStopCount={addedStopCount}
+              totalDays={summary.days?.length ?? 1}
+              onConfirm={onConfirmTrip}
+              onUnconfirm={onUnconfirmTrip}
             />
           )}
         </>
