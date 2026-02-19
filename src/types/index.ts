@@ -650,4 +650,7 @@ export interface TripChallenge {
   story?: string;                    // "It was -30°C and the highway was pure ice..."
   tips?: string[];                   // Chicharon's advice
   year?: number;                     // When the trip happened
+
+  // Extended version link (e.g. Cruiser → Road Warrior variant of same route)
+  extendedVersionId?: string;
 }
