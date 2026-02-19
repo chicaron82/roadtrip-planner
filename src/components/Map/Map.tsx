@@ -4,9 +4,9 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Location, POI, MarkerCategory } from '../../types';
 import type { StrategicFuelStop } from '../../lib/calculations';
+import { haversineDistance, estimateDetourTime } from '../../lib/poi-ranking';
 import { AnimatedPolyline } from './AnimatedPolyline';
-
-// ... (existing imports)
+import { POIPopup, type PopupDayOption } from './POIPopup';
 
 interface MapProps {
   locations: Location[];
@@ -15,7 +15,10 @@ interface MapProps {
   pois: POI[];
   markerCategories: MarkerCategory[];
   strategicFuelStops?: StrategicFuelStop[];
+  addedPOIIds?: Set<string>;
+  dayOptions?: PopupDayOption[];
   onMapClick?: (lat: number, lng: number) => void;
+  onAddPOI?: (poi: POI, afterSegmentIndex?: number) => void;
 }
 
 const markerColors: Record<string, string> = {
@@ -72,7 +75,7 @@ function MapClickHandler({ onMapClick }: { onMapClick?: (lat: number, lng: numbe
   return null;
 }
 
-export function Map({ locations, routeGeometry, pois, markerCategories, strategicFuelStops = [], onMapClick }: MapProps) {
+export function Map({ locations, routeGeometry, pois, markerCategories, strategicFuelStops = [], addedPOIIds, dayOptions, onMapClick, onAddPOI }: MapProps) {
   // Custom Icon Generator
   const createCustomIcon = (type: string, categoryColor?: string, emoji?: string) => {
     // Basic color mapping for tailwind classes if passed directly
@@ -105,6 +108,45 @@ export function Map({ locations, routeGeometry, pois, markerCategories, strategi
       iconAnchor: [16, 16],
       popupAnchor: [0, -18],
     });
+  };
+
+  // Added POI marker — green ring with checkmark
+  const createAddedIcon = (emoji: string) => {
+    return L.divIcon({
+      className: 'custom-marker-container',
+      html: `<div style="
+        background: #16a34a;
+        width: 34px; height: 34px;
+        display: flex; align-items: center; justify-content: center;
+        border-radius: 50%;
+        border: 3px solid white;
+        box-shadow: 0 3px 10px rgba(22,163,74,0.4);
+        font-size: 16px;
+        position: relative;
+      ">${emoji}<span style="
+        position: absolute; top: -4px; right: -4px;
+        background: white; border-radius: 50%;
+        width: 14px; height: 14px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 10px; color: #16a34a; font-weight: bold;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      ">✓</span></div>`,
+      iconSize: [34, 34],
+      iconAnchor: [17, 17],
+      popupAnchor: [0, -19],
+    });
+  };
+
+  // Compute detour minutes from nearest route point
+  const getDetourMinutes = (poi: POI): number => {
+    if (!routeGeometry || routeGeometry.length === 0) return 0;
+    let minDist = Infinity;
+    // Sample every 10th point for performance on dense geometries
+    for (let i = 0; i < routeGeometry.length; i += 10) {
+      const d = haversineDistance(poi.lat, poi.lng, routeGeometry[i][0], routeGeometry[i][1]);
+      if (d < minDist) minDist = d;
+    }
+    return estimateDetourTime(minDist);
   };
 
   return (
@@ -174,19 +216,34 @@ export function Map({ locations, routeGeometry, pois, markerCategories, strategi
         {pois.map((poi) => {
             const category = markerCategories.find(c => c.id === poi.category);
             if (!category || !category.visible) return null;
+            const isAdded = addedPOIIds?.has(poi.id) ?? false;
 
             return (
                 <Marker
                     key={poi.id}
                     position={[poi.lat, poi.lng]}
-                    icon={createCustomIcon(poi.category, category.color.replace('bg-', ''), category.emoji)}
+                    icon={isAdded
+                      ? createAddedIcon(category.emoji)
+                      : createCustomIcon(poi.category, category.color.replace('bg-', ''), category.emoji)
+                    }
                 >
                     <Popup className="font-sans">
-                        <div className="p-1 text-center">
+                        {onAddPOI ? (
+                          <POIPopup
+                            poi={poi}
+                            category={category}
+                            isAdded={isAdded}
+                            detourMinutes={getDetourMinutes(poi)}
+                            dayOptions={dayOptions}
+                            onAdd={onAddPOI}
+                          />
+                        ) : (
+                          <div className="p-1 text-center">
                             <div className="text-xl mb-1">{category.emoji}</div>
                             <strong>{poi.name}</strong>
                             {poi.address && <div className="text-xs text-muted-foreground mt-1 max-w-[200px] truncate">{poi.address}</div>}
-                        </div>
+                          </div>
+                        )}
                     </Popup>
                 </Marker>
             );

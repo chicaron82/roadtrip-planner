@@ -1,4 +1,4 @@
-import type { POISuggestion, RouteSegment, TripPreference, POISuggestionCategory } from '../types';
+import type { POISuggestion, RouteSegment, TripPreference, POISuggestionCategory, Location } from '../types';
 
 // Ranking weights (sum to 1.0)
 const WEIGHTS = {
@@ -22,7 +22,7 @@ const CORRIDOR_THRESHOLDS = {
  * Calculate straight-line distance between two points (Haversine formula)
  * Returns distance in kilometers
  */
-function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+export function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371; // Earth's radius in km
   const dLat = toRad(lat2 - lat1);
   const dLng = toRad(lng2 - lng1);
@@ -81,11 +81,34 @@ function distanceToRoute(
  * Estimate detour time based on distance from route
  * Assumes ~60 km/h average speed for detours
  */
-function estimateDetourTime(distanceFromRouteKm: number): number {
+export function estimateDetourTime(distanceFromRouteKm: number): number {
   // Round trip detour at 60 km/h
   const roundTripKm = distanceFromRouteKm * 2;
   const detourHours = roundTripKm / 60;
   return Math.round(detourHours * 60); // Convert to minutes
+}
+
+/**
+ * Find which route segment a POI falls nearest to.
+ * Compares against each segment's `to` location (arrival point).
+ * Returns the segment index suitable for `afterSegmentIndex`.
+ */
+export function findNearestSegmentIndex(
+  lat: number,
+  lng: number,
+  segments: RouteSegment[]
+): number {
+  let minDist = Infinity;
+  let bestIdx = 0;
+  for (let i = 0; i < segments.length; i++) {
+    const to = segments[i].to;
+    const dist = haversineDistance(lat, lng, to.lat, to.lng);
+    if (dist < minDist) {
+      minDist = dist;
+      bestIdx = i;
+    }
+  }
+  return bestIdx;
 }
 
 /**

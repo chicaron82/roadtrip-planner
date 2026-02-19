@@ -33,6 +33,8 @@ interface ItineraryTimelineProps {
   isLoadingPOIs?: boolean;
   onAddPOI?: (poiId: string) => void;
   onDismissPOI?: (poiId: string) => void;
+  // Map-added stops (pre-accepted SuggestedStops from useAddedStops)
+  externalStops?: SuggestedStop[];
 }
 
 export function ItineraryTimeline({
@@ -53,6 +55,7 @@ export function ItineraryTimeline({
   isLoadingPOIs,
   onAddPOI,
   onDismissPOI,
+  externalStops,
 }: ItineraryTimelineProps) {
   const startTime = useMemo(
     () => new Date(`${settings.departureDate}T${settings.departureTime}`),
@@ -104,11 +107,11 @@ export function ItineraryTimeline({
     );
   };
 
-  // Filter active suggestions (not dismissed)
-  const activeSuggestions = useMemo(() =>
-    stopSuggestions.filter(s => !s.dismissed),
-    [stopSuggestions]
-  );
+  // Filter active suggestions (not dismissed) + merge map-added stops
+  const activeSuggestions = useMemo(() => [
+    ...stopSuggestions.filter(s => !s.dismissed),
+    ...(externalStops || []),
+  ], [stopSuggestions, externalStops]);
 
   // Build simulation items including accepted stops
   const simulationItems = useMemo(() => {
