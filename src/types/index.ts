@@ -433,6 +433,7 @@ export interface QuickCapture {
   autoTaggedLocation?: string; // "Near Salmon Arm"
   timestamp: Date;
   category?: 'food' | 'attraction' | 'scenic' | 'shopping' | 'other';
+  gpsCoords?: { lat: number; lng: number }; // Device GPS at time of capture
 }
 
 // Mood emoji for day summary

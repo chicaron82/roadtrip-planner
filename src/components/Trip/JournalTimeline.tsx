@@ -439,6 +439,28 @@ export function JournalTimeline({
     </div>`;
   }).join('')}
 
+  ${journal.quickCaptures.length > 0 ? `
+  <h2>📍 Memories Along the Way</h2>
+  ${journal.quickCaptures.map(qc => {
+    const mapsLink = qc.gpsCoords
+      ? `https://www.google.com/maps?q=${qc.gpsCoords.lat},${qc.gpsCoords.lng}`
+      : qc.photo?.location && (qc.photo.location.lat !== 0 || qc.photo.location.lng !== 0)
+        ? `https://www.google.com/maps?q=${qc.photo.location.lat},${qc.photo.location.lng}`
+        : null;
+    return `
+    <div style="border-left: 3px solid #a855f7; padding-left: 15px; margin: 15px 0;">
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+        <strong>${qc.autoTaggedLocation || 'Quick Memory'}</strong>
+        ${qc.category ? `<span style="font-size: 11px; background: #f3e8ff; color: #7c3aed; padding: 2px 6px; border-radius: 9999px;">${qc.category}</span>` : ''}
+        ${mapsLink ? `<a href="${mapsLink}" style="font-size: 11px; color: #2563eb;">📍 View on Maps</a>` : ''}
+      </div>
+      ${qc.photo ? `<img src="${qc.photo.dataUrl}" alt="${qc.photo.caption || 'Memory'}" style="width: 100%; max-width: 400px; height: 200px; object-fit: cover; border-radius: 8px; margin-bottom: 6px;" />` : ''}
+      ${qc.photo?.caption ? `<p style="margin: 4px 0; color: #374151;">${qc.photo.caption}</p>` : ''}
+      ${qc.gpsCoords ? `<p style="font-size: 11px; color: #9ca3af;">GPS: ${qc.gpsCoords.lat.toFixed(5)}, ${qc.gpsCoords.lng.toFixed(5)}</p>` : ''}
+    </div>`;
+  }).join('')}
+  ` : ''}
+
   <h2>Trip Statistics</h2>
   <ul>
     <li>Total Stops: ${journal.stats.stopsVisited + journal.stats.stopsSkipped}</li>

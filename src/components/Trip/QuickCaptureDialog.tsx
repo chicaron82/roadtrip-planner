@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { Camera, MapPin, Type, Tag, X } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Camera, MapPin, Type, Tag, X, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../UI/Dialog';
 import { Input } from '../UI/Input';
 import { Label } from '../UI/Label';
@@ -21,6 +21,8 @@ const CATEGORIES = [
   { value: 'other', label: '📌 Other', emoji: '📌' },
 ];
 
+type GpsStatus = 'idle' | 'loading' | 'captured' | 'unavailable';
+
 export function QuickCaptureDialog({
   open,
   onOpenChange,
@@ -32,7 +34,54 @@ export function QuickCaptureDialog({
   const [notes, setNotes] = useState('');
   const [category, setCategory] = useState('other');
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [gpsStatus, setGpsStatus] = useState<GpsStatus>('idle');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-request GPS when dialog opens so it's ready by save time
+  useEffect(() => {
+    if (!open) {
+      // Reset all state on close
+      setLocationName('');
+      setNotes('');
+      setCategory('other');
+      setPhotoPreview(null);
+      setGpsCoords(null);
+      setGpsStatus('idle');
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      setGpsStatus('unavailable');
+      return;
+    }
+
+    setGpsStatus('loading');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGpsCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setGpsStatus('captured');
+      },
+      () => {
+        setGpsStatus('unavailable');
+      },
+      { timeout: 10000, maximumAge: 60000 }
+    );
+  }, [open]);
+
+  const handleRetryGps = () => {
+    if (!navigator.geolocation) return;
+    setGpsStatus('loading');
+    setGpsCoords(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGpsCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setGpsStatus('captured');
+      },
+      () => setGpsStatus('unavailable'),
+      { timeout: 10000, maximumAge: 0 }
+    );
+  };
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -51,38 +100,35 @@ export function QuickCaptureDialog({
       return;
     }
 
-    const photo: JournalPhoto | null = photoPreview
+    const resolvedName = locationName || autoTaggedLocation || '';
+
+    const photo: JournalPhoto | undefined = photoPreview
       ? {
           id: `photo-${Date.now()}`,
           dataUrl: photoPreview,
-          caption: notes || locationName || 'Quick capture',
+          caption: notes || resolvedName || 'Quick capture',
           timestamp: new Date(),
-          location: locationName
+          location: (resolvedName || gpsCoords)
             ? {
-                lat: 0, // TODO: Get GPS coordinates
-                lng: 0,
-                name: locationName,
+                lat: gpsCoords?.lat ?? 0,
+                lng: gpsCoords?.lng ?? 0,
+                name: resolvedName,
               }
             : undefined,
         }
-      : null;
+      : undefined;
 
     const capture: QuickCapture = {
       id: `capture-${Date.now()}`,
-      photo: photo ?? undefined,
+      photo,
       autoTaggedSegment,
       autoTaggedLocation: autoTaggedLocation || locationName,
       timestamp: new Date(),
       category: category as QuickCapture['category'],
+      gpsCoords: gpsCoords ?? undefined,
     };
 
     onSave(capture);
-
-    // Reset form
-    setLocationName('');
-    setNotes('');
-    setCategory('other');
-    setPhotoPreview(null);
     onOpenChange(false);
   };
 
@@ -135,7 +181,7 @@ export function QuickCaptureDialog({
             />
           </div>
 
-          {/* Location Name */}
+          {/* Location Name + GPS status */}
           <div>
             <Label className="text-sm font-medium mb-2 block">
               <MapPin className="h-4 w-4 inline mr-1" />
@@ -146,6 +192,35 @@ export function QuickCaptureDialog({
               onChange={(e) => setLocationName(e.target.value)}
               placeholder={autoTaggedLocation || 'e.g., Amazing Burger Joint'}
             />
+            {/* GPS status row */}
+            <div className="flex items-center gap-2 mt-1.5">
+              {gpsStatus === 'loading' && (
+                <>
+                  <Loader2 className="h-3 w-3 text-blue-500 animate-spin" />
+                  <span className="text-[11px] text-blue-600">Getting location…</span>
+                </>
+              )}
+              {gpsStatus === 'captured' && gpsCoords && (
+                <>
+                  <CheckCircle2 className="h-3 w-3 text-green-500" />
+                  <span className="text-[11px] text-green-600">
+                    GPS captured ({gpsCoords.lat.toFixed(4)}, {gpsCoords.lng.toFixed(4)})
+                  </span>
+                </>
+              )}
+              {gpsStatus === 'unavailable' && (
+                <>
+                  <AlertCircle className="h-3 w-3 text-amber-500" />
+                  <span className="text-[11px] text-amber-600">Location unavailable —</span>
+                  <button
+                    onClick={handleRetryGps}
+                    className="text-[11px] text-amber-700 underline hover:no-underline"
+                  >
+                    retry
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Category */}
