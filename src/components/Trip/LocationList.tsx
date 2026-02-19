@@ -106,9 +106,10 @@ function SortableLocationItem({
           {loc.type === 'waypoint' && (
             <button
               onClick={() => onRemove(index)}
-              className="text-xs text-destructive hover:text-destructive/80 transition-colors flex items-center gap-1 opacity-0 group-hover:opacity-100"
+              className="text-xs text-destructive hover:text-destructive/80 transition-colors flex items-center gap-1 p-1 rounded hover:bg-destructive/10"
+              title="Remove stop"
             >
-              <X className="h-3 w-3" />
+              <X className="h-3.5 w-3.5" />
             </button>
           )}
         </div>

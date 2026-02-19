@@ -82,7 +82,7 @@ async function fetchOSRMRoute(
 
   try {
     const response = await fetch(
-      `https://router.project-osrm.org/route/v1/driving/${waypoints}?overview=full&geometries=geojson&steps=true${excludeParam}`
+      `https://router.project-osrm.org/route/v1/driving/${waypoints}?overview=full&geometries=geojson&steps=false${excludeParam}`
     );
     const data = await response.json();
 

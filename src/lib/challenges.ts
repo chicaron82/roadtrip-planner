@@ -170,6 +170,7 @@ export const CHALLENGES: TripChallenge[] = [
       numTravelers: 4,
       numDrivers: 2,
       maxDriveHours: 8,     // Real pace: ~8.7h/day avg across 10 driving days
+      avoidBorders: false,  // This trip crosses into the US
     },
 
     story:

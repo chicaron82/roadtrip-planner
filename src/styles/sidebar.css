@@ -103,6 +103,7 @@
 .sidebar-dark .step-title {
   font-family: 'Sora', system-ui, sans-serif;
   font-weight: 600;
+  color: hsl(220 15% 65%);
 }
 
 .sidebar-dark .step-title.is-active {
@@ -117,7 +118,7 @@
   font-family: 'DM Mono', monospace;
   font-size: 9px;
   letter-spacing: 0.08em;
-  color: hsl(220 12% 45%);
+  color: hsl(220 12% 55%);
   text-transform: uppercase;
 }
 
