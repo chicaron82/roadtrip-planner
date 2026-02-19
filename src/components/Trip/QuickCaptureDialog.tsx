@@ -73,6 +73,7 @@ export function QuickCaptureDialog({
       autoTaggedSegment,
       autoTaggedLocation: autoTaggedLocation || locationName,
       timestamp: new Date(),
+      category: category as QuickCapture['category'],
     };
 
     onSave(capture);

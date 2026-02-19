@@ -432,6 +432,7 @@ export interface QuickCapture {
   autoTaggedSegment?: number; // Nearest segment index
   autoTaggedLocation?: string; // "Near Salmon Arm"
   timestamp: Date;
+  category?: 'food' | 'attraction' | 'scenic' | 'shopping' | 'other';
 }
 
 // Mood emoji for day summary

@@ -123,6 +123,7 @@ function AppContent() {
 
   // Calculate trip + fetch POIs together (used by both wizard and direct button)
   const calculateAndDiscover = useCallback(async () => {
+    setTripConfirmed(false); // New route calculation = plan needs reconfirmation
     const tripResult = await calculateTrip();
     if (!tripResult) return;
     // Fetch POIs using returned summary (avoids stale closure)

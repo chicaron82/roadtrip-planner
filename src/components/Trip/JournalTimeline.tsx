@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { MapPin, Trophy, Clock, Camera, Star, BookOpen, Plus } from 'lucide-react';
-import type { TripSummary, TripSettings, TripJournal, JournalEntry, JournalPhoto, QuickCapture } from '../../types';
+import type { TripSummary, TripSettings, TripJournal, JournalEntry, JournalPhoto, QuickCapture, TripDay } from '../../types';
 import { JournalStopCard, QuickArriveButton } from './JournalStopCard';
 import { DayHeader } from './DayHeader';
 import { QuickCaptureDialog } from './QuickCaptureDialog';
@@ -32,6 +32,19 @@ export function JournalTimeline({
     () => new Date(`${settings.departureDate}T${settings.departureTime}`),
     [settings.departureDate, settings.departureTime]
   );
+
+  // Build map: segmentIndex → TripDay for the first segment of each day (interleaved headers)
+  const dayStartMap = useMemo(() => {
+    const map = new Map<number, TripDay>();
+    if (summary.days) {
+      for (const day of summary.days) {
+        if (day.segmentIndices.length > 0) {
+          map.set(day.segmentIndices[0], day);
+        }
+      }
+    }
+    return map;
+  }, [summary.days]);
 
   // Find current/next stop (first unvisited stop)
   const currentStopIndex = useMemo(() => {
@@ -216,15 +229,6 @@ export function JournalTimeline({
         />
       )}
 
-      {/* Multi-Day Headers */}
-      {summary.days && summary.days.length > 0 && (
-        <div className="mb-6">
-          {summary.days.map((day, idx) => (
-            <DayHeader key={day.dayNumber} day={day} isFirst={idx === 0} />
-          ))}
-        </div>
-      )}
-
       {/* Timeline */}
       <div className="space-y-0 pt-2 relative pb-12">
         {/* Timeline Line */}
@@ -260,8 +264,14 @@ export function JournalTimeline({
             qc => qc.autoTaggedSegment === index
           );
 
+          const dayHeader = dayStartMap.get(index);
+
           return (
             <div key={`stop-${index}`}>
+              {/* Day Header — interleaved at the start of each day */}
+              {dayHeader && (
+                <DayHeader day={dayHeader} isFirst={dayHeader.dayNumber === 1} className="mb-6" />
+              )}
               {/* Inline Add Memory Button (before stop) */}
               <div className="flex gap-4 mb-3">
                 <div className="w-10 flex justify-center">
