@@ -63,6 +63,7 @@ function AppContent() {
     addedPOIIds,
     addStop,
     removeStop,
+    clearStops,
     asSuggestedStops,
   } = useAddedStops();
 
@@ -435,11 +436,12 @@ function AppContent() {
     setSummary(null);
     resetPOIs();
     resetWizard();
+    clearStops();
     setActiveChallenge(null);
     setTripOrigin(null);
     setTripConfirmed(false);
     // Stay in current mode — go to Step 1, not landing
-  }, [setLocations, setSummary, resetWizard, resetPOIs, setTripOrigin]);
+  }, [setLocations, setSummary, resetWizard, resetPOIs, clearStops, setTripOrigin]);
 
   // Handle mode selection from landing screen
   const handleSelectMode = useCallback((mode: TripMode) => {

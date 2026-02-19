@@ -69,7 +69,7 @@ export function QuickCaptureDialog({
 
     const capture: QuickCapture = {
       id: `capture-${Date.now()}`,
-      photo: photo!,
+      photo: photo ?? undefined,
       autoTaggedSegment,
       autoTaggedLocation: autoTaggedLocation || locationName,
       timestamp: new Date(),

@@ -83,21 +83,9 @@ export function useAddedStops() {
     }));
   }, [addedStops]);
 
-  const totalAddedCost = useMemo(
-    () => addedStops.reduce((sum, s) => sum + s.estimatedCost, 0),
-    [addedStops]
-  );
-
-  const totalAddedTime = useMemo(
-    () => addedStops.reduce((sum, s) => sum + s.duration + s.detourMinutes, 0),
-    [addedStops]
-  );
-
   return {
     addedStops,
     addedPOIIds,
-    totalAddedCost,
-    totalAddedTime,
     addStop,
     removeStop,
     clearStops,

@@ -428,7 +428,7 @@ export interface BudgetActual {
 // Quick capture entry (GPS auto-tagged)
 export interface QuickCapture {
   id: string;
-  photo: JournalPhoto;
+  photo?: JournalPhoto; // Optional — captures can be notes-only with no photo
   autoTaggedSegment?: number; // Nearest segment index
   autoTaggedLocation?: string; // "Near Salmon Arm"
   timestamp: Date;

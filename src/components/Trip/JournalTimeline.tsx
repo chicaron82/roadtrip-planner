@@ -316,7 +316,7 @@ export function JournalTimeline({
                           className="w-full h-40 object-cover rounded-lg mb-2"
                         />
                       )}
-                      {capture.photo.caption && (
+                      {capture.photo?.caption && (
                         <p className="text-sm text-purple-700">{capture.photo.caption}</p>
                       )}
                     </div>
