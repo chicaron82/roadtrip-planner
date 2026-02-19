@@ -2,13 +2,16 @@
  * Driver Rotation System
  *
  * Computes driver assignments as a read-only overlay — never mutates segment data.
- * Drivers rotate at fuel stops (the natural swap point on any road trip).
+ * Drivers rotate at natural swap points on the road trip.
  *
  * The algorithm:
  * 1. Start with driver 1
- * 2. At each fuel stop, rotate to the next driver
- * 3. Round-robin through all drivers
- * 4. Track cumulative driving time per driver for fairness stats
+ * 2. Rotate at fuel stops when present (natural swap points)
+ * 3. Fallback: if fuel stops are too infrequent to create rotations,
+ *    generate time-based rotation points by splitting total drive time
+ *    evenly across all drivers
+ * 4. Round-robin through all drivers at each rotation point
+ * 5. Track cumulative driving time per driver for fairness stats
  */
 
 import type { RouteSegment } from '../types';
@@ -36,11 +39,41 @@ export interface DriverRotationResult {
 // ==================== CORE ALGORITHM ====================
 
 /**
- * Assign drivers to segments, rotating at fuel stops.
+ * Generate time-based rotation indices by splitting total drive time evenly.
+ * Used as a fallback when fuel stops are too infrequent to create rotations.
+ */
+function buildTimeBasedRotationIndices(
+  segments: RouteSegment[],
+  numDrivers: number,
+): number[] {
+  const totalMinutes = segments.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
+  const targetPerDriver = totalMinutes / numDrivers;
+
+  const indices: number[] = [];
+  let accumulated = 0;
+  let nextTarget = targetPerDriver;
+
+  for (let i = 0; i < segments.length - 1; i++) {
+    accumulated += segments[i].durationMinutes || 0;
+    if (accumulated >= nextTarget && indices.length < numDrivers - 1) {
+      indices.push(i);
+      nextTarget += targetPerDriver;
+    }
+  }
+
+  return indices;
+}
+
+/**
+ * Assign drivers to segments, rotating at natural swap points.
+ *
+ * Primary: rotates at fuel stops (natural pause points on any road trip).
+ * Fallback: if fuel stops don't create enough rotations, splits total
+ * drive time evenly across drivers using time-based rotation points.
  *
  * @param segments - Route segments to assign drivers to
  * @param numDrivers - Number of available drivers (1 = no rotation)
- * @param fuelStopIndices - Segment indices where fuel stops occur (rotation points)
+ * @param fuelStopIndices - Segment indices where fuel stops occur
  * @returns Driver assignments, stats, and rotation points
  */
 export function assignDrivers(
@@ -50,8 +83,19 @@ export function assignDrivers(
 ): DriverRotationResult {
   if (numDrivers < 1) numDrivers = 1;
 
-  // Build a set of rotation points (fuel stop indices)
-  const rotationSet = new Set(fuelStopIndices);
+  // Determine rotation points: fuel stops if they create enough rotations,
+  // otherwise fall back to time-based even distribution
+  const effectiveIndices =
+    fuelStopIndices.length >= numDrivers - 1
+      ? fuelStopIndices
+      : [
+          ...fuelStopIndices,
+          ...buildTimeBasedRotationIndices(segments, numDrivers).filter(
+            i => !fuelStopIndices.includes(i),
+          ),
+        ];
+
+  const rotationSet = new Set(effectiveIndices);
 
   const assignments: DriverAssignment[] = [];
   const statsMap = new Map<number, DriverStats>();

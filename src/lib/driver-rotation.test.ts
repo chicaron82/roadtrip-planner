@@ -70,12 +70,17 @@ describe('assignDrivers', () => {
     expect(result.assignments[6].driver).toBe(2); // after fuel at 5
   });
 
-  it('handles no fuel stops (single driver the whole way)', () => {
+  it('falls back to time-based rotation when no fuel stops provided', () => {
+    // 4 equal segments, 2 drivers — should split evenly (2 each)
     const segments = makeSegments(4);
     const result = assignDrivers(segments, 2, []);
 
-    result.assignments.forEach(a => expect(a.driver).toBe(1));
-    expect(result.rotationPoints).toHaveLength(0);
+    // Driver 1 takes first half, driver 2 takes second half
+    expect(result.assignments[0].driver).toBe(1);
+    expect(result.assignments[1].driver).toBe(1);
+    expect(result.assignments[2].driver).toBe(2);
+    expect(result.assignments[3].driver).toBe(2);
+    expect(result.rotationPoints).toHaveLength(1);
   });
 
   it('accumulates per-driver stats correctly', () => {
