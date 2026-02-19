@@ -21,8 +21,9 @@ const COST_ESTIMATES = {
   },
 };
 
-// Famous destinations database (curated list)
-// In a real app, this would come from an API
+// Curated static destination database for Adventure Mode.
+// Intentionally hand-picked — covers popular road trip targets in Canada and the US reachable
+// from central Canada. Expanding this list (or replacing it with a live API) is a future concern.
 const POPULAR_DESTINATIONS: Array<{
   name: string;
   lat: number;
@@ -144,7 +145,7 @@ function calculatePreferenceScore(
   const preferenceKeywords: Record<TripPreference, string[]> = {
     scenic: ['scenic', 'nature', 'hiking', 'lakes', 'coastal', 'mountain'],
     family: ['family', 'iconic', 'beach', 'nature', 'camping'],
-    budget: ['camping', 'nature', 'hiking', 'beach'],
+    budget: ['camping', 'nature', 'hiking', 'beach', 'city', 'budget', 'friendly'],
     foodie: ['foodie', 'wine', 'dining', 'culture', 'city'],
   };
 
