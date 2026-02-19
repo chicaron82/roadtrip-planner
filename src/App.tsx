@@ -379,10 +379,14 @@ function AppContent() {
   const openInGoogleMaps = useCallback(() => {
     const validLocations = locations.filter(loc => loc.lat !== 0 && loc.lng !== 0);
     if (validLocations.length < 2) return;
+    // Use city name/address strings so Google Maps routes to city centres,
+    // not whatever business happens to sit at the exact coordinate.
+    const locStr = (loc: import('./types').Location) =>
+      encodeURIComponent(loc.address || loc.name);
     const origin = validLocations[0];
     const destination = validLocations[validLocations.length - 1];
-    const waypoints = validLocations.slice(1, -1).map(loc => `${loc.lat},${loc.lng}`).join('|');
-    let url = `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}`;
+    const waypoints = validLocations.slice(1, -1).map(locStr).join('|');
+    let url = `https://www.google.com/maps/dir/?api=1&origin=${locStr(origin)}&destination=${locStr(destination)}`;
     if (waypoints) url += `&waypoints=${waypoints}`;
     window.open(url, '_blank');
   }, [locations]);
