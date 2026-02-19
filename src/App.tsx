@@ -19,6 +19,7 @@ import './styles/sidebar.css';
 import { TripProvider, useTripContext, DEFAULT_LOCATIONS } from './contexts';
 import { useWizard, useTripCalculation, useJournal, usePOI, type PlanningStep } from './hooks';
 import { useAddedStops } from './hooks/useAddedStops';
+import type { SuggestedStop } from './lib/stop-suggestions';
 
 // ==================== APP CONTENT (uses hooks) ====================
 
@@ -67,6 +68,29 @@ function AppContent() {
 
   // Trip confirmation gate (Phase 3)
   const [tripConfirmed, setTripConfirmed] = useState(false);
+
+  // Take Me Home (Phase 4) — mirror gas/hotel stops onto the return leg
+  const mirroredReturnStops = useMemo((): SuggestedStop[] => {
+    if (!summary || !settings.isRoundTrip || addedStops.length === 0) return [];
+    const total = summary.segments.length;
+    const midpoint = total / 2;
+    return addedStops
+      .filter(s =>
+        s.afterSegmentIndex < midpoint &&
+        (s.poi.category === 'gas' || s.poi.category === 'hotel')
+      )
+      .map(s => ({
+        id: `return-${s.id}`,
+        type: s.stopType,
+        reason: `${s.poi.name} (return leg)`,
+        afterSegmentIndex: (total - 1) - s.afterSegmentIndex,
+        estimatedTime: new Date(),
+        duration: s.duration,
+        priority: 'optional' as const,
+        details: { fuelCost: s.stopType === 'fuel' ? s.estimatedCost : undefined },
+        accepted: true,
+      }));
+  }, [addedStops, summary, settings.isRoundTrip]);
 
   const handleAddPOIFromMap = useCallback((poi: import('./types').POI, afterSegmentIndex?: number) => {
     if (!summary) return;
@@ -634,7 +658,7 @@ function AppContent() {
                   onAddPOI={addPOI}
                   onDismissPOI={dismissPOI}
                   onGoToStep={goToStep}
-                  externalStops={asSuggestedStops}
+                  externalStops={[...asSuggestedStops, ...mirroredReturnStops]}
                   tripConfirmed={tripConfirmed}
                   addedStopCount={addedStops.length}
                   onConfirmTrip={() => setTripConfirmed(true)}
