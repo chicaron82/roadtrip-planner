@@ -1,4 +1,4 @@
-import type { POISuggestion, RouteSegment, TripPreference, POISuggestionCategory, Location } from '../types';
+import type { POISuggestion, RouteSegment, TripPreference, POISuggestionCategory } from '../types';
 
 // Ranking weights (sum to 1.0)
 const WEIGHTS = {

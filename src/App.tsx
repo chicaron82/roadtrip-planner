@@ -62,7 +62,6 @@ function AppContent() {
     addedStops,
     addedPOIIds,
     addStop,
-    removeStop,
     clearStops,
     asSuggestedStops,
   } = useAddedStops();
