@@ -4,7 +4,7 @@ import { TripSummaryCard } from './components/Trip/TripSummary';
 import { Button } from './components/UI/Button';
 import { Card, CardContent } from './components/UI/Card';
 import { StepIndicator } from './components/UI/StepIndicator';
-import type { Location, TripChallenge, TripSummary, TripMode } from './types';
+import type { Location, TripChallenge, TripSummary, TripMode, TripOrigin } from './types';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { getHistory } from './lib/storage';
 import { parseStateFromURL, type TemplateImportResult } from './lib/url';
@@ -18,6 +18,7 @@ import './styles/sidebar.css';
 // Import contexts and hooks
 import { TripProvider, useTripContext, DEFAULT_LOCATIONS } from './contexts';
 import { useWizard, useTripCalculation, useJournal, usePOI, type PlanningStep } from './hooks';
+import { useAddedStops } from './hooks/useAddedStops';
 
 // ==================== APP CONTENT (uses hooks) ====================
 
@@ -54,6 +55,19 @@ function AppContent() {
     clearError: clearPOIError,
     resetPOIs,
   } = usePOI();
+
+  // Added Stops Hook (map-click → add to plan)
+  const {
+    addedPOIIds,
+    addStop,
+    removeStop,
+    asSuggestedStops,
+  } = useAddedStops();
+
+  const handleAddPOIFromMap = useCallback((poi: import('./types').POI, afterSegmentIndex?: number) => {
+    if (!summary) return;
+    addStop(poi, summary.segments, afterSegmentIndex);
+  }, [addStop, summary]);
 
   // Trip Calculation Hook
   const {
@@ -123,6 +137,13 @@ function AppContent() {
     forceStep(3);
   };
 
+  // Active challenge (set when user loads a challenge card)
+  const [activeChallenge, setActiveChallenge] = useState<TripChallenge | null>(null);
+
+  // Build origin for journal from active challenge or template import
+  const journalOrigin = useState<TripOrigin | null>(null);
+  const [tripOrigin, setTripOrigin] = journalOrigin;
+
   // Journal Hook
   const {
     activeJournal,
@@ -134,6 +155,8 @@ function AppContent() {
     summary,
     settings,
     vehicle,
+    origin: tripOrigin,
+    defaultTitle: activeChallenge?.title,
   });
 
   // Local UI State
@@ -214,6 +237,17 @@ function AppContent() {
     return filtered.length >= 2 ? filtered as [number, number][] : null;
   }, [summary]);
 
+  // Build day options for map popup day picker
+  const mapDayOptions = useMemo(() => {
+    if (!summary?.days || summary.days.length <= 1) return undefined;
+    return summary.days.map(day => ({
+      dayNumber: day.dayNumber,
+      label: `Day ${day.dayNumber} — ${day.route}`,
+      // Use the last segment index of this day for afterSegmentIndex
+      segmentIndex: day.segmentIndices[day.segmentIndices.length - 1] ?? 0,
+    }));
+  }, [summary?.days]);
+
   // Handlers
   const goToNextStep = useCallback(() => {
     if (planningStep === 2) {
@@ -278,13 +312,21 @@ function AppContent() {
       setSettings(prev => ({ ...prev, ...result.settings }));
     }
 
+    // Record origin as template fork
+    setActiveChallenge(null);
+    setTripOrigin({
+      type: 'template',
+      title: result.meta.title,
+      author: result.meta.author,
+    });
+
     // Mark steps 1+2 complete and jump to step 2 (so they can review vehicle)
     markStepComplete(1);
     if (result.vehicle) {
       markStepComplete(2);
       forceStep(2);
     }
-  }, [setLocations, setVehicle, setSettings, markStepComplete, forceStep]);
+  }, [setLocations, setVehicle, setSettings, setTripOrigin, markStepComplete, forceStep]);
 
   // Load a Chicharon's Challenge — converts challenge data into locations/settings/vehicle
   const handleSelectChallenge = useCallback((challenge: TripChallenge) => {
@@ -297,12 +339,14 @@ function AppContent() {
     if (challenge.settings) {
       setSettings(prev => ({ ...prev, ...challenge.settings }));
     }
+    setActiveChallenge(challenge);
+    setTripOrigin({ type: 'challenge', id: challenge.id, title: challenge.title });
     markStepComplete(1);
     if (challenge.vehicle) {
       markStepComplete(2);
       forceStep(2);
     }
-  }, [setLocations, setVehicle, setSettings, markStepComplete, forceStep]);
+  }, [setLocations, setVehicle, setSettings, setTripOrigin, markStepComplete, forceStep]);
 
   const openInGoogleMaps = useCallback(() => {
     const validLocations = locations.filter(loc => loc.lat !== 0 && loc.lng !== 0);
@@ -358,8 +402,10 @@ function AppContent() {
     setSummary(null);
     resetPOIs();
     resetWizard();
+    setActiveChallenge(null);
+    setTripOrigin(null);
     // Stay in current mode — go to Step 1, not landing
-  }, [setLocations, setSummary, resetWizard, resetPOIs]);
+  }, [setLocations, setSummary, resetWizard, resetPOIs, setTripOrigin]);
 
   // Handle mode selection from landing screen
   const handleSelectMode = useCallback((mode: TripMode) => {
@@ -563,6 +609,7 @@ function AppContent() {
                   viewMode={viewMode}
                   setViewMode={setViewMode}
                   activeJournal={activeJournal}
+                  activeChallenge={activeChallenge}
                   showOvernightPrompt={showOvernightPrompt}
                   suggestedOvernightStop={suggestedOvernightStop}
                   poiSuggestions={poiSuggestions}
@@ -582,6 +629,7 @@ function AppContent() {
                   onAddPOI={addPOI}
                   onDismissPOI={dismissPOI}
                   onGoToStep={goToStep}
+                  externalStops={asSuggestedStops}
                 />
               )}
             </CardContent>
@@ -633,7 +681,10 @@ function AppContent() {
           markerCategories={markerCategories}
           tripActive={tripActive}
           strategicFuelStops={strategicFuelStops}
+          addedPOIIds={addedPOIIds}
+          dayOptions={mapDayOptions}
           onMapClick={handleMapClick}
+          onAddPOI={summary ? handleAddPOIFromMap : undefined}
         />
         {summary && planningStep === 3 && (
           <TripSummaryCard

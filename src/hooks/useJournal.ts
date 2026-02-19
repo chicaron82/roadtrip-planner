@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { TripSummary, TripSettings, Vehicle, TripJournal } from '../types';
+import type { TripSummary, TripSettings, Vehicle, TripJournal, TripOrigin } from '../types';
 import {
   createJournal,
   updateJournal,
@@ -13,6 +13,10 @@ interface UseJournalOptions {
   summary: TripSummary | null;
   settings: TripSettings;
   vehicle: Vehicle;
+  /** Pre-computed origin to attach to new journals (e.g. challenge or template fork) */
+  origin?: TripOrigin | null;
+  /** Default title hint — shown pre-filled in the name input */
+  defaultTitle?: string;
 }
 
 interface UseJournalReturn {
@@ -23,7 +27,7 @@ interface UseJournalReturn {
   error: string | null;
 
   // Actions
-  startJournal: () => Promise<void>;
+  startJournal: (title?: string) => Promise<void>;
   updateActiveJournal: (journal: TripJournal) => Promise<void>;
   setViewMode: (mode: ViewMode) => void;
   clearJournal: () => void;
@@ -33,6 +37,8 @@ export function useJournal({
   summary,
   settings,
   vehicle,
+  origin,
+  defaultTitle,
 }: UseJournalOptions): UseJournalReturn {
   const [activeJournal, setActiveJournal] = useState<TripJournal | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('plan');
@@ -54,7 +60,7 @@ export function useJournal({
     loadActiveJournal();
   }, []);
 
-  const startJournal = useCallback(async () => {
+  const startJournal = useCallback(async (title?: string) => {
     if (!summary) {
       setError('Cannot start journal without a trip summary');
       return;
@@ -64,7 +70,14 @@ export function useJournal({
     setError(null);
 
     try {
-      const journal = await createJournal(summary, settings, vehicle);
+      const resolvedTitle = title || defaultTitle || undefined;
+      const journal = await createJournal(
+        summary,
+        settings,
+        vehicle,
+        resolvedTitle,
+        origin ?? undefined,
+      );
       setActiveJournal(journal);
       setActiveJournalId(journal.id);
       setViewMode('journal');
@@ -74,7 +87,7 @@ export function useJournal({
     } finally {
       setIsLoading(false);
     }
-  }, [summary, settings, vehicle]);
+  }, [summary, settings, vehicle, origin, defaultTitle]);
 
   const updateActiveJournal = useCallback(async (updatedJournal: TripJournal) => {
     try {

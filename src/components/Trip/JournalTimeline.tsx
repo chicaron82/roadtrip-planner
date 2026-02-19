@@ -161,6 +161,29 @@ export function JournalTimeline({
           </div>
         </div>
 
+        {/* Origin badge */}
+        {journal.origin && journal.origin.type !== 'manual' && (
+          <div className="flex items-center gap-1.5 text-xs mb-3 pb-3 border-b border-purple-100">
+            {journal.origin.type === 'challenge' ? (
+              <>
+                <span>🏁</span>
+                <span className="font-semibold text-amber-700">Challenge Run</span>
+                <span className="text-purple-400 mx-0.5">—</span>
+                <span className="text-purple-700">{journal.origin.title}</span>
+              </>
+            ) : (
+              <>
+                <span>🔀</span>
+                <span className="font-semibold text-purple-700">Forked from</span>
+                <span className="text-purple-900 font-medium">"{journal.origin.title}"</span>
+                {journal.origin.author && (
+                  <span className="text-purple-500">by {journal.origin.author}</span>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
         {/* Progress Bar */}
         <div className="h-2 bg-purple-100 rounded-full overflow-hidden">
           <div

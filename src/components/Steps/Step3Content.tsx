@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Share2, Printer, Maximize2, Minimize2 } from 'lucide-react';
-import type { Location, Vehicle, TripSettings, TripSummary, POISuggestion, TripJournal, StopType, DayType, OvernightStop, TripMode } from '../../types';
+import type { Location, Vehicle, TripSettings, TripSummary, POISuggestion, TripJournal, StopType, DayType, OvernightStop, TripMode, TripChallenge } from '../../types';
 import { Button } from '../UI/Button';
 import { OvernightStopPrompt } from '../Trip/OvernightStopPrompt';
 import { JournalModeToggle, StartJournalCTA, type ViewMode } from '../Trip/JournalModeToggle';
@@ -8,6 +8,7 @@ import { JournalTimeline } from '../Trip/JournalTimeline';
 import { ItineraryTimeline } from '../Trip/ItineraryTimeline';
 import { printTrip } from '../Trip/TripPrintView';
 import { generateEstimate } from '../../lib/estimate-service';
+import type { SuggestedStop } from '../../lib/stop-suggestions';
 import type { PlanningStep } from '../../hooks';
 
 interface Step3ContentProps {
@@ -18,6 +19,7 @@ interface Step3ContentProps {
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
   activeJournal: TripJournal | null;
+  activeChallenge?: TripChallenge | null;
   showOvernightPrompt: boolean;
   suggestedOvernightStop: Location | null;
   poiSuggestions: POISuggestion[];
@@ -26,7 +28,7 @@ interface Step3ContentProps {
   shareUrl: string | null;
   onOpenGoogleMaps: () => void;
   onCopyShareLink: () => void;
-  onStartJournal: () => void;
+  onStartJournal: (title?: string) => void;
   onUpdateJournal: (journal: TripJournal) => void;
   onUpdateStopType: (segmentIndex: number, stopType: StopType) => void;
   onUpdateDayNotes?: (dayNumber: number, notes: string) => void;
@@ -37,6 +39,7 @@ interface Step3ContentProps {
   onAddPOI: (poiId: string) => void;
   onDismissPOI: (poiId: string) => void;
   onGoToStep: (step: PlanningStep) => void;
+  externalStops?: SuggestedStop[];
 }
 
 export function Step3Content({
@@ -47,6 +50,7 @@ export function Step3Content({
   viewMode,
   setViewMode,
   activeJournal,
+  activeChallenge,
   showOvernightPrompt,
   suggestedOvernightStop,
   poiSuggestions,
@@ -66,6 +70,7 @@ export function Step3Content({
   onAddPOI,
   onDismissPOI,
   onGoToStep,
+  externalStops,
 }: Step3ContentProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -99,7 +104,10 @@ export function Step3Content({
               onUpdateJournal={onUpdateJournal}
             />
           ) : (
-            <StartJournalCTA onStart={onStartJournal} />
+            <StartJournalCTA
+              onStart={onStartJournal}
+              defaultName={activeChallenge?.title}
+            />
           )
         ) : (
           <ItineraryTimeline
@@ -116,6 +124,7 @@ export function Step3Content({
             isLoadingPOIs={isLoadingPOIs}
             onAddPOI={onAddPOI}
             onDismissPOI={onDismissPOI}
+            externalStops={externalStops}
           />
         )}
       </div>
@@ -256,7 +265,10 @@ export function Step3Content({
                 onUpdateJournal={onUpdateJournal}
               />
             ) : (
-              <StartJournalCTA onStart={onStartJournal} />
+              <StartJournalCTA
+                onStart={onStartJournal}
+                defaultName={activeChallenge?.title}
+              />
             )
           ) : (
             <ItineraryTimeline
@@ -273,6 +285,7 @@ export function Step3Content({
               isLoadingPOIs={isLoadingPOIs}
               onAddPOI={onAddPOI}
               onDismissPOI={onDismissPOI}
+              externalStops={externalStops}
             />
           )}
         </>

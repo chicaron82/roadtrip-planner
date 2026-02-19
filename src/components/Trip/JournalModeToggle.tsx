@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Map, BookOpen } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -54,40 +55,99 @@ export function JournalModeToggle({
   );
 }
 
-// Start Journal CTA for when no journal exists yet
+// Start Journal CTA — expands to show a name input before creating the journal
 interface StartJournalCTAProps {
-  onStart: () => void;
+  onStart: (title?: string) => void;
   className?: string;
+  /** Pre-filled title suggestion (e.g. challenge title or template name) */
+  defaultName?: string;
 }
 
-export function StartJournalCTA({ onStart, className }: StartJournalCTAProps) {
+export function StartJournalCTA({ onStart, className, defaultName }: StartJournalCTAProps) {
+  const [expanded, setExpanded] = useState(false);
+  const [name, setName] = useState(defaultName ?? '');
+
+  if (!expanded) {
+    return (
+      <div
+        className={cn(
+          'rounded-xl border-2 border-dashed border-purple-200 bg-purple-50/50 p-6 text-center',
+          className
+        )}
+      >
+        <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-3">
+          <BookOpen className="h-6 w-6 text-purple-600" />
+        </div>
+
+        <h3 className="font-bold text-purple-900 mb-1">Start Your Trip Journal</h3>
+
+        <p className="text-sm text-purple-700 mb-4 max-w-xs mx-auto">
+          Capture photos, add notes, and track actual times as you travel. Create memories you can
+          share!
+        </p>
+
+        <button
+          onClick={() => setExpanded(true)}
+          className="inline-flex items-center gap-2 px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium text-sm transition-colors"
+        >
+          <BookOpen className="h-4 w-4" />
+          Start Journaling
+        </button>
+
+        <p className="text-xs text-purple-500 mt-3">
+          Works offline. Your memories are saved locally.
+        </p>
+      </div>
+    );
+  }
+
+  // Expanded: name input form
   return (
     <div
       className={cn(
-        'rounded-xl border-2 border-dashed border-purple-200 bg-purple-50/50 p-6 text-center',
+        'rounded-xl border-2 border-purple-300 bg-purple-50 p-6',
         className
       )}
     >
-      <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-3">
-        <BookOpen className="h-6 w-6 text-purple-600" />
+      <div className="flex items-center gap-2 mb-4">
+        <BookOpen className="h-5 w-5 text-purple-600" />
+        <h3 className="font-bold text-purple-900">Name your journal</h3>
       </div>
 
-      <h3 className="font-bold text-purple-900 mb-1">Start Your Trip Journal</h3>
-
-      <p className="text-sm text-purple-700 mb-4 max-w-xs mx-auto">
-        Capture photos, add notes, and track actual times as you travel. Create memories you can
-        share!
+      <p className="text-sm text-purple-700 mb-3">
+        Give it a personal title — your name, a vibe, anything that feels right.
       </p>
 
-      <button
-        onClick={onStart}
-        className="inline-flex items-center gap-2 px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium text-sm transition-colors"
-      >
-        <BookOpen className="h-4 w-4" />
-        Start Journaling
-      </button>
+      <input
+        type="text"
+        value={name}
+        onChange={e => setName(e.target.value)}
+        placeholder="e.g. Jenny's Eastern US Run"
+        maxLength={80}
+        className="w-full px-3 py-2 rounded-lg border border-purple-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 placeholder:text-purple-300 mb-4"
+        onKeyDown={e => {
+          if (e.key === 'Enter') onStart(name.trim() || undefined);
+        }}
+        autoFocus
+      />
 
-      <p className="text-xs text-purple-500 mt-3">
+      <div className="flex gap-2">
+        <button
+          onClick={() => onStart(name.trim() || undefined)}
+          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium text-sm transition-colors"
+        >
+          <BookOpen className="h-4 w-4" />
+          Create Journal
+        </button>
+        <button
+          onClick={() => setExpanded(false)}
+          className="px-4 py-2.5 text-purple-600 hover:bg-purple-100 rounded-lg text-sm font-medium transition-colors"
+        >
+          Back
+        </button>
+      </div>
+
+      <p className="text-xs text-purple-500 mt-3 text-center">
         Works offline. Your memories are saved locally.
       </p>
     </div>

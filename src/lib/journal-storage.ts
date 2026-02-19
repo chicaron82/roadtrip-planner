@@ -70,7 +70,8 @@ export async function createJournal(
   tripSummary: TripSummary,
   settings: TripSettings,
   vehicle: Vehicle,
-  title?: string
+  title?: string,
+  origin?: import('../types').TripOrigin
 ): Promise<TripJournal> {
   const db = await openDB();
   const id = `journal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -78,6 +79,7 @@ export async function createJournal(
   const journal: TripJournal = {
     id,
     version: '1.0',
+    origin,
     tripSummary,
     settings,
     vehicle,

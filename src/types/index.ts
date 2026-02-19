@@ -453,9 +453,20 @@ export type TemplatePrivacy =
   | 'private';      // Never shareable
 
 // Complete trip journal
+/** Where did this trip originate? Stored on TripJournal for fork attribution. */
+export interface TripOrigin {
+  type: 'challenge' | 'template' | 'manual';
+  id?: string;       // challenge ID or template slug
+  title: string;     // e.g. "The Eastern US Gauntlet" / "Aaron's BC Loop"
+  author?: string;   // template author name if imported from file
+}
+
 export interface TripJournal {
   id: string;
   version: '1.0';
+
+  // Origin tracking — how did this journal start?
+  origin?: TripOrigin;
 
   // Link to original trip plan
   tripSummaryId?: string;
