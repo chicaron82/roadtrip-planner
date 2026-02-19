@@ -361,7 +361,7 @@ export function JournalTimeline({
                   <div className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
                     <span>
-                      {Math.floor(segment.durationMinutes / 60)}h {segment.durationMinutes % 60}m
+                      {Math.floor(segment.durationMinutes / 60)}h {Math.round(segment.durationMinutes % 60)}m
                     </span>
                   </div>
                 </div>

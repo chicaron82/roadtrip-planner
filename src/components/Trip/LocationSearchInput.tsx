@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Input } from '../UI/Input';
 import { searchLocations } from '../../lib/api';
 import type { Location } from '../../types';
-import { Loader2 } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 import { Card } from '../UI/Card';
 
 interface LocationSearchInputProps {
@@ -59,19 +59,38 @@ export function LocationSearchInput({ value, onSelect, placeholder, className }:
     setIsOpen(false);
   };
 
+  const handleClear = () => {
+    setQuery('');
+    setResults([]);
+    setIsOpen(false);
+    onSelect({ name: '', lat: 0, lng: 0 });
+  };
+
   return (
     <div ref={wrapperRef} className={`relative ${className}`}>
       <Input
         value={query}
         onChange={(e) => handleSearch(e.target.value)}
         placeholder={placeholder}
-        className="h-10 text-sm"
+        className="h-10 text-sm pr-8"
       />
-      
+
       {isLoading && (
         <div className="absolute right-3 top-3">
           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
         </div>
+      )}
+
+      {!isLoading && query && (
+        <button
+          type="button"
+          onClick={handleClear}
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+          tabIndex={-1}
+          aria-label="Clear"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
       )}
 
       {isOpen && results.length > 0 && (
