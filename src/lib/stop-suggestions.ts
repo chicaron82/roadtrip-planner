@@ -33,6 +33,33 @@ export interface StopSuggestionConfig {
   stopFrequency?: StopFrequency; // How often to suggest stops (default 'balanced')
 }
 
+/** UTC offset in hours for North American timezone abbreviations. */
+function getUtcOffsetHours(abbr: string): number | null {
+  const offsets: Record<string, number> = {
+    'PST': -8, 'PDT': -7,
+    'MST': -7, 'MDT': -6,
+    'CST': -6, 'CDT': -5,
+    'EST': -5, 'EDT': -4,
+    'AST': -4, 'ADT': -3,       // Atlantic (Maritimes)
+    'NST': -3.5, 'NDT': -2.5,   // Newfoundland
+    'AKST': -9, 'AKDT': -8,     // Alaska
+    'HST': -10, 'HDT': -9,      // Hawaii
+  };
+  return offsets[abbr] ?? null;
+}
+
+/**
+ * Wall-clock shift in hours when crossing from one timezone to another.
+ * Positive = clocks jump forward (lose time). CDT→EDT = +1.
+ */
+function getTimezoneShiftHours(fromAbbr: string | null, toAbbr: string | null): number {
+  if (!fromAbbr || !toAbbr || fromAbbr === toAbbr) return 0;
+  const fromOffset = getUtcOffsetHours(fromAbbr);
+  const toOffset = getUtcOffsetHours(toAbbr);
+  if (fromOffset === null || toOffset === null) return 0;
+  return toOffset - fromOffset;
+}
+
 /**
  * Generate smart stop suggestions based on route, vehicle, and settings
  */
@@ -66,6 +93,12 @@ export function generateSmartStops(
   let hoursOnRoad = 0;
   let totalDrivingToday = 0;
   let lastBreakTime = new Date(config.departureTime);
+
+  // Timezone tracking — weather API's timezoneAbbr is more reliable than
+  // segment-analyzer's lngDiff heuristic (which misses Winnipeg→Thunder Bay).
+  let currentTzAbbr: string | null = segments[0]?.weather?.timezoneAbbr ?? null;
+
+  const LATEST_ARRIVAL_HOUR = 21; // 9 PM local — stop before arriving past this
 
   const REST_BREAK_INTERVAL = stopFrequency === 'conservative' ? 1.5 : stopFrequency === 'balanced' ? 2 : 2.5;
   const MEAL_TIMES = { breakfast: 8, lunch: 12, dinner: 18 }; // 24h format
@@ -107,7 +140,61 @@ export function generateSmartStops(
       hoursSinceLastFill = 0;
     }
 
+    // === ARRIVAL WINDOW CHECK (pre-segment) ===
+    // "I want to be checked into a hotel by 9pm local time."
+    // If driving this segment would push arrival past the deadline, stop NOW.
+    if (totalDrivingToday > 0) {
+      const projectedMs = currentTime.getTime() + segment.durationMinutes * 60000;
+      const tzShiftMs = getTimezoneShiftHours(currentTzAbbr, segment.weather?.timezoneAbbr ?? null) * 3600000;
+      const projectedArrival = new Date(projectedMs + tzShiftMs);
+      const arrivalHour = projectedArrival.getHours();
+      const arrivalMinute = projectedArrival.getMinutes();
+      const arrivalDecimal = arrivalHour + arrivalMinute / 60;
+      const currentDecimal = currentTime.getHours() + currentTime.getMinutes() / 60;
+
+      // Past 9pm, OR segment so long it wraps past midnight
+      const wouldArriveLate = arrivalDecimal >= LATEST_ARRIVAL_HOUR
+        || (segment.durationMinutes > 60 && arrivalDecimal < currentDecimal);
+
+      if (wouldArriveLate) {
+        const arrivalTimeStr = projectedArrival.toLocaleTimeString('en-US', {
+          hour: 'numeric', minute: '2-digit', hour12: true,
+        });
+        const tzLabel = segment.weather?.timezoneAbbr || currentTzAbbr || '';
+        const dh = config.departureTime.getHours();
+        const dm = config.departureTime.getMinutes();
+        const departStr = `${dh % 12 || 12}:${String(dm).padStart(2, '0')} ${dh >= 12 ? 'PM' : 'AM'}`;
+
+        suggestions.push({
+          id: `overnight-arrival-${index}`,
+          type: 'overnight',
+          reason: `Stopping for the night — continuing to ${segment.to.name} would mean arriving around ${arrivalTimeStr}${tzLabel ? ' ' + tzLabel : ''}, past the 9 PM check-in window. Rest up and depart fresh at ${departStr} tomorrow.`,
+          afterSegmentIndex: index - 1,
+          estimatedTime: new Date(currentTime),
+          duration: 8 * 60,
+          priority: 'required',
+          details: { hoursOnRoad },
+        });
+
+        // Reset to next morning at configured departure time
+        totalDrivingToday = 0;
+        const nextDay = new Date(currentTime);
+        nextDay.setDate(nextDay.getDate() + 1);
+        nextDay.setHours(dh, dm, 0, 0);
+        currentTime = nextDay;
+        lastBreakTime = new Date(currentTime);
+        currentFuel = config.tankSizeLitres;
+        distanceSinceLastFill = 0;
+        hoursSinceLastFill = 0;
+      }
+    }
+
     // === FUEL STOP CHECK ===
+    // TODO: When fuel + rest fire back-to-back in the same iteration, the sim advances
+    // 15 min twice (30 min total) but consolidateStops merges them into a single 15-min stop.
+    // Downstream simulationItems uses the merged duration, so the timeline is correct — but
+    // this engine's internal clock drifts ~15 min pessimistic per merged pair. Acceptable for
+    // now; fix if cumulative drift becomes noticeable on very long multi-day trips.
     distanceSinceLastFill += segment.distanceKm;
     hoursSinceLastFill += segmentHours;
 
@@ -229,10 +316,12 @@ export function generateSmartStops(
       });
 
       totalDrivingToday = 0; // Reset for next day
-      // Move to next morning (8 AM)
+      // Move to next morning at configured departure time
+      const departHour = config.departureTime.getHours();
+      const departMinute = config.departureTime.getMinutes();
       const nextDay = new Date(currentTime);
       nextDay.setDate(nextDay.getDate() + 1);
-      nextDay.setHours(8, 0, 0, 0);
+      nextDay.setHours(departHour, departMinute, 0, 0);
       currentTime = nextDay;
       lastBreakTime = new Date(currentTime);
     }
@@ -265,6 +354,19 @@ export function generateSmartStops(
     currentFuel -= fuelNeeded;
     hoursOnRoad += segmentHours;
     currentTime = new Date(currentTime.getTime() + segment.durationMinutes * 60 * 1000);
+
+    // === TIMEZONE SHIFT ===
+    // After arriving at this segment's destination, check if we entered a new timezone.
+    // Uses weather API's timezoneAbbr (not segment.timezoneCrossing which has a flawed heuristic).
+    const segTzAbbr = segment.weather?.timezoneAbbr ?? null;
+    if (segTzAbbr && segTzAbbr !== currentTzAbbr) {
+      const shiftMs = getTimezoneShiftHours(currentTzAbbr, segTzAbbr) * 3600000;
+      // Shift wall-clock time: CDT→EDT means clocks jump forward 1h (shiftMs > 0).
+      // Shift lastBreakTime too so hoursSinceBreak stays correct.
+      currentTime = new Date(currentTime.getTime() + shiftMs);
+      lastBreakTime = new Date(lastBreakTime.getTime() + shiftMs);
+      currentTzAbbr = segTzAbbr;
+    }
   });
 
   // Deduplicate and consolidate stops that are too close together
@@ -272,7 +374,12 @@ export function generateSmartStops(
 }
 
 /**
- * Consolidate stops that are too close together (within 30 minutes)
+ * Consolidate stops that are too close together.
+ * Current: merges adjacent entries with the same afterSegmentIndex.
+ * TODO: When attraction/POI stops are added, upgrade to time-window merge
+ * (e.g., within 20 min of estimatedTime) with priority tiers:
+ *   overnight > fuel > meal > rest > attraction.
+ * Segment-index matching alone won't catch POIs placed at arbitrary points along a leg.
  */
 function consolidateStops(stops: SuggestedStop[]): SuggestedStop[] {
   if (stops.length <= 1) return stops;
