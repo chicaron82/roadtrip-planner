@@ -190,11 +190,11 @@ export function generateSmartStops(
     }
 
     // === FUEL STOP CHECK ===
-    // TODO: When fuel + rest fire back-to-back in the same iteration, the sim advances
-    // 15 min twice (30 min total) but consolidateStops merges them into a single 15-min stop.
-    // Downstream simulationItems uses the merged duration, so the timeline is correct — but
-    // this engine's internal clock drifts ~15 min pessimistic per merged pair. Acceptable for
-    // now; fix if cumulative drift becomes noticeable on very long multi-day trips.
+    // stopTimeAddedMs tracks time already advanced this iteration so that when
+    // fuel + rest fire together, the rest stop doesn't double-count the 15 min.
+    // consolidateStops merges them into a single stop, so the sim clock should
+    // only advance by max(fuel.duration, rest.duration), not the sum.
+    let stopTimeAddedMs = 0;
     distanceSinceLastFill += segment.distanceKm;
     hoursSinceLastFill += segmentHours;
 
@@ -222,7 +222,7 @@ export function generateSmartStops(
         reason = `Tank at ${tankPercent}% (${litresRemaining}L remaining). ~$${refillCost.toFixed(2)} to refill. You've driven ${distanceSinceLastFill.toFixed(0)} km since last fill.`;
       }
 
-      // Check if the next segment is a sparse stretch (> 150km)
+      // Check if the next segment is a sparse stretch (>150km)
       let sparseWarning: string | undefined;
       if (segment.distanceKm > 150) {
         const hoursForSegment = segment.durationMinutes / 60;
@@ -248,7 +248,8 @@ export function generateSmartStops(
       currentFuel = config.tankSizeLitres; // Simulated refill
       distanceSinceLastFill = 0; // Reset distance tracker
       hoursSinceLastFill = 0; // Reset comfort timer
-      currentTime = new Date(currentTime.getTime() + 15 * 60 * 1000); // Add 15 min
+      stopTimeAddedMs += 15 * 60 * 1000; // Track time advanced
+      currentTime = new Date(currentTime.getTime() + 15 * 60 * 1000);
     }
 
     // === REST BREAK CHECK (every 2-3 hours) ===
@@ -269,7 +270,15 @@ export function generateSmartStops(
       });
 
       lastBreakTime = new Date(currentTime);
-      currentTime = new Date(currentTime.getTime() + 15 * 60 * 1000);
+      // Only advance clock for time not already eaten by a fuel stop this iteration.
+      // consolidateStops merges adjacent stops into max(duration), so advancing
+      // both would drift the clock by an extra 15 min per merged pair.
+      const restMs = 15 * 60 * 1000;
+      const remainingMs = Math.max(0, restMs - stopTimeAddedMs);
+      if (remainingMs > 0) {
+        currentTime = new Date(currentTime.getTime() + remainingMs);
+        stopTimeAddedMs += remainingMs;
+      }
     }
 
     // === MEAL STOP CHECK ===
@@ -374,15 +383,33 @@ export function generateSmartStops(
 }
 
 /**
- * Consolidate stops that are too close together.
- * Current: merges adjacent entries with the same afterSegmentIndex.
- * TODO: When attraction/POI stops are added, upgrade to time-window merge
- * (e.g., within 20 min of estimatedTime) with priority tiers:
- *   overnight > fuel > meal > rest > attraction.
- * Segment-index matching alone won't catch POIs placed at arbitrary points along a leg.
+ * Merge priority tiers: higher wins when stops collide.
+ * overnight > fuel > meal > rest
+ * POI/attraction (future) would slot in below rest.
+ */
+const STOP_MERGE_PRIORITY: Record<StopType, number> = {
+  overnight: 4,
+  fuel:      3,
+  meal:      2,
+  rest:      1,
+};
+
+/**
+ * Consolidate stops that fall within a 20-minute time window of each other.
+ * Time-window matching (instead of segment-index matching) correctly handles
+ * POI stops placed at arbitrary positions along a leg.
+ *
+ * Merge strategy:
+ * - Pair up stops within MERGE_WINDOW_MS of each other (greedy, left-to-right)
+ * - Winning type = highest priority tier
+ * - Duration = max of the two (merged stop is long enough for both)
+ * - Priority = most urgent of the two
+ * - Reason = both reasons concatenated
  */
 function consolidateStops(stops: SuggestedStop[]): SuggestedStop[] {
   if (stops.length <= 1) return stops;
+
+  const MERGE_WINDOW_MS = 20 * 60 * 1000; // 20-minute merge window
 
   const consolidated: SuggestedStop[] = [];
   let i = 0;
@@ -391,17 +418,25 @@ function consolidateStops(stops: SuggestedStop[]): SuggestedStop[] {
     const current = stops[i];
     const next = stops[i + 1];
 
-    if (next && current.afterSegmentIndex === next.afterSegmentIndex) {
-      // Merge stops at the same location - prioritize fuel and overnight
+    const timeDeltaMs = next
+      ? Math.abs(next.estimatedTime.getTime() - current.estimatedTime.getTime())
+      : Infinity;
+
+    if (next && timeDeltaMs <= MERGE_WINDOW_MS) {
+      // Pick the higher-priority type
+      const currentPri = STOP_MERGE_PRIORITY[current.type] ?? 0;
+      const nextPri    = STOP_MERGE_PRIORITY[next.type] ?? 0;
+      const winningType = currentPri >= nextPri ? current.type : next.type;
+
       const merged: SuggestedStop = {
         ...current,
         id: `merged-${current.id}-${next.id}`,
-        type: current.type === 'fuel' || next.type === 'fuel' ? 'fuel' :
-              current.type === 'overnight' || next.type === 'overnight' ? 'overnight' : current.type,
+        type: winningType,
         reason: `${current.reason}. Also: ${next.reason}`,
         duration: Math.max(current.duration, next.duration),
-        priority: current.priority === 'required' || next.priority === 'required' ? 'required' :
-                  current.priority === 'recommended' || next.priority === 'recommended' ? 'recommended' : 'optional',
+        priority:
+          current.priority === 'required' || next.priority === 'required' ? 'required' :
+          current.priority === 'recommended' || next.priority === 'recommended' ? 'recommended' : 'optional',
         details: { ...current.details, ...next.details },
       };
       consolidated.push(merged);

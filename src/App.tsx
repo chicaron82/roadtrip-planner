@@ -13,6 +13,7 @@ import { AdventureMode, type AdventureSelection } from './components/Trip/Advent
 import { buildAdventureBudget } from './lib/adventure-service';
 import { Step1Content, Step2Content, Step3Content } from './components/Steps';
 import { LandingScreen } from './components/Landing/LandingScreen';
+import { MobileBottomSheet } from './components/Trip/MobileBottomSheet';
 import './styles/sidebar.css';
 
 // Import contexts and hooks
@@ -189,7 +190,7 @@ function AppContent() {
   });
 
   // Local UI State
-  const [mobileView, setMobileView] = useState<'map' | 'plan'>('map');
+
   const [tripActive, setTripActive] = useState(false);
   const [history] = useState<TripSummary[]>(() => getHistory());
   const [showAdventureMode, setShowAdventureMode] = useState(false);
@@ -246,12 +247,9 @@ function AppContent() {
     }
   }, [settings.useArrivalTime, settings.arrivalDate, settings.arrivalTime, summary, settings.departureDate, settings.departureTime, setSettings]);
 
-  // Scroll sidebar to top when step changes & show plan on mobile at step 3
+  // Scroll sidebar to top when step changes
   useEffect(() => {
     sidebarScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
-    if (planningStep === 3) {
-      setMobileView('plan');
-    }
   }, [planningStep]);
 
   // Valid route geometry for map
@@ -474,9 +472,10 @@ function AppContent() {
     <div className="flex flex-col md:flex-row h-screen w-full overflow-hidden bg-background text-foreground">
       {/* Sidebar — dark mission control */}
       <div className={`sidebar-dark sidebar-entrance w-full md:w-[420px] ${
-        planningStep === 3 && mobileView === 'plan' ? 'h-full' : 'h-[45vh]'
+        'h-[45vh]'
       } md:h-full flex flex-col z-10 shadow-2xl order-2 md:order-1 ${
-        planningStep === 3 && mobileView === 'map' ? 'hidden md:flex' : ''
+        // On mobile, hide the entire sidebar when on Step 3 — the bottom sheet takes over
+        planningStep === 3 ? 'hidden md:flex' : ''
       }`} style={{ background: 'hsl(225 30% 8%)' }}>
         {/* Header */}
         <div className="sidebar-header p-4">
@@ -554,29 +553,8 @@ function AppContent() {
           />
         </div>
 
-        {/* Mobile View Toggle */}
-        {planningStep === 3 && (
-          <div className="md:hidden px-4 py-2" style={{ borderBottom: '1px solid hsl(225 18% 16%)' }}>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setMobileView('plan')}
-                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
-                  mobileView === 'plan' ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-background text-muted-foreground hover:bg-muted'
-                }`}
-              >
-                📋 Plan
-              </button>
-              <button
-                onClick={() => setMobileView('map')}
-                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
-                  mobileView === 'map' ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-background text-muted-foreground hover:bg-muted'
-                }`}
-              >
-                🗺️ Map
-              </button>
-            </div>
-          </div>
-        )}
+
+
 
         {/* POI Controls */}
         {planningStep === 3 && (
@@ -707,12 +685,10 @@ function AppContent() {
         </div>
       </div>
 
-      {/* Map Area */}
+      {/* Map Area — full screen on mobile Step 3 (bottom sheet overlays) */}
       <div className={`flex-1 relative ${
-        planningStep === 3 && mobileView === 'map' ? 'h-full' : 'h-[55vh]'
-      } md:h-full order-1 md:order-2 ${
-        planningStep === 3 && mobileView === 'plan' ? 'hidden md:block' : ''
-      }`}>
+        planningStep === 3 ? 'h-full' : 'h-[55vh]'
+      } md:h-full order-1 md:order-2`}>
         <Map
           locations={locations}
           routeGeometry={validRouteGeometry}
@@ -726,15 +702,82 @@ function AppContent() {
           onAddPOI={summary ? handleAddPOIFromMap : undefined}
         />
         {summary && planningStep === 3 && (
-          <TripSummaryCard
-            summary={summary}
-            settings={settings}
-            tripActive={tripActive}
-            onStop={() => setTripActive(false)}
-            onOpenVehicleTab={() => goToStep(2)}
-          />
+          // Hide on mobile — bottom sheet handles stats; show on md+
+          <div className="hidden md:block">
+            <TripSummaryCard
+              summary={summary}
+              settings={settings}
+              tripActive={tripActive}
+              onStop={() => setTripActive(false)}
+              onOpenVehicleTab={() => goToStep(2)}
+            />
+          </div>
         )}
       </div>
+
+      {/* Mobile Bottom Sheet — Step 3 only, hidden on md+ */}
+      {planningStep === 3 && (
+        <div className="md:hidden">
+          <MobileBottomSheet
+            summary={summary}
+            settings={settings}
+            onReset={resetTrip}
+            onGoBack={goToPrevStep}
+            poiBar={
+              <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+                {markerCategories.map(cat => (
+                  <button
+                    key={cat.id}
+                    onClick={() => !loadingCategory && handleToggleCategory(cat.id as Parameters<typeof handleToggleCategory>[0])}
+                    disabled={!!loadingCategory}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all whitespace-nowrap ${
+                      cat.visible ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                    } ${loadingCategory && loadingCategory !== cat.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    <span>{cat.emoji}</span>
+                    <span>{cat.label}</span>
+                  </button>
+                ))}
+              </div>
+            }
+          >
+            <Step3Content
+              summary={summary}
+              settings={settings}
+              vehicle={vehicle}
+              tripMode={tripMode}
+              viewMode={viewMode}
+              setViewMode={setViewMode}
+              activeJournal={activeJournal}
+              activeChallenge={activeChallenge}
+              showOvernightPrompt={showOvernightPrompt}
+              suggestedOvernightStop={suggestedOvernightStop}
+              poiSuggestions={poiSuggestions}
+              isLoadingPOIs={isLoadingPOIs}
+              history={history}
+              shareUrl={shareUrl}
+              onOpenGoogleMaps={openInGoogleMaps}
+              onCopyShareLink={copyShareLink}
+              onStartJournal={startJournal}
+              onUpdateJournal={updateActiveJournal}
+              onUpdateStopType={updateStopType}
+              onUpdateDayNotes={updateDayNotes}
+              onUpdateDayTitle={updateDayTitle}
+              onUpdateDayType={updateDayType}
+              onUpdateOvernight={updateDayOvernight}
+              onDismissOvernight={dismissOvernightPrompt}
+              onAddPOI={addPOI}
+              onDismissPOI={dismissPOI}
+              onGoToStep={goToStep}
+              externalStops={[...asSuggestedStops, ...mirroredReturnStops]}
+              tripConfirmed={tripConfirmed}
+              addedStopCount={addedStops.length}
+              onConfirmTrip={() => setTripConfirmed(true)}
+              onUnconfirmTrip={() => { setTripConfirmed(false); setViewMode('plan'); }}
+            />
+          </MobileBottomSheet>
+        </div>
+      )}
 
       {/* Adventure Mode Modal */}
       {showAdventureMode && (

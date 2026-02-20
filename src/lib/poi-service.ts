@@ -13,6 +13,57 @@ const INTER_QUERY_DELAY = 1500;
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 2000;
 
+// ==================== SESSION CACHE ====================
+// Prevents hammering Overpass with repeat queries for the same route.
+// Keyed on a lightweight hash of the route geometry + preferences.
+
+const POI_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+const POI_CACHE_MAX_ENTRIES = 10;
+
+interface POICacheEntry {
+  result: POISuggestionGroup;
+  expiresAt: number;
+}
+
+const POI_SESSION_CACHE = new Map<string, POICacheEntry>();
+
+/**
+ * Lightweight route geometry hash: round coords to 2dp (~1km precision),
+ * sample every Nth point for long routes, join with preferences.
+ */
+function hashRouteKey(
+  geometry: [number, number][],
+  destination: Location,
+  preferences: TripPreference[]
+): string {
+  // Sample at most 20 points evenly
+  const step = Math.max(1, Math.floor(geometry.length / 20));
+  const sampled = geometry.filter((_, i) => i % step === 0);
+  const coordStr = sampled.map(([lat, lng]) => `${lat.toFixed(2)},${lng.toFixed(2)}`).join('|');
+  const destStr = `${destination.lat?.toFixed(2)},${destination.lng?.toFixed(2)}`;
+  const prefStr = [...preferences].sort().join(',');
+  return `${coordStr}::${destStr}::${prefStr}`;
+}
+
+function getCachedPOIs(key: string): POISuggestionGroup | null {
+  const entry = POI_SESSION_CACHE.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    POI_SESSION_CACHE.delete(key);
+    return null;
+  }
+  return entry.result;
+}
+
+function setCachedPOIs(key: string, result: POISuggestionGroup): void {
+  // Evict oldest entry if at capacity
+  if (POI_SESSION_CACHE.size >= POI_CACHE_MAX_ENTRIES) {
+    const oldest = POI_SESSION_CACHE.keys().next().value;
+    if (oldest) POI_SESSION_CACHE.delete(oldest);
+  }
+  POI_SESSION_CACHE.set(key, { result, expiresAt: Date.now() + POI_CACHE_TTL_MS });
+}
+
 /**
  * OSM tag mapping for POI categories.
  * Each category maps to one or more Overpass QL tag filters.
@@ -390,6 +441,14 @@ export async function fetchPOISuggestions(
 ): Promise<POISuggestionGroup> {
   const startTime = performance.now();
 
+  // ── Cache check — skip Overpass entirely if we've fetched this route recently ──
+  const cacheKey = hashRouteKey(routeGeometry, destination, tripPreferences);
+  const cached = getCachedPOIs(cacheKey);
+  if (cached) {
+    console.info(`POI cache hit — returning ${cached.totalFound} cached results`);
+    return cached;
+  }
+
   // Determine relevant categories from user preferences
   const categories = getRelevantCategories(tripPreferences);
 
@@ -449,12 +508,17 @@ export async function fetchPOISuggestions(
 
   const endTime = performance.now();
 
-  return {
+  const result: POISuggestionGroup = {
     alongWay: alongWayPOIs,
     atDestination: destinationPOIs,
     totalFound: alongWayPOIs.length + destinationPOIs.length,
     queryDurationMs: endTime - startTime,
   };
+
+  // Cache the result so repeat recalculations skip Overpass
+  setCachedPOIs(cacheKey, result);
+
+  return result;
 }
 
 // ==================== OVERPASS API TYPES ====================

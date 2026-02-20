@@ -105,9 +105,12 @@ export function createSmartBudget(
   totalDays: number,
   totalDistanceKm: number,
   numTravelers: number,
-  settings: TripSettings
+  settings: TripSettings,
+  plannedNights?: number, // explicit overnight stops; defaults to totalDays - 1 if omitted
 ): TripBudget {
-  const nights = Math.max(0, totalDays - 1);
+  const nights = plannedNights !== undefined
+    ? plannedNights
+    : Math.max(0, totalDays - 1);
   const roomsNeeded = Math.ceil(numTravelers / 2);
 
   // Estimate costs
@@ -215,8 +218,8 @@ export function splitTripByDays(
         for (let i = 0; i < freeDaysCount; i++) {
           dayNumber++;
           const lastDay = days[days.length - 1];
-          const freeDate = new Date(new Date(lastDay.date + 'T00:00:00').getTime() + 24 * 60 * 60 * 1000);
-          const freeDay = createEmptyDay(dayNumber, freeDate, settings);
+          const freeDate = new Date(new Date(lastDay.date + 'T09:00:00').getTime() + 24 * 60 * 60 * 1000);
+          const freeDay = createEmptyDay(dayNumber, freeDate);
           freeDay.route = `📍 ${destName}`;
           freeDay.dayType = 'free';
           freeDay.title = i === 0 ? 'Explore!' : `Day ${i + 1} at ${destName}`;
@@ -256,15 +259,16 @@ export function splitTripByDays(
 
       // Set up for the return leg — next morning after free days
       dayNumber++;
-      currentDate = new Date(new Date(days[days.length - 1].date + 'T00:00:00').getTime() + 24 * 60 * 60 * 1000);
+      currentDate = new Date(new Date(days[days.length - 1].date + 'T09:00:00').getTime() + 24 * 60 * 60 * 1000);
       currentDate.setHours(9, 0, 0, 0);
-      currentDay = createEmptyDay(dayNumber, currentDate, settings);
+      currentDay = createEmptyDay(dayNumber, currentDate);
+      currentDay.totals.departureTime = currentDate.toISOString(); // Stamp 9 AM — return leg departure
       currentDayDriveMinutes = 0;
     }
 
     // Start a new day if needed
     if (!currentDay) {
-      currentDay = createEmptyDay(dayNumber, currentDate, settings);
+      currentDay = createEmptyDay(dayNumber, currentDate);
     }
 
     const segmentDriveMinutes = segment.durationMinutes;
@@ -282,11 +286,12 @@ export function splitTripByDays(
 
       days.push(currentDay);
 
-      // Start new day (next morning after overnight)
+      // Start new day — stamp intended 9 AM departure before any segments are added
       dayNumber++;
       currentDate = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000); // Next day
       currentDate.setHours(9, 0, 0, 0); // Default 9 AM departure
-      currentDay = createEmptyDay(dayNumber, currentDate, settings);
+      currentDay = createEmptyDay(dayNumber, currentDate);
+      currentDay.totals.departureTime = currentDate.toISOString(); // Override segment chain time
       currentDayDriveMinutes = 0;
     }
 
@@ -347,7 +352,7 @@ export function splitTripByDays(
       for (let i = 1; i < gapDays; i++) {
         dayNumber++;
         const freeDate = new Date(lastDriveDate.getTime() + i * 24 * 60 * 60 * 1000);
-        const freeDay = createEmptyDay(dayNumber, freeDate, settings);
+        const freeDay = createEmptyDay(dayNumber, freeDate);
         freeDay.route = `📍 ${destName}`;
         freeDay.dayType = 'free';
         freeDay.title = i === 1 ? 'Explore!' : `Day ${i} at ${destName}`;
@@ -390,7 +395,7 @@ export function splitTripByDays(
 /**
  * Create an empty day structure
  */
-function createEmptyDay(dayNumber: number, date: Date, _settings: TripSettings): TripDay {
+function createEmptyDay(dayNumber: number, date: Date): TripDay {
   const dateStr = date.toISOString().split('T')[0];
   const dateFormatted = date.toLocaleDateString('en-US', {
     weekday: 'short',
@@ -452,7 +457,8 @@ function finalizeTripDay(
   const firstSegment = day.segments[0];
   const lastSegment = day.segments[day.segments.length - 1];
 
-  if (firstSegment?.departureTime) {
+  // Use segment times only if not already stamped (day-splits stamp intended departure above)
+  if (firstSegment?.departureTime && !day.totals.departureTime) {
     day.totals.departureTime = firstSegment.departureTime;
   }
   if (lastSegment?.arrivalTime) {
@@ -567,8 +573,9 @@ function getTimezoneName(abbr: string): string {
 /**
  * Format currency amount with proper symbol
  */
-export function formatCurrency(amount: number, _currency: 'CAD' | 'USD'): string {
-  return `$${amount.toFixed(2)}`;
+export function formatCurrency(amount: number, currency: 'CAD' | 'USD'): string {
+  const symbol = currency === 'USD' ? '$' : 'CA$';
+  return `${symbol}${amount.toFixed(2)}`;
 }
 
 /**

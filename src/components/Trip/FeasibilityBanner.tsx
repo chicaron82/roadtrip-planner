@@ -32,6 +32,7 @@ import type {
 
 interface FeasibilityBannerProps {
   result: FeasibilityResult;
+  numTravelers?: number;
   className?: string;
   /** Start collapsed — useful when embedded in dense layouts */
   defaultCollapsed?: boolean;
@@ -100,6 +101,7 @@ const SEVERITY_STYLES: Record<WarningSeverity, {
 
 export function FeasibilityBanner({
   result,
+  numTravelers = 1,
   className,
   defaultCollapsed = false,
 }: FeasibilityBannerProps) {
@@ -109,6 +111,7 @@ export function FeasibilityBanner({
 
   const warningCount = result.warnings.length;
   const criticalCount = result.warnings.filter(w => w.severity === 'critical').length;
+  const isMultiPerson = numTravelers > 1;
 
   return (
     <div
@@ -142,10 +145,13 @@ export function FeasibilityBanner({
           )}
         </div>
         <div className="flex items-center gap-2">
-          {/* Quick stat chips */}
+          {/* Budget chip: per-person for groups, total for solo */}
           {result.summary.budgetUtilization > 0 && (
             <span className="text-xs text-gray-500 hidden sm:inline">
-              {Math.round(result.summary.budgetUtilization * 100)}% budget
+              {isMultiPerson
+                ? `$${result.summary.perPersonCost}/person · ${Math.round(result.summary.budgetUtilization * 100)}% budget`
+                : `${Math.round(result.summary.budgetUtilization * 100)}% budget`
+              }
             </span>
           )}
           {expanded

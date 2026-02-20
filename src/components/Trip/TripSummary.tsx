@@ -127,7 +127,7 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
 
           {/* Feasibility Health Check */}
           {feasibility && (
-            <FeasibilityBanner result={feasibility} className="mt-3" defaultCollapsed />
+            <FeasibilityBanner result={feasibility} numTravelers={settings.numTravelers} className="mt-3" defaultCollapsed />
           )}
         </CardContent>
       </Card>

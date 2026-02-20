@@ -59,8 +59,7 @@ const BUDGET_TIGHT_THRESHOLD = 0.85;  // 85% = amber
 const BUDGET_OVER_THRESHOLD = 1.0;    // 100% = red
 
 /** Drive time thresholds (relative to maxDriveHours) */
-const DRIVE_TIME_TIGHT_RATIO = 0.9;   // 90% of max = amber
-const DRIVE_TIME_OVER_RATIO = 1.0;    // 100% of max = red
+const DRIVE_TIME_GRACE_HOURS = 1;  // 1h buffer before warning fires
 
 /** Late arrival threshold (hour of day, 24h format) */
 const LATE_ARRIVAL_HOUR = 22;         // 10 PM
@@ -197,9 +196,9 @@ function analyzeDriveTime(
 
   for (const day of days) {
     const driveMinutes = day.totals.driveTimeMinutes;
-    const ratio = driveMinutes / maxDriveMinutes;
+    const hardLimitMinutes = maxDriveMinutes + DRIVE_TIME_GRACE_HOURS * 60;
 
-    if (ratio > DRIVE_TIME_OVER_RATIO) {
+    if (driveMinutes > hardLimitMinutes) {
       const overBy = Math.round((driveMinutes - maxDriveMinutes) / 60 * 10) / 10;
       warnings.push({
         category: 'drive-time',
@@ -208,14 +207,6 @@ function analyzeDriveTime(
         detail: `${formatDuration(driveMinutes)} driving vs ${settings.maxDriveHours}h limit.`,
         dayNumber: day.dayNumber,
         suggestion: 'Consider adding an overnight stop to split this day.',
-      });
-    } else if (ratio > DRIVE_TIME_TIGHT_RATIO) {
-      warnings.push({
-        category: 'drive-time',
-        severity: 'warning',
-        message: `Day ${day.dayNumber}: Drive time is close to limit`,
-        detail: `${formatDuration(driveMinutes)} of ${settings.maxDriveHours}h limit used.`,
-        dayNumber: day.dayNumber,
       });
     }
   }
@@ -283,10 +274,13 @@ function analyzeTiming(days: TripDay[]): FeasibilityWarning[] {
       }
     }
 
-    // Check early departures
-    if (day.totals.departureTime) {
+    // Check early departures (skip free days — they have no real departure)
+    if (day.totals.departureTime && day.dayType !== 'free') {
       const departure = new Date(day.totals.departureTime);
-      if (!isNaN(departure.getTime()) && departure.getHours() < EARLY_DEPARTURE_HOUR && departure.getHours() >= 0) {
+      const h = departure.getHours();
+      const m = departure.getMinutes();
+      // Skip hour=0 min=0 — that's the midnight sentinel meaning "not set"
+      if (!isNaN(departure.getTime()) && h < EARLY_DEPARTURE_HOUR && (h > 0 || m > 0)) {
         warnings.push({
           category: 'timing',
           severity: 'info',
