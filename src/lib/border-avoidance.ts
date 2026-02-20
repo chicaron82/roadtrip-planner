@@ -182,10 +182,21 @@ export function insertGuardWaypoints(
   const destination = originalLocations[originalLocations.length - 1];
   const existingWaypoints = originalLocations.slice(1, -1);
 
-  // Merge existing waypoints + guard waypoints, sort by longitude
+  // Only insert guards that lie within the O→D longitude corridor.
+  // Guards outside this range (e.g. SSM east of Thunder Bay, Kamloops west of
+  // Winnipeg) would force the route to backtrack, making things worse.
+  const minLng = Math.min(origin.lng, destination.lng);
+  const maxLng = Math.max(origin.lng, destination.lng);
+  const relevantGuards = guards.filter(
+    g => g.lng >= minLng - 0.5 && g.lng <= maxLng + 0.5
+  );
+
+  if (relevantGuards.length === 0) return originalLocations;
+
+  // Merge existing waypoints + relevant guard waypoints, sort by longitude
   // in the direction of travel (west-to-east or east-to-west)
   const travelingEast = destination.lng > origin.lng;
-  const allWaypoints = [...existingWaypoints, ...guards];
+  const allWaypoints = [...existingWaypoints, ...relevantGuards];
   allWaypoints.sort((a, b) =>
     travelingEast ? a.lng - b.lng : b.lng - a.lng
   );

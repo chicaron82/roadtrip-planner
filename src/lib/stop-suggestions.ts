@@ -1,4 +1,4 @@
-import type { RouteSegment, Vehicle, TripSettings } from '../types';
+import type { RouteSegment, Vehicle, TripSettings, TripDay } from '../types';
 
 export type StopType = 'fuel' | 'rest' | 'meal' | 'overnight';
 
@@ -38,7 +38,8 @@ export interface StopSuggestionConfig {
  */
 export function generateSmartStops(
   segments: RouteSegment[],
-  config: StopSuggestionConfig
+  config: StopSuggestionConfig,
+  days?: TripDay[]
 ): SuggestedStop[] {
   const suggestions: SuggestedStop[] = [];
 
@@ -73,9 +74,38 @@ export function generateSmartStops(
   // Trigger a fuel stop every ~3-4 hours of driving, even if tank isn't low.
   const COMFORT_REFUEL_HOURS = stopFrequency === 'conservative' ? 2.5 : stopFrequency === 'balanced' ? 3.5 : 4.5;
 
+  // Build map: first-segment-index → TripDay, for non-first driving days only.
+  // Used to reset simulation state at multi-day boundaries (e.g., after a free day).
+  const drivingDayStartMap = new Map<number, TripDay>();
+  if (days) {
+    const drivingDays = days.filter(d => d.segmentIndices.length > 0);
+    drivingDays.slice(1).forEach(day => {
+      if (day.segmentIndices.length > 0) {
+        drivingDayStartMap.set(day.segmentIndices[0], day);
+      }
+    });
+  }
+
   segments.forEach((segment, index) => {
     const segmentHours = segment.durationMinutes / 60;
     const fuelNeeded = segment.fuelNeededLitres || (segment.distanceKm / 100) * config.fuelEconomyL100km;
+
+    // === DAY BOUNDARY RESET ===
+    // When a new driving day starts (e.g., Day 3 after a free Day 2), reset all simulation
+    // state so fuel/rest calculations start fresh at the correct departure time.
+    const newDrivingDay = drivingDayStartMap.get(index);
+    if (newDrivingDay) {
+      const h = config.departureTime.getHours();
+      const m = config.departureTime.getMinutes();
+      const dayStart = new Date(newDrivingDay.date + 'T00:00:00');
+      dayStart.setHours(h, m, 0, 0);
+      currentTime = dayStart;
+      totalDrivingToday = 0;
+      lastBreakTime = new Date(dayStart);
+      currentFuel = config.tankSizeLitres;
+      distanceSinceLastFill = 0;
+      hoursSinceLastFill = 0;
+    }
 
     // === FUEL STOP CHECK ===
     distanceSinceLastFill += segment.distanceKm;
@@ -205,6 +235,30 @@ export function generateSmartStops(
       nextDay.setHours(8, 0, 0, 0);
       currentTime = nextDay;
       lastBreakTime = new Date(currentTime);
+    }
+
+    // === EN-ROUTE FUEL STOPS (segment longer than safe range) ===
+    // If a single leg exceeds the tank's safe range, suggest mid-leg refuel points.
+    // Pushed AFTER meal/overnight so consolidateStops doesn't merge them with the
+    // start-of-leg fuel stop (which has the same afterSegmentIndex: index - 1).
+    // These are advisory only (no `accepted: true`) — user decides in the suggestions panel.
+    const enRouteFuelCount = Math.max(0, Math.ceil(segment.distanceKm / safeRangeKm) - 1);
+    for (let s = 1; s <= enRouteFuelCount; s++) {
+      const kmMark = Math.round(safeRangeKm * s);
+      const minutesMark = (safeRangeKm * s / segment.distanceKm) * segment.durationMinutes;
+      suggestions.push({
+        id: `fuel-enroute-${index}-${s}`,
+        type: 'fuel',
+        reason: `En-route refuel needed around km ${kmMark} into this ${segment.distanceKm.toFixed(0)} km leg (~${(minutesMark / 60).toFixed(1)}h after departing). Your tank cannot cover the full distance without stopping.`,
+        afterSegmentIndex: index - 1,
+        estimatedTime: new Date(currentTime.getTime() + minutesMark * 60 * 1000),
+        duration: 15,
+        priority: 'required',
+        details: {
+          fuelNeeded: config.tankSizeLitres * 0.9,
+          fuelCost: config.tankSizeLitres * 0.9 * config.gasPrice,
+        },
+      });
     }
 
     // Update state for next segment

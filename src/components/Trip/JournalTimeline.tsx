@@ -33,7 +33,7 @@ export function JournalTimeline({
     [settings.departureDate, settings.departureTime]
   );
 
-  // Build map: segmentIndex → TripDay for the first segment of each day (interleaved headers)
+  // Build map: segmentIndex → TripDay for the first segment of each driving day
   const dayStartMap = useMemo(() => {
     const map = new Map<number, TripDay>();
     if (summary.days) {
@@ -46,16 +46,36 @@ export function JournalTimeline({
     return map;
   }, [summary.days]);
 
-  // Find current/next stop (first unvisited stop)
+  // Build map: last-segment-index-of-driving-day → free TripDay[]
+  // Used to render free day headers after the last real stop of a driving day
+  const freeDaysAfterSegment = useMemo(() => {
+    const map = new Map<number, TripDay[]>();
+    if (!summary.days) return map;
+    const drivingDays = summary.days.filter(d => d.segmentIndices.length > 0);
+    const freeDays = summary.days.filter(d => d.dayType === 'free');
+    for (const freeDay of freeDays) {
+      const prevDrivingDay = drivingDays
+        .filter(d => d.dayNumber < freeDay.dayNumber)
+        .sort((a, b) => b.dayNumber - a.dayNumber)[0];
+      if (prevDrivingDay) {
+        const lastIdx = prevDrivingDay.segmentIndices[prevDrivingDay.segmentIndices.length - 1];
+        map.set(lastIdx, [...(map.get(lastIdx) || []), freeDay]);
+      }
+    }
+    return map;
+  }, [summary.days]);
+
+  // Find current/next stop (first unvisited non-guard stop)
   const currentStopIndex = useMemo(() => {
     for (let i = 0; i < summary.segments.length; i++) {
+      if (summary.segments[i].to.id?.startsWith('guard-')) continue;
       const entry = journal.entries.find(e => e.segmentIndex === i);
       if (!entry || entry.status !== 'visited') {
         return i;
       }
     }
     return summary.segments.length - 1; // All visited, show last
-  }, [summary.segments.length, journal.entries]);
+  }, [summary.segments, journal.entries]);
 
   const currentSegment = summary.segments[currentStopIndex];
 
@@ -155,10 +175,21 @@ export function JournalTimeline({
     return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
   };
 
-  // Calculate progress
-  const visitedCount = journal.entries.filter(e => e.status === 'visited').length;
-  const totalStops = summary.segments.length;
-  const progressPercent = Math.round((visitedCount / totalStops) * 100);
+  // Calculate progress — exclude border-avoidance guard waypoints (routing artifacts)
+  const realSegmentIndices = useMemo(
+    () => new Set(
+      summary.segments
+        .map((s, i) => ({ s, i }))
+        .filter(({ s }) => !s.to.id?.startsWith('guard-'))
+        .map(({ i }) => i)
+    ),
+    [summary.segments]
+  );
+  const totalStops = realSegmentIndices.size;
+  const visitedCount = journal.entries.filter(
+    e => realSegmentIndices.has(e.segmentIndex) && e.status === 'visited'
+  ).length;
+  const progressPercent = totalStops > 0 ? Math.round((visitedCount / totalStops) * 100) : 0;
 
   return (
     <div className={cn('space-y-6', className)}>
@@ -254,17 +285,31 @@ export function JournalTimeline({
 
         {/* Stop Cards */}
         {summary.segments.map((segment, index) => {
+          const isGuard = segment.to.id?.startsWith('guard-');
+          const dayHeader = dayStartMap.get(index);
+
+          // Guard waypoints are routing artifacts — render day header if needed, skip stop card
+          if (isGuard) {
+            return dayHeader ? (
+              <DayHeader
+                key={`day-${dayHeader.dayNumber}`}
+                day={dayHeader}
+                isFirst={dayHeader.dayNumber === 1}
+                className="mb-6"
+              />
+            ) : null;
+          }
+
           const entry = getEntry(index);
           const isDest = index === summary.segments.length - 1;
           const isCurrent = index === currentStopIndex;
           const isVisited = entry?.status === 'visited';
+          const afterFreeDays = freeDaysAfterSegment.get(index) || [];
 
           // Get quick captures for this segment
           const segmentCaptures = journal.quickCaptures.filter(
             qc => qc.autoTaggedSegment === index
           );
-
-          const dayHeader = dayStartMap.get(index);
 
           return (
             <div key={`stop-${index}`}>
@@ -377,6 +422,16 @@ export function JournalTimeline({
                 />
               </div>
             </div>
+
+            {/* Free day headers after this stop (e.g. "Day 2 at Thunder Bay") */}
+            {afterFreeDays.map(freeDay => (
+              <DayHeader
+                key={`free-day-${freeDay.dayNumber}`}
+                day={freeDay}
+                isFirst={false}
+                className="mb-6 mt-4"
+              />
+            ))}
             </div>
           );
         })}

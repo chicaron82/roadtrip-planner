@@ -165,10 +165,11 @@ export function useTripCalculation({
       setStrategicFuelStops(fuelStops);
 
       // Check if overnight stop is recommended
+      // Skip if trip is already split into multiple days — day splitter handled it
       const totalHours = tripSummary.totalDurationMinutes / 60;
       const exceedsMaxHours = totalHours > settings.maxDriveHours;
 
-      if (exceedsMaxHours) {
+      if (exceedsMaxHours && tripDays.length <= 1) {
         // Calculate midpoint for overnight stop
         const targetDistance = tripSummary.totalDistanceKm * 0.5;
         let currentDist = 0;

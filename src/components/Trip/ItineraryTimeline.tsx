@@ -75,36 +75,57 @@ export function ItineraryTimeline({
     overnight: OvernightStop;
   } | null>(null);
 
-  // Generate smart suggestions
-  const pacingSuggestions = generatePacingSuggestions(
-    summary.totalDurationMinutes,
-    settings
-  );
+  // Generate smart suggestions — use per-driving-day duration, not total trip time
+  const drivingDays = days?.filter(d => d.segmentIndices.length > 0) ?? [];
+  const isAlreadySplit = drivingDays.length > 1;
+  const maxDayMinutes = isAlreadySplit
+    ? Math.max(...drivingDays.map(d => d.totals?.driveTimeMinutes ?? 0))
+    : summary.totalDurationMinutes;
+  const pacingSuggestions = generatePacingSuggestions(maxDayMinutes, settings, isAlreadySplit);
 
-  // Generate smart stop suggestions
-  const [stopSuggestions, setStopSuggestions] = useState<SuggestedStop[]>(() => {
+  // Base suggestions — pure computation, regenerates whenever the trip/vehicle/settings change.
+  // useMemo ensures fresh suggestions after every recalculate (useState initializer only runs once).
+  const baseSuggestions = useMemo(() => {
     if (!vehicle) return [];
     const config = createStopConfig(vehicle, settings);
-    return generateSmartStops(summary.segments, config);
-  });
+    return generateSmartStops(summary.segments, config, days);
+  }, [summary.segments, vehicle, settings, days]);
+
+  // Per-stop user overrides — kept separate so baseSuggestions can regenerate without wiping
+  // decisions the user already made (accept, dismiss, custom duration).
+  const [userOverrides, setUserOverrides] = useState<Record<string, { accepted?: boolean; dismissed?: boolean; duration?: number }>>({});
 
   // Show/hide suggestions panel
   const [showSuggestions, setShowSuggestions] = useState(true);
 
-  // Handle accept/dismiss
+  // Merged: base suggestions with any user overrides applied on top
+  const stopSuggestions = useMemo(() =>
+    baseSuggestions.map(s => {
+      const o = userOverrides[s.id];
+      if (!o) return s;
+      return {
+        ...s,
+        accepted: o.accepted ?? s.accepted,
+        dismissed: o.dismissed ?? s.dismissed,
+        duration: o.duration ?? s.duration,
+      };
+    }),
+    [baseSuggestions, userOverrides]
+  );
+
+  // Handle accept/dismiss — writes to overrides, leaves base suggestions intact
   const handleAccept = (stopId: string, customDuration?: number) => {
-    setStopSuggestions(prev =>
-      prev.map(s => s.id === stopId
-        ? { ...s, accepted: true, duration: customDuration ?? s.duration }
-        : s
-      )
-    );
+    setUserOverrides(prev => ({
+      ...prev,
+      [stopId]: { ...prev[stopId], accepted: true, ...(customDuration !== undefined ? { duration: customDuration } : {}) },
+    }));
   };
 
   const handleDismiss = (stopId: string) => {
-    setStopSuggestions(prev =>
-      prev.map(s => s.id === stopId ? { ...s, dismissed: true } : s)
-    );
+    setUserOverrides(prev => ({
+      ...prev,
+      [stopId]: { ...prev[stopId], dismissed: true },
+    }));
   };
 
   // Filter active suggestions (not dismissed) + merge map-added stops
@@ -129,64 +150,68 @@ export function ItineraryTimeline({
     const items: SimulationItem[] = [];
     let currentTime = new Date(startTime);
 
-    const VIRTUAL_TANK_CAPACITY = vehicle?.tankSize || 55;
+    // Tank capacity in litres. vehicle.tankSize is in the user's chosen unit (gallons for imperial),
+    // so convert when needed. Default 55 L when vehicle is null.
+    const VIRTUAL_TANK_CAPACITY = vehicle
+      ? (settings.units === 'metric' ? vehicle.tankSize : vehicle.tankSize * 3.78541)
+      : 55;
     let currentFuel = VIRTUAL_TANK_CAPACITY;
 
-    // Get accepted stops grouped by segment index
+    // Get accepted stops grouped by afterSegmentIndex
     const acceptedBySegment = new Map<number, SuggestedStop[]>();
     activeSuggestions.filter(s => s.accepted).forEach(stop => {
       const existing = acceptedBySegment.get(stop.afterSegmentIndex) || [];
       acceptedBySegment.set(stop.afterSegmentIndex, [...existing, stop]);
     });
 
+    // Returns the next driving day only when free days exist between segIdx and it.
+    // Used to jump currentTime across free-day gaps (e.g. Day 1 → Day 2 free → Day 3).
+    const nextDrivingDayAfterGap = (segIdx: number): TripDay | undefined => {
+      if (!days) return undefined;
+      const curDay = days.find(
+        d => d.segmentIndices.length > 0 && d.segmentIndices[d.segmentIndices.length - 1] === segIdx
+      );
+      if (!curDay) return undefined;
+      const curDayIdx = days.indexOf(curDay);
+      const nextDriving = days.slice(curDayIdx + 1).find(d => d.segmentIndices.length > 0);
+      if (!nextDriving) return undefined;
+      const nextDrivingIdx = days.indexOf(nextDriving);
+      // Only jump when there is at least one free day in between
+      if (nextDrivingIdx <= curDayIdx + 1) return undefined;
+      return nextDriving;
+    };
+
+    // Initial stops at the origin (afterSegmentIndex: -1) — shown before the first segment
+    const initialStops = acceptedBySegment.get(-1) || [];
+    initialStops.forEach(stop => {
+      items.push({ type: 'suggested', arrivalTime: new Date(currentTime), suggestedStop: stop });
+      currentTime = new Date(currentTime.getTime() + (stop.duration * 60 * 1000));
+      if (stop.type === 'fuel') currentFuel = VIRTUAL_TANK_CAPACITY;
+    });
+
     for (let i = 0; i < summary.segments.length; i++) {
       const segment = summary.segments[i];
       const fuelNeeded = segment.fuelNeededLitres;
 
-      // Check for fuel stop (legacy inline calculation for non-accepted suggestions)
+      // Safety-net fuel check — fires only when there is no accepted fuel stop before segment i.
+      // Handles: (a) user dismissed a required fuel suggestion, (b) vehicle is null so
+      // generateSmartStops never ran. Prevents the display timeline showing impossible fuel levels.
       if (currentFuel - fuelNeeded < (VIRTUAL_TANK_CAPACITY * 0.15)) {
-        // Only show if not already accepted
         const hasAcceptedFuelStop = acceptedBySegment.get(i - 1)?.some(s => s.type === 'fuel');
         if (!hasAcceptedFuelStop) {
           const refillAmount = VIRTUAL_TANK_CAPACITY - currentFuel;
           const refillCost = refillAmount * settings.gasPrice;
-          const stopDurationMinutes = 15;
-
-          // Determine fuel priority based on remaining tank level
           const fuelPercent = currentFuel / VIRTUAL_TANK_CAPACITY;
           const fuelPriority: 'critical' | 'recommended' | 'optional' =
             fuelPercent < 0.10 ? 'critical' :
             fuelPercent < 0.25 ? 'recommended' : 'optional';
 
           const stopTime = new Date(currentTime);
-          currentTime = new Date(currentTime.getTime() + (stopDurationMinutes * 60 * 1000));
+          currentTime = new Date(currentTime.getTime() + (15 * 60 * 1000));
           currentFuel = VIRTUAL_TANK_CAPACITY;
-
-          items.push({
-            type: 'gas',
-            arrivalTime: stopTime,
-            cost: refillCost,
-            litres: refillAmount,
-            fuelPriority,
-          });
+          items.push({ type: 'gas', arrivalTime: stopTime, cost: refillCost, litres: refillAmount, fuelPriority });
         }
       }
-
-      // Insert accepted suggested stops before this segment
-      const stopsBeforeSegment = acceptedBySegment.get(i - 1) || [];
-      stopsBeforeSegment.forEach(stop => {
-        items.push({
-          type: 'suggested',
-          arrivalTime: new Date(currentTime),
-          suggestedStop: stop
-        });
-        currentTime = new Date(currentTime.getTime() + (stop.duration * 60 * 1000));
-
-        // Handle fuel refill for accepted fuel stops
-        if (stop.type === 'fuel') {
-          currentFuel = VIRTUAL_TANK_CAPACITY;
-        }
-      });
 
       // Drive the segment
       const durationMs = (segment.durationMinutes || 0) * 60 * 1000;
@@ -194,31 +219,32 @@ export function ItineraryTimeline({
       currentFuel -= fuelNeeded;
 
       // Arrive at waypoint
-      items.push({
-        type: 'stop',
-        segment: segment,
-        arrivalTime: new Date(currentTime),
-        index: i
-      });
+      items.push({ type: 'stop', segment, arrivalTime: new Date(currentTime), index: i });
 
-      // Insert accepted stops after this segment
+      // Jump currentTime across free-day gaps before rendering post-arrival stops.
+      // This ensures Day 3 fuel/rest stops show the correct morning departure time.
+      const nextDay = nextDrivingDayAfterGap(i);
+      if (nextDay) {
+        const [dh, dm] = settings.departureTime.split(':').map(Number);
+        const dayStart = new Date(nextDay.date + 'T00:00:00');
+        dayStart.setHours(dh, dm, 0, 0);
+        if (dayStart > currentTime) currentTime = dayStart;
+      }
+
+      // Accepted stops after this segment (afterSegmentIndex === i).
+      // NOTE: stopsBeforeSegment (get(i-1)) is intentionally NOT rendered here —
+      // those stops are already shown in this iteration as stopsAfterSegment for i-1,
+      // preventing double-rendering of the same accepted stop.
       const stopsAfterSegment = acceptedBySegment.get(i) || [];
       stopsAfterSegment.forEach(stop => {
-        items.push({
-          type: 'suggested',
-          arrivalTime: new Date(currentTime),
-          suggestedStop: stop
-        });
+        items.push({ type: 'suggested', arrivalTime: new Date(currentTime), suggestedStop: stop });
         currentTime = new Date(currentTime.getTime() + (stop.duration * 60 * 1000));
-
-        if (stop.type === 'fuel') {
-          currentFuel = VIRTUAL_TANK_CAPACITY;
-        }
+        if (stop.type === 'fuel') currentFuel = VIRTUAL_TANK_CAPACITY;
       });
     }
 
     return items;
-  }, [summary.segments, startTime, settings.gasPrice, activeSuggestions, vehicle?.tankSize]);
+  }, [summary.segments, startTime, settings.gasPrice, settings.departureTime, settings.units, activeSuggestions, vehicle?.tankSize, days]);
 
   // Pending suggestions (not yet accepted or dismissed)
   const pendingSuggestions = activeSuggestions.filter(s => !s.accepted);
@@ -235,6 +261,41 @@ export function ItineraryTimeline({
     if (!driverRotation) return new Map<number, number>();
     return new Map(driverRotation.assignments.map(a => [a.segmentIndex, a.driver]));
   }, [driverRotation]);
+
+  // Build map: segment index → TripDay, keyed on the day's first segment
+  const dayStartMap = useMemo(() => {
+    const map = new Map<number, { day: TripDay; isFirst: boolean }>();
+    if (days) {
+      days.forEach((day, idx) => {
+        if (day.segmentIndices.length > 0) {
+          map.set(day.segmentIndices[0], { day, isFirst: idx === 0 });
+        }
+      });
+    }
+    return map;
+  }, [days]);
+
+  // Build map: last-segment-index-of-a-driving-day → free TripDay[] that follow it.
+  // Free days (segmentIndices: []) have no entry in dayStartMap, so we render their
+  // DaySection after the last stop of the preceding driving day instead.
+  const freeDaysAfterSegment = useMemo(() => {
+    const map = new Map<number, TripDay[]>();
+    if (!days) return map;
+    days.forEach(day => {
+      if (day.segmentIndices.length > 0) return; // skip driving days
+      // Find the nearest preceding driving day
+      const dayIdx = days.indexOf(day);
+      for (let i = dayIdx - 1; i >= 0; i--) {
+        if (days[i].segmentIndices.length > 0) {
+          const lastSeg = days[i].segmentIndices[days[i].segmentIndices.length - 1];
+          const existing = map.get(lastSeg) ?? [];
+          map.set(lastSeg, [...existing, day]);
+          break;
+        }
+      }
+    });
+    return map;
+  }, [days]);
 
   return (
     <div className="space-y-6">
@@ -277,33 +338,6 @@ export function ItineraryTimeline({
         </div>
       )}
 
-      {/* Day Sections (multi-day trips) */}
-      {days && days.length > 0 && (
-        <div className="mb-6 space-y-4">
-          {days.map((day, idx) => (
-            <DaySection
-              key={day.dayNumber}
-              day={day}
-              isFirst={idx === 0}
-              editable={!!onUpdateDayType}
-              budgetMode={settings.budgetMode}
-              onDayTypeChange={onUpdateDayType}
-              onTitleChange={onUpdateDayTitle}
-              onNotesChange={onUpdateDayNotes}
-              onAddDayOption={onAddDayOption}
-              onRemoveDayOption={onRemoveDayOption}
-              onSelectDayOption={onSelectDayOption}
-              onEditOvernight={onUpdateOvernight && day.overnight ? (dayNum) => {
-                const target = days?.find(d => d.dayNumber === dayNum);
-                if (target?.overnight) {
-                  setEditingOvernight({ dayNumber: dayNum, overnight: target.overnight });
-                }
-              } : undefined}
-            />
-          ))}
-        </div>
-      )}
-
       {/* Timeline */}
       <div className="space-y-0 pt-2 relative pb-12">
         {/* Timeline Line (Background) */}
@@ -318,6 +352,9 @@ export function ItineraryTimeline({
 
         {/* Simulation Items */}
         {simulationItems.map((item, idx) => {
+          // Interleave day section header before the first stop of each day
+          const dayEntry = typeof item.index === 'number' ? dayStartMap.get(item.index) : undefined;
+
           if (item.type === 'gas') {
             return (
               <GasStopNode
@@ -341,20 +378,60 @@ export function ItineraryTimeline({
           }
 
           if (item.segment && typeof item.index === 'number') {
+            const freeDaysAfter = freeDaysAfterSegment.get(item.index) ?? [];
             return (
-              <WaypointNode
-                key={`stop-${item.index}`}
-                segment={item.segment}
-                arrivalTime={item.arrivalTime}
-                index={item.index}
-                isDestination={item.index === summary.segments.length - 1}
-                onUpdateStopType={onUpdateStopType}
-                onEditActivity={onUpdateActivity ? (segIdx, activity, locName) => {
-                  setEditingActivity({ segmentIndex: segIdx, activity, locationName: locName });
-                } : undefined}
-                activity={item.segment.activity}
-                assignedDriver={driverBySegment.get(item.index)}
-              />
+              <div key={`stop-${item.index}`}>
+                {dayEntry && (
+                  <div className="mb-4">
+                    <DaySection
+                      day={dayEntry.day}
+                      isFirst={dayEntry.isFirst}
+                      editable={!!onUpdateDayType}
+                      budgetMode={settings.budgetMode}
+                      onDayTypeChange={onUpdateDayType}
+                      onTitleChange={onUpdateDayTitle}
+                      onNotesChange={onUpdateDayNotes}
+                      onAddDayOption={onAddDayOption}
+                      onRemoveDayOption={onRemoveDayOption}
+                      onSelectDayOption={onSelectDayOption}
+                      onEditOvernight={onUpdateOvernight && dayEntry.day.overnight ? (dayNum) => {
+                        const target = days?.find(d => d.dayNumber === dayNum);
+                        if (target?.overnight) {
+                          setEditingOvernight({ dayNumber: dayNum, overnight: target.overnight });
+                        }
+                      } : undefined}
+                    />
+                  </div>
+                )}
+                <WaypointNode
+                  segment={item.segment}
+                  arrivalTime={item.arrivalTime}
+                  index={item.index}
+                  isDestination={item.index === summary.segments.length - 1}
+                  onUpdateStopType={onUpdateStopType}
+                  onEditActivity={onUpdateActivity ? (segIdx, activity, locName) => {
+                    setEditingActivity({ segmentIndex: segIdx, activity, locationName: locName });
+                  } : undefined}
+                  activity={item.segment.activity}
+                  assignedDriver={driverBySegment.get(item.index)}
+                />
+                {freeDaysAfter.map(freeDay => (
+                  <div key={`free-day-${freeDay.dayNumber}`} className="mt-4">
+                    <DaySection
+                      day={freeDay}
+                      isFirst={false}
+                      editable={!!onUpdateDayType}
+                      budgetMode={settings.budgetMode}
+                      onDayTypeChange={onUpdateDayType}
+                      onTitleChange={onUpdateDayTitle}
+                      onNotesChange={onUpdateDayNotes}
+                      onAddDayOption={onAddDayOption}
+                      onRemoveDayOption={onRemoveDayOption}
+                      onSelectDayOption={onSelectDayOption}
+                    />
+                  </div>
+                ))}
+              </div>
             );
           }
 

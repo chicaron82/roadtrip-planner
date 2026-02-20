@@ -132,21 +132,26 @@ export function calculateArrivalTime(
 }
 
 /**
- * Generates smart pacing suggestions based on trip duration
+ * Generates smart pacing suggestions based on trip duration.
+ * @param maxDayMinutes - Longest single driving day in minutes (not total trip)
+ * @param settings - Trip settings
+ * @param isAlreadySplit - True when the trip is already planned as multi-day
  */
 export function generatePacingSuggestions(
-  totalDurationMinutes: number,
-  settings: TripSettings
+  maxDayMinutes: number,
+  settings: TripSettings,
+  isAlreadySplit = false
 ): string[] {
   const suggestions: string[] = [];
-  const totalHours = totalDurationMinutes / 60;
-  const daysNeeded = Math.ceil(totalHours / settings.maxDriveHours);
+  const dayHours = maxDayMinutes / 60;
+  const daysNeeded = Math.ceil(dayHours / settings.maxDriveHours);
 
-  if (daysNeeded > 1) {
-    suggestions.push(`💡 This is a ${totalHours.toFixed(1)}-hour drive. Consider splitting into ${daysNeeded} days.`);
+  // Only suggest splitting if not already planned as a multi-day trip
+  if (daysNeeded > 1 && !isAlreadySplit) {
+    suggestions.push(`💡 This is a ${dayHours.toFixed(1)}-hour drive. Consider splitting into ${daysNeeded} days.`);
   }
 
-  if (totalHours > 8 && settings.departureTime) {
+  if (dayHours > 8 && settings.departureTime) {
     const [hours] = settings.departureTime.split(':').map(Number);
     if (hours > 12) {
       suggestions.push(`🌅 Starting at ${settings.departureTime} means night driving. Consider departing at 6-8 AM instead.`);
@@ -154,13 +159,13 @@ export function generatePacingSuggestions(
   }
 
   if (settings.numDrivers > 1) {
-    const swapInterval = Math.floor(totalHours / settings.numDrivers);
+    const swapInterval = (dayHours / settings.numDrivers).toFixed(1);
     suggestions.push(`👥 With ${settings.numDrivers} drivers, swap every ${swapInterval} hours to stay fresh.`);
   }
 
-  const breaksNeeded = Math.floor(totalHours / 2);
+  const breaksNeeded = Math.floor(dayHours / 2);
   if (breaksNeeded > 0) {
-    suggestions.push(`☕ Plan for ${breaksNeeded} breaks (every 2-3 hours) to stretch and refuel.`);
+    suggestions.push(`☕ Plan for ${breaksNeeded} break${breaksNeeded > 1 ? 's' : ''} (every 2-3 hours) to stretch and refuel.`);
   }
 
   return suggestions;

@@ -8,7 +8,9 @@ import {
   ChevronDown,
   ChevronUp,
   X,
+  Share2,
 } from 'lucide-react';
+import { shareStop } from '../../lib/share-utils';
 import type { JournalEntry, JournalPhoto, RouteSegment } from '../../types';
 import { Button } from '../UI/Button';
 import { cn } from '../../lib/utils';
@@ -35,6 +37,7 @@ export function JournalStopCard({
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notesValue, setNotesValue] = useState(entry?.notes || '');
+  const [shareStatus, setShareStatus] = useState<'idle' | 'sharing' | 'copied'>('idle');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const hasArrived = entry?.status === 'visited';
@@ -82,6 +85,18 @@ export function JournalStopCard({
 
   const stopName = segment.to.name.split(',')[0];
   const plannedArrival = segment.arrivalTime ? new Date(segment.arrivalTime) : null;
+
+  const handleShare = async () => {
+    setShareStatus('sharing');
+    const firstPhoto = entry?.photos?.[0]?.dataUrl;
+    const result = await shareStop(stopName, entry?.notes, firstPhoto);
+    if (result === 'copied') {
+      setShareStatus('copied');
+      setTimeout(() => setShareStatus('idle'), 2500);
+    } else {
+      setShareStatus('idle');
+    }
+  };
 
   return (
     <div
@@ -199,6 +214,26 @@ export function JournalStopCard({
             >
               <PenLine className="h-4 w-4" />
               {entry?.notes ? 'Edit Notes' : 'Add Notes'}
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(
+                'flex-1 gap-2 transition-colors',
+                shareStatus === 'copied' && 'border-green-500 text-green-600'
+              )}
+              onClick={handleShare}
+              disabled={shareStatus === 'sharing'}
+            >
+              <Share2 className="h-4 w-4" />
+              {shareStatus === 'sharing'
+                ? 'Building…'
+                : shareStatus === 'copied'
+                  ? 'Copied!'
+                  : entry?.photos?.length
+                    ? 'Share Story'
+                    : 'Share'}
             </Button>
           </div>
 
