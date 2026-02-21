@@ -10,6 +10,7 @@ import { getHistory } from './lib/storage';
 import { parseStateFromURL, type TemplateImportResult } from './lib/url';
 import { showToast } from './lib/toast';
 import { saveLastOrigin, getLastOrigin } from './lib/storage';
+import { recordTrip, getAdaptiveDefaults, CHICHARON_BASELINE, type AdaptiveDefaults } from './lib/user-profile';
 import { Spinner } from './components/UI/Spinner';
 import { AdventureMode, type AdventureSelection } from './components/Trip/AdventureMode';
 import { buildAdventureBudget } from './lib/adventure-service';
@@ -41,6 +42,10 @@ function AppContent() {
   // Stable ref for post-calculation callback (breaks circular dep between hooks)
   const onCalcCompleteRef = React.useRef<() => void>(() => {});
 
+  // Stable ref for current settings (lets recordTrip read latest settings without bloating deps)
+  const settingsRef = React.useRef(settings);
+  settingsRef.current = settings;
+
   // Ref to scroll sidebar to top on step change
   const sidebarScrollRef = useRef<HTMLDivElement>(null);
 
@@ -71,6 +76,9 @@ function AppContent() {
 
   // Trip confirmation gate (Phase 3)
   const [tripConfirmed, setTripConfirmed] = useState(false);
+
+  // Adaptive budget profile (computed from trip history)
+  const [adaptiveDefaults, setAdaptiveDefaults] = useState<AdaptiveDefaults | null>(null);
 
   // Take Me Home (Phase 4) — mirror gas/hotel stops onto the return leg
   const mirroredReturnStops = useMemo((): SuggestedStop[] => {
@@ -129,6 +137,9 @@ function AppContent() {
     setTripConfirmed(false); // New route calculation = plan needs reconfirmation
     const tripResult = await calculateTrip();
     if (!tripResult) return;
+    // Record this trip commit to the adaptive profile
+    recordTrip(settingsRef.current);
+    setAdaptiveDefaults(getAdaptiveDefaults());
     // Fetch POIs using returned summary (avoids stale closure)
     const origin = locations.find(l => l.type === 'origin');
     const destination = locations.find(l => l.type === 'destination');
@@ -239,6 +250,16 @@ function AppContent() {
         setLocations(prev => prev.map((loc, i) =>
           i === 0 ? { ...lastOrigin, id: loc.id, type: 'origin' } : loc
         ));
+      }
+      // Apply adaptive budget defaults silently (no label until n >= 3)
+      const defaults = getAdaptiveDefaults();
+      if (defaults) {
+        setAdaptiveDefaults(defaults);
+        setSettings(prev => ({
+          ...prev,
+          hotelPricePerNight: defaults.hotelPricePerNight,
+          mealPricePerDay: defaults.mealPricePerDay,
+        }));
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -651,6 +672,14 @@ function AppContent() {
                   settings={settings}
                   setSettings={setSettings}
                   tripMode={tripMode}
+                  adaptiveDefaults={adaptiveDefaults}
+                  onResetToBaseline={() => {
+                    setSettings(prev => ({
+                      ...prev,
+                      hotelPricePerNight: CHICHARON_BASELINE.hotelPricePerNight,
+                      mealPricePerDay: CHICHARON_BASELINE.mealPricePerDay,
+                    }));
+                  }}
                 />
               )}
 

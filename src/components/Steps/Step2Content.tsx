@@ -4,6 +4,7 @@ import { VehicleForm } from '../Vehicle/VehicleForm';
 import { BudgetInput } from '../Trip/BudgetInput';
 import { Button } from '../UI/Button';
 import { Label } from '../UI/Label';
+import { isAdaptiveMeaningful, type AdaptiveDefaults } from '../../lib/user-profile';
 
 interface Step2ContentProps {
   vehicle: Vehicle;
@@ -11,6 +12,8 @@ interface Step2ContentProps {
   settings: TripSettings;
   setSettings: React.Dispatch<React.SetStateAction<TripSettings>>;
   tripMode: TripMode;
+  adaptiveDefaults?: AdaptiveDefaults | null;
+  onResetToBaseline?: () => void;
 }
 
 export function Step2Content({
@@ -19,6 +22,8 @@ export function Step2Content({
   settings,
   setSettings,
   tripMode,
+  adaptiveDefaults,
+  onResetToBaseline,
 }: Step2ContentProps) {
   return (
     <div className="space-y-6">
@@ -448,6 +453,23 @@ export function Step2Content({
         </div>
       ) : (
         <div className="border-t pt-4">
+          {/* Adaptive profile banner — shown when we have enough trip history */}
+          {adaptiveDefaults && isAdaptiveMeaningful(adaptiveDefaults) && (
+            <div className="mb-3 flex items-center justify-between gap-2 rounded-lg border border-blue-500/20 bg-blue-500/8 px-3 py-2">
+              <p className="text-xs text-muted-foreground">
+                <span className="font-medium text-foreground/80">Adjusted to your style</span>
+                {' — '}
+                based on your last {adaptiveDefaults.tripCount} trip{adaptiveDefaults.tripCount !== 1 ? 's' : ''}:
+                {' '}hotel ${adaptiveDefaults.hotelPricePerNight}/night, ${adaptiveDefaults.mealPricePerDay}/day meals.
+              </p>
+              <button
+                onClick={onResetToBaseline}
+                className="shrink-0 text-[11px] text-blue-400 hover:text-blue-300 underline underline-offset-2 transition-colors"
+              >
+                Reset to Chicharon's baseline
+              </button>
+            </div>
+          )}
           <BudgetInput
             budget={settings.budget}
             onChange={(newBudget: TripBudget) =>
