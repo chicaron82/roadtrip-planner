@@ -11,6 +11,7 @@ const KEYS = {
   BUDGET_PROFILES: 'roadtrip_budget_profiles',
   DEFAULT_BUDGET_PROFILE: 'roadtrip_default_budget_id',
   LAST_TRIP_BUDGET: 'roadtrip_last_trip_budget',
+  LAST_ORIGIN: 'roadtrip_last_origin',
   VERSION: 'roadtrip_storage_version',
 };
 
@@ -272,6 +273,30 @@ export const getLastTripBudget = (): LastTripBudget | null => {
     const data = localStorage.getItem(KEYS.LAST_TRIP_BUDGET);
     return data ? JSON.parse(data) : null;
   } catch {
+    return null;
+  }
+};
+
+// --- Last Used Origin ---
+// Persists the user's most recent trip origin so it can be pre-filled on return visits.
+
+export const saveLastOrigin = (location: Location): void => {
+  try {
+    localStorage.setItem(KEYS.LAST_ORIGIN, JSON.stringify(location));
+  } catch (e) {
+    console.warn('Failed to save last origin', e);
+  }
+};
+
+export const getLastOrigin = (): Location | null => {
+  try {
+    const data = localStorage.getItem(KEYS.LAST_ORIGIN);
+    if (!data) return null;
+    const loc = JSON.parse(data) as Location;
+    // Sanity-check: must have valid coords and a name
+    if (!loc.lat || !loc.lng || loc.lat === 0 || !loc.name) return null;
+    return loc;
+  } catch (e) {
     return null;
   }
 };

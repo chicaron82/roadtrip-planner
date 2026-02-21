@@ -9,6 +9,7 @@ import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { getHistory } from './lib/storage';
 import { parseStateFromURL, type TemplateImportResult } from './lib/url';
 import { showToast } from './lib/toast';
+import { saveLastOrigin, getLastOrigin } from './lib/storage';
 import { Spinner } from './components/UI/Spinner';
 import { AdventureMode, type AdventureSelection } from './components/Trip/AdventureMode';
 import { buildAdventureBudget } from './lib/adventure-service';
@@ -218,7 +219,7 @@ function AppContent() {
     clearCalcError();
   };
 
-  // Load state from URL on mount (run once)
+  // Load state from URL on mount — or pre-fill last-used origin for return users (run once)
   useEffect(() => {
     const parsedState = parseStateFromURL();
     if (parsedState) {
@@ -231,9 +232,25 @@ function AppContent() {
         markStepComplete(3);
         forceStep(3);
       }
+    } else {
+      // No URL session — pre-fill origin from last visit if available
+      const lastOrigin = getLastOrigin();
+      if (lastOrigin) {
+        setLocations(prev => prev.map((loc, i) =>
+          i === 0 ? { ...lastOrigin, id: loc.id, type: 'origin' } : loc
+        ));
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Persist origin whenever user sets a valid one
+  useEffect(() => {
+    const origin = locations[0];
+    if (origin?.lat && origin.lat !== 0 && origin.name) {
+      saveLastOrigin(origin);
+    }
+  }, [locations]);
 
   // Recalculate departure time when using "Arrive By"
   useEffect(() => {
