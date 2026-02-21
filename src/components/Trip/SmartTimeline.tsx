@@ -12,7 +12,7 @@
  */
 import { useMemo } from 'react';
 import { Clock, Zap, Utensils, Fuel, Coffee, Moon, MapPin, ChevronRight } from 'lucide-react';
-import type { TripSummary, TripSettings, Vehicle } from '../../types';
+import type { TripSummary, TripSettings, Vehicle, RouteSegment } from '../../types';
 import type { POISuggestion } from '../../types';
 import { generateSmartStops, createStopConfig } from '../../lib/stop-suggestions';
 import { buildTimedTimeline, formatTime, formatDuration, type TimedEvent } from '../../lib/trip-timeline';
@@ -63,6 +63,126 @@ function getNearbyPOINames(
     )
     .slice(0, 4)
     .map(p => p.name);
+}
+
+/**
+ * Extract a town/city name from a POI's OSM tags or address.
+ */
+function getTownFromPOI(poi: POISuggestion): string | null {
+  // Best source: the addr:city tag from OSM
+  const city = poi.tags?.['addr:city'] || poi.tags?.['addr:town'] || poi.tags?.['addr:village'];
+  if (city) return city;
+
+  // Fallback: parse from address string (often "123 Main St, Dryden, ON")
+  if (poi.address) {
+    const parts = poi.address.split(',').map(s => s.trim());
+    if (parts.length >= 2) return parts[1]; // Second part is typically town
+  }
+
+  return null;
+}
+
+/**
+ * Build town name checkpoints along the route, derived from POI locations.
+ * Returns a sorted array of {km, town} that can be binary-searched.
+ */
+function buildRouteTownLookup(
+  poiSuggestions: POISuggestion[],
+  segments: RouteSegment[],
+): { km: number; town: string }[] {
+  if (!poiSuggestions.length || !segments.length) return [];
+
+  // Build cumulative km breakpoints for each segment
+  const segStartKm: number[] = [];
+  let cumKm = 0;
+  for (const seg of segments) {
+    segStartKm.push(cumKm);
+    cumKm += seg.distanceKm ?? 0;
+  }
+
+  const checkpoints: { km: number; town: string }[] = [];
+  const seenTowns = new Set<string>();
+
+  for (const poi of poiSuggestions) {
+    if (poi.bucket !== 'along-way') continue;
+    const town = getTownFromPOI(poi);
+    if (!town || seenTowns.has(town)) continue;
+
+    // Estimate km position from segmentIndex
+    const segIdx = poi.segmentIndex ?? 0;
+    const segBase = segStartKm[segIdx] ?? 0;
+    const segLen = segments[segIdx]?.distanceKm ?? cumKm;
+    // Place the POI at the midpoint of its segment (rough but sufficient)
+    const poiKm = segBase + segLen * 0.5;
+
+    checkpoints.push({ km: poiKm, town });
+    seenTowns.add(town);
+  }
+
+  // Also add origin and destination
+  if (segments.length > 0) {
+    const originName = segments[0].from.name;
+    const destName = segments[segments.length - 1].to.name;
+    if (!seenTowns.has(originName)) {
+      checkpoints.push({ km: 0, town: originName });
+    }
+    if (!seenTowns.has(destName)) {
+      checkpoints.push({ km: cumKm, town: destName });
+    }
+  }
+
+  return checkpoints.sort((a, b) => a.km - b.km);
+}
+
+/**
+ * Find the nearest town for a given km position.
+ */
+function findNearestTown(km: number, lookup: { km: number; town: string }[]): string | null {
+  if (lookup.length === 0) return null;
+
+  let best = lookup[0];
+  let bestDist = Math.abs(km - best.km);
+
+  for (let i = 1; i < lookup.length; i++) {
+    const dist = Math.abs(km - lookup[i].km);
+    if (dist < bestDist) {
+      best = lookup[i];
+      bestDist = dist;
+    }
+  }
+
+  return best.town;
+}
+
+/**
+ * Enrich timeline event location hints with town names from POI data.
+ * Replaces "~250 km from Winnipeg" with "near Kenora" or "Dryden area".
+ */
+function enrichLocationHints(
+  events: TimedEvent[],
+  poiSuggestions: POISuggestion[],
+  segments: RouteSegment[],
+): TimedEvent[] {
+  const lookup = buildRouteTownLookup(poiSuggestions, segments);
+  if (lookup.length <= 2) return events; // Only origin/dest — no useful mid-route data
+
+  return events.map(event => {
+    // Skip departure/arrival — they already have good names
+    if (event.type === 'departure' || event.type === 'arrival') return event;
+    // Skip drives — they don't show location labels
+    if (event.type === 'drive') return event;
+
+    // Only enrich if the current hint is a generic km-based one
+    if (!event.locationHint.startsWith('~')) return event;
+
+    const town = findNearestTown(event.distanceFromOriginKm, lookup);
+    if (!town) return event;
+
+    return {
+      ...event,
+      locationHint: `near ${town}`,
+    };
+  });
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -180,10 +300,11 @@ function StopCard({
   // Regular stop (fuel / meal / rest / overnight)
   const icon = EVENT_ICON[event.type];
   const label = event.type === 'fuel' ? 'Fuel Stop'
-    : event.type === 'meal' ? (
-        event.stops[0]?.reason?.toLowerCase().includes('lunch') ? 'Lunch' :
-        event.stops[0]?.reason?.toLowerCase().includes('dinner') ? 'Dinner' : 'Meal'
-      )
+    : event.type === 'meal' ? (() => {
+        const h = event.arrivalTime.getHours();
+        return h < 10 || (h === 10 && event.arrivalTime.getMinutes() < 30) ? 'Breakfast'
+          : h >= 17 ? 'Dinner' : 'Lunch';
+      })()
     : event.type === 'rest' ? 'Break'
     : event.type === 'overnight' ? 'Overnight'
     : 'Stop';
@@ -223,8 +344,11 @@ export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [] 
     // buildTimedTimeline handles mid-segment splitting: a 700km drive with
     // a fuel stop at km 487 becomes drive→fuel→drive automatically.
     const raw = buildTimedTimeline(summary.segments, allSuggestions, settings, vehicle);
-    return applyComboOptimization(raw);
-  }, [summary, settings, vehicle]);
+    const optimized = applyComboOptimization(raw);
+
+    // Enrich "~250 km from Winnipeg" → "near Kenora" using POI town data
+    return enrichLocationHints(optimized, poiSuggestions, summary.segments);
+  }, [summary, settings, vehicle, poiSuggestions]);
 
   if (!events.length) return null;
 
