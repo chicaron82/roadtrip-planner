@@ -462,13 +462,22 @@ function consolidateStops(stops: SuggestedStop[]): SuggestedStop[] {
       // Merge next into accumulator
       const accPri  = STOP_MERGE_PRIORITY[acc.type] ?? 0;
       const nextPri = STOP_MERGE_PRIORITY[next.type] ?? 0;
-      const winningType = accPri >= nextPri ? acc.type : next.type;
+      const winnerIsAcc = accPri >= nextPri;
+      const winningType = winnerIsAcc ? acc.type : next.type;
+
+      // Use the winning type's reason as the primary text.
+      // The losing type's context becomes a secondary note.
+      const primaryReason = winnerIsAcc ? acc.reason : next.reason;
+      const secondaryReason = winnerIsAcc ? next.reason : acc.reason;
+      // Extract short label from the merged stop (e.g. "Lunch break" from a meal)
+      const secondaryLabel = !winnerIsAcc ? acc.type : next.type;
+      const secondaryNote = `Also includes ${secondaryLabel} stop: ${secondaryReason}`;
 
       acc = {
         ...acc,
         id: `merged-${acc.id}-${next.id}`,
         type: winningType,
-        reason: `${acc.reason}. Also: ${next.reason}`,
+        reason: `${primaryReason}\n${secondaryNote}`,
         duration: Math.max(acc.duration, next.duration),
         priority:
           acc.priority === 'required' || next.priority === 'required' ? 'required' :
