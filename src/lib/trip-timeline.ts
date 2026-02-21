@@ -59,10 +59,11 @@ export const formatTime = (d: Date): string =>
  * Format a duration in minutes as "1h 15min" / "45 min"
  */
 export const formatDuration = (minutes: number): string => {
-  if (minutes < 60) return `${minutes} min`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m === 0 ? `${h}h` : `${h}h ${m}min`;
+  const m = Math.round(minutes);
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  const rem = m % 60;
+  return rem === 0 ? `${h}h` : `${h}h ${rem}min`;
 };
 
 /**
@@ -170,9 +171,12 @@ export function buildTimedTimeline(
     // Safety-net fuel check
     const fuelNeeded = seg.fuelNeededLitres ?? (segKm / 100) * 9;
     if (currentFuel - fuelNeeded < tankCapacity * 0.10) {
-      const hasAcceptedFuel = (bySegment.get(i - 1) ?? []).some(s => s.type === 'fuel') ||
-                              (bySegment.get(i) ?? []).some(s => s.type === 'fuel');
-      if (!hasAcceptedFuel) {
+      // Only fire the safety-net when NO planned fuel stop exists ANYWHERE in
+      // the remaining route. The suggestions algorithm already places stops at
+      // the right intervals — we only need this for absolute edge cases.
+      const anyFuelPlannedAhead = [...bySegment.entries()]
+        .some(([k, stops]) => k >= i - 1 && stops.some(s => s.type === 'fuel'));
+      if (!anyFuelPlannedAhead) {
         const refillCost = tankCapacity * settings.gasPrice;
         const arr = new Date(currentTime);
         const dep = new Date(currentTime.getTime() + 15 * 60 * 1000);

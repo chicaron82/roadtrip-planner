@@ -83,7 +83,7 @@ export function applyComboOptimization(
 
     // Build combo label
     const comboLabel =
-      flexType === 'meal' ? buildMealLabel(flexEvent) :
+      flexType === 'meal' ? buildMealLabel(flexEvent, fuelEvent.arrivalTime) :
       flexType === 'rest' ? 'Fuel + Break' :
       'Fuel + Stop';
 
@@ -125,11 +125,28 @@ export function applyComboOptimization(
   return result.filter((_, i) => !consumed.has(i));
 }
 
-function buildMealLabel(flexEvent: TimedEvent): string {
-  // Check stop reason for meal type hint
+/**
+ * Determine meal name using clock time at the combo stop, falling back to
+ * the stop's reason text if the hour is ambiguous.
+ */
+function buildMealLabel(flexEvent: TimedEvent, comboArrival: Date): string {
+  const hour = comboArrival.getHours();
+  // Time-aware first: breakfast < 10:30, dinner >= 17:00, otherwise lunch
+  const timeMeal =
+    hour < 10 || (hour === 10 && comboArrival.getMinutes() < 30) ? 'Breakfast' :
+    hour >= 17 ? 'Dinner' :
+    'Lunch';
+
+  // Let the stop reason override if it has a more specific label
   const reason = flexEvent.stops[0]?.reason ?? '';
-  if (reason.toLowerCase().includes('lunch')) return 'Fuel + Lunch';
-  if (reason.toLowerCase().includes('dinner')) return 'Fuel + Dinner';
-  if (reason.toLowerCase().includes('breakfast')) return 'Fuel + Breakfast';
-  return 'Fuel + Meal';
+  const reasonLower = reason.toLowerCase();
+  const reasonMeal =
+    reasonLower.includes('breakfast') ? 'Breakfast' :
+    reasonLower.includes('dinner')    ? 'Dinner'    :
+    reasonLower.includes('lunch')     ? 'Lunch'     :
+    null;
+
+  // Prefer time-aware over reason text (reason was computed at planning time,
+  // not at actual clock time after the drive).
+  return `Fuel + ${timeMeal || reasonMeal || 'Meal'}`;
 }
