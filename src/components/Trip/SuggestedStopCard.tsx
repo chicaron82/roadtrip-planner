@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, X, Clock, Fuel, Coffee, UtensilsCrossed, Hotel, ChevronDown } from 'lucide-react';
+import { Check, X, Clock, Fuel, Coffee, UtensilsCrossed, Hotel, ChevronDown, ChevronUp } from 'lucide-react';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
 import { getStopColors } from '../../lib/stop-suggestions';
 import { Button } from '../UI/Button';
@@ -47,9 +47,12 @@ const DURATION_OPTIONS: Record<SuggestedStop['type'], number[]> = {
 export function SuggestedStopCard({ stop, onAccept, onDismiss }: SuggestedStopCardProps) {
   const [customDuration, setCustomDuration] = useState(stop.duration);
   const [showDurationPicker, setShowDurationPicker] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const colors = getStopColors(stop.type);
 
   if (stop.dismissed) return null;
+
+  const isLongReason = stop.reason.length > 100;
 
   const formatDuration = (minutes: number): string => {
     if (minutes >= 60) {
@@ -102,9 +105,27 @@ export function SuggestedStopCard({ stop, onAccept, onDismiss }: SuggestedStopCa
             )}
           </div>
 
-          <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
-            {stop.reason}
-          </p>
+          <div className="mb-2">
+            <p className={cn("text-sm text-muted-foreground", !isExpanded && "line-clamp-2")}>
+              {stop.reason}
+            </p>
+            {isLongReason && (
+              <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className={cn(
+                  "mt-0.5 inline-flex items-center gap-0.5 text-xs font-medium transition-colors",
+                  colors.text,
+                  "opacity-70 hover:opacity-100"
+                )}
+              >
+                {isExpanded ? (
+                  <><ChevronUp className="h-3 w-3" /> Less</>
+                ) : (
+                  <><ChevronDown className="h-3 w-3" /> More</>
+                )}
+              </button>
+            )}
+          </div>
 
           {/* Sparse Stretch Warning */}
           {stop.warning && (
