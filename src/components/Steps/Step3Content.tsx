@@ -6,6 +6,7 @@ import { OvernightStopPrompt } from '../Trip/OvernightStopPrompt';
 import { JournalModeToggle, StartJournalCTA, type ViewMode } from '../Trip/JournalModeToggle';
 import { JournalTimeline } from '../Trip/JournalTimeline';
 import { ItineraryTimeline } from '../Trip/ItineraryTimeline';
+import { SmartTimeline } from '../Trip/SmartTimeline';
 import { ConfirmTripCard } from '../Trip/ConfirmTripCard';
 import { printTrip } from '../Trip/TripPrintView';
 import { generateEstimate } from '../../lib/estimate-service';
@@ -104,6 +105,14 @@ export function Step3Content({
             <Minimize2 className="h-3 w-3" /> Collapse
           </Button>
         </div>
+        {viewMode === 'plan' && (
+          <SmartTimeline
+            summary={summary}
+            settings={settings}
+            vehicle={vehicle}
+            poiSuggestions={poiSuggestions}
+          />
+        )}
         {viewMode === 'journal' ? (
           activeJournal ? (
             <JournalTimeline
@@ -255,6 +264,16 @@ export function Step3Content({
 
       {summary ? (
         <>
+          {/* Smart Timeline — time-first view with combo stop optimization */}
+          {viewMode === 'plan' && (
+            <SmartTimeline
+              summary={summary}
+              settings={settings}
+              vehicle={vehicle}
+              poiSuggestions={poiSuggestions}
+            />
+          )}
+
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-muted-foreground">
               {viewMode === 'journal' ? 'Journal' : 'Itinerary'}
