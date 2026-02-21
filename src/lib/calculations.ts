@@ -1,6 +1,20 @@
 import type { RouteSegment, TripSummary, Vehicle, TripSettings } from '../types';
 import { analyzeSegments } from './segment-analyzer';
 import { haversineDistance } from './poi-ranking';
+import { KM_TO_MILES } from './constants';
+import {
+  getTankSizeLitres,
+  getWeightedFuelEconomyL100km,
+  estimateGasStops,
+} from './unit-conversions';
+
+// Re-export conversion functions for API compatibility
+export {
+  convertMpgToL100km,
+  convertL100kmToMpg,
+  convertLitresToGallons,
+  convertGallonsToLitres,
+} from './unit-conversions';
 
 export function calculateTripCosts(
   uniqueSegments: RouteSegment[],
@@ -10,25 +24,14 @@ export function calculateTripCosts(
   const totalDistanceKm = uniqueSegments.reduce((acc, seg) => acc + seg.distanceKm, 0);
   const totalDurationMinutes = uniqueSegments.reduce((acc, seg) => acc + seg.durationMinutes, 0);
 
-  // Weighted fuel economy (80% highway, 20% city for highway driving assumption)
-  const weightedFuelEconomy =
-    settings.units === 'metric'
-      ? vehicle.fuelEconomyHwy * 0.8 + vehicle.fuelEconomyCity * 0.2
-      : convertMpgToL100km(vehicle.fuelEconomyHwy) * 0.8 +
-        convertMpgToL100km(vehicle.fuelEconomyCity) * 0.2;
+  const weightedFuelEconomy = getWeightedFuelEconomyL100km(vehicle, settings.units);
 
   const totalFuelLitres = (totalDistanceKm / 100) * weightedFuelEconomy;
   const totalFuelCost = totalFuelLitres * settings.gasPrice;
 
-  const tankSizeLitres =
-    settings.units === 'metric' ? vehicle.tankSize : vehicle.tankSize * 3.78541;
+  const tankSizeLitres = getTankSizeLitres(vehicle, settings.units);
 
-  // Gas stops: (Total Fuel Needed / (75% of Tank Capacity)) - 1 (assumes starting full)
-  // Using 75% as a safe usable capacity buffer
-  const gasStops = Math.max(
-    0,
-    Math.ceil(totalFuelLitres / (tankSizeLitres * 0.75)) - 1
-  );
+  const gasStops = estimateGasStops(totalFuelLitres, tankSizeLitres);
 
   const costPerPerson =
     settings.numTravelers > 0 ? totalFuelCost / settings.numTravelers : totalFuelCost;
@@ -63,19 +66,9 @@ export function calculateTripCosts(
   };
 }
 
-export function convertMpgToL100km(mpg: number): number {
-  if (mpg === 0) return 0;
-  return 235.215 / mpg;
-}
-
-export function convertL100kmToMpg(l100km: number): number {
-  if (l100km === 0) return 0;
-  return 235.215 / l100km;
-}
-
 export function formatDistance(km: number, units: 'metric' | 'imperial'): string {
   if (units === 'imperial') {
-    return `${(km * 0.621371).toFixed(1)} mi`;
+    return `${(km * KM_TO_MILES).toFixed(1)} mi`;
   }
   return `${km.toFixed(1)} km`;
 }
@@ -87,20 +80,17 @@ export function formatCurrency(amount: number, currency: 'CAD' | 'USD'): string 
   }).format(amount);
 }
 
+/** Simple $-prefix format for print views that don't need locale awareness. */
+export function formatCurrencySimple(amount: number): string {
+  return `$${amount.toFixed(2)}`;
+}
+
 export function formatDuration(minutes: number): string {
   const hours = Math.floor(minutes / 60);
   const mins = Math.round(minutes % 60);
   if (hours === 0) return `${mins} min`;
   if (mins === 0) return `${hours}h`;
   return `${hours}h ${mins}m`;
-}
-
-export function convertLitresToGallons(litres: number): number {
-  return litres / 3.78541;
-}
-
-export function convertGallonsToLitres(gallons: number): number {
-  return gallons * 3.78541;
 }
 
 /**
@@ -123,16 +113,8 @@ export function calculateStrategicFuelStops(
 ): StrategicFuelStop[] {
   if (routeGeometry.length === 0 || segments.length === 0) return [];
 
-  // Calculate weighted fuel economy
-  const weightedFuelEconomy =
-    settings.units === 'metric'
-      ? vehicle.fuelEconomyHwy * 0.8 + vehicle.fuelEconomyCity * 0.2
-      : convertMpgToL100km(vehicle.fuelEconomyHwy) * 0.8 +
-        convertMpgToL100km(vehicle.fuelEconomyCity) * 0.2;
-
-  // Tank size in litres
-  const tankSizeLitres =
-    settings.units === 'metric' ? vehicle.tankSize : vehicle.tankSize * 3.78541;
+  const weightedFuelEconomy = getWeightedFuelEconomyL100km(vehicle, settings.units);
+  const tankSizeLitres = getTankSizeLitres(vehicle, settings.units);
 
   // Range on full tank (80% usable)
   const rangeKm = (tankSizeLitres * 0.8 / weightedFuelEconomy) * 100;
@@ -153,17 +135,16 @@ export function calculateStrategicFuelStops(
     const segmentStart = currentDistance;
     const segmentEnd = currentDistance + segment.distanceKm;
 
-    // Check if we need a fuel stop in this segment
-    const lastStopDistance = fuelStops.length > 0
+    // Place fuel stops in this segment — use while loop so mega-segments
+    // (longer than 2x safe range) get multiple stops, not just one.
+    let lastStopDistance = fuelStops.length > 0
       ? fuelStops[fuelStops.length - 1].distanceFromStart
       : 0;
 
-    if (segmentEnd - lastStopDistance >= stopIntervalKm) {
-      // Calculate where in this segment to place the stop
+    while (segmentEnd - lastStopDistance >= stopIntervalKm) {
       const stopDistance = lastStopDistance + stopIntervalKm;
 
       if (stopDistance >= segmentStart && stopDistance <= segmentEnd) {
-        
         let lat = segment.from.lat;
         let lng = segment.from.lng;
 
@@ -172,20 +153,18 @@ export function calculateStrategicFuelStops(
           const p1 = routeGeometry[routeIndex];
           const p2 = routeGeometry[routeIndex + 1];
           const d = haversineDistance(p1[0], p1[1], p2[0], p2[1]);
-          
+
           if (currentRouteDistance + d >= stopDistance) {
-            // Interpolate within this specific micro-segment of the polyline
             const progress = d > 0 ? (stopDistance - currentRouteDistance) / d : 0;
             lat = p1[0] + (p2[0] - p1[0]) * progress;
             lng = p1[1] + (p2[1] - p1[1]) * progress;
             break;
           }
-          
+
           currentRouteDistance += d;
           routeIndex++;
         }
 
-        // Estimate time at this stop
         const progress = (stopDistance - segmentStart) / segment.distanceKm;
         const minutesIntoSegment = segment.durationMinutes * progress;
         const estimatedMinutes = currentTime + minutesIntoSegment;
@@ -193,7 +172,6 @@ export function calculateStrategicFuelStops(
         const mins = Math.round(estimatedMinutes % 60);
         const timeStr = `${hours}h ${mins}m`;
 
-        // Calculate fuel remaining at this point (starts at 100%, depletes)
         const kmSinceLastStop = stopDistance - lastStopDistance;
         const fuelUsedPercent = (kmSinceLastStop / rangeKm) * 100;
         const fuelRemaining = 100 - fuelUsedPercent;
@@ -206,6 +184,11 @@ export function calculateStrategicFuelStops(
           fuelRemaining: Math.max(0, fuelRemaining),
         });
       }
+
+      // Update for next iteration of while loop
+      lastStopDistance = fuelStops.length > 0
+        ? fuelStops[fuelStops.length - 1].distanceFromStart
+        : stopDistance; // Fallback prevents infinite loop
     }
 
     currentDistance += segment.distanceKm;

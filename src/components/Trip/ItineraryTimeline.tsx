@@ -6,6 +6,7 @@ import { SuggestedStopCard } from './SuggestedStopCard';
 import { DiscoveryPanel } from './DiscoveryPanel';
 import { generatePacingSuggestions } from '../../lib/segment-analyzer';
 import { generateSmartStops, createStopConfig, type SuggestedStop } from '../../lib/stop-suggestions';
+import { getTankSizeLitres } from '../../lib/unit-conversions';
 import { assignDrivers, extractFuelStopIndices } from '../../lib/driver-rotation';
 import { Button } from '../UI/Button';
 import { ActivityEditor } from './ActivityEditor';
@@ -150,10 +151,9 @@ export function ItineraryTimeline({
     const items: SimulationItem[] = [];
     let currentTime = new Date(startTime);
 
-    // Tank capacity in litres. vehicle.tankSize is in the user's chosen unit (gallons for imperial),
-    // so convert when needed. Default 55 L when vehicle is null.
+    // Tank capacity in litres. Default 55 L when vehicle is null.
     const VIRTUAL_TANK_CAPACITY = vehicle
-      ? (settings.units === 'metric' ? vehicle.tankSize : vehicle.tankSize * 3.78541)
+      ? getTankSizeLitres(vehicle, settings.units)
       : 55;
     let currentFuel = VIRTUAL_TANK_CAPACITY;
 

@@ -24,8 +24,7 @@ export type WarningCategory =
   | 'drive-time'    // Exceeds max drive hours
   | 'driver'        // Single driver fatigue, uneven rotation
   | 'timing'        // Late arrivals, early departures
-  | 'passenger'     // Per-person cost changes
-  | 'fuel';         // Tight on fuel range
+  | 'passenger';    // Per-person cost changes
 
 export type WarningSeverity = 'info' | 'warning' | 'critical';
 
@@ -209,7 +208,7 @@ function analyzeDriveTime(
         dayNumber: day.dayNumber,
         suggestion: 'Consider adding an overnight stop to split this day.',
       });
-    } else if (driveMinutes >= tightDriveMinutes && driveMinutes <= maxDriveMinutes) {
+    } else if (driveMinutes >= tightDriveMinutes && driveMinutes <= hardLimitMinutes) {
       warnings.push({
         category: 'drive-time',
         severity: 'warning',
@@ -219,8 +218,7 @@ function analyzeDriveTime(
         suggestion: 'Ensure adequate rest stops are planned.',
       });
     }
-    // If driveMinutes is between maxDriveMinutes and hardLimitMinutes, it is in the grace period.
-    // By design, we suppress both warnings to allow the traveler some flexibility without annoying alerts.
+    // Grace period (max < drive <= hard limit) now covered by the warning condition above.
   }
 
   return warnings;
@@ -244,15 +242,16 @@ function analyzeDriverFatigue(
     );
     const totalDriveHours = totalDriveMinutes / 60;
 
-    // Warn if any single day exceeds 8 hours with one driver
-    const longDays = days.filter(d => d.totals.driveTimeMinutes > 8 * 60);
+    // Warn if any single day exceeds the user's max drive hours with one driver
+    const fatigueThresholdMinutes = settings.maxDriveHours * 60;
+    const longDays = days.filter(d => d.totals.driveTimeMinutes > fatigueThresholdMinutes);
     if (longDays.length > 0) {
       for (const day of longDays) {
         warnings.push({
           category: 'driver',
           severity: 'warning',
           message: `Day ${day.dayNumber}: ${formatDuration(day.totals.driveTimeMinutes)} with 1 driver`,
-          detail: 'Long drives with a single driver increase fatigue risk. Recommended: max 8 hours per driver per day.',
+          detail: `Long drives with a single driver increase fatigue risk. Recommended: max ${settings.maxDriveHours} hours per driver per day.`,
           dayNumber: day.dayNumber,
           suggestion: totalDriveHours > 16
             ? 'Consider adding a second driver to share the load.'

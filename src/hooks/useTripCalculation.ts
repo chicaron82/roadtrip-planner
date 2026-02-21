@@ -7,6 +7,7 @@ import {
   calculateArrivalTimes,
   type StrategicFuelStop,
 } from '../lib/calculations';
+import { getTankSizeLitres, estimateGasStops } from '../lib/unit-conversions';
 import {
   splitTripByDays,
   calculateCostBreakdown,
@@ -138,8 +139,8 @@ export function useTripCalculation({
         tripSummary.totalFuelCost = segmentsWithTimes.reduce((sum, s) => sum + s.fuelCost, 0);
 
         // Recalculate derived values that were computed from one-way costs
-        const tankSizeLitres = settings.units === 'metric' ? vehicle.tankSize : vehicle.tankSize * 3.78541;
-        tripSummary.gasStops = Math.max(0, Math.ceil(tripSummary.totalFuelLitres / (tankSizeLitres * 0.75)) - 1);
+        const tankSizeLitres = getTankSizeLitres(vehicle, settings.units);
+        tripSummary.gasStops = estimateGasStops(tripSummary.totalFuelLitres, tankSizeLitres);
         tripSummary.costPerPerson = settings.numTravelers > 0
           ? tripSummary.totalFuelCost / settings.numTravelers
           : tripSummary.totalFuelCost;
@@ -307,7 +308,8 @@ export function useTripCalculation({
     setError(null);
     setShowOvernightPrompt(false);
     setSuggestedOvernightStop(null);
-  }, []);
+    onSummaryChange(null);
+  }, [onSummaryChange]);
 
   return {
     isCalculating,

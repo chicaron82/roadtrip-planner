@@ -14,6 +14,8 @@
 import type { TripSummary, TripSettings, TripDay, RouteSegment } from '../../types';
 import type { DriverRotationResult } from '../../lib/driver-rotation';
 import { assignDrivers, formatDriveTime } from '../../lib/driver-rotation';
+import { formatCurrencySimple as formatCurrency } from '../../lib/calculations';
+import { KM_TO_MILES } from '../../lib/constants';
 
 // ==================== TYPES ====================
 
@@ -24,12 +26,8 @@ interface TripPrintViewProps {
 
 // ==================== HELPERS ====================
 
-function formatCurrency(amount: number): string {
-  return `$${amount.toFixed(2)}`;
-}
-
 function formatDistance(km: number, units: 'metric' | 'imperial'): string {
-  if (units === 'imperial') return `${(km * 0.621371).toFixed(0)} mi`;
+  if (units === 'imperial') return `${(km * KM_TO_MILES).toFixed(0)} mi`;
   return `${km.toFixed(0)} km`;
 }
 

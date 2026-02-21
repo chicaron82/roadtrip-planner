@@ -83,12 +83,11 @@ export const COST_ESTIMATES = {
  * Returns category amounts based on percentage weights
  */
 export function applyBudgetWeights(total: number, weights: BudgetWeights): Pick<TripBudget, 'gas' | 'hotel' | 'food' | 'misc'> {
-  return {
-    gas: Math.round(total * (weights.gas / 100)),
-    hotel: Math.round(total * (weights.hotel / 100)),
-    food: Math.round(total * (weights.food / 100)),
-    misc: Math.round(total * (weights.misc / 100)),
-  };
+  const gas = Math.round(total * (weights.gas / 100));
+  const hotel = Math.round(total * (weights.hotel / 100));
+  const food = Math.round(total * (weights.food / 100));
+  const misc = total - gas - hotel - food; // Absorb rounding remainder
+  return { gas, hotel, food, misc };
 }
 
 /**
@@ -119,13 +118,16 @@ export function createSmartBudget(
   const foodEstimate = totalDays * numTravelers * settings.mealPricePerDay;
   const total = Math.round(gasEstimate + hotelEstimate + foodEstimate);
 
-  // Calculate actual weights based on estimates
-  const weights = total > 0 ? {
-    gas: Math.round((gasEstimate / total) * 100),
-    hotel: Math.round((hotelEstimate / total) * 100),
-    food: Math.round((foodEstimate / total) * 100),
-    misc: 0,
-  } : BUDGET_PROFILES.balanced.weights;
+  // Calculate actual weights based on estimates (misc absorbs rounding remainder)
+  let weights: BudgetWeights;
+  if (total > 0) {
+    const gasW = Math.round((gasEstimate / total) * 100);
+    const hotelW = Math.round((hotelEstimate / total) * 100);
+    const foodW = Math.round((foodEstimate / total) * 100);
+    weights = { gas: gasW, hotel: hotelW, food: foodW, misc: 100 - gasW - hotelW - foodW };
+  } else {
+    weights = BUDGET_PROFILES.balanced.weights;
+  }
 
   return {
     mode: 'open',
@@ -549,7 +551,7 @@ export function calculateCostBreakdown(
     meals: Math.round(meals * 100) / 100,
     misc: Math.round(misc * 100) / 100,
     total: Math.round(total * 100) / 100,
-    perPerson: Math.round((total / numTravelers) * 100) / 100,
+    perPerson: numTravelers > 0 ? Math.round((total / numTravelers) * 100) / 100 : Math.round(total * 100) / 100,
   };
 }
 
@@ -600,14 +602,6 @@ function getTimezoneName(abbr: string): string {
     'EDT': 'Eastern Daylight Time',
   };
   return names[abbr] || `${abbr} Time Zone`;
-}
-
-/**
- * Format currency amount with proper symbol
- */
-export function formatCurrency(amount: number, currency: 'CAD' | 'USD'): string {
-  const symbol = currency === 'USD' ? '$' : 'CA$';
-  return `${symbol}${amount.toFixed(2)}`;
 }
 
 /**

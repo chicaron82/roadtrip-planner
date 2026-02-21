@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { POI, POICategory, RouteSegment } from '../types';
-import type { SuggestedStop, StopType } from '../lib/stop-suggestions';
+import type { SuggestedStop, SuggestionSuggestionStopType } from '../lib/stop-suggestions';
 import { findNearestSegmentIndex, haversineDistance, estimateDetourTime } from '../lib/poi-ranking';
 
 // ==================== TYPES ====================
@@ -9,7 +9,7 @@ export interface AddedStop {
   id: string;
   poi: POI;
   afterSegmentIndex: number;
-  stopType: StopType;
+  stopType: SuggestionStopType;
   duration: number;       // minutes
   estimatedCost: number;
   detourMinutes: number;
@@ -17,7 +17,7 @@ export interface AddedStop {
 
 // ==================== CATEGORY DEFAULTS ====================
 
-const CATEGORY_DEFAULTS: Record<POICategory, { stopType: StopType; duration: number; cost: number }> = {
+const CATEGORY_DEFAULTS: Record<POICategory, { stopType: SuggestionStopType; duration: number; cost: number }> = {
   gas:        { stopType: 'fuel',      duration: 15,  cost: 0   },
   food:       { stopType: 'meal',      duration: 45,  cost: 50  },
   hotel:      { stopType: 'overnight', duration: 480, cost: 120 },

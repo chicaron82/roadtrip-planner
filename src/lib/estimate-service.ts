@@ -8,6 +8,7 @@
  * ═══════════════════════════════════════════════════════════
  */
 import type { Vehicle, TripSettings, TripSummary, UnitSystem } from '../types';
+import { KM_TO_MILES } from './constants';
 
 /** Regional cost averages (CAD-centric, convertible) */
 const ESTIMATES = {
@@ -70,7 +71,7 @@ function estimateFuelCost(
     return { low: mid * 0.85, mid, high: mid * 1.20 };
   } else {
     // MPG
-    const distanceMiles = distanceKm * 0.621371;
+    const distanceMiles = distanceKm * KM_TO_MILES;
     const gallons = distanceMiles / fuelEconomy;
     const price = gasPrice || ESTIMATES.gasPricePerGallon;
     const mid = gallons * price;

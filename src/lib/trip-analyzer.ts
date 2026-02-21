@@ -26,8 +26,9 @@ export function calculateTripDifficulty(
   let score = 0;
   const factors: string[] = [];
 
+  const safeDriveHours = settings.maxDriveHours > 0 ? settings.maxDriveHours : 8;
   const totalHours = summary.totalDurationMinutes / 60;
-  const daysNeeded = Math.ceil(totalHours / settings.maxDriveHours);
+  const daysNeeded = Math.ceil(totalHours / safeDriveHours);
 
   // Distance factor (0-25 points)
   if (summary.totalDistanceKm > 2000) {
@@ -101,11 +102,11 @@ export function calculateTripDifficulty(
   let color: string;
   let emoji: string;
 
-  if (score >= 70) {
+  if (score >= 80) {
     level = 'extreme';
     color = 'red';
     emoji = '🔴';
-  } else if (score >= 45) {
+  } else if (score >= 55) {
     level = 'challenging';
     color = 'orange';
     emoji = '🟠';
@@ -165,14 +166,15 @@ export function calculateRouteConfidence(
   }
 
   // Cap score
-  score = Math.max(60, Math.min(100, score));
+  score = Math.max(45, Math.min(100, score));
 
   let label: string;
   if (score >= 95) label = 'Excellent';
   else if (score >= 85) label = 'Very Good';
   else if (score >= 75) label = 'Good';
   else if (score >= 65) label = 'Fair';
-  else label = 'Estimated';
+  else if (score >= 55) label = 'Estimated';
+  else label = 'Low';
 
   return { score, label, factors };
 }
@@ -204,7 +206,8 @@ export function generateTripOverview(
     highlights.push(`${totalHours.toFixed(1)} hours of driving`);
 
     // Only suggest splitting when the trip ISN'T already multi-day
-    const daysNeeded = Math.ceil(totalHours / settings.maxDriveHours);
+    const overviewDriveHours = settings.maxDriveHours > 0 ? settings.maxDriveHours : 8;
+    const daysNeeded = Math.ceil(totalHours / overviewDriveHours);
     if (daysNeeded > 1) {
       highlights.push(`Best split into ${daysNeeded} days`);
     }

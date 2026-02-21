@@ -1,10 +1,11 @@
 import type { RouteSegment, Vehicle, TripSettings, TripDay } from '../types';
+import { getTankSizeLitres, getWeightedFuelEconomyL100km } from './unit-conversions';
 
-export type StopType = 'fuel' | 'rest' | 'meal' | 'overnight';
+export type SuggestionStopType = 'fuel' | 'rest' | 'meal' | 'overnight';
 
 export interface SuggestedStop {
   id: string;
-  type: StopType;
+  type: SuggestionStopType;
   reason: string;
   afterSegmentIndex: number; // Insert after this segment
   estimatedTime: Date;
@@ -30,7 +31,6 @@ export interface StopSuggestionConfig {
   numDrivers: number;
   departureTime: Date;
   gasPrice: number;
-  fuelBuffer?: number; // Percent to keep in reserve (default 0.25)
   stopFrequency?: StopFrequency; // How often to suggest stops (default 'balanced')
 }
 
@@ -125,7 +125,7 @@ export function generateSmartStops(
 
   segments.forEach((segment, index) => {
     const segmentHours = segment.durationMinutes / 60;
-    const fuelNeeded = segment.fuelNeededLitres || (segment.distanceKm / 100) * config.fuelEconomyL100km;
+    const fuelNeeded = segment.fuelNeededLitres ?? (segment.distanceKm / 100) * config.fuelEconomyL100km;
 
     // === DAY BOUNDARY RESET ===
     // When a new driving day starts (e.g., Day 3 after a free Day 2), reset all simulation
@@ -139,6 +139,7 @@ export function generateSmartStops(
       currentTime = dayStart;
       totalDrivingToday = 0;
       lastBreakTime = new Date(dayStart);
+      hoursOnRoad = 0;
       currentFuel = config.tankSizeLitres;
       distanceSinceLastFill = 0;
       hoursSinceLastFill = 0;
@@ -184,6 +185,7 @@ export function generateSmartStops(
 
         // Reset to next morning at configured departure time
         totalDrivingToday = 0;
+        hoursOnRoad = 0;
         const nextDay = new Date(currentTime);
         nextDay.setDate(nextDay.getDate() + 1);
         nextDay.setHours(dh, dm, 0, 0);
@@ -373,6 +375,7 @@ export function generateSmartStops(
       });
 
       totalDrivingToday = 0; // Reset for next day
+      hoursOnRoad = 0;
       // Move to next morning at configured departure time
       const departHour = config.departureTime.getHours();
       const departMinute = config.departureTime.getMinutes();
@@ -410,7 +413,7 @@ export function generateSmartStops(
  * overnight > fuel > meal > rest
  * POI/attraction (future) would slot in below rest.
  */
-const STOP_MERGE_PRIORITY: Record<StopType, number> = {
+const STOP_MERGE_PRIORITY: Record<SuggestionStopType, number> = {
   overnight: 4,
   fuel:      3,
   meal:      2,
@@ -418,16 +421,16 @@ const STOP_MERGE_PRIORITY: Record<StopType, number> = {
 };
 
 /**
- * Consolidate stops that fall within a 20-minute time window of each other.
- * Time-window matching (instead of segment-index matching) correctly handles
- * POI stops placed at arbitrary positions along a leg.
+ * Consolidate stops that fall within a 60-minute time window of each other.
+ * Uses an accumulator pattern so 3+ stops at the same location all merge
+ * (the old pair-skip approach left the third stop un-merged).
  *
  * Merge strategy:
- * - Pair up stops within MERGE_WINDOW_MS of each other (greedy, left-to-right)
+ * - Compare each stop against the running accumulator
  * - Winning type = highest priority tier
- * - Duration = max of the two (merged stop is long enough for both)
- * - Priority = most urgent of the two
- * - Reason = both reasons concatenated
+ * - Duration = max of all merged (long enough for everything)
+ * - Priority = most urgent of all merged
+ * - Reason = all reasons concatenated
  */
 function consolidateStops(stops: SuggestedStop[]): SuggestedStop[] {
   if (stops.length <= 1) return stops;
@@ -435,41 +438,39 @@ function consolidateStops(stops: SuggestedStop[]): SuggestedStop[] {
   const MERGE_WINDOW_MS = 60 * 60 * 1000; // 60-minute merge window
 
   const consolidated: SuggestedStop[] = [];
-  let i = 0;
+  let acc = stops[0]; // Running accumulator
 
-  while (i < stops.length) {
-    const current = stops[i];
-    const next = stops[i + 1];
+  for (let i = 1; i < stops.length; i++) {
+    const next = stops[i];
+    const timeDeltaMs = Math.abs(next.estimatedTime.getTime() - acc.estimatedTime.getTime());
 
-    const timeDeltaMs = next
-      ? Math.abs(next.estimatedTime.getTime() - current.estimatedTime.getTime())
-      : Infinity;
+    if (timeDeltaMs <= MERGE_WINDOW_MS) {
+      // Merge next into accumulator
+      const accPri  = STOP_MERGE_PRIORITY[acc.type] ?? 0;
+      const nextPri = STOP_MERGE_PRIORITY[next.type] ?? 0;
+      const winningType = accPri >= nextPri ? acc.type : next.type;
 
-    if (next && timeDeltaMs <= MERGE_WINDOW_MS) {
-      // Pick the higher-priority type
-      const currentPri = STOP_MERGE_PRIORITY[current.type] ?? 0;
-      const nextPri    = STOP_MERGE_PRIORITY[next.type] ?? 0;
-      const winningType = currentPri >= nextPri ? current.type : next.type;
-
-      const merged: SuggestedStop = {
-        ...current,
-        id: `merged-${current.id}-${next.id}`,
+      acc = {
+        ...acc,
+        id: `merged-${acc.id}-${next.id}`,
         type: winningType,
-        reason: `${current.reason}. Also: ${next.reason}`,
-        duration: Math.max(current.duration, next.duration),
+        reason: `${acc.reason}. Also: ${next.reason}`,
+        duration: Math.max(acc.duration, next.duration),
         priority:
-          current.priority === 'required' || next.priority === 'required' ? 'required' :
-          current.priority === 'recommended' || next.priority === 'recommended' ? 'recommended' : 'optional',
-        details: { ...current.details, ...next.details },
-        dayNumber: current.dayNumber, // Use the day number of the first stop in the merged pair
+          acc.priority === 'required' || next.priority === 'required' ? 'required' :
+          acc.priority === 'recommended' || next.priority === 'recommended' ? 'recommended' : 'optional',
+        details: { ...acc.details, ...next.details },
+        dayNumber: acc.dayNumber,
       };
-      consolidated.push(merged);
-      i += 2;
     } else {
-      consolidated.push(current);
-      i++;
+      // No merge — push accumulator and start fresh
+      consolidated.push(acc);
+      acc = next;
     }
   }
+
+  // Don't forget the last accumulator
+  consolidated.push(acc);
 
   return consolidated;
 }
@@ -477,7 +478,7 @@ function consolidateStops(stops: SuggestedStop[]): SuggestedStop[] {
 /**
  * Get stop icon emoji
  */
-export function getStopIcon(type: StopType): string {
+export function getStopIcon(type: SuggestionStopType): string {
   switch (type) {
     case 'fuel': return '⛽';
     case 'rest': return '☕';
@@ -490,7 +491,7 @@ export function getStopIcon(type: StopType): string {
 /**
  * Get stop color scheme
  */
-export function getStopColors(type: StopType): { bg: string; border: string; text: string } {
+export function getStopColors(type: SuggestionStopType): { bg: string; border: string; text: string } {
   switch (type) {
     case 'fuel':
       return { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700' };
@@ -512,14 +513,8 @@ export function createStopConfig(
   vehicle: Vehicle,
   settings: TripSettings
 ): StopSuggestionConfig {
-  // Convert to metric if needed
-  const tankSizeLitres = settings.units === 'metric'
-    ? vehicle.tankSize
-    : vehicle.tankSize * 3.78541;
-
-  const fuelEconomyL100km = settings.units === 'metric'
-    ? vehicle.fuelEconomyHwy * 0.8 + vehicle.fuelEconomyCity * 0.2
-    : (235.215 / vehicle.fuelEconomyHwy) * 0.8 + (235.215 / vehicle.fuelEconomyCity) * 0.2;
+  const tankSizeLitres = getTankSizeLitres(vehicle, settings.units);
+  const fuelEconomyL100km = getWeightedFuelEconomyL100km(vehicle, settings.units);
 
   return {
     tankSizeLitres,
