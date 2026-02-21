@@ -83,7 +83,6 @@ export const CHALLENGES: TripChallenge[] = [
 
     locations: [
       { id: 'cet-01', name: 'Winnipeg, MB', address: 'Winnipeg, Manitoba', lat: 49.8951, lng: -97.1384, type: 'origin' },
-      { id: 'cet-02', name: 'Beausejour, MB', address: 'Beausejour, Manitoba', lat: 50.0617, lng: -96.5217, type: 'waypoint' },
       { id: 'cet-03', name: 'Dryden, ON', address: 'Dryden, Ontario', lat: 49.7817, lng: -92.8377, type: 'waypoint' },
       { id: 'cet-04', name: 'Kakabeka Falls, ON', address: 'Kakabeka Falls, Ontario', lat: 48.4022, lng: -89.6233, type: 'waypoint' },
       { id: 'cet-05', name: 'Sault Ste. Marie, ON', address: 'Sault Ste. Marie, Ontario', lat: 46.5136, lng: -84.3358, type: 'waypoint' },
@@ -274,7 +273,6 @@ const EXTENDED_CHALLENGES: TripChallenge[] = [
 
     locations: [
       { id: 'cete-01', name: 'Winnipeg, MB', address: 'Winnipeg, Manitoba', lat: 49.8951, lng: -97.1384, type: 'origin' },
-      { id: 'cete-02', name: 'Beausejour, MB', address: 'Beausejour, Manitoba', lat: 50.0617, lng: -96.5217, type: 'waypoint' },
       { id: 'cete-03', name: 'Dryden, ON', address: 'Dryden, Ontario', lat: 49.7817, lng: -92.8377, type: 'waypoint' },
       { id: 'cete-04', name: 'Kakabeka Falls, ON', address: 'Kakabeka Falls, Ontario', lat: 48.4022, lng: -89.6233, type: 'waypoint' },
       { id: 'cete-05', name: 'Sault Ste. Marie, ON', address: 'Sault Ste. Marie, Ontario', lat: 46.5136, lng: -84.3358, type: 'waypoint' },

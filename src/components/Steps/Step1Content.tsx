@@ -238,7 +238,10 @@ export function Step1Content({
         {/* Chicharon's Challenges */}
         {onSelectChallenge && (
           <div className="mt-4">
-            <ChallengeCards onSelectChallenge={onSelectChallenge} />
+            <ChallengeCards
+              onSelectChallenge={onSelectChallenge}
+              initialOrigin={locations.find(l => l.type === 'origin') ?? locations[0] ?? null}
+            />
           </div>
         )}
 
