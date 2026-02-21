@@ -67,7 +67,7 @@ export const CHALLENGES: TripChallenge[] = [
 
   // ──────────────────────────────────────────────────────────────
   // 🟢 CRUISER — Canadian EuroTrip (Aug 2025)
-  // Winnipeg → Sault Ste. Marie → Burlington (Euro Loop + Niagara) → Sault Ste. Marie → Winnipeg
+  // Winnipeg → Sault Ste. Marie → Burlington → London → Dublin → Brussels → Paris → Vienna → Copenhagen → Niagara → Sault Ste. Marie → Winnipeg
   // 6 days · ~4,896 km · ~60h driving · 4 travelers · 2 drivers
   // ──────────────────────────────────────────────────────────────
   {
@@ -89,6 +89,11 @@ export const CHALLENGES: TripChallenge[] = [
       { id: 'cet-06', name: 'Parry Sound, ON', address: 'Parry Sound, Ontario', lat: 45.3442, lng: -80.0353, type: 'waypoint' },
       { id: 'cet-07', name: 'Burlington, ON', address: 'Burlington, Ontario', lat: 43.3255, lng: -79.7990, type: 'waypoint' },
       { id: 'cet-08', name: 'London, ON', address: 'London, Ontario', lat: 42.9849, lng: -81.2453, type: 'waypoint' },
+      { id: 'cet-08b', name: 'Dublin, ON', address: 'Dublin, Ontario', lat: 43.5050, lng: -81.2856, type: 'waypoint' },
+      { id: 'cet-08c', name: 'Brussels, ON', address: 'Brussels, Ontario', lat: 43.7434, lng: -81.2506, type: 'waypoint' },
+      { id: 'cet-08d', name: 'Paris, ON', address: 'Paris, Ontario', lat: 43.1932, lng: -80.3843, type: 'waypoint' },
+      { id: 'cet-08e', name: 'Vienna, ON', address: 'Vienna, Ontario', lat: 42.6795, lng: -80.7924, type: 'waypoint' },
+      { id: 'cet-08f', name: 'Copenhagen, ON', address: 'Copenhagen, Ontario', lat: 42.6760, lng: -80.9855, type: 'waypoint' },
       { id: 'cet-09', name: 'Niagara Falls, ON', address: 'Niagara Falls, Ontario', lat: 43.0962, lng: -79.0849, type: 'waypoint' },
       { id: 'cet-10', name: 'Sault Ste. Marie, ON', address: 'Sault Ste. Marie, Ontario', lat: 46.5136, lng: -84.3358, type: 'waypoint' },
       { id: 'cet-11', name: 'Winnipeg, MB', address: 'Winnipeg, Manitoba', lat: 49.8951, lng: -97.1384, type: 'destination' },
@@ -279,6 +284,11 @@ const EXTENDED_CHALLENGES: TripChallenge[] = [
       { id: 'cete-06', name: 'Parry Sound, ON', address: 'Parry Sound, Ontario', lat: 45.3442, lng: -80.0353, type: 'waypoint' },
       { id: 'cete-07', name: 'Burlington, ON', address: 'Burlington, Ontario', lat: 43.3255, lng: -79.7990, type: 'waypoint' },
       { id: 'cete-08', name: 'London, ON', address: 'London, Ontario', lat: 42.9849, lng: -81.2453, type: 'waypoint' },
+      { id: 'cete-08b', name: 'Dublin, ON', address: 'Dublin, Ontario', lat: 43.5050, lng: -81.2856, type: 'waypoint' },
+      { id: 'cete-08c', name: 'Brussels, ON', address: 'Brussels, Ontario', lat: 43.7434, lng: -81.2506, type: 'waypoint' },
+      { id: 'cete-08d', name: 'Paris, ON', address: 'Paris, Ontario', lat: 43.1932, lng: -80.3843, type: 'waypoint' },
+      { id: 'cete-08e', name: 'Vienna, ON', address: 'Vienna, Ontario', lat: 42.6795, lng: -80.7924, type: 'waypoint' },
+      { id: 'cete-08f', name: 'Copenhagen, ON', address: 'Copenhagen, Ontario', lat: 42.6760, lng: -80.9855, type: 'waypoint' },
       { id: 'cete-09', name: 'Niagara Falls, ON', address: 'Niagara Falls, Ontario', lat: 43.0962, lng: -79.0849, type: 'waypoint' },
       { id: 'cete-10', name: 'Toronto, ON', address: 'Toronto, Ontario', lat: 43.6532, lng: -79.3832, type: 'waypoint' },
       { id: 'cete-11', name: 'Montreal, QC', address: 'Montréal, Québec', lat: 45.5017, lng: -73.5673, type: 'waypoint' },
