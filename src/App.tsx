@@ -8,6 +8,7 @@ import type { Location, TripChallenge, TripSummary, TripMode, TripOrigin } from 
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { getHistory } from './lib/storage';
 import { parseStateFromURL, type TemplateImportResult } from './lib/url';
+import { showToast } from './lib/toast';
 import { Spinner } from './components/UI/Spinner';
 import { AdventureMode, type AdventureSelection } from './components/Trip/AdventureMode';
 import { buildAdventureBudget } from './lib/adventure-service';
@@ -318,7 +319,7 @@ function AppContent() {
   const copyShareLink = useCallback(() => {
     if (shareUrl) {
       navigator.clipboard.writeText(shareUrl);
-      alert('Link copied!');
+      showToast({ message: 'Link copied — send it.', type: 'success' });
     }
   }, [shareUrl]);
 

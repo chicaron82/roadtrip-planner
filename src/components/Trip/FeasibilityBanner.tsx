@@ -177,7 +177,7 @@ export function FeasibilityBanner({
           <div className="border-t border-gray-200/60 pt-2" />
           <p className="text-sm text-green-700 flex items-center gap-2">
             <CheckCircle className="w-4 h-4" />
-            Everything looks good — enjoy the drive!
+            All green. Fuel up, get sleep, depart on time. You've got this.
           </p>
         </div>
       )}

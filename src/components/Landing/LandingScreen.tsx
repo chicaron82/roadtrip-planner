@@ -159,9 +159,7 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip,
             margin: '0 0 14px',
             fontWeight: 300,
           }}>
-            Not just a planner. A decision framework for travel.
-            <br />
-            Built on 18 years of real-world trips.
+            Not just a planner. Built on 18 years of bad ideas that turned out great.
           </p>
 
           {/* Active Session Resume Button - Only show if a session was rehydrated */}

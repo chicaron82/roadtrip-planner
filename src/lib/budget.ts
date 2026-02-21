@@ -16,7 +16,7 @@ export const BUDGET_PROFILES: Record<BudgetProfile, { weights: BudgetWeights; la
     weights: { gas: 25, hotel: 35, food: 30, misc: 10 },
     label: 'Balanced',
     emoji: '⚖️',
-    description: 'Even split across all categories',
+    description: 'A little of everything. The sensible choice — until it isn\'t.',
   },
   foodie: {
     weights: { gas: 20, hotel: 20, food: 50, misc: 10 },
@@ -28,25 +28,25 @@ export const BUDGET_PROFILES: Record<BudgetProfile, { weights: BudgetWeights; la
     weights: { gas: 35, hotel: 35, food: 20, misc: 10 },
     label: 'Scenic',
     emoji: '🏔️',
-    description: 'More driving, nicer views, cozy stays',
+    description: 'Gas up, drive far, wake up somewhere worth it.',
   },
   backpacker: {
     weights: { gas: 35, hotel: 25, food: 25, misc: 15 },
     label: 'Backpacker',
     emoji: '🎒',
-    description: 'Stretch every dollar, maximize adventure',
+    description: 'Maximum kilometres per dollar. No regrets about the mattress.',
   },
   comfort: {
     weights: { gas: 20, hotel: 45, food: 25, misc: 10 },
     label: 'Comfort',
     emoji: '✨',
-    description: 'Splurge on nice hotels, relax in style',
+    description: 'You\'ve earned the nice room. Act accordingly.',
   },
   custom: {
     weights: { gas: 25, hotel: 35, food: 30, misc: 10 },
     label: 'Custom',
     emoji: '🎛️',
-    description: 'Set your own priorities',
+    description: 'Your trip, your rules. Set priorities that actually match how you travel.',
   },
 };
 

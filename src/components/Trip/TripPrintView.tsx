@@ -16,6 +16,7 @@ import type { DriverRotationResult } from '../../lib/driver-rotation';
 import { assignDrivers, formatDriveTime } from '../../lib/driver-rotation';
 import { formatCurrencySimple as formatCurrency } from '../../lib/calculations';
 import { KM_TO_MILES } from '../../lib/constants';
+import { showToast } from '../../lib/toast';
 
 // ==================== TYPES ====================
 
@@ -69,7 +70,7 @@ export function printTrip(props: TripPrintViewProps): void {
   // Open print window
   const printWindow = window.open('', '_blank', 'width=800,height=600');
   if (!printWindow) {
-    alert('Please allow popups to print your trip.');
+    showToast({ message: "Popups are blocked — allow them in your browser settings to print.", type: 'warning', duration: 5000 });
     return;
   }
 

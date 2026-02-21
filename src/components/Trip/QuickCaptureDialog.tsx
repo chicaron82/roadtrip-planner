@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../UI/Dialog';
 import { Input } from '../UI/Input';
 import { Label } from '../UI/Label';
 import type { QuickCapture, JournalPhoto } from '../../types';
+import { showToast } from '../../lib/toast';
 
 interface QuickCaptureDialogProps {
   open: boolean;
@@ -96,7 +97,7 @@ export function QuickCaptureDialog({
 
   const handleSave = () => {
     if (!notes && !photoPreview && !locationName) {
-      alert('Please add at least a photo, location, or notes!');
+      showToast({ message: 'Give us something to work with — a photo, location, or notes.', type: 'warning' });
       return;
     }
 
