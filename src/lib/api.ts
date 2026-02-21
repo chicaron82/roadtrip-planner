@@ -35,6 +35,26 @@ export async function searchLocations(query: string): Promise<Partial<Location>[
   }
 }
 
+/**
+ * Lightweight geometry-only OSRM call. No segments, no cost calc, no weather.
+ * Used by useEagerRoute to draw a preview line as soon as origin + destination are set.
+ */
+export async function fetchRouteGeometry(locations: Location[]): Promise<[number, number][] | null> {
+  const valid = locations.filter(l => l.lat && l.lng && l.lat !== 0 && l.lng !== 0 && l.name);
+  if (valid.length < 2) return null;
+  const waypoints = valid.map(l => `${l.lng},${l.lat}`).join(';');
+  try {
+    const response = await fetch(
+      `https://router.project-osrm.org/route/v1/driving/${waypoints}?overview=simplified&geometries=geojson&steps=false`
+    );
+    const data = await response.json();
+    if (data.code !== 'Ok' || !data.routes?.length) return null;
+    return data.routes[0].geometry.coordinates.map((c: number[]) => [c[1], c[0]]) as [number, number][];
+  } catch {
+    return null;
+  }
+}
+
 export async function calculateRoute(locations: Location[], options?: { avoidTolls?: boolean; avoidBorders?: boolean; scenicMode?: boolean }): Promise<{ segments: RouteSegment[], fullGeometry: [number, number][] } | null> {
   if (locations.length < 2) return null;
 

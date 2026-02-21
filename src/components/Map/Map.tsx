@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Location, POI, MarkerCategory } from '../../types';
@@ -7,6 +7,13 @@ import type { StrategicFuelStop } from '../../lib/calculations';
 import { haversineDistance, estimateDetourTime } from '../../lib/poi-ranking';
 import { AnimatedPolyline } from './AnimatedPolyline';
 import { POIPopup, type PopupDayOption } from './POIPopup';
+
+// Mode-tinted colours for the dashed preview line
+const PREVIEW_LINE_COLOR: Record<string, string> = {
+  plan:      '#22C55E',
+  estimate:  '#3B82F6',
+  adventure: '#F59E0B',
+};
 
 interface MapProps {
   locations: Location[];
@@ -19,6 +26,10 @@ interface MapProps {
   dayOptions?: PopupDayOption[];
   onMapClick?: (lat: number, lng: number) => void;
   onAddPOI?: (poi: POI, afterSegmentIndex?: number) => void;
+  /** Lightweight geometry preview shown before full calculation fires */
+  previewGeometry?: [number, number][] | null;
+  /** Current trip mode — determines preview line colour */
+  tripMode?: string;
 }
 
 const markerColors: Record<string, string> = {
@@ -34,8 +45,18 @@ const markerLabels: Record<string, string> = {
 };
 
 // Component to handle map view updates
-function MapUpdater({ locations, routeGeometry }: { locations: Location[], routeGeometry: [number, number][] | null }) {
+function MapUpdater({
+  locations,
+  routeGeometry,
+  previewGeometry,
+}: {
+  locations: Location[];
+  routeGeometry: [number, number][] | null;
+  previewGeometry?: [number, number][] | null;
+}) {
   const map = useMap();
+  // Fit bounds to whichever geometry is available
+  const effectiveGeometry = routeGeometry ?? previewGeometry ?? null;
 
   useEffect(() => {
     // Filter out invalid locations (undefined, or with invalid coordinates)
@@ -46,9 +67,9 @@ function MapUpdater({ locations, routeGeometry }: { locations: Location[], route
 
     if (validLocations.length > 0) {
       const bounds = L.latLngBounds(validLocations.map(l => [l.lat, l.lng]));
-      if (routeGeometry) {
+      if (effectiveGeometry) {
         // Filter out invalid coordinates before extending bounds
-        routeGeometry.forEach(coord => {
+        effectiveGeometry.forEach(coord => {
           if (coord && Array.isArray(coord) && coord.length === 2 &&
               typeof coord[0] === 'number' && typeof coord[1] === 'number' &&
               !isNaN(coord[0]) && !isNaN(coord[1])) {
@@ -61,7 +82,7 @@ function MapUpdater({ locations, routeGeometry }: { locations: Location[], route
       // No valid locations (reset state) — fly back to default view
       map.setView([49.8951, -97.1384], 5);
     }
-  }, [locations, routeGeometry, map]);
+  }, [locations, effectiveGeometry, map]);
 
   return null;
 }
@@ -78,7 +99,7 @@ function MapClickHandler({ onMapClick }: { onMapClick?: (lat: number, lng: numbe
   return null;
 }
 
-export function Map({ locations, routeGeometry, pois, markerCategories, strategicFuelStops = [], addedPOIIds, dayOptions, onMapClick, onAddPOI }: MapProps) {
+export function Map({ locations, routeGeometry, pois, markerCategories, strategicFuelStops = [], addedPOIIds, dayOptions, onMapClick, onAddPOI, previewGeometry, tripMode }: MapProps) {
   // Custom Icon Generator
   const createCustomIcon = (type: string, categoryColor?: string, emoji?: string) => {
     // Basic color mapping for tailwind classes if passed directly
@@ -165,8 +186,21 @@ export function Map({ locations, routeGeometry, pois, markerCategories, strategi
           url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
         />
 
-        <MapUpdater locations={locations} routeGeometry={routeGeometry} />
+        <MapUpdater locations={locations} routeGeometry={routeGeometry} previewGeometry={previewGeometry} />
         <MapClickHandler onMapClick={onMapClick} />
+
+        {/* Preview line — dashed, mode-coloured, shown before full calculation */}
+        {!routeGeometry && previewGeometry && (
+          <Polyline
+            positions={previewGeometry}
+            pathOptions={{
+              color: PREVIEW_LINE_COLOR[tripMode ?? 'plan'] ?? '#22C55E',
+              weight: 4,
+              opacity: 0.45,
+              dashArray: '8 10',
+            }}
+          />
+        )}
 
         {/* Route Polylines with Animation */}
         {routeGeometry && (

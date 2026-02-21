@@ -56,7 +56,7 @@ export const MODE_CONFIG: Record<TripMode, ModeConfig> = {
   adventure: {
     icon: '🧭',
     heading: 'Surprise Me',
-    sub: "Tell me your budget. I'll find your adventure.",
+    sub: "What fits my time + budget? Let me find out.",
     cta: 'Find My Adventure',
     accentColor: '#F59E0B',
     glowColor: 'rgba(245, 158, 11, 0.3)',

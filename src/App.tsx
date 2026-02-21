@@ -17,11 +17,12 @@ import { buildAdventureBudget } from './lib/adventure-service';
 import { Step1Content, Step2Content, Step3Content } from './components/Steps';
 import { LandingScreen } from './components/Landing/LandingScreen';
 import { MobileBottomSheet } from './components/Trip/MobileBottomSheet';
+import { MobileStepSheet } from './components/Trip/MobileStepSheet';
 import './styles/sidebar.css';
 
 // Import contexts and hooks
 import { TripProvider, useTripContext, DEFAULT_LOCATIONS } from './contexts';
-import { useWizard, useTripCalculation, useJournal, usePOI, type PlanningStep } from './hooks';
+import { useWizard, useTripCalculation, useJournal, usePOI, useEagerRoute, type PlanningStep } from './hooks';
 import { useAddedStops } from './hooks/useAddedStops';
 import type { SuggestedStop } from './lib/stop-suggestions';
 
@@ -38,6 +39,9 @@ function AppContent() {
     summary,
     setSummary,
   } = useTripContext();
+
+  // Eager route preview — dashed line on map as soon as origin+destination are set
+  const previewGeometry = useEagerRoute(locations);
 
   // Stable ref for post-calculation callback (breaks circular dep between hooks)
   const onCalcCompleteRef = React.useRef<() => void>(() => {});
@@ -536,10 +540,7 @@ function AppContent() {
       {/* Sidebar — dark mission control */}
       <div className={`sidebar-dark sidebar-entrance w-full md:w-[420px] ${
         'h-[45vh]'
-      } md:h-full flex flex-col z-10 shadow-2xl order-2 md:order-1 ${
-        // On mobile, hide the entire sidebar when on Step 3 — the bottom sheet takes over
-        planningStep === 3 ? 'hidden md:flex' : ''
-      }`} style={{ background: 'hsl(225 30% 8%)' }}>
+      } md:h-full flex flex-col z-10 shadow-2xl order-2 md:order-1 hidden md:flex`} style={{ background: 'hsl(225 30% 8%)' }}>
         {/* Header */}
         <div className="sidebar-header p-4">
           <div className="mb-3">
@@ -570,7 +571,7 @@ function AppContent() {
                     {[
                       { mode: 'plan' as TripMode, icon: '📋', label: 'Plan', desc: 'Full route control', color: '#22C55E', bg: 'rgba(34, 197, 94, 0.1)' },
                       { mode: 'estimate' as TripMode, icon: '💰', label: 'Estimate', desc: 'What will it cost?', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.1)' },
-                      { mode: 'adventure' as TripMode, icon: '🧭', label: 'Adventure', desc: 'Surprise me', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.1)' },
+                      { mode: 'adventure' as TripMode, icon: '🧭', label: 'Adventure', desc: 'What fits my time + budget?', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.1)' },
                     ].map(({ mode, icon, label, desc, color, bg }) => (
                       <button
                         key={mode}
@@ -756,10 +757,8 @@ function AppContent() {
         </div>
       </div>
 
-      {/* Map Area — full screen on mobile Step 3 (bottom sheet overlays) */}
-      <div className={`flex-1 relative ${
-        planningStep === 3 ? 'h-full' : 'h-[55vh]'
-      } md:h-full order-1 md:order-2`}>
+      {/* Map Area — full screen on mobile (bottom sheet overlays all steps) */}
+      <div className="flex-1 relative h-full md:h-full order-1 md:order-2">
         <Map
           locations={locations}
           routeGeometry={validRouteGeometry}
@@ -771,6 +770,8 @@ function AppContent() {
           dayOptions={mapDayOptions}
           onMapClick={handleMapClick}
           onAddPOI={summary ? handleAddPOIFromMap : undefined}
+          previewGeometry={validRouteGeometry ? null : previewGeometry}
+          tripMode={tripMode}
         />
         {summary && planningStep === 3 && (
           // Hide on mobile — bottom sheet handles stats; show on md+
@@ -785,6 +786,57 @@ function AppContent() {
           </div>
         )}
       </div>
+
+      {/* Mobile Step Sheet — Steps 1 & 2, hidden on md+ */}
+      {planningStep < 3 && (
+        <div className="md:hidden">
+          <MobileStepSheet
+            stepNumber={planningStep as 1 | 2}
+            stepTitle={planningStep === 1 ? 'Where are you going?' : 'Trip settings'}
+            tripMode={tripMode}
+            canProceed={planningStep === 1 ? canProceedFromStep1 : canProceedFromStep2}
+            isLoading={isCalculating}
+            onNext={goToNextStep}
+            nextLabel={
+              isCalculating ? 'Calculating…' :
+              planningStep === 2 ? (tripMode === 'estimate' ? 'Estimate My Trip' : 'Plan My Trip') :
+              'Next'
+            }
+            onBack={planningStep > 1 ? goToPrevStep : undefined}
+            hasPreview={!!previewGeometry}
+          >
+            {planningStep === 1 && (
+              <Step1Content
+                locations={locations}
+                setLocations={setLocations}
+                settings={settings}
+                setSettings={setSettings}
+                tripMode={tripMode}
+                onShowAdventure={() => setShowAdventureMode(true)}
+                onImportTemplate={handleImportTemplate}
+                onSelectChallenge={handleSelectChallenge}
+              />
+            )}
+            {planningStep === 2 && (
+              <Step2Content
+                vehicle={vehicle}
+                setVehicle={setVehicle}
+                settings={settings}
+                setSettings={setSettings}
+                tripMode={tripMode}
+                adaptiveDefaults={adaptiveDefaults}
+                onResetToBaseline={() => {
+                  setSettings(prev => ({
+                    ...prev,
+                    hotelPricePerNight: CHICHARON_BASELINE.hotelPricePerNight,
+                    mealPricePerDay: CHICHARON_BASELINE.mealPricePerDay,
+                  }));
+                }}
+              />
+            )}
+          </MobileStepSheet>
+        </div>
+      )}
 
       {/* Mobile Bottom Sheet — Step 3 only, hidden on md+ */}
       {planningStep === 3 && (
