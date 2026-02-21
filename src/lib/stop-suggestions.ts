@@ -1,38 +1,16 @@
-import type { RouteSegment, Vehicle, TripSettings, TripDay } from '../types';
-import { getTankSizeLitres, getWeightedFuelEconomyL100km } from './unit-conversions';
-
-export type SuggestionStopType = 'fuel' | 'rest' | 'meal' | 'overnight';
-
-export interface SuggestedStop {
-  id: string;
-  type: SuggestionStopType;
-  reason: string;
-  afterSegmentIndex: number; // Insert after this segment
-  estimatedTime: Date;
-  duration: number; // minutes
-  priority: 'required' | 'recommended' | 'optional';
-  details: {
-    fuelNeeded?: number; // litres
-    fuelCost?: number;
-    hoursOnRoad?: number; // hours driven before this stop
-  };
-  warning?: string; // Sparse stretch warning
-  dayNumber?: number; // Which numeric day of the trip this occurs on
-  dismissed?: boolean;
-  accepted?: boolean;
-}
-
-export type StopFrequency = 'conservative' | 'balanced' | 'aggressive';
-
-export interface StopSuggestionConfig {
-  tankSizeLitres: number;
-  fuelEconomyL100km: number;
-  maxDriveHoursPerDay: number;
-  numDrivers: number;
-  departureTime: Date;
-  gasPrice: number;
-  stopFrequency?: StopFrequency; // How often to suggest stops (default 'balanced')
-}
+import type { RouteSegment, TripDay } from '../types';
+// Re-export types so existing consumers importing from 'stop-suggestions' continue to work
+export type {
+  SuggestionStopType,
+  SuggestedStop,
+  StopFrequency,
+  StopSuggestionConfig,
+} from './stop-suggestion-types';
+import type {
+  SuggestionStopType,
+  SuggestedStop,
+  StopSuggestionConfig,
+} from './stop-suggestion-types';
 
 /** UTC offset in hours for North American timezone abbreviations. */
 function getUtcOffsetHours(abbr: string): number | null {
@@ -466,7 +444,7 @@ const STOP_MERGE_PRIORITY: Record<SuggestionStopType, number> = {
  * - Priority = most urgent of all merged
  * - Reason = all reasons concatenated
  */
-function consolidateStops(stops: SuggestedStop[]): SuggestedStop[] {
+export function consolidateStops(stops: SuggestedStop[]): SuggestedStop[] {
   if (stops.length <= 1) return stops;
 
   const MERGE_WINDOW_MS = 60 * 60 * 1000; // 60-minute merge window
@@ -518,54 +496,7 @@ function consolidateStops(stops: SuggestedStop[]): SuggestedStop[] {
   return consolidated;
 }
 
-/**
- * Get stop icon emoji
- */
-export function getStopIcon(type: SuggestionStopType): string {
-  switch (type) {
-    case 'fuel': return '⛽';
-    case 'rest': return '☕';
-    case 'meal': return '🍽️';
-    case 'overnight': return '🏨';
-    default: return '📍';
-  }
-}
-
-/**
- * Get stop color scheme
- */
-export function getStopColors(type: SuggestionStopType): { bg: string; border: string; text: string } {
-  switch (type) {
-    case 'fuel':
-      return { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700' };
-    case 'rest':
-      return { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700' };
-    case 'meal':
-      return { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-700' };
-    case 'overnight':
-      return { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700' };
-    default:
-      return { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-700' };
-  }
-}
-
-/**
- * Convert settings to config
- */
-export function createStopConfig(
-  vehicle: Vehicle,
-  settings: TripSettings
-): StopSuggestionConfig {
-  const tankSizeLitres = getTankSizeLitres(vehicle, settings.units);
-  const fuelEconomyL100km = getWeightedFuelEconomyL100km(vehicle, settings.units);
-
-  return {
-    tankSizeLitres,
-    fuelEconomyL100km,
-    maxDriveHoursPerDay: settings.maxDriveHours,
-    numDrivers: settings.numDrivers,
-    departureTime: new Date(`${settings.departureDate}T${settings.departureTime}`),
-    gasPrice: settings.gasPrice,
-    stopFrequency: settings.stopFrequency,
-  };
-}
+// Display helpers (getStopIcon, getStopColors) and config factory (createStopConfig)
+// live in stop-display-helpers.ts — import from there.
+// Re-export createStopConfig here for backwards compatibility with existing consumers.
+export { createStopConfig, getStopIcon, getStopColors } from './stop-display-helpers';
