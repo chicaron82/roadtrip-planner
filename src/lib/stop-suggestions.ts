@@ -207,16 +207,20 @@ export function generateSmartStops(
     distanceSinceLastFill += segment.distanceKm;
     hoursSinceLastFill += segmentHours;
 
-    // Three triggers (any one fires a fuel stop):
+    // Four triggers (any one fires a fuel stop):
     // 1. Would drop below 15% tank capacity (critical)
     // 2. Exceeded calculated safe range based on tank/economy
     // 3. Comfort refuel — been driving 3-4+ hours since last fill
     //    (realistic behavior: top up at a midpoint town, don't push to empty)
+    // 4. Tank low — already at ≤35% regardless of hours/distance driven.
+    //    Catches the edge case where a fast highway sprint burns fuel quickly
+    //    but doesn't quite trip the safe-range km or comfort-hour thresholds.
     const wouldRunCriticallyLow = (currentFuel - fuelNeeded) < (config.tankSizeLitres * 0.15); // Critical: below 15%
     const exceededSafeRange = distanceSinceLastFill >= safeRangeKm;
     const comfortRefuelDue = hoursSinceLastFill >= COMFORT_REFUEL_HOURS && index > 0;
+    const tankLow = currentFuel <= (config.tankSizeLitres * 0.35) && index > 0; // Below 35% — top up
 
-    if (exceededSafeRange || wouldRunCriticallyLow || comfortRefuelDue) {
+    if (exceededSafeRange || wouldRunCriticallyLow || comfortRefuelDue || tankLow) {
       const refillAmount = config.tankSizeLitres - currentFuel;
       const refillCost = refillAmount * config.gasPrice;
       const tankPercent = Math.round((currentFuel / config.tankSizeLitres) * 100);
@@ -225,6 +229,8 @@ export function generateSmartStops(
       let reason = '';
       if (wouldRunCriticallyLow) {
         reason = `Tank at ${tankPercent}% (${litresRemaining}L remaining). ~$${refillCost.toFixed(2)} to refill. Critical: refuel before continuing to ${segment.to.name}.`;
+      } else if (tankLow && !exceededSafeRange && !comfortRefuelDue) {
+        reason = `Tank is at ${tankPercent}% (${litresRemaining}L remaining) — getting low. ~$${refillCost.toFixed(2)} to top up now before options get sparse.`;
       } else if (comfortRefuelDue && !exceededSafeRange) {
         reason = `${hoursSinceLastFill.toFixed(1)} hours since last fill — good time to top up. Tank at ${tankPercent}% (${litresRemaining}L). ~$${refillCost.toFixed(2)} to refill.`;
       } else {
@@ -295,17 +301,25 @@ export function generateSmartStops(
     // Save the time we actually start driving the segment
     const segmentStartTime = new Date(currentTime);
 
-    // === MEAL STOP CHECK ===
-    const currentHour = segmentStartTime.getHours();
-    const nextHour = new Date(segmentStartTime.getTime() + segment.durationMinutes * 60 * 1000).getHours();
+    // === MEAL STOP CHECK (precise ms window) ===
+    // Compare exact timestamps instead of integer hours.
+    // Integer comparison misses segments that START at e.g. 12:01
+    // (currentHour === 12, fails the < 12 guard despite being a lunchtime segment).
+    const segmentEndMs = segmentStartTime.getTime() + segment.durationMinutes * 60 * 1000;
+    const mealTimestampForHour = (hour: number): Date => {
+      const t = new Date(segmentStartTime);
+      t.setHours(hour, 0, 0, 0);
+      return t;
+    };
+    const lunchTs = mealTimestampForHour(MEAL_TIMES.lunch);
+    const dinnerTs = mealTimestampForHour(MEAL_TIMES.dinner);
+    // Meal fires if its timestamp falls strictly within (start, end] of this segment
+    const crossesLunch = lunchTs.getTime() > segmentStartTime.getTime() && lunchTs.getTime() <= segmentEndMs;
+    const crossesDinner = dinnerTs.getTime() > segmentStartTime.getTime() && dinnerTs.getTime() <= segmentEndMs;
 
-    // Check if we'll pass through a meal time during this segment
-    if (
-      (currentHour < MEAL_TIMES.lunch && nextHour >= MEAL_TIMES.lunch) ||
-      (currentHour < MEAL_TIMES.dinner && nextHour >= MEAL_TIMES.dinner)
-    ) {
-      const mealType = currentHour < MEAL_TIMES.lunch ? 'Lunch' : 'Dinner';
-      const mealTime = currentHour < MEAL_TIMES.lunch ? '12:00 PM' : '6:00 PM';
+    if (crossesLunch || crossesDinner) {
+      const mealType = crossesLunch ? 'Lunch' : 'Dinner';
+      const mealTime = crossesLunch ? '12:00 PM' : '6:00 PM';
       const totalHoursOnRoad = (hoursOnRoad + segmentHours).toFixed(1);
       suggestions.push({
         id: `meal-${mealType.toLowerCase()}-${index}`,
