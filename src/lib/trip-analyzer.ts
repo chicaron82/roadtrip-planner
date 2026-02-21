@@ -193,17 +193,25 @@ export function generateTripOverview(
 
   const highlights: string[] = [];
 
-  // Add key highlights
+  // Add key highlights — context-aware for multi-day trips
   const totalHours = summary.totalDurationMinutes / 60;
-  highlights.push(`${totalHours.toFixed(1)} hours of driving`);
+  const actualDays = summary.days?.filter(d => d.segmentIndices.length > 0).length ?? 0;
 
-  if (summary.gasStops > 0) {
-    highlights.push(`${summary.gasStops} gas stop${summary.gasStops > 1 ? 's' : ''} needed`);
+  if (actualDays > 1) {
+    // Trip is already split into days — show total context, not single-day warnings
+    highlights.push(`${totalHours.toFixed(1)} hours of driving across ${actualDays} days`);
+  } else {
+    highlights.push(`${totalHours.toFixed(1)} hours of driving`);
+
+    // Only suggest splitting when the trip ISN'T already multi-day
+    const daysNeeded = Math.ceil(totalHours / settings.maxDriveHours);
+    if (daysNeeded > 1) {
+      highlights.push(`Best split into ${daysNeeded} days`);
+    }
   }
 
-  const daysNeeded = Math.ceil(totalHours / settings.maxDriveHours);
-  if (daysNeeded > 1) {
-    highlights.push(`Best split into ${daysNeeded} days`);
+  if (summary.gasStops > 0) {
+    highlights.push(`${summary.gasStops} gas stop${summary.gasStops > 1 ? 's' : ''} planned`);
   }
 
   const borderCrossings = summary.segments.filter(

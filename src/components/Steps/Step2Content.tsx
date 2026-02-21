@@ -271,9 +271,11 @@ export function Step2Content({
 
             <div className="relative mt-1 flex justify-between text-[10px] text-muted-foreground">
               <span>1h</span>
-              <span className="absolute left-[33%] -translate-x-1/2">8h</span>
-              <span className="absolute left-[60%] -translate-x-1/2">12h</span>
-              <span className="absolute left-[80%] -translate-x-1/2">16h</span>
+              <span className="absolute" style={{ left: `${(8 - 1) / ((settings.numDrivers === 1 ? 10 : settings.numDrivers === 2 ? 16 : 20) - 1) * 100}%`, transform: 'translateX(-50%)' }}>8h</span>
+              <span className="absolute" style={{ left: `${(12 - 1) / ((settings.numDrivers === 1 ? 10 : settings.numDrivers === 2 ? 16 : 20) - 1) * 100}%`, transform: 'translateX(-50%)' }}>12h</span>
+              {settings.numDrivers > 2 && (
+                <span className="absolute" style={{ left: `${(16 - 1) / (20 - 1) * 100}%`, transform: 'translateX(-50%)' }}>16h</span>
+              )}
               <span>
                 {settings.numDrivers === 1 ? '10h' : settings.numDrivers === 2 ? '16h' : '20h'}
               </span>

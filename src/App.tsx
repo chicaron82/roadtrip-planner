@@ -97,7 +97,6 @@ function AppContent() {
     if (!summary) return;
     addStop(poi, summary.segments, afterSegmentIndex);
   }, [addStop, summary]);
-
   // Trip Calculation Hook
   const {
     isCalculating,
@@ -114,6 +113,7 @@ function AppContent() {
     updateDayType,
     updateDayOvernight,
     clearError: clearCalcError,
+    clearTripCalculation,
   } = useTripCalculation({
     locations,
     vehicle,
@@ -434,21 +434,40 @@ function AppContent() {
     resetPOIs();
     resetWizard();
     clearStops();
+    clearTripCalculation();
     setActiveChallenge(null);
     setTripOrigin(null);
     setTripConfirmed(false);
     // Stay in current mode — go to Step 1, not landing
-  }, [setLocations, setSummary, resetWizard, resetPOIs, clearStops, setTripOrigin]);
+  }, [setLocations, setSummary, resetWizard, resetPOIs, clearStops, clearTripCalculation, setTripOrigin]);
 
-  // Handle mode selection from landing screen
+  // Handle mode selection from landing screen (FRESH START)
   const handleSelectMode = useCallback((mode: TripMode) => {
-    // Reset wizard to Step 1 so stale URL state doesn't jump to results
+    // 1. Wipe the current React session state
+    resetTrip();
+    
+    // 2. Wipe the URL query parameters so back button/refresh doesn't resurrect it
+    window.history.replaceState({}, '', window.location.pathname);
+
+    // 3. Proceed to Step 1
     resetWizard();
     setTripMode(mode);
     if (mode === 'adventure') {
       setShowAdventureMode(true);
     }
-  }, [resetWizard]);
+  }, [resetTrip, resetWizard]);
+
+  // Handle resume active session
+  const handleResumeSession = useCallback(() => {
+    // We already have the state loaded from URL, just bypass the landing screen
+    setTripMode('plan'); // Or read it from URL if we stored mode, but defaulting to 'plan' works
+    
+    // If the URL loaded enough data to be on Step 3, we MUST recalculate the route
+    // because URL only stores Locations/Settings, not the actual 10mb OSRM geometry and POIs
+    if (planningStep === 3 && locations.length >= 2) {
+      calculateAndDiscover();
+    }
+  }, [setTripMode, planningStep, locations.length, calculateAndDiscover]);
 
   // Handle continue saved trip from landing
   const handleContinueSavedTrip = useCallback(() => {
@@ -457,6 +476,9 @@ function AppContent() {
 
   // ==================== RENDER ====================
 
+  // Determine if URL rehydrated an active session
+  const hasActiveSession = locations.some(loc => loc.name && loc.name.trim() !== '');
+
   // Show landing screen when no mode is selected
   if (!tripMode) {
     return (
@@ -464,6 +486,8 @@ function AppContent() {
         onSelectMode={handleSelectMode}
         hasSavedTrip={history.length > 0}
         onContinueSavedTrip={handleContinueSavedTrip}
+        hasActiveSession={hasActiveSession}
+        onResumeSession={handleResumeSession}
       />
     );
   }

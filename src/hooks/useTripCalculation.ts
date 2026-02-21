@@ -44,6 +44,7 @@ interface UseTripCalculationReturn {
   updateDayType: (dayNumber: number, dayType: import('../types').DayType) => void;
   updateDayOvernight: (dayNumber: number, overnight: import('../types').OvernightStop) => void;
   clearError: () => void;
+  clearTripCalculation: () => void;
 }
 
 export function useTripCalculation({
@@ -120,7 +121,8 @@ export function useTripCalculation({
         segmentsWithTimes = calculateArrivalTimes(
           fullRoundTripSegments,
           settings.departureDate,
-          settings.departureTime
+          settings.departureTime,
+          roundTripMidpoint
         );
 
         // Recalculate totals from duplicated segments
@@ -134,6 +136,14 @@ export function useTripCalculation({
           0
         );
         tripSummary.totalFuelCost = segmentsWithTimes.reduce((sum, s) => sum + s.fuelCost, 0);
+
+        // Recalculate derived values that were computed from one-way costs
+        const tankSizeLitres = settings.units === 'metric' ? vehicle.tankSize : vehicle.tankSize * 3.78541;
+        tripSummary.gasStops = Math.max(0, Math.ceil(tripSummary.totalFuelLitres / (tankSizeLitres * 0.75)) - 1);
+        tripSummary.costPerPerson = settings.numTravelers > 0
+          ? tripSummary.totalFuelCost / settings.numTravelers
+          : tripSummary.totalFuelCost;
+        tripSummary.drivingDays = Math.ceil(tripSummary.totalDurationMinutes / 60 / settings.maxDriveHours);
       }
 
       tripSummary.segments = segmentsWithTimes;
@@ -290,6 +300,15 @@ export function useTripCalculation({
     setError(null);
   }, []);
 
+  const clearTripCalculation = useCallback(() => {
+    setStrategicFuelStops([]);
+    setLocalSummary(null);
+    setShareUrl(null);
+    setError(null);
+    setShowOvernightPrompt(false);
+    setSuggestedOvernightStop(null);
+  }, []);
+
   return {
     isCalculating,
     error,
@@ -305,5 +324,6 @@ export function useTripCalculation({
     updateDayType,
     updateDayOvernight,
     clearError,
+    clearTripCalculation,
   };
 }

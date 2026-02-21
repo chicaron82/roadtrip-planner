@@ -209,7 +209,7 @@ function analyzeDriveTime(
         dayNumber: day.dayNumber,
         suggestion: 'Consider adding an overnight stop to split this day.',
       });
-    } else if (driveMinutes >= tightDriveMinutes) {
+    } else if (driveMinutes >= tightDriveMinutes && driveMinutes <= maxDriveMinutes) {
       warnings.push({
         category: 'drive-time',
         severity: 'warning',
@@ -219,6 +219,8 @@ function analyzeDriveTime(
         suggestion: 'Ensure adequate rest stops are planned.',
       });
     }
+    // If driveMinutes is between maxDriveMinutes and hardLimitMinutes, it is in the grace period.
+    // By design, we suppress both warnings to allow the traveler some flexibility without annoying alerts.
   }
 
   return warnings;

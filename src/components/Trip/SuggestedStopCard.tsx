@@ -118,6 +118,14 @@ export function SuggestedStopCard({ stop, onAccept, onDismiss }: SuggestedStopCa
           {/* Details */}
           <div className="flex flex-wrap items-center gap-3 text-xs">
             <div className="flex items-center gap-1 text-muted-foreground">
+              {stop.dayNumber && (
+                <>
+                  <span className="font-semibold text-slate-600 dark:text-slate-300">
+                    Day {stop.dayNumber}
+                  </span>
+                  <span className="text-slate-300">•</span>
+                </>
+              )}
               <Clock className="h-3 w-3" />
               <span>{formatTime(stop.estimatedTime)}</span>
               <span className="text-slate-300">•</span>

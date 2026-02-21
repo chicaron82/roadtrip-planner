@@ -103,7 +103,9 @@ async function fetchOSRMRoute(
             from: locations[i],
             to: locations[i+1],
             distanceKm: leg.distance / 1000,
-            durationMinutes: leg.duration / 60,
+            // OSRM defaults to very conservative speeds. Apply a 15% reduction
+            // to align closer with real-world Google Maps estimates.
+            durationMinutes: (leg.duration / 60) * 0.85,
             fuelNeededLitres: 0, // Calculated later
              fuelCost: 0, // Calculated later
         });

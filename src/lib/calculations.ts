@@ -1,5 +1,6 @@
 import type { RouteSegment, TripSummary, Vehicle, TripSettings } from '../types';
 import { analyzeSegments } from './segment-analyzer';
+import { haversineDistance } from './poi-ranking';
 
 export function calculateTripCosts(
   uniqueSegments: RouteSegment[],
@@ -143,6 +144,10 @@ export function calculateStrategicFuelStops(
   let currentDistance = 0;
   let currentTime = 0; // minutes
 
+  // Cursor for routeGeometry to avoid recalculating from start
+  let routeIndex = 0;
+  let currentRouteDistance = 0;
+
   // Walk through segments to calculate stops
   for (const segment of segments) {
     const segmentStart = currentDistance;
@@ -158,15 +163,30 @@ export function calculateStrategicFuelStops(
       const stopDistance = lastStopDistance + stopIntervalKm;
 
       if (stopDistance >= segmentStart && stopDistance <= segmentEnd) {
-        // Find the corresponding point in route geometry
-        // Interpolate between segment start and end based on progress
-        const progress = (stopDistance - segmentStart) / segment.distanceKm;
+        
+        let lat = segment.from.lat;
+        let lng = segment.from.lng;
 
-        // Interpolate coordinates
-        const lat = segment.from.lat + (segment.to.lat - segment.from.lat) * progress;
-        const lng = segment.from.lng + (segment.to.lng - segment.from.lng) * progress;
+        // Traverse the route geometry until we hit the stopDistance
+        while (routeIndex < routeGeometry.length - 1) {
+          const p1 = routeGeometry[routeIndex];
+          const p2 = routeGeometry[routeIndex + 1];
+          const d = haversineDistance(p1[0], p1[1], p2[0], p2[1]);
+          
+          if (currentRouteDistance + d >= stopDistance) {
+            // Interpolate within this specific micro-segment of the polyline
+            const progress = d > 0 ? (stopDistance - currentRouteDistance) / d : 0;
+            lat = p1[0] + (p2[0] - p1[0]) * progress;
+            lng = p1[1] + (p2[1] - p1[1]) * progress;
+            break;
+          }
+          
+          currentRouteDistance += d;
+          routeIndex++;
+        }
 
         // Estimate time at this stop
+        const progress = (stopDistance - segmentStart) / segment.distanceKm;
         const minutesIntoSegment = segment.durationMinutes * progress;
         const estimatedMinutes = currentTime + minutesIntoSegment;
         const hours = Math.floor(estimatedMinutes / 60);
@@ -223,7 +243,8 @@ export const STOP_LABELS = {
 export function calculateArrivalTimes(
   segments: RouteSegment[],
   departureDate: string,
-  departureTime: string
+  departureTime: string,
+  roundTripMidpoint?: number
 ): RouteSegment[] {
   if (segments.length === 0) return segments;
 
@@ -231,9 +252,21 @@ export function calculateArrivalTimes(
   const initialDateTime = new Date(`${departureDate}T${departureTime}`);
   let currentTime = initialDateTime;
 
-  return segments.map((segment) => {
+  return segments.map((segment, index) => {
+    // If we hit the round trip midpoint, we need to reset the clock to the next day's departure time
+    if (roundTripMidpoint !== undefined && index === roundTripMidpoint) {
+      const [hours, minutes] = departureTime.split(':').map(Number);
+      
+      // We assume they spend the night at the destination.
+      // Move to the next calendar morning from the current arrival time
+      const nextDay = new Date(currentTime);
+      nextDay.setDate(nextDay.getDate() + 1);
+      nextDay.setHours(hours, minutes, 0, 0);
+      currentTime = nextDay;
+    }
+
     // Departure time for this segment is the current time
-    const departureTime = new Date(currentTime);
+    const departureTimeForSegment = new Date(currentTime);
 
     // Add driving duration
     const arrivalTime = new Date(currentTime.getTime() + segment.durationMinutes * 60000);
@@ -246,7 +279,7 @@ export function calculateArrivalTimes(
 
     return {
       ...segment,
-      departureTime: departureTime.toISOString(),
+      departureTime: departureTimeForSegment.toISOString(),
       arrivalTime: arrivalTime.toISOString(),
       stopDuration,
       stopType: segment.stopType ?? 'drive',

@@ -18,9 +18,11 @@ interface LandingScreenProps {
   onSelectMode: (mode: TripMode) => void;
   hasSavedTrip?: boolean;
   onContinueSavedTrip?: () => void;
+  hasActiveSession?: boolean;
+  onResumeSession?: () => void;
 }
 
-export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip }: LandingScreenProps) {
+export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip, hasActiveSession, onResumeSession }: LandingScreenProps) {
   const [hoveredMode, setHoveredMode] = useState<TripMode | null>(null);
   const [isExiting, setIsExiting] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -161,6 +163,53 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip 
             <br />
             Built on 18 years of real-world trips.
           </p>
+
+          {/* Active Session Resume Button - Only show if a session was rehydrated */}
+          {hasActiveSession && onResumeSession && (
+            <div style={{ marginBottom: '24px' }}>
+              <p style={{
+                fontFamily: "'DM Mono', monospace",
+                fontSize: '11px',
+                color: '#F59E0B',
+                letterSpacing: '0.05em',
+                marginBottom: '8px',
+              }}>
+                ✦ Session restored from background
+              </p>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsExiting(true);
+                  setTimeout(() => onResumeSession(), 600);
+                }}
+                className="resume-session-btn"
+                style={{
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  border: '1px solid rgba(245, 158, 11, 0.4)',
+                  color: '#FDE68A',
+                  padding: '10px 24px',
+                  borderRadius: '100px',
+                  fontFamily: "'DM Mono', monospace",
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  letterSpacing: '0.05em',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 0 20px rgba(245, 158, 11, 0.1)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(245, 158, 11, 0.25)';
+                  e.currentTarget.style.boxShadow = '0 0 30px rgba(245, 158, 11, 0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(245, 158, 11, 0.15)';
+                  e.currentTarget.style.boxShadow = '0 0 20px rgba(245, 158, 11, 0.1)';
+                }}
+              >
+                Resume where you left off →
+              </button>
+            </div>
+          )}
 
           {/* Lifecycle indicator */}
           <div className="landing-lifecycle" style={{

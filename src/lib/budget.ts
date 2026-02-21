@@ -273,8 +273,14 @@ export function splitTripByDays(
 
     const segmentDriveMinutes = segment.durationMinutes;
     const wouldExceedMaxDrive = currentDayDriveMinutes + segmentDriveMinutes > maxDriveMinutes;
+    // We also trigger a new day *after* this segment if it's an explicit overnight stop
+    const isOvernightStop = segment.stopType === 'overnight';
 
+    // Check for overnight stop type BEFORE adding to day, but wait wait wait
+    // We add it to the CURRENT day, so the segment belongs to this day.
+    
     // Check if we need to start a new day (max drive hours exceeded)
+    // However, if the CURRENT segment is an overnight stop, we add it to THIS day, and then force a new day AFTER.
     if (wouldExceedMaxDrive && currentDay.segments.length > 0) {
       // Finalize current day
       finalizeTripDay(currentDay, gasRemaining, hotelRemaining, foodRemaining, settings);
@@ -318,13 +324,39 @@ export function splitTripByDays(
     }
 
     // Check for overnight stop type
-    if (segment.stopType === 'overnight') {
+    if (isOvernightStop) {
       const roomsNeeded = Math.ceil(settings.numTravelers / 2);
       currentDay.overnight = {
         location: segment.to,
         cost: roomsNeeded * settings.hotelPricePerNight,
         roomsNeeded,
       };
+
+      // Force a day boundary AFTER this segment
+      // Finalize current day consisting of segments up to this overnight stop
+      finalizeTripDay(currentDay, gasRemaining, hotelRemaining, foodRemaining, settings);
+
+      gasRemaining -= currentDay.budget.gasUsed;
+      hotelRemaining -= currentDay.budget.hotelCost;
+      foodRemaining -= currentDay.budget.foodEstimate;
+
+      days.push(currentDay);
+
+      // Set up next day
+      dayNumber++;
+      // If the segment has an arrival time, the next day starts the morning after
+      const arrivalBase = segment.arrivalTime ? new Date(segment.arrivalTime) : currentDate;
+      currentDate = new Date(arrivalBase.getTime());
+      
+      // If it's earlier than 9 AM, maybe it's the same morning. Generally, advance 1 day if we stopped overnight.
+      // But `calculateArrivalTimes` already factored in the 8 hour stop.
+      // Easiest is to force it to the next calendar morning.
+      currentDate.setDate(currentDate.getDate() + 1);
+      currentDate.setHours(9, 0, 0, 0); 
+      
+      currentDay = createEmptyDay(dayNumber, currentDate);
+      currentDay.totals.departureTime = currentDate.toISOString();
+      currentDayDriveMinutes = 0;
     }
   }
 

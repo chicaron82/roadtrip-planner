@@ -16,6 +16,7 @@ export interface SuggestedStop {
     hoursOnRoad?: number; // hours driven before this stop
   };
   warning?: string; // Sparse stretch warning
+  dayNumber?: number; // Which numeric day of the trip this occurs on
   dismissed?: boolean;
   accepted?: boolean;
 }
@@ -94,6 +95,9 @@ export function generateSmartStops(
   let totalDrivingToday = 0;
   let lastBreakTime = new Date(config.departureTime);
 
+  // Day number tracking for UI display
+  let currentDayNumber = 1;
+
   // Timezone tracking — weather API's timezoneAbbr is more reliable than
   // segment-analyzer's lngDiff heuristic (which misses Winnipeg→Thunder Bay).
   let currentTzAbbr: string | null = segments[0]?.weather?.timezoneAbbr ?? null;
@@ -138,6 +142,7 @@ export function generateSmartStops(
       currentFuel = config.tankSizeLitres;
       distanceSinceLastFill = 0;
       hoursSinceLastFill = 0;
+      currentDayNumber = newDrivingDay.dayNumber; // Sync day number at gap
     }
 
     // === ARRIVAL WINDOW CHECK (pre-segment) ===
@@ -174,6 +179,7 @@ export function generateSmartStops(
           duration: 8 * 60,
           priority: 'required',
           details: { hoursOnRoad },
+          dayNumber: currentDayNumber,
         });
 
         // Reset to next morning at configured departure time
@@ -186,6 +192,7 @@ export function generateSmartStops(
         currentFuel = config.tankSizeLitres;
         distanceSinceLastFill = 0;
         hoursSinceLastFill = 0;
+        currentDayNumber++;
       }
     }
 
@@ -242,6 +249,7 @@ export function generateSmartStops(
           fuelCost: refillCost,
         },
         warning: sparseWarning,
+        dayNumber: currentDayNumber,
         accepted: true, // Fuel stops auto-added to itinerary by default
       });
 
@@ -267,6 +275,7 @@ export function generateSmartStops(
         details: {
           hoursOnRoad: hoursOnRoad,
         },
+        dayNumber: currentDayNumber,
       });
 
       lastBreakTime = new Date(currentTime);
@@ -281,9 +290,12 @@ export function generateSmartStops(
       }
     }
 
+    // Save the time we actually start driving the segment
+    const segmentStartTime = new Date(currentTime);
+
     // === MEAL STOP CHECK ===
-    const currentHour = currentTime.getHours();
-    const nextHour = new Date(currentTime.getTime() + segment.durationMinutes * 60 * 1000).getHours();
+    const currentHour = segmentStartTime.getHours();
+    const nextHour = new Date(segmentStartTime.getTime() + segment.durationMinutes * 60 * 1000).getHours();
 
     // Check if we'll pass through a meal time during this segment
     if (
@@ -298,41 +310,14 @@ export function generateSmartStops(
         type: 'meal',
         reason: `${mealType} break around ${mealTime}. You'll have driven ${totalHoursOnRoad} hours. Refuel yourself and your vehicle with a proper meal.`,
         afterSegmentIndex: index,
-        estimatedTime: new Date(currentTime.getTime() + segment.durationMinutes * 60 * 1000),
+        estimatedTime: new Date(segmentStartTime.getTime() + segment.durationMinutes * 60 * 1000),
         duration: 45,
         priority: 'optional',
         details: {
           hoursOnRoad: hoursOnRoad + segmentHours,
         },
+        dayNumber: currentDayNumber,
       });
-    }
-
-    // === OVERNIGHT STOP CHECK ===
-    totalDrivingToday += segmentHours;
-    if (totalDrivingToday >= config.maxDriveHoursPerDay) {
-      const maxHoursText = config.maxDriveHoursPerDay === 1 ? '1 hour' : `${config.maxDriveHoursPerDay} hours`;
-      suggestions.push({
-        id: `overnight-${index}`,
-        type: 'overnight',
-        reason: `You've reached your daily driving limit (${totalDrivingToday.toFixed(1)} hours driven, max ${maxHoursText}/day). Find a hotel, get dinner, and recharge for tomorrow.`,
-        afterSegmentIndex: index,
-        estimatedTime: new Date(currentTime.getTime() + segment.durationMinutes * 60 * 1000),
-        duration: 8 * 60, // 8 hours
-        priority: 'required',
-        details: {
-          hoursOnRoad: hoursOnRoad + segmentHours,
-        },
-      });
-
-      totalDrivingToday = 0; // Reset for next day
-      // Move to next morning at configured departure time
-      const departHour = config.departureTime.getHours();
-      const departMinute = config.departureTime.getMinutes();
-      const nextDay = new Date(currentTime);
-      nextDay.setDate(nextDay.getDate() + 1);
-      nextDay.setHours(departHour, departMinute, 0, 0);
-      currentTime = nextDay;
-      lastBreakTime = new Date(currentTime);
     }
 
     // === EN-ROUTE FUEL STOPS (segment longer than safe range) ===
@@ -349,20 +334,58 @@ export function generateSmartStops(
         type: 'fuel',
         reason: `En-route refuel needed around km ${kmMark} into this ${segment.distanceKm.toFixed(0)} km leg (~${(minutesMark / 60).toFixed(1)}h after departing). Your tank cannot cover the full distance without stopping.`,
         afterSegmentIndex: index - 1,
-        estimatedTime: new Date(currentTime.getTime() + minutesMark * 60 * 1000),
+        estimatedTime: new Date(segmentStartTime.getTime() + minutesMark * 60 * 1000),
         duration: 15,
         priority: 'required',
         details: {
           fuelNeeded: config.tankSizeLitres * 0.9,
           fuelCost: config.tankSizeLitres * 0.9 * config.gasPrice,
         },
+        dayNumber: currentDayNumber,
       });
     }
 
-    // Update state for next segment
+    // === DRIVE THE SEGMENT ===
     currentFuel -= fuelNeeded;
     hoursOnRoad += segmentHours;
-    currentTime = new Date(currentTime.getTime() + segment.durationMinutes * 60 * 1000);
+    totalDrivingToday += segmentHours;
+
+    const arrivalTime = new Date(segmentStartTime.getTime() + segment.durationMinutes * 60 * 1000);
+    const isOvernightNeeded = totalDrivingToday >= config.maxDriveHoursPerDay;
+
+    // === OVERNIGHT STOP CHECK ===
+    // Don't suggest an overnight stop if this is the literal end of the trip
+    const isFinalSegment = index === segments.length - 1;
+    if (isOvernightNeeded && !isFinalSegment) {
+      const maxHoursText = config.maxDriveHoursPerDay === 1 ? '1 hour' : `${config.maxDriveHoursPerDay} hours`;
+      suggestions.push({
+        id: `overnight-${index}`,
+        type: 'overnight',
+        reason: `You've reached your daily driving limit (${totalDrivingToday.toFixed(1)} hours driven, max ${maxHoursText}/day). Find a hotel, get dinner, and recharge for tomorrow.`,
+        afterSegmentIndex: index,
+        estimatedTime: new Date(arrivalTime),
+        duration: 8 * 60, // 8 hours
+        priority: 'required',
+        details: {
+          hoursOnRoad: hoursOnRoad,
+        },
+        dayNumber: currentDayNumber,
+      });
+
+      totalDrivingToday = 0; // Reset for next day
+      // Move to next morning at configured departure time
+      const departHour = config.departureTime.getHours();
+      const departMinute = config.departureTime.getMinutes();
+      const nextDay = new Date(arrivalTime); // Wake up morning after we arrived
+      nextDay.setDate(nextDay.getDate() + 1);
+      nextDay.setHours(departHour, departMinute, 0, 0);
+      currentTime = nextDay;
+      lastBreakTime = new Date(currentTime);
+      currentDayNumber++;
+    } else {
+      // Normal arrival
+      currentTime = arrivalTime;
+    }
 
     // === TIMEZONE SHIFT ===
     // After arriving at this segment's destination, check if we entered a new timezone.
@@ -409,7 +432,7 @@ const STOP_MERGE_PRIORITY: Record<StopType, number> = {
 function consolidateStops(stops: SuggestedStop[]): SuggestedStop[] {
   if (stops.length <= 1) return stops;
 
-  const MERGE_WINDOW_MS = 20 * 60 * 1000; // 20-minute merge window
+  const MERGE_WINDOW_MS = 60 * 60 * 1000; // 60-minute merge window
 
   const consolidated: SuggestedStop[] = [];
   let i = 0;
@@ -438,6 +461,7 @@ function consolidateStops(stops: SuggestedStop[]): SuggestedStop[] {
           current.priority === 'required' || next.priority === 'required' ? 'required' :
           current.priority === 'recommended' || next.priority === 'recommended' ? 'recommended' : 'optional',
         details: { ...current.details, ...next.details },
+        dayNumber: current.dayNumber, // Use the day number of the first stop in the merged pair
       };
       consolidated.push(merged);
       i += 2;

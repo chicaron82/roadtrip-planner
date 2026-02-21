@@ -117,7 +117,7 @@ export function DayHeader({
             <span className="font-medium">{day.route}</span>
           </div>
 
-          {/* Stats Row */}
+            {/* Stats Row */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-gray-500">
             <div className="flex items-center gap-1">
               <MapPin className="h-3 w-3" />
@@ -127,12 +127,12 @@ export function DayHeader({
               <Clock className="h-3 w-3" />
               <span>{formatDuration(day.totals.driveTimeMinutes)} drive</span>
             </div>
-            {day.totals.departureTime && (
+            {dayType !== 'free' && day.totals.departureTime && (
               <div className="flex items-center gap-1 text-green-600 font-medium">
                 <span>Depart {formatTime(day.totals.departureTime)}</span>
               </div>
             )}
-            {day.totals.arrivalTime && (
+            {dayType !== 'free' && day.totals.arrivalTime && (
               <div className="flex items-center gap-1 text-blue-600 font-medium">
                 <span>Arrive {formatTime(day.totals.arrivalTime)}</span>
               </div>

@@ -17,7 +17,7 @@ interface TripSummaryProps {
 }
 
 export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenVehicleTab }: TripSummaryProps) {
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(true);
 
   const feasibility = useMemo(
     () => summary ? analyzeFeasibility(summary, settings) : null,
@@ -26,27 +26,9 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
 
   if (!summary) return null;
 
-  if (isMinimized) {
-    return (
-      <div className="absolute bottom-4 left-4 z-[1000] animate-in slide-in-from-bottom duration-500">
-        <button
-          onClick={() => setIsMinimized(false)}
-          className="bg-white/90 backdrop-blur-md shadow-xl border border-white/20 rounded-xl px-4 py-2 text-sm font-bold flex items-center gap-2"
-        >
-          {tripActive && <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />}
-          <span>{formatDistance(summary.totalDistanceKm, settings.units)}</span>
-          <span className="text-muted-foreground">·</span>
-          <span>{formatDuration(summary.totalDurationMinutes)}</span>
-          <span className="text-muted-foreground">·</span>
-          <span>{formatCurrency(summary.totalFuelCost, settings.currency)}</span>
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <div className="absolute bottom-4 left-4 right-4 z-[1000] animate-in slide-in-from-bottom duration-500 max-h-[85vh] flex flex-col">
-      <Card className="bg-white/90 backdrop-blur-md shadow-xl border-white/20 flex-1 overflow-hidden flex flex-col">
+    <div className="absolute bottom-4 left-4 right-4 z-[1000] animate-in slide-in-from-bottom duration-500 max-h-[85vh] flex flex-col pointer-events-none">
+      <Card className="bg-white/90 backdrop-blur-md shadow-xl border-white/20 flex-1 overflow-hidden flex flex-col pointer-events-auto transition-all duration-300">
         <CardContent className="p-4 flex-1 overflow-y-auto flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between mb-4 sticky top-0 bg-white/90 backdrop-blur-md z-10 -mx-4 px-4 py-2">
@@ -70,17 +52,17 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
                 <Button variant="destructive" size="sm" onClick={onStop}>End Trip</Button>
               )}
               <button
-                onClick={() => setIsMinimized(true)}
+                onClick={() => setIsMinimized(!isMinimized)}
                 className="h-7 w-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground text-lg leading-none"
-                title="Minimise"
+                title={isMinimized ? "Expand" : "Minimize"}
               >
-                ‒
+                {isMinimized ? '+' : '‒'}
               </button>
             </div>
           </div>
 
           {/* Stat Tiles */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3 border border-blue-100 dark:border-blue-800">
               <div className="flex items-center gap-2 mb-1">
                 <Car className="w-4 h-4 text-blue-600" />
@@ -122,12 +104,16 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
             </div>
           </div>
 
-          {/* Trip Overview - Difficulty & Confidence */}
-          <TripOverview summary={summary} settings={settings} />
+          {!isMinimized && (
+            <div className="mt-4 animate-in fade-in duration-300">
+              {/* Trip Overview - Difficulty & Confidence */}
+              <TripOverview summary={summary} settings={settings} />
 
-          {/* Feasibility Health Check */}
-          {feasibility && (
-            <FeasibilityBanner result={feasibility} numTravelers={settings.numTravelers} className="mt-3" defaultCollapsed />
+              {/* Feasibility Health Check */}
+              {feasibility && (
+                <FeasibilityBanner result={feasibility} numTravelers={settings.numTravelers} className="mt-3" defaultCollapsed />
+              )}
+            </div>
           )}
         </CardContent>
       </Card>
