@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- * THE EXPERIENCE ENGINE — ESTIMATE SERVICE
+ * MY EXPERIENCE ENGINE — ESTIMATE SERVICE
  * "You know where you're going. Let's find out what it costs."
  *
  * Pure cost estimation logic — no DOM, no React.

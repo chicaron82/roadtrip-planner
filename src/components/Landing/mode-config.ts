@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- * THE EXPERIENCE ENGINE — MODE CONFIGURATION
+ * MY EXPERIENCE ENGINE — MODE CONFIGURATION
  * Constants for the Landing Screen mode cards & route map
  * ═══════════════════════════════════════════════════════════
  */

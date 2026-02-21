@@ -54,7 +54,7 @@ export function Step1Content({
         });
       } catch {
         showToast({
-          message: 'Invalid template file. Please use a file shared from The Experience Engine.',
+          message: 'Invalid template file. Please use a file shared from My Experience Engine.',
           type: 'error',
           duration: 5000,
         });

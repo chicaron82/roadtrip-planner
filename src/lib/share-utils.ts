@@ -5,7 +5,7 @@ const APP_URL = 'https://myexperienceengine.com';
 export function buildShareCaption(notes?: string): string {
   const parts: string[] = [];
   if (notes?.trim()) parts.push(notes.trim());
-  parts.push(`🗺️ The Experience Engine | ${APP_URL}`);
+  parts.push(`🗺️ My Experience Engine | ${APP_URL}`);
   return parts.join('\n');
 }
 

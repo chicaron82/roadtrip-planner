@@ -1,8 +1,8 @@
-# Roadtrip Planner v2: Bougie Edition - Roadmap
+# My Experience Engine v2: Bougie Edition - Roadmap
 
 ## Overview
 
-Transform the roadtrip planner from a "quick trip tool" into a **power user's dream** for detailed, multi-day road trip planning with budget precision.
+Transform My Experience Engine from a "quick trip tool" into a **power user's dream** for detailed, multi-day road trip planning with budget precision.
 
 **Target User**: People who make detailed itineraries (like the 2025 Winnipeg → Toronto plan) and want to automate the tedious parts while keeping full control.
 

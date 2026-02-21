@@ -1,0 +1,36 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/silve/Downloads/GitHub/roadtrip-planner[39m
+
+ [32m✓[39m src/lib/feasibility.test.ts[2m > [22manalyzeFeasibility[2m > [22mbudget analysis[2m > [22mreturns on-track when well within budget[32m 2[2mms[22m[39m
+ [32m✓[39m src/lib/feasibility.test.ts[2m > [22manalyzeFeasibility[2m > [22mbudget analysis[2m > [22mreturns tight when budget is 85-100% used[32m 0[2mms[22m[39m
+ [32m✓[39m src/lib/feasibility.test.ts[2m > [22manalyzeFeasibility[2m > [22mbudget analysis[2m > [22mreturns over when budget is exceeded[32m 13[2mms[22m[39m
+ [32m✓[39m src/lib/feasibility.test.ts[2m > [22manalyzeFeasibility[2m > [22mbudget analysis[2m > [22mskips budget analysis in open mode[32m 1[2mms[22m[39m
+ [32m✓[39m src/lib/feasibility.test.ts[2m > [22manalyzeFeasibility[2m > [22mbudget analysis[2m > [22mwarns when gas category exceeds gas budget[32m 0[2mms[22m[39m
+ [32m✓[39m src/lib/feasibility.test.ts[2m > [22manalyzeFeasibility[2m > [22mbudget analysis[2m > [22mwarns when hotel category exceeds hotel budget[32m 0[2mms[22m[39m
+ [32m✓[39m src/lib/feasibility.test.ts[2m > [22manalyzeFeasibility[2m > [22mdrive time analysis[2m > [22mwarns when a day exceeds max drive hours[32m 0[2mms[22m[39m
+ [31m×[39m src/lib/feasibility.test.ts[2m > [22manalyzeFeasibility[2m > [22mdrive time analysis[2m > [22mwarns when drive time is close to limit (90%+)[32m 6[2mms[22m[39m
+[31m   → expected false to be true // Object.is equality[39m
+ [32m✓[39m src/lib/feasibility.test.ts[2m > [22manalyzeFeasibility[2m > [22mdrive time analysis[2m > [22mno warning when drive time is well within limit[32m 0[2mms[22m[39m
+ [32m✓[39m src/lib/feasibility.test.ts[2m > [22manalyzeFeasibility[2m > [22mdriver fatigue analysis[2m > [22mwarns about single driver on long days[32m 1[2mms[22m[39m
+ [32m✓[39m src/lib/feasibility.test.ts[2m > [22manalyzeFeasibility[2m > [22mdriver fatigue analysis[2m > [22mno driver warning with 2+ drivers[32m 0[2mms[22m[39m
+ [32m✓[39m src/lib/feasibility.test.ts[2m > [22manalyzeFeasibility[2m > [22mdriver fatigue analysis[2m > [22mno driver warning when drive time is under 8 hours[32m 0[2mms[22m[39m
+ [32m✓[39m src/lib/feasibility.test.ts[2m > [22manalyzeFeasibility[2m > [22mtiming analysis[2m > [22mwarns about late arrivals (after 10 PM)[32m 0[2mms[22m[39m
+ [32m✓[39m src/lib/feasibility.test.ts[2m > [22manalyzeFeasibility[2m > [22mtiming analysis[2m > [22mnotes early departures (before 4 AM)[32m 0[2mms[22m[39m
+ [32m✓[39m src/lib/feasibility.test.ts[2m > [22manalyzeFeasibility[2m > [22mtiming analysis[2m > [22mno timing warnings for normal hours[32m 0[2mms[22m[39m
+ [32m✓[39m src/lib/feasibility.test.ts[2m > [22manalyzeFeasibility[2m > [22mper-person cost analysis[2m > [22mwarns when per-person cost exceeds per-person budget[32m 0[2mms[22m[39m
+ [32m✓[39m src/lib/feasibility.test.ts[2m > [22manalyzeFeasibility[2m > [22msummary calculations[2m > [22mcalculates budget utilization correctly[32m 0[2mms[22m[39m
+ [32m✓[39m src/lib/feasibility.test.ts[2m > [22manalyzeFeasibility[2m > [22msummary calculations[2m > [22mfinds longest drive day[32m 0[2mms[22m[39m
+ [32m✓[39m src/lib/feasibility.test.ts[2m > [22manalyzeFeasibility[2m > [22msummary calculations[2m > [22mcalculates per-person cost[32m 0[2mms[22m[39m
+ [32m✓[39m src/lib/feasibility.test.ts[2m > [22manalyzeFeasibility[2m > [22msummary calculations[2m > [22mhandles zero travelers gracefully[32m 0[2mms[22m[39m
+ [32m✓[39m src/lib/feasibility.test.ts[2m > [22mcompareRefinements[2m > [22mreports per-person cost change when travelers decrease[32m 0[2mms[22m[39m
+ [32m✓[39m src/lib/feasibility.test.ts[2m > [22mcompareRefinements[2m > [22mreports driver reduction warning[32m 0[2mms[22m[39m
+ [32m✓[39m src/lib/feasibility.test.ts[2m > [22mcompareRefinements[2m > [22mreports when plan goes from on-track to over budget[32m 0[2mms[22m[39m
+ [32m✓[39m src/lib/feasibility.test.ts[2m > [22mcompareRefinements[2m > [22mreports recovery when plan goes from over to on-track[32m 0[2mms[22m[39m
+ [32m✓[39m src/lib/feasibility.test.ts[2m > [22mcompareRefinements[2m > [22mhandles no changes gracefully[32m 0[2mms[22m[39m
+ [32m✓[39m src/lib/feasibility.test.ts[2m > [22mreal scenario: Winnipeg→Toronto trip changes[2m > [22mcatches all cascading issues from 4→3 travelers + 2→1 drivers[32m 1[2mms[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m25 passed[39m[22m[90m (26)[39m
+[2m   Start at [22m 18:52:13
+[2m   Duration [22m 867ms[2m (transform 71ms, setup 89ms, import 53ms, tests 30ms, environment 569ms)[22m
+

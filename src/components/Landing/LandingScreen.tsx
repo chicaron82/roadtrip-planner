@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════
- * THE EXPERIENCE ENGINE — LANDING SCREEN
+ * MY EXPERIENCE ENGINE — LANDING SCREEN
  * "The open road is calling. How are you answering?"
  *
  * First impression. Experience over utility.
@@ -127,7 +127,7 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip 
               marginBottom: '10px',
             }}
           >
-            The Experience Engine™
+            My Experience Engine™
           </p>
 
           <h1 className="landing-hero-title" style={{
@@ -291,7 +291,7 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip 
             letterSpacing: '0.1em',
             margin: 0,
           }}>
-            The Experience Engine™ · Built by Aaron "Chicharon" with help from the crew.
+            My Experience Engine™ · Built by Aaron "Chicharon" with help from the crew.
           </p>
 
           {/* Continue saved trip */}

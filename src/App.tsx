@@ -482,7 +482,7 @@ function AppContent() {
           <div className="mb-3">
             <div className="flex items-center gap-2.5">
               <h1 className="sidebar-brand-title">
-                The Experience Engine
+                My Experience Engine
               </h1>
               {/* Mode badge — click to switch modes */}
               <div className="relative" ref={modeSwitcherRef}>

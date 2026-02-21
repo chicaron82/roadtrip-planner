@@ -4,7 +4,7 @@
  * Scoped dark CSS variables for the wizard sidebar.
  * Map stays light. Landing→sidebar transition continuity.
  *
- * 💚 The Experience Engine™
+ * 💚 My Experience Engine™
  * ═══════════════════════════════════════════════════════════
  */
 
@@ -58,11 +58,11 @@
 
 /* ── Sidebar brand ── */
 .sidebar-brand-title {
-  font-family: 'Sora', system-ui, sans-serif;
+  font-family: "Sora", system-ui, sans-serif;
   font-weight: 800;
   font-size: 1.15rem;
   letter-spacing: -0.02em;
-  background: linear-gradient(135deg, #F59E0B 0%, #EA580C 60%, #F97316 100%);
+  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 60%, #f97316 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -70,7 +70,7 @@
 }
 
 .sidebar-brand-sub {
-  font-family: 'DM Mono', monospace;
+  font-family: "DM Mono", monospace;
   font-size: 10px;
   letter-spacing: 0.12em;
   color: hsl(220 12% 45%);
@@ -101,7 +101,7 @@
 }
 
 .sidebar-dark .step-title {
-  font-family: 'Sora', system-ui, sans-serif;
+  font-family: "Sora", system-ui, sans-serif;
   font-weight: 600;
   color: hsl(220 15% 65%);
 }
@@ -115,7 +115,7 @@
 }
 
 .sidebar-dark .step-desc {
-  font-family: 'DM Mono', monospace;
+  font-family: "DM Mono", monospace;
   font-size: 9px;
   letter-spacing: 0.08em;
   color: hsl(220 12% 55%);
@@ -136,11 +136,7 @@
 
 /* ── Nav footer ── */
 .sidebar-nav-footer {
-  background: linear-gradient(
-    0deg,
-    hsl(225 30% 8%) 0%,
-    hsl(225 28% 10%) 100%
-  );
+  background: linear-gradient(0deg, hsl(225 30% 8%) 0%, hsl(225 28% 10%) 100%);
   border-top: 1px solid hsl(225 18% 16%);
 }
 
@@ -195,19 +191,31 @@
 
 /* ── Info banners in dark ── */
 .sidebar-dark .info-banner-blue {
-  background: linear-gradient(135deg, hsla(220, 60%, 30%, 0.3), hsla(240, 50%, 25%, 0.3));
+  background: linear-gradient(
+    135deg,
+    hsla(220, 60%, 30%, 0.3),
+    hsla(240, 50%, 25%, 0.3)
+  );
   border-color: hsla(220, 50%, 40%, 0.4);
   color: hsl(220 70% 75%);
 }
 
 .sidebar-dark .info-banner-purple {
-  background: linear-gradient(135deg, hsla(270, 50%, 25%, 0.3), hsla(260, 40%, 20%, 0.3));
+  background: linear-gradient(
+    135deg,
+    hsla(270, 50%, 25%, 0.3),
+    hsla(260, 40%, 20%, 0.3)
+  );
   border-color: hsla(270, 40%, 35%, 0.4);
   color: hsl(270 50% 75%);
 }
 
 .sidebar-dark .info-banner-green {
-  background: linear-gradient(135deg, hsla(142, 50%, 20%, 0.3), hsla(142, 40%, 15%, 0.3));
+  background: linear-gradient(
+    135deg,
+    hsla(142, 50%, 20%, 0.3),
+    hsla(142, 40%, 15%, 0.3)
+  );
   border-color: hsla(142, 40%, 30%, 0.4);
   color: hsl(142 50% 65%);
 }
@@ -261,8 +269,14 @@
 }
 
 @keyframes mode-switcher-enter {
-  from { opacity: 0; transform: translateY(-4px) scale(0.96); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .mode-switcher-option {
@@ -276,7 +290,7 @@
   background: transparent;
   cursor: pointer;
   transition: background 0.15s ease;
-  font-family: 'Sora', system-ui, sans-serif;
+  font-family: "Sora", system-ui, sans-serif;
 }
 
 .mode-switcher-option:hover:not(:disabled) {
@@ -306,7 +320,7 @@
 /* ── Ensure text readability ── */
 .sidebar-dark h2,
 .sidebar-dark h3 {
-  font-family: 'Sora', system-ui, sans-serif;
+  font-family: "Sora", system-ui, sans-serif;
   color: hsl(220 20% 92%);
 }
 
@@ -314,7 +328,7 @@
 .sidebar-dark span,
 .sidebar-dark label,
 .sidebar-dark div {
-  font-family: 'Sora', system-ui, sans-serif;
+  font-family: "Sora", system-ui, sans-serif;
 }
 
 /* ── Reduce motion ── */

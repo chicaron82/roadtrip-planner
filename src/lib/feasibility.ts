@@ -193,6 +193,7 @@ function analyzeDriveTime(
 ): FeasibilityWarning[] {
   const warnings: FeasibilityWarning[] = [];
   const maxDriveMinutes = settings.maxDriveHours * 60;
+  const tightDriveMinutes = maxDriveMinutes * 0.9; // 90% threshold for warning
 
   for (const day of days) {
     const driveMinutes = day.totals.driveTimeMinutes;
@@ -207,6 +208,15 @@ function analyzeDriveTime(
         detail: `${formatDuration(driveMinutes)} driving vs ${settings.maxDriveHours}h limit.`,
         dayNumber: day.dayNumber,
         suggestion: 'Consider adding an overnight stop to split this day.',
+      });
+    } else if (driveMinutes >= tightDriveMinutes) {
+      warnings.push({
+        category: 'drive-time',
+        severity: 'warning',
+        message: `Day ${day.dayNumber}: Drive time is close to daily limit`,
+        detail: `${formatDuration(driveMinutes)} driving vs ${settings.maxDriveHours}h limit.`,
+        dayNumber: day.dayNumber,
+        suggestion: 'Ensure adequate rest stops are planned.',
       });
     }
   }
