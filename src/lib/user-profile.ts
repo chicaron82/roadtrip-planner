@@ -151,6 +151,23 @@ export const getAdaptiveDefaults = (profile?: UserProfile): AdaptiveDefaults | n
   };
 };
 
+// --- Export as Shareable Preset ---
+// Wraps the user's adaptive defaults into a StylePreset they can name and share.
+import type { StylePreset } from './style-presets';
+
+export const exportAsPreset = (name: string): StylePreset | null => {
+  const defaults = getAdaptiveDefaults();
+  if (!defaults) return null;
+  return {
+    id: `user-${Date.now()}`,
+    name,
+    creatorName: name,
+    hotelPricePerNight: defaults.hotelPricePerNight,
+    mealPricePerDay: defaults.mealPricePerDay,
+    description: `Based on ${defaults.tripCount} trip${defaults.tripCount !== 1 ? 's' : ''}.`,
+  };
+};
+
 // True if adaptive values differ meaningfully from Chicharon's baseline (>10% on either field).
 // Used to decide whether to surface the adaptive banner.
 export const isAdaptiveMeaningful = (defaults: AdaptiveDefaults): boolean => {

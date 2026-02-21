@@ -1,8 +1,15 @@
 import { useState } from 'react';
 import { Map, BookOpen, Lock } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import type { TripMode } from '../../types';
 
 export type ViewMode = 'plan' | 'journal';
+
+const MODE_COLOR: Record<string, string> = {
+  plan: '#22C55E',
+  estimate: '#3B82F6',
+  adventure: '#F59E0B',
+};
 
 interface JournalModeToggleProps {
   mode: ViewMode;
@@ -10,6 +17,7 @@ interface JournalModeToggleProps {
   hasActiveJournal: boolean;
   disabled?: boolean;
   className?: string;
+  tripMode?: TripMode;
 }
 
 export function JournalModeToggle({
@@ -18,8 +26,10 @@ export function JournalModeToggle({
   hasActiveJournal,
   disabled,
   className,
+  tripMode = 'plan',
 }: JournalModeToggleProps) {
   const journalDisabled = disabled && mode !== 'journal';
+  const accentColor = MODE_COLOR[tripMode] ?? '#22C55E';
   return (
     <div className={cn('flex items-center gap-1 p-1 rounded-lg bg-muted/50', className)}>
       {/* Plan Mode Button */}
@@ -36,7 +46,7 @@ export function JournalModeToggle({
         <span>Plan</span>
       </button>
 
-      {/* Journal Mode Button */}
+      {/* My MEE Time (Journal) Mode Button */}
       <button
         onClick={() => !journalDisabled && onChange('journal')}
         className={cn(
@@ -44,20 +54,24 @@ export function JournalModeToggle({
           journalDisabled
             ? 'text-muted-foreground/50 cursor-not-allowed'
             : mode === 'journal'
-              ? 'bg-white text-purple-600 shadow-sm'
+              ? 'bg-white shadow-sm'
               : 'text-muted-foreground hover:text-foreground hover:bg-white/50'
         )}
+        style={mode === 'journal' && !journalDisabled ? { color: accentColor } : undefined}
         title={journalDisabled ? 'Confirm your trip first' : undefined}
       >
         {journalDisabled ? <Lock className="h-3.5 w-3.5" /> : <BookOpen className="h-4 w-4" />}
-        <span>Journal</span>
+        <span>My MEE Time</span>
         {journalDisabled && (
           <span className="text-[10px] text-muted-foreground/50 hidden sm:inline">
             Confirm first
           </span>
         )}
         {!journalDisabled && !hasActiveJournal && mode !== 'journal' && (
-          <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-bold">
+          <span
+            className="text-[10px] px-1.5 py-0.5 rounded-full font-bold"
+            style={{ background: `${accentColor}18`, color: accentColor }}
+          >
             NEW
           </span>
         )}
@@ -72,40 +86,49 @@ interface StartJournalCTAProps {
   className?: string;
   /** Pre-filled title suggestion (e.g. challenge title or template name) */
   defaultName?: string;
+  /** Mode colour used for accents instead of flat purple */
+  tripMode?: TripMode;
 }
 
-export function StartJournalCTA({ onStart, className, defaultName }: StartJournalCTAProps) {
+export function StartJournalCTA({ onStart, className, defaultName, tripMode = 'plan' }: StartJournalCTAProps) {
   const [expanded, setExpanded] = useState(false);
   const [name, setName] = useState(defaultName ?? '');
+  const accentColor = MODE_COLOR[tripMode] ?? '#22C55E';
 
   if (!expanded) {
     return (
       <div
-        className={cn(
-          'rounded-xl border-2 border-dashed border-purple-200 bg-purple-50/50 p-6 text-center',
-          className
-        )}
+        className={cn('rounded-xl border-2 border-dashed p-6 text-center', className)}
+        style={{
+          borderColor: `${accentColor}40`,
+          background: `${accentColor}06`,
+        }}
       >
-        <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-3">
-          <BookOpen className="h-6 w-6 text-purple-600" />
+        <div
+          className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
+          style={{ background: `${accentColor}18` }}
+        >
+          <BookOpen className="h-6 w-6" style={{ color: accentColor }} />
         </div>
 
-        <h3 className="font-bold text-purple-900 mb-1">Start Your Trip Journal</h3>
+        <h3 className="font-bold mb-1" style={{ color: 'hsl(var(--foreground))' }}>
+          Remember This MEE Time
+        </h3>
 
-        <p className="text-sm text-purple-700 mb-4 max-w-xs mx-auto">
-          Capture photos, add notes, and track actual times as you travel. Create memories you can
-          share!
+        <p className="text-sm mb-4 max-w-xs mx-auto" style={{ color: 'hsl(var(--muted-foreground))' }}>
+          Capture the real version of this trip — what actually happened.
         </p>
 
         <button
           onClick={() => setExpanded(true)}
-          className="inline-flex items-center gap-2 px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium text-sm transition-colors"
+          className="inline-flex items-center gap-2 px-6 py-2.5 text-white rounded-lg font-medium text-sm transition-all hover:opacity-90"
+          style={{ background: accentColor }}
         >
           <BookOpen className="h-4 w-4" />
-          Start Journaling
+          Remember My MEE Time
         </button>
 
-        <p className="text-xs text-purple-500 mt-3">
+        <p className="text-xs mt-3" style={{ color: `${accentColor}80` }}>
           Works offline. Your memories are saved locally.
         </p>
       </div>
@@ -115,17 +138,18 @@ export function StartJournalCTA({ onStart, className, defaultName }: StartJourna
   // Expanded: name input form
   return (
     <div
-      className={cn(
-        'rounded-xl border-2 border-purple-300 bg-purple-50 p-6',
-        className
-      )}
+      className={cn('rounded-xl border-2 p-6', className)}
+      style={{
+        borderColor: `${accentColor}50`,
+        background: `${accentColor}06`,
+      }}
     >
       <div className="flex items-center gap-2 mb-4">
-        <BookOpen className="h-5 w-5 text-purple-600" />
-        <h3 className="font-bold text-purple-900">Name your journal</h3>
+        <BookOpen className="h-5 w-5" style={{ color: accentColor }} />
+        <h3 className="font-bold text-foreground">Name your MEE time</h3>
       </div>
 
-      <p className="text-sm text-purple-700 mb-3">
+      <p className="text-sm text-muted-foreground mb-3">
         Give it a personal title — your name, a vibe, anything that feels right.
       </p>
 
@@ -135,7 +159,12 @@ export function StartJournalCTA({ onStart, className, defaultName }: StartJourna
         onChange={e => setName(e.target.value)}
         placeholder="e.g. Jenny's Eastern US Run"
         maxLength={80}
-        className="w-full px-3 py-2 rounded-lg border border-purple-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 placeholder:text-purple-300 mb-4"
+        className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 placeholder:text-muted-foreground/40 mb-4"
+        style={{
+          borderColor: `${accentColor}40`,
+          // @ts-expect-error CSS custom property
+          '--tw-ring-color': `${accentColor}60`,
+        }}
         onKeyDown={e => {
           if (e.key === 'Enter') onStart(name.trim() || undefined);
         }}
@@ -145,20 +174,21 @@ export function StartJournalCTA({ onStart, className, defaultName }: StartJourna
       <div className="flex gap-2">
         <button
           onClick={() => onStart(name.trim() || undefined)}
-          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium text-sm transition-colors"
+          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 text-white rounded-lg font-medium text-sm transition-all hover:opacity-90"
+          style={{ background: accentColor }}
         >
           <BookOpen className="h-4 w-4" />
-          Create Journal
+          Remember My MEE Time
         </button>
         <button
           onClick={() => setExpanded(false)}
-          className="px-4 py-2.5 text-purple-600 hover:bg-purple-100 rounded-lg text-sm font-medium transition-colors"
+          className="px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-muted-foreground hover:bg-muted"
         >
           Back
         </button>
       </div>
 
-      <p className="text-xs text-purple-500 mt-3 text-center">
+      <p className="text-xs mt-3 text-center" style={{ color: `${accentColor}80` }}>
         Works offline. Your memories are saved locally.
       </p>
     </div>

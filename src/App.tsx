@@ -10,7 +10,8 @@ import { getHistory } from './lib/storage';
 import { parseStateFromURL, type TemplateImportResult } from './lib/url';
 import { showToast } from './lib/toast';
 import { saveLastOrigin, getLastOrigin } from './lib/storage';
-import { recordTrip, getAdaptiveDefaults, CHICHARON_BASELINE, type AdaptiveDefaults } from './lib/user-profile';
+import { recordTrip, getAdaptiveDefaults, isAdaptiveMeaningful, type AdaptiveDefaults } from './lib/user-profile';
+import { BUILTIN_PRESETS, CHICHARON_CLASSIC, parsePresetFromURL, copyPresetShareURL, type StylePreset } from './lib/style-presets';
 import { Spinner } from './components/UI/Spinner';
 import { AdventureMode, type AdventureSelection } from './components/Trip/AdventureMode';
 import { buildAdventureBudget } from './lib/adventure-service';
@@ -83,6 +84,42 @@ function AppContent() {
 
   // Adaptive budget profile (computed from trip history)
   const [adaptiveDefaults, setAdaptiveDefaults] = useState<AdaptiveDefaults | null>(null);
+
+  // Style preset — active travel style applied to hotel/meal inputs
+  const [activePreset, setActivePreset] = useState<StylePreset>(() => parsePresetFromURL() ?? CHICHARON_CLASSIC);
+  const [shareJustCopied, setShareJustCopied] = useState(false);
+  const shareCopiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Available preset options: built-ins + "My MEE Style" when adaptive is meaningful
+  const presetOptions = useMemo((): StylePreset[] => {
+    if (!adaptiveDefaults || !isAdaptiveMeaningful(adaptiveDefaults)) return BUILTIN_PRESETS;
+    const myStyle: StylePreset = {
+      id: 'my-mee-style',
+      name: 'My MEE Style',
+      creatorName: 'You',
+      hotelPricePerNight: adaptiveDefaults.hotelPricePerNight,
+      mealPricePerDay: adaptiveDefaults.mealPricePerDay,
+      description: `Based on your last ${adaptiveDefaults.tripCount} trip${adaptiveDefaults.tripCount !== 1 ? 's' : ''}.`,
+    };
+    return [CHICHARON_CLASSIC, myStyle];
+  }, [adaptiveDefaults]);
+
+  const handlePresetChange = useCallback((preset: StylePreset) => {
+    setActivePreset(preset);
+    setSettings(prev => ({
+      ...prev,
+      hotelPricePerNight: preset.hotelPricePerNight,
+      mealPricePerDay: preset.mealPricePerDay,
+    }));
+  }, [setSettings]);
+
+  const handleSharePreset = useCallback(async () => {
+    await copyPresetShareURL(activePreset);
+    setShareJustCopied(true);
+    if (shareCopiedTimerRef.current) clearTimeout(shareCopiedTimerRef.current);
+    shareCopiedTimerRef.current = setTimeout(() => setShareJustCopied(false), 2000);
+    showToast({ message: '"Make my MEE time, your MEE time." — Link copied!', type: 'success' });
+  }, [activePreset]);
 
   // Take Me Home (Phase 4) — mirror gas/hotel stops onto the return leg
   const mirroredReturnStops = useMemo((): SuggestedStop[] => {
@@ -259,11 +296,14 @@ function AppContent() {
       const defaults = getAdaptiveDefaults();
       if (defaults) {
         setAdaptiveDefaults(defaults);
-        setSettings(prev => ({
-          ...prev,
-          hotelPricePerNight: defaults.hotelPricePerNight,
-          mealPricePerDay: defaults.mealPricePerDay,
-        }));
+        // Only auto-apply values if user hasn't loaded a style from URL
+        if (!parsePresetFromURL()) {
+          setSettings(prev => ({
+            ...prev,
+            hotelPricePerNight: defaults.hotelPricePerNight,
+            mealPricePerDay: defaults.mealPricePerDay,
+          }));
+        }
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -673,14 +713,11 @@ function AppContent() {
                   settings={settings}
                   setSettings={setSettings}
                   tripMode={tripMode}
-                  adaptiveDefaults={adaptiveDefaults}
-                  onResetToBaseline={() => {
-                    setSettings(prev => ({
-                      ...prev,
-                      hotelPricePerNight: CHICHARON_BASELINE.hotelPricePerNight,
-                      mealPricePerDay: CHICHARON_BASELINE.mealPricePerDay,
-                    }));
-                  }}
+                  activePreset={activePreset}
+                  presetOptions={presetOptions}
+                  onPresetChange={handlePresetChange}
+                  onSharePreset={handleSharePreset}
+                  shareJustCopied={shareJustCopied}
                 />
               )}
 
@@ -824,14 +861,11 @@ function AppContent() {
                 settings={settings}
                 setSettings={setSettings}
                 tripMode={tripMode}
-                adaptiveDefaults={adaptiveDefaults}
-                onResetToBaseline={() => {
-                  setSettings(prev => ({
-                    ...prev,
-                    hotelPricePerNight: CHICHARON_BASELINE.hotelPricePerNight,
-                    mealPricePerDay: CHICHARON_BASELINE.mealPricePerDay,
-                  }));
-                }}
+                activePreset={activePreset}
+                presetOptions={presetOptions}
+                onPresetChange={handlePresetChange}
+                onSharePreset={handleSharePreset}
+                shareJustCopied={shareJustCopied}
               />
             )}
           </MobileStepSheet>

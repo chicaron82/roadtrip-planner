@@ -116,6 +116,7 @@ export function Step3Content({
             <StartJournalCTA
               onStart={onStartJournal}
               defaultName={activeChallenge?.title}
+              tripMode={tripMode}
             />
           )
         ) : (
@@ -224,6 +225,7 @@ export function Step3Content({
             onChange={setViewMode}
             hasActiveJournal={!!activeJournal}
             disabled={!tripConfirmed}
+            tripMode={tripMode}
           />
         )}
       </div>
@@ -278,6 +280,7 @@ export function Step3Content({
               <StartJournalCTA
                 onStart={onStartJournal}
                 defaultName={activeChallenge?.title}
+                tripMode={tripMode}
               />
             )
           ) : (
