@@ -14,7 +14,7 @@ import { useMemo } from 'react';
 import { Clock, Zap, Utensils, Fuel, Coffee, Moon, MapPin, ChevronRight } from 'lucide-react';
 import type { TripSummary, TripSettings, Vehicle } from '../../types';
 import type { POISuggestion } from '../../types';
-import { generateSmartStops, createStopConfig, type SuggestedStop } from '../../lib/stop-suggestions';
+import { generateSmartStops, createStopConfig } from '../../lib/stop-suggestions';
 import { buildTimedTimeline, formatTime, formatDuration, type TimedEvent } from '../../lib/trip-timeline';
 import { applyComboOptimization } from '../../lib/stop-consolidator';
 
@@ -23,10 +23,6 @@ interface SmartTimelineProps {
   settings: TripSettings;
   vehicle?: Vehicle;
   poiSuggestions?: POISuggestion[];
-  /** The actual accepted/suggested stops from TripContext — use these instead of
-   *  regenerating, since stop placement requires per-segment splitting that
-   *  SmartTimeline cannot do on its own for single-segment long routes. */
-  stopSuggestions?: SuggestedStop[];
 }
 
 // ─── Icon helpers ─────────────────────────────────────────────────────────────
@@ -214,23 +210,21 @@ function StopCard({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [], stopSuggestions }: SmartTimelineProps) {
+export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [] }: SmartTimelineProps) {
   const events = useMemo(() => {
     if (!summary?.segments?.length) return [];
 
-    // Prefer externally-provided stops (the accepted stops from TripContext which
-    // have correct afterSegmentIndex for each sub-segment).  Fall back to
-    // re-generating only when nothing is passed in (e.g. standalone rendering).
-    const allSuggestions: SuggestedStop[] =
-      stopSuggestions && stopSuggestions.length > 0
-        ? stopSuggestions
-        : vehicle
-          ? generateSmartStops(summary.segments, createStopConfig(vehicle, settings), summary.days)
-          : [];
+    // Generate all suggestions (include pending — we want meal + fuel stops
+    // even if user hasn't explicitly accepted them yet)
+    const allSuggestions = vehicle
+      ? generateSmartStops(summary.segments, createStopConfig(vehicle, settings), summary.days)
+      : [];
 
+    // buildTimedTimeline handles mid-segment splitting: a 700km drive with
+    // a fuel stop at km 487 becomes drive→fuel→drive automatically.
     const raw = buildTimedTimeline(summary.segments, allSuggestions, settings, vehicle);
     return applyComboOptimization(raw);
-  }, [summary, settings, vehicle, stopSuggestions]);
+  }, [summary, settings, vehicle]);
 
   if (!events.length) return null;
 
