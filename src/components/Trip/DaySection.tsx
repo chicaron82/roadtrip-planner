@@ -20,6 +20,8 @@ interface DaySectionProps {
   onSelectDayOption?: (dayNumber: number, optionIndex: number) => void;
   // Overnight hotel editing
   onEditOvernight?: (dayNumber: number) => void;
+  // Number of nights at the overnight stop (derived from next driving day's date)
+  overnightNights?: number;
 }
 
 // ==================== COMPONENT ====================
@@ -36,6 +38,7 @@ export function DaySection({
   onRemoveDayOption,
   onSelectDayOption,
   onEditOvernight,
+  overnightNights,
 }: DaySectionProps) {
   const dayType = day.dayType || 'planned';
 
@@ -46,6 +49,7 @@ export function DaySection({
         day={day}
         isFirst={isFirst}
         editable={editable}
+        overnightNights={overnightNights}
         onDayTypeChange={onDayTypeChange}
         onTitleChange={onTitleChange}
         onEditOvernight={onEditOvernight}

@@ -10,6 +10,7 @@ interface DayHeaderProps {
   isFirst?: boolean;
   className?: string;
   editable?: boolean;
+  overnightNights?: number;
   onDayTypeChange?: (dayNumber: number, type: DayType) => void;
   onTitleChange?: (dayNumber: number, title: string) => void;
   onEditOvernight?: (dayNumber: number) => void;
@@ -20,6 +21,7 @@ export function DayHeader({
   isFirst = false,
   className,
   editable = false,
+  overnightNights,
   onDayTypeChange,
   onTitleChange,
   onEditOvernight,
@@ -190,6 +192,12 @@ export function DayHeader({
                 <span className="font-medium">${day.overnight.cost}</span>
                 <span>•</span>
                 <span>{day.overnight.roomsNeeded} room{day.overnight.roomsNeeded > 1 ? 's' : ''}</span>
+                {overnightNights && overnightNights > 0 && (
+                  <>
+                    <span>•</span>
+                    <span className="font-medium">{overnightNights} night{overnightNights !== 1 ? 's' : ''}</span>
+                  </>
+                )}
                 {day.overnight.amenities && day.overnight.amenities.length > 0 && (
                   <>
                     <span>•</span>

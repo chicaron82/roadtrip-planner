@@ -68,79 +68,6 @@ export function Step1Content({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold mb-1">{MODE_HEADERS[tripMode].title}</h2>
-        <p className="text-sm text-muted-foreground mb-4">
-          {MODE_HEADERS[tripMode].subtitle}
-        </p>
-        <LocationList
-          locations={locations}
-          setLocations={setLocations}
-          onCalculate={() => {}}
-          isCalculating={false}
-          hideCalculateButton
-        />
-
-        {/* One-Way Toggle (default is round trip) */}
-        <div className={`mt-4 flex items-center justify-between p-3 rounded-lg border transition-colors ${settings.isRoundTrip ? 'border-blue-500/30 bg-blue-500/10' : 'border-amber-500/30 bg-amber-500/10'}`}>
-          <div className="flex items-center gap-3">
-            <div className="text-2xl">{settings.isRoundTrip ? '🔄' : '➡️'}</div>
-            <div>
-              <div className={`text-sm font-semibold ${settings.isRoundTrip ? 'text-blue-300' : 'text-amber-300'}`}>
-                {settings.isRoundTrip ? 'Round Trip' : 'One-Way Journey'}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {settings.isRoundTrip
-                  ? 'Returning to starting point (doubles costs & distance)'
-                  : 'No return — costs & distance for outbound only'}
-              </div>
-            </div>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={!settings.isRoundTrip}
-              onChange={(e) => setSettings((prev) => ({ ...prev, isRoundTrip: !e.target.checked }))}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-amber-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
-          </label>
-        </div>
-
-        {/* Adventure Mode Button — only show in plan mode as secondary option */}
-        {tripMode === 'plan' && (
-          <button
-            onClick={onShowAdventure}
-            className="mt-4 w-full flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed border-amber-500/40 text-sm text-amber-400 hover:border-amber-400 hover:bg-amber-500/10 transition-all"
-          >
-            🧭 Switch to Adventure Mode
-          </button>
-        )}
-
-        {/* Chicharon's Challenges */}
-        {onSelectChallenge && (
-          <div className="mt-4">
-            <ChallengeCards onSelectChallenge={onSelectChallenge} />
-          </div>
-        )}
-
-        {/* Import Shared Template */}
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="mt-3 w-full flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed border-green-500/30 text-sm text-muted-foreground hover:border-green-400 hover:text-green-400 hover:bg-green-500/10 transition-all"
-        >
-          <Upload className="h-4 w-4" />
-          Load a Shared Trip Template
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".json"
-          onChange={handleImportFile}
-          className="hidden"
-        />
-      </div>
-
-      <div className="border-t pt-4">
         <h3 className="text-sm font-semibold flex items-center gap-2 mb-3">
           <Calendar className="h-4 w-4 text-primary" />
           When?
@@ -258,6 +185,80 @@ export function Step1Content({
           })()}
         </p>
       </div>
+
+      <div className="border-t pt-4">
+        <h2 className="text-lg font-semibold mb-1">{MODE_HEADERS[tripMode].title}</h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          {MODE_HEADERS[tripMode].subtitle}
+        </p>
+        <LocationList
+          locations={locations}
+          setLocations={setLocations}
+          onCalculate={() => {}}
+          isCalculating={false}
+          hideCalculateButton
+        />
+
+        {/* One-Way Toggle (default is round trip) */}
+        <div className={`mt-4 flex items-center justify-between p-3 rounded-lg border transition-colors ${settings.isRoundTrip ? 'border-blue-500/30 bg-blue-500/10' : 'border-amber-500/30 bg-amber-500/10'}`}>
+          <div className="flex items-center gap-3">
+            <div className="text-2xl">{settings.isRoundTrip ? '🔄' : '➡️'}</div>
+            <div>
+              <div className={`text-sm font-semibold ${settings.isRoundTrip ? 'text-blue-300' : 'text-amber-300'}`}>
+                {settings.isRoundTrip ? 'Round Trip' : 'One-Way Journey'}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {settings.isRoundTrip
+                  ? 'Returning to starting point (doubles costs & distance)'
+                  : 'No return — costs & distance for outbound only'}
+              </div>
+            </div>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!settings.isRoundTrip}
+              onChange={(e) => setSettings((prev) => ({ ...prev, isRoundTrip: !e.target.checked }))}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-amber-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+          </label>
+        </div>
+
+        {/* Adventure Mode Button — only show in plan mode as secondary option */}
+        {tripMode === 'plan' && (
+          <button
+            onClick={onShowAdventure}
+            className="mt-4 w-full flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed border-amber-500/40 text-sm text-amber-400 hover:border-amber-400 hover:bg-amber-500/10 transition-all"
+          >
+            🧭 Switch to Adventure Mode
+          </button>
+        )}
+
+        {/* Chicharon's Challenges */}
+        {onSelectChallenge && (
+          <div className="mt-4">
+            <ChallengeCards onSelectChallenge={onSelectChallenge} />
+          </div>
+        )}
+
+        {/* Import Shared Template */}
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="mt-3 w-full flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed border-green-500/30 text-sm text-muted-foreground hover:border-green-400 hover:text-green-400 hover:bg-green-500/10 transition-all"
+        >
+          <Upload className="h-4 w-4" />
+          Load a Shared Trip Template
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json"
+          onChange={handleImportFile}
+          className="hidden"
+        />
+      </div>
+
     </div>
   );
 }

@@ -85,8 +85,9 @@ export function Step2Content({
           {/* Travelers Stepper */}
           <div>
             <Label className="text-xs text-muted-foreground flex items-center gap-1">
-              <Users className="h-3 w-3" /> Travelers
+              <Users className="h-3 w-3" /> Total Travellers
             </Label>
+            <p className="text-[10px] text-muted-foreground/60 mt-0.5 mb-1">everyone on the trip</p>
             <div className="flex items-center gap-2 mt-1">
               <Button
                 variant="outline"
@@ -124,8 +125,9 @@ export function Step2Content({
           {/* Drivers Stepper */}
           <div>
             <Label className="text-xs text-muted-foreground flex items-center gap-1">
-              <UserCheck className="h-3 w-3" /> Drivers
+              <UserCheck className="h-3 w-3" /> Can Drive
             </Label>
+            <p className="text-[10px] text-muted-foreground/60 mt-0.5 mb-1">included in total above</p>
             <div className="flex items-center gap-2 mt-1">
               <Button
                 variant="outline"
@@ -173,7 +175,11 @@ export function Step2Content({
             ))}
           </div>
           <span>
-            {settings.numDrivers} of {settings.numTravelers} can drive
+            {settings.numTravelers} traveller{settings.numTravelers !== 1 ? 's' : ''}
+            {' · '}{settings.numDrivers} can drive
+            {settings.numTravelers - settings.numDrivers > 0 && (
+              <> · {settings.numTravelers - settings.numDrivers} passenger{settings.numTravelers - settings.numDrivers !== 1 ? 's' : ''}</>
+            )}
           </span>
         </div>
 

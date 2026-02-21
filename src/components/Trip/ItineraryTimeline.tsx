@@ -8,7 +8,6 @@ import { generatePacingSuggestions } from '../../lib/segment-analyzer';
 import { generateSmartStops, createStopConfig, type SuggestedStop } from '../../lib/stop-suggestions';
 import { getTankSizeLitres } from '../../lib/unit-conversions';
 import { assignDrivers, extractFuelStopIndices } from '../../lib/driver-rotation';
-import { Button } from '../UI/Button';
 import { ActivityEditor } from './ActivityEditor';
 import { StartNode, GasStopNode, SuggestedStopNode, WaypointNode } from './TimelineNode';
 import { DaySection } from './DaySection';
@@ -95,9 +94,6 @@ export function ItineraryTimeline({
   // Per-stop user overrides — kept separate so baseSuggestions can regenerate without wiping
   // decisions the user already made (accept, dismiss, custom duration).
   const [userOverrides, setUserOverrides] = useState<Record<string, { accepted?: boolean; dismissed?: boolean; duration?: number }>>({});
-
-  // Show/hide suggestions panel
-  const [showSuggestions, setShowSuggestions] = useState(true);
 
   // Merged: base suggestions with any user overrides applied on top
   const stopSuggestions = useMemo(() =>
@@ -249,6 +245,47 @@ export function ItineraryTimeline({
   // Pending suggestions (not yet accepted or dismissed)
   const pendingSuggestions = activeSuggestions.filter(s => !s.accepted);
 
+  // Map dayNumber → pending suggestions for that day (inline rendering)
+  const pendingSuggestionsByDay = useMemo(() => {
+    const map = new Map<number, SuggestedStop[]>();
+    if (!days) return map;
+    pendingSuggestions.forEach(stop => {
+      if (stop.afterSegmentIndex === -1) {
+        // Before trip starts → first driving day
+        const firstDrivingDay = days.find(d => d.segmentIndices.length > 0);
+        if (firstDrivingDay) {
+          const existing = map.get(firstDrivingDay.dayNumber) ?? [];
+          map.set(firstDrivingDay.dayNumber, [...existing, stop]);
+        }
+        return;
+      }
+      const ownerDay = days.find(d => d.segmentIndices.includes(stop.afterSegmentIndex));
+      if (ownerDay) {
+        const existing = map.get(ownerDay.dayNumber) ?? [];
+        map.set(ownerDay.dayNumber, [...existing, stop]);
+      }
+    });
+    return map;
+  }, [days, pendingSuggestions]);
+
+  // Map dayNumber → nights at overnight stop (next driving day date − this day date)
+  const overnightNightsByDay = useMemo(() => {
+    const map = new Map<number, number>();
+    if (!days) return map;
+    days.forEach((day, idx) => {
+      if (!day.overnight) return;
+      const nextDriving = days.slice(idx + 1).find(d => d.segmentIndices.length > 0);
+      if (nextDriving) {
+        const nights = Math.round(
+          (new Date(nextDriving.date + 'T00:00:00').getTime() - new Date(day.date + 'T00:00:00').getTime())
+          / (1000 * 60 * 60 * 24)
+        );
+        if (nights > 0) map.set(day.dayNumber, nights);
+      }
+    });
+    return map;
+  }, [days]);
+
   // Driver rotation overlay (computed, never mutates segment data)
   const driverRotation = useMemo(() => {
     if (settings.numDrivers <= 1) return null;
@@ -302,39 +339,26 @@ export function ItineraryTimeline({
       {/* Smart Suggestions */}
       <SmartSuggestions suggestions={pacingSuggestions} />
 
-      {/* Smart Stop Suggestions Panel */}
-      {pendingSuggestions.length > 0 && (
+      {/* Smart Stop Suggestions: inline per-day when days exist, global fallback otherwise */}
+      {!days && pendingSuggestions.length > 0 && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-purple-500" />
-              <h3 className="text-sm font-semibold">Smart Stop Suggestions</h3>
-              <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
-                {pendingSuggestions.length} suggestion{pendingSuggestions.length !== 1 ? 's' : ''}
-              </span>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowSuggestions(!showSuggestions)}
-              className="text-xs"
-            >
-              {showSuggestions ? 'Hide' : 'Show'}
-            </Button>
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-purple-500" />
+            <h3 className="text-sm font-semibold">Smart Stop Suggestions</h3>
+            <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
+              {pendingSuggestions.length} suggestion{pendingSuggestions.length !== 1 ? 's' : ''}
+            </span>
           </div>
-
-          {showSuggestions && (
-            <div className="space-y-3">
-              {pendingSuggestions.map(stop => (
-                <SuggestedStopCard
-                  key={stop.id}
-                  stop={stop}
-                  onAccept={handleAccept}
-                  onDismiss={handleDismiss}
-                />
-              ))}
-            </div>
-          )}
+          <div className="space-y-3">
+            {pendingSuggestions.map(stop => (
+              <SuggestedStopCard
+                key={stop.id}
+                stop={stop}
+                onAccept={handleAccept}
+                onDismiss={handleDismiss}
+              />
+            ))}
+          </div>
         </div>
       )}
 
@@ -394,6 +418,7 @@ export function ItineraryTimeline({
                       onAddDayOption={onAddDayOption}
                       onRemoveDayOption={onRemoveDayOption}
                       onSelectDayOption={onSelectDayOption}
+                      overnightNights={overnightNightsByDay.get(dayEntry.day.dayNumber)}
                       onEditOvernight={onUpdateOvernight && dayEntry.day.overnight ? (dayNum) => {
                         const target = days?.find(d => d.dayNumber === dayNum);
                         if (target?.overnight) {
@@ -401,6 +426,16 @@ export function ItineraryTimeline({
                         }
                       } : undefined}
                     />
+                    {/* Inline suggestions for this day — dashed-border cards contextual to the day */}
+                    {(pendingSuggestionsByDay.get(dayEntry.day.dayNumber) ?? []).map(stop => (
+                      <div key={stop.id} className="mt-2 ml-10">
+                        <SuggestedStopCard
+                          stop={stop}
+                          onAccept={handleAccept}
+                          onDismiss={handleDismiss}
+                        />
+                      </div>
+                    ))}
                   </div>
                 )}
                 <WaypointNode
