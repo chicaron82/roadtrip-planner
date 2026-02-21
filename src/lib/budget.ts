@@ -188,6 +188,18 @@ export function splitTripByDays(
     ) {
       // Finalize outbound's last day before inserting free days
       if (currentDay && currentDay.segments.length > 0) {
+        // Assign overnight to the last outbound driving day — you arrive and check in that evening.
+        // Night 1 belongs to Day 1's budget (the day you drove, not the free day after).
+        const lastSeg = currentDay.segments[currentDay.segments.length - 1];
+        if (!currentDay.overnight && lastSeg) {
+          const roomsNeeded = Math.ceil(settings.numTravelers / 2);
+          currentDay.overnight = {
+            location: lastSeg.to,
+            cost: roomsNeeded * settings.hotelPricePerNight,
+            roomsNeeded,
+          };
+        }
+
         finalizeTripDay(currentDay, gasRemaining, hotelRemaining, foodRemaining, settings);
         gasRemaining -= currentDay.budget.gasUsed;
         hotelRemaining -= currentDay.budget.hotelCost;
@@ -383,6 +395,26 @@ export function splitTripByDays(
         ? lastDrivingDay.segments[lastDrivingDay.segments.length - 1].to
         : null;
       const destName = destination?.name || 'Destination';
+
+      // Assign overnight to the last driving day if it doesn't have one yet.
+      // You arrive and check in that evening — Night 1 belongs to the day you drove.
+      if (!lastDrivingDay.overnight && destination) {
+        const roomsNeeded = Math.ceil(settings.numTravelers / 2);
+        const hotelCost = roomsNeeded * settings.hotelPricePerNight;
+        lastDrivingDay.overnight = {
+          location: destination,
+          cost: hotelCost,
+          roomsNeeded,
+        };
+        // Re-finalize so the budget includes the hotel cost
+        hotelRemaining += lastDrivingDay.budget.hotelCost; // undo old
+        gasRemaining += lastDrivingDay.budget.gasUsed;
+        foodRemaining += lastDrivingDay.budget.foodEstimate;
+        finalizeTripDay(lastDrivingDay, gasRemaining, hotelRemaining, foodRemaining, settings);
+        gasRemaining -= lastDrivingDay.budget.gasUsed;
+        hotelRemaining -= lastDrivingDay.budget.hotelCost;
+        foodRemaining -= lastDrivingDay.budget.foodEstimate;
+      }
 
       for (let i = 1; i < gapDays; i++) {
         dayNumber++;
