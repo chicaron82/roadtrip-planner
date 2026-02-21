@@ -42,9 +42,9 @@ export const ROUTE_DOTS: RouteDot[] = [
 export const MODE_CONFIG: Record<TripMode, ModeConfig> = {
   plan: {
     icon: '📋',
-    heading: "I Know Where\nI'm Going",
-    sub: 'Route locked. Let\'s build the perfect trip.',
-    cta: 'Start Planning',
+    heading: "Build My\nMEE Time",
+    sub: 'Route locked. Design the trip that\'s worth it.',
+    cta: 'Design My MEE Time',
     accentColor: '#22C55E',
     glowColor: 'rgba(34, 197, 94, 0.3)',
     borderColor: 'rgba(34, 197, 94, 0.6)',
@@ -55,9 +55,9 @@ export const MODE_CONFIG: Record<TripMode, ModeConfig> = {
   },
   adventure: {
     icon: '🧭',
-    heading: 'Surprise Me',
-    sub: "What fits my time + budget? Let me find out.",
-    cta: 'Find My Adventure',
+    heading: 'Find My\nMEE Time',
+    sub: "You know what you have. I’ll find where it takes you.",
+    cta: 'Find My MEE Time',
     accentColor: '#F59E0B',
     glowColor: 'rgba(245, 158, 11, 0.3)',
     borderColor: 'rgba(245, 158, 11, 0.6)',
@@ -68,9 +68,9 @@ export const MODE_CONFIG: Record<TripMode, ModeConfig> = {
   },
   estimate: {
     icon: '💰',
-    heading: 'What Will It\nCost Me?',
-    sub: "You know where you're going. Let's find out the price tag.",
-    cta: 'Run My Estimate',
+    heading: "What's My\nMEE Worth?",
+    sub: "Route ready. Let’s find out what this trip is actually worth.",
+    cta: 'Price My MEE Time',
     accentColor: '#3B82F6',
     glowColor: 'rgba(59, 130, 246, 0.3)',
     borderColor: 'rgba(59, 130, 246, 0.6)',

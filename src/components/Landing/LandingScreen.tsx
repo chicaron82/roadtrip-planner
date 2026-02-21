@@ -126,10 +126,22 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip,
               letterSpacing: '0.2em',
               color: 'rgba(255,255,255,0.35)',
               textTransform: 'uppercase',
-              marginBottom: '10px',
+              marginBottom: '4px',
             }}
           >
-            My Experience Engine™
+            My Experience Engine™ (MEE)
+          </p>
+          <p
+            style={{
+              fontFamily: "'DM Mono', monospace",
+              fontSize: '10px',
+              color: 'rgba(255,255,255,0.2)',
+              letterSpacing: '0.05em',
+              marginBottom: '10px',
+              fontStyle: 'italic',
+            }}
+          >
+            /pronounced “me”/
           </p>
 
           <h1 className="landing-hero-title" style={{

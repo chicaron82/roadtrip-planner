@@ -569,9 +569,9 @@ function AppContent() {
                 {showModeSwitcher && (
                   <div className="mode-switcher-dropdown">
                     {[
-                      { mode: 'plan' as TripMode, icon: '📋', label: 'Plan', desc: 'Full route control', color: '#22C55E', bg: 'rgba(34, 197, 94, 0.1)' },
-                      { mode: 'estimate' as TripMode, icon: '💰', label: 'Estimate', desc: 'What will it cost?', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.1)' },
-                      { mode: 'adventure' as TripMode, icon: '🧭', label: 'Adventure', desc: 'What fits my time + budget?', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.1)' },
+                      { mode: 'plan' as TripMode, icon: '📋', label: 'Plan', desc: 'Design My MEE Time', color: '#22C55E', bg: 'rgba(34, 197, 94, 0.1)' },
+                      { mode: 'estimate' as TripMode, icon: '💰', label: 'Estimate', desc: 'Price My MEE Time', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.1)' },
+                      { mode: 'adventure' as TripMode, icon: '🧭', label: 'Adventure', desc: 'Find My MEE Time', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.1)' },
                     ].map(({ mode, icon, label, desc, color, bg }) => (
                       <button
                         key={mode}
@@ -742,7 +742,7 @@ function AppContent() {
                 {isCalculating ? (
                   <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Calculating...</>
                 ) : planningStep === 2 ? (
-                  <>{tripMode === 'estimate' ? 'Estimate My Trip' : 'Plan My Trip'} <ChevronRight className="h-4 w-4 ml-1" /></>
+                  <>{tripMode === 'estimate' ? 'Price My MEE Time' : tripMode === 'adventure' ? 'Find My MEE Time' : 'Design My MEE Time'} <ChevronRight className="h-4 w-4 ml-1" /></>
                 ) : (
                   <>Next <ChevronRight className="h-4 w-4 ml-1" /></>
                 )}
@@ -799,7 +799,7 @@ function AppContent() {
             onNext={goToNextStep}
             nextLabel={
               isCalculating ? 'Calculating…' :
-              planningStep === 2 ? (tripMode === 'estimate' ? 'Estimate My Trip' : 'Plan My Trip') :
+              planningStep === 2 ? (tripMode === 'estimate' ? 'Price My MEE Time' : tripMode === 'adventure' ? 'Find My MEE Time' : 'Design My MEE Time') :
               'Next'
             }
             onBack={planningStep > 1 ? goToPrevStep : undefined}
