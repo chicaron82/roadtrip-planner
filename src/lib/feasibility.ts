@@ -24,7 +24,8 @@ export type WarningCategory =
   | 'drive-time'    // Exceeds max drive hours
   | 'driver'        // Single driver fatigue, uneven rotation
   | 'timing'        // Late arrivals, early departures
-  | 'passenger';    // Per-person cost changes
+  | 'passenger'     // Per-person cost changes
+  | 'fuel';         // Fuel range / gas stop warnings
 
 export type WarningSeverity = 'info' | 'warning' | 'critical';
 

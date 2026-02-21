@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { POI, POICategory, RouteSegment } from '../types';
-import type { SuggestedStop, SuggestionSuggestionStopType } from '../lib/stop-suggestions';
+import type { SuggestedStop, SuggestionStopType } from '../lib/stop-suggestions';
 import { findNearestSegmentIndex, haversineDistance, estimateDetourTime } from '../lib/poi-ranking';
 
 // ==================== TYPES ====================
