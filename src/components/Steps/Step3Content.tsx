@@ -111,6 +111,7 @@ export function Step3Content({
             settings={settings}
             vehicle={vehicle}
             poiSuggestions={poiSuggestions}
+            stopSuggestions={externalStops}
           />
         )}
         {viewMode === 'journal' ? (
@@ -271,6 +272,7 @@ export function Step3Content({
               settings={settings}
               vehicle={vehicle}
               poiSuggestions={poiSuggestions}
+              stopSuggestions={externalStops}
             />
           )}
 
