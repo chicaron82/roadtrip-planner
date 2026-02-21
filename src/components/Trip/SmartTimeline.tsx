@@ -10,13 +10,14 @@
  *
  * 💚 My Experience Engine
  */
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Clock, Zap, Utensils, Fuel, Coffee, Moon, MapPin, ChevronRight } from 'lucide-react';
-import type { TripSummary, TripSettings, Vehicle, RouteSegment } from '../../types';
+import type { TripSummary, TripSettings, Vehicle } from '../../types';
 import type { POISuggestion } from '../../types';
 import { generateSmartStops, createStopConfig } from '../../lib/stop-suggestions';
 import { buildTimedTimeline, formatTime, formatDuration, type TimedEvent } from '../../lib/trip-timeline';
 import { applyComboOptimization } from '../../lib/stop-consolidator';
+import { resolveStopTowns } from '../../lib/route-geocoder';
 
 interface SmartTimelineProps {
   summary: TripSummary;
@@ -65,142 +66,57 @@ function getNearbyPOINames(
     .map(p => p.name);
 }
 
-/**
- * Extract a town/city name from a POI's OSM tags or address.
- */
-function getTownFromPOI(poi: POISuggestion): string | null {
-  // Best source: the addr:city tag from OSM
-  const city = poi.tags?.['addr:city'] || poi.tags?.['addr:town'] || poi.tags?.['addr:village'];
-  if (city) return city;
-
-  // Fallback: parse from address string (often "123 Main St, Dryden, ON")
-  if (poi.address) {
-    const parts = poi.address.split(',').map(s => s.trim());
-    if (parts.length >= 2) return parts[1]; // Second part is typically town
-  }
-
-  return null;
-}
+// ─── Async town enrichment (via route-geocoder.ts) ────────────────────────────
 
 /**
- * Build town name checkpoints along the route, derived from POI locations.
- * Returns a sorted array of {km, town} that can be binary-searched.
+ * Apply resolved town names to timeline events.
+ * Replaces "~250 km from Winnipeg" → "near Dryden".
  */
-function buildRouteTownLookup(
-  poiSuggestions: POISuggestion[],
-  segments: RouteSegment[],
-): { km: number; town: string }[] {
-  if (!poiSuggestions.length || !segments.length) return [];
-
-  // Build cumulative km breakpoints for each segment
-  const segStartKm: number[] = [];
-  let cumKm = 0;
-  for (const seg of segments) {
-    segStartKm.push(cumKm);
-    cumKm += seg.distanceKm ?? 0;
-  }
-
-  const checkpoints: { km: number; town: string }[] = [];
-  const seenTowns = new Set<string>();
-
-  for (const poi of poiSuggestions) {
-    if (poi.bucket !== 'along-way') continue;
-    const town = getTownFromPOI(poi);
-    if (!town || seenTowns.has(town)) continue;
-
-    // Estimate km position from segmentIndex
-    const segIdx = poi.segmentIndex ?? 0;
-    const segBase = segStartKm[segIdx] ?? 0;
-    const segLen = segments[segIdx]?.distanceKm ?? cumKm;
-    // Place the POI at the midpoint of its segment (rough but sufficient)
-    const poiKm = segBase + segLen * 0.5;
-
-    checkpoints.push({ km: poiKm, town });
-    seenTowns.add(town);
-  }
-
-  // Also add origin and destination
-  if (segments.length > 0) {
-    const originName = segments[0].from.name;
-    const destName = segments[segments.length - 1].to.name;
-    if (!seenTowns.has(originName)) {
-      checkpoints.push({ km: 0, town: originName });
-    }
-    if (!seenTowns.has(destName)) {
-      checkpoints.push({ km: cumKm, town: destName });
-    }
-  }
-
-  return checkpoints.sort((a, b) => a.km - b.km);
-}
-
-/**
- * Find the nearest town for a given km position.
- */
-function findNearestTown(km: number, lookup: { km: number; town: string }[]): string | null {
-  if (lookup.length === 0) return null;
-
-  let best = lookup[0];
-  let bestDist = Math.abs(km - best.km);
-
-  for (let i = 1; i < lookup.length; i++) {
-    const dist = Math.abs(km - lookup[i].km);
-    if (dist < bestDist) {
-      best = lookup[i];
-      bestDist = dist;
-    }
-  }
-
-  return best.town;
-}
-
-/**
- * Enrich timeline event location hints with town names from POI data.
- * Replaces "~250 km from Winnipeg" with "near Kenora" or "Dryden area".
- */
-function enrichLocationHints(
+function applyTownHints(
   events: TimedEvent[],
-  poiSuggestions: POISuggestion[],
-  segments: RouteSegment[],
+  townMap: Map<string, string>,
 ): TimedEvent[] {
-  const lookup = buildRouteTownLookup(poiSuggestions, segments);
-  if (lookup.length <= 2) return events; // Only origin/dest — no useful mid-route data
-
+  if (townMap.size === 0) return events;
   return events.map(event => {
-    // Skip departure/arrival — they already have good names
-    if (event.type === 'departure' || event.type === 'arrival') return event;
-    // Skip drives — they don't show location labels
-    if (event.type === 'drive') return event;
-
-    // Only enrich if the current hint is a generic km-based one
-    if (!event.locationHint.startsWith('~')) return event;
-
-    const town = findNearestTown(event.distanceFromOriginKm, lookup);
+    const town = townMap.get(event.id);
     if (!town) return event;
-
-    return {
-      ...event,
-      locationHint: `near ${town}`,
-    };
+    return { ...event, locationHint: `near ${town}` };
   });
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
+/**
+ * Vertical connector between stops — shows drive duration + distance.
+ * The left gutter line visually links the stop nodes above and below.
+ */
 function DriveRow({ event }: { event: TimedEvent }) {
   const km = event.segmentDistanceKm ?? 0;
   const min = event.segmentDurationMinutes ?? 0;
   return (
-    <div className="flex items-center gap-2 py-1 pl-[11px]">
-      <div className="w-0.5 bg-muted-foreground/20 self-stretch ml-[3px] mr-3 min-h-[20px]" />
-      <span className="text-[11px] text-muted-foreground/60 font-mono">
-        {formatDuration(min)} · {Math.round(km)} km
-      </span>
-      <ChevronRight className="h-3 w-3 text-muted-foreground/30" />
+    <div className="flex items-stretch gap-0 py-0">
+      {/* Gutter: continuous vertical line */}
+      <div className="flex flex-col items-center" style={{ width: 26, flexShrink: 0 }}>
+        <div className="w-px bg-muted-foreground/20 flex-1" style={{ minHeight: 28 }} />
+      </div>
+      {/* Drive info */}
+      <div className="flex items-center gap-1.5 pl-3 py-1">
+        <ChevronRight className="h-3 w-3 text-muted-foreground/30 shrink-0" />
+        <span className="text-[11px] text-muted-foreground/50 font-mono tabular-nums">
+          {formatDuration(min)} &middot; {Math.round(km)} km
+        </span>
+      </div>
     </div>
   );
 }
 
+/**
+ * A single stop node on the timeline.
+ *
+ * Layout goal (matching reference trip plans):
+ *   [node]  STOP LABEL — Location
+ *           Arrive 9:30 AM  ·  15 min  ·  Depart 9:45 AM
+ */
 function StopCard({
   event,
   poiSuggestions = [],
@@ -214,8 +130,8 @@ function StopCard({
   const color = EVENT_COLOR[event.type] ?? '#fff';
   const nearbyPOIs = isCombo ? getNearbyPOINames(event, poiSuggestions) : [];
 
-  // Departure / arrival — compact
-  if (isDeparture || isArrival) {
+  // ── Departure ──────────────────────────────────────────────────────────
+  if (isDeparture) {
     return (
       <div className="flex items-center gap-3 py-2">
         <div
@@ -225,105 +141,142 @@ function StopCard({
           <div className="w-2 h-2 rounded-full" style={{ background: color }} />
         </div>
         <div className="flex-1 min-w-0">
-          <span className="text-sm font-semibold text-foreground">{event.locationHint}</span>
+          <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color }}>Depart</div>
+          <div className="text-sm font-semibold text-foreground leading-tight">{event.locationHint}</div>
         </div>
-        <span
-          className="text-xs font-mono font-bold tabular-nums shrink-0"
-          style={{ color }}
-        >
+        <span className="text-sm font-mono font-bold tabular-nums shrink-0" style={{ color }}>
           {formatTime(event.arrivalTime)}
         </span>
       </div>
     );
   }
 
-  // Combo stop — full card
-  if (isCombo) {
-    const label = event.comboLabel ?? 'Fuel + Stop';
-    const icons = label.includes('Lunch') || label.includes('Dinner') || label.includes('Meal')
-      ? ['⛽', '🍽'] : label.includes('Break') ? ['⛽', '☕'] : ['⛽', '🛑'];
-
+  // ── Arrival ────────────────────────────────────────────────────────────
+  if (isArrival) {
     return (
-      <div
-        className="rounded-xl border p-3 space-y-2"
-        style={{
-          borderColor: `${color}40`,
-          background: `${color}0a`,
-        }}
-      >
-        {/* Header row */}
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="text-base leading-none">{icons[0]}{icons[1]}</span>
-            <div>
-              <div className="text-sm font-bold" style={{ color }}>{label}</div>
-              <div className="text-[11px] text-muted-foreground font-mono">
-                {formatTime(event.arrivalTime)} – {formatTime(event.departureTime)}
-                {' · '}
-                <span className="font-medium">{formatDuration(event.durationMinutes)}</span>
-              </div>
-            </div>
-          </div>
-          {event.timeSavedMinutes !== undefined && event.timeSavedMinutes > 0 && (
-            <div
-              className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full"
-              style={{ background: '#22C55E18', color: '#22C55E', border: '1px solid #22C55E40' }}
-            >
-              saves {event.timeSavedMinutes} min
-            </div>
-          )}
+      <div className="flex items-center gap-3 py-2">
+        <div
+          className="w-[26px] h-[26px] rounded-full flex items-center justify-center shrink-0 border-2"
+          style={{ borderColor: color, background: `${color}18` }}
+        >
+          <div className="w-2 h-2 rounded-full" style={{ background: color }} />
         </div>
-
-        {/* Location */}
-        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <MapPin className="h-3 w-3 shrink-0" />
-          <span>{event.locationHint}</span>
+        <div className="flex-1 min-w-0">
+          <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color }}>Arrive</div>
+          <div className="text-sm font-semibold text-foreground leading-tight">{event.locationHint}</div>
         </div>
-
-        {/* Nearby POIs from route API */}
-        {nearbyPOIs.length > 0 && (
-          <div className="flex flex-wrap gap-1 pt-0.5">
-            {nearbyPOIs.map(name => (
-              <span
-                key={name}
-                className="text-[10px] px-2 py-0.5 rounded-full bg-muted/50 text-muted-foreground"
-              >
-                {name}
-              </span>
-            ))}
-          </div>
-        )}
+        <span className="text-sm font-mono font-bold tabular-nums shrink-0" style={{ color }}>
+          {formatTime(event.arrivalTime)}
+        </span>
       </div>
     );
   }
 
-  // Regular stop (fuel / meal / rest / overnight)
+  // ── Combo stop (fuel + meal / fuel + break) ────────────────────────────
+  if (isCombo) {
+    const label = event.comboLabel ?? 'Fuel + Stop';
+    const icons = label.includes('Lunch') || label.includes('Dinner') || label.includes('Meal')
+      ? '⛽🍽' : label.includes('Break') ? '⛽☕' : '⛽🛑';
+
+    return (
+      <div className="flex items-start gap-3 py-1.5">
+        {/* Node */}
+        <div
+          className="w-[26px] h-[26px] rounded-full flex items-center justify-center shrink-0 text-sm mt-0.5"
+          style={{ background: `${color}20`, border: `1.5px solid ${color}50` }}
+        >
+          <span style={{ fontSize: 11 }}>{icons}</span>
+        </div>
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <div className="text-xs font-bold leading-tight" style={{ color }}>{label}</div>
+              <div className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
+                <MapPin className="h-2.5 w-2.5 shrink-0" />
+                <span>{event.locationHint}</span>
+              </div>
+            </div>
+            {event.timeSavedMinutes !== undefined && event.timeSavedMinutes > 0 && (
+              <span
+                className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full mt-0.5"
+                style={{ background: '#22C55E18', color: '#22C55E', border: '1px solid #22C55E40' }}
+              >
+                saves {event.timeSavedMinutes} min
+              </span>
+            )}
+          </div>
+          {/* Arrive · duration · Depart row */}
+          <div className="flex items-center gap-1 mt-1 text-[11px] font-mono tabular-nums">
+            <span className="text-muted-foreground/60">Arrive</span>
+            <span className="font-semibold" style={{ color }}>{formatTime(event.arrivalTime)}</span>
+            <span className="text-muted-foreground/40 mx-0.5">·</span>
+            <span className="text-muted-foreground">{formatDuration(event.durationMinutes)}</span>
+            <span className="text-muted-foreground/40 mx-0.5">·</span>
+            <span className="text-muted-foreground/60">Depart</span>
+            <span className="font-semibold text-foreground/70">{formatTime(event.departureTime)}</span>
+          </div>
+          {/* Nearby POIs */}
+          {nearbyPOIs.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {nearbyPOIs.map(name => (
+                <span
+                  key={name}
+                  className="text-[10px] px-2 py-0.5 rounded-full bg-muted/50 text-muted-foreground"
+                >
+                  {name}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Regular stop (fuel / meal / rest / overnight) ───────────────────────
   const icon = EVENT_ICON[event.type];
-  const label = event.type === 'fuel' ? 'Fuel Stop'
+  const label =
+    event.type === 'fuel' ? 'Fuel Stop'
     : event.type === 'meal' ? (() => {
         const h = event.arrivalTime.getHours();
         return h < 10 || (h === 10 && event.arrivalTime.getMinutes() < 30) ? 'Breakfast'
           : h >= 17 ? 'Dinner' : 'Lunch';
       })()
     : event.type === 'rest' ? 'Break'
-    : event.type === 'overnight' ? 'Overnight'
+    : event.type === 'overnight' ? 'Overnight Stop'
     : 'Stop';
 
   return (
-    <div className="flex items-center gap-3 py-2">
+    <div className="flex items-start gap-3 py-1.5">
+      {/* Node */}
       <div
-        className="w-[26px] h-[26px] rounded-full flex items-center justify-center shrink-0"
+        className="w-[26px] h-[26px] rounded-full flex items-center justify-center shrink-0 mt-0.5"
         style={{ background: `${color}18`, color }}
       >
         {icon}
       </div>
+      {/* Content */}
       <div className="flex-1 min-w-0">
-        <div className="text-xs font-semibold" style={{ color }}>{label}</div>
-        <div className="text-[11px] text-muted-foreground">{event.locationHint}</div>
-      </div>
-      <div className="text-right shrink-0">
-        <div className="text-xs font-mono" style={{ color }}>{formatTime(event.arrivalTime)}</div>
-        <div className="text-[10px] text-muted-foreground">{formatDuration(event.durationMinutes)}</div>
+        <div className="text-xs font-bold leading-tight" style={{ color }}>{label}</div>
+        <div className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
+          <MapPin className="h-2.5 w-2.5 shrink-0" />
+          <span>{event.locationHint}</span>
+        </div>
+        {/* Arrive · duration · Depart row */}
+        <div className="flex items-center gap-1 mt-1 text-[11px] font-mono tabular-nums">
+          <span className="text-muted-foreground/60">Arrive</span>
+          <span className="font-semibold" style={{ color }}>{formatTime(event.arrivalTime)}</span>
+          <span className="text-muted-foreground/40 mx-0.5">·</span>
+          <span className="text-muted-foreground">{formatDuration(event.durationMinutes)}</span>
+          {event.type !== 'overnight' && (
+            <>
+              <span className="text-muted-foreground/40 mx-0.5">·</span>
+              <span className="text-muted-foreground/60">Depart</span>
+              <span className="font-semibold text-foreground/70">{formatTime(event.departureTime)}</span>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -332,28 +285,45 @@ function StopCard({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [] }: SmartTimelineProps) {
-  const events = useMemo(() => {
+  // ── Step 1: Build raw timeline (synchronous — renders immediately) ────────
+  const rawEvents = useMemo(() => {
     if (!summary?.segments?.length) return [];
 
-    // Generate all suggestions (include pending — we want meal + fuel stops
-    // even if user hasn't explicitly accepted them yet)
     const allSuggestions = vehicle
       ? generateSmartStops(summary.segments, createStopConfig(vehicle, settings), summary.days)
       : [];
 
-    // buildTimedTimeline handles mid-segment splitting: a 700km drive with
-    // a fuel stop at km 487 becomes drive→fuel→drive automatically.
     const raw = buildTimedTimeline(summary.segments, allSuggestions, settings, vehicle);
-    const optimized = applyComboOptimization(raw);
+    return applyComboOptimization(raw);
+  }, [summary, settings, vehicle]);
 
-    // Enrich "~250 km from Winnipeg" → "near Kenora" using POI town data
-    return enrichLocationHints(optimized, poiSuggestions, summary.segments);
-  }, [summary, settings, vehicle, poiSuggestions]);
+  // ── Step 2: Async town resolution (updates labels after geocoding) ───────
+  const [townMap, setTownMap] = useState<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    if (!rawEvents.length || !summary?.fullGeometry?.length) return;
+
+    const controller = new AbortController();
+
+    resolveStopTowns(rawEvents, summary.fullGeometry, controller.signal)
+      .then(resolved => {
+        if (!controller.signal.aborted && resolved.size > 0) {
+          setTownMap(resolved);
+        }
+      })
+      .catch(() => { /* network error — keep generic hints */ });
+
+    return () => controller.abort();
+  }, [rawEvents, summary?.fullGeometry]);
+
+  // ── Step 3: Merge town names into events ─────────────────────────────────
+  const events = useMemo(
+    () => applyTownHints(rawEvents, townMap),
+    [rawEvents, townMap],
+  );
 
   if (!events.length) return null;
 
-  // Only non-drive events for summary stats
-  const stopEvents = events.filter(e => e.type !== 'drive' && e.type !== 'waypoint');
   const comboCount = events.filter(e => e.type === 'combo').length;
   const totalSaved = events.reduce((sum, e) => sum + (e.timeSavedMinutes ?? 0), 0);
 
@@ -403,18 +373,22 @@ export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [] 
         })}
       </div>
 
-      {/* Footer — total drive summary */}
-      {stopEvents.length >= 2 && (() => {
-        const dep = stopEvents[0]?.arrivalTime;
-        const arr = stopEvents[stopEvents.length - 1]?.arrivalTime;
-        const totalMin = arr && dep ? Math.round((arr.getTime() - dep.getTime()) / 60000) : 0;
-        return totalMin > 0 ? (
+      {/* Footer — active trip time (driving + stops, excludes overnight sleep) */}
+      {(() => {
+        // Sum drive durations + non-overnight stop durations.
+        // Wall-clock diff is misleading for round trips: it includes overnight
+        // sleep (8h) making "8h + 8h drive" show as ~34h instead of ~16h.
+        const activeMin = events.reduce((sum, e) => {
+          if (e.type === 'overnight') return sum; // skip sleep time
+          return sum + e.durationMinutes;
+        }, 0);
+        return activeMin > 0 ? (
           <div
             className="px-4 py-2 border-t text-[11px] text-muted-foreground flex items-center justify-between"
             style={{ borderColor: 'rgba(34,197,94,0.1)' }}
           >
             <span>Total trip time</span>
-            <span className="font-mono font-medium text-foreground">{formatDuration(totalMin)}</span>
+            <span className="font-mono font-medium text-foreground">{formatDuration(activeMin)}</span>
           </div>
         ) : null;
       })()}

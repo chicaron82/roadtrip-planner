@@ -123,6 +123,13 @@ export function generateSmartStops(
     });
   }
 
+  // Days where the user has already filled in hotel/overnight info.
+  // Auto-generated overnight suggestions are suppressed for these days —
+  // the user's explicit data takes precedence over the simulator's suggestion.
+  const daysWithHotel = new Set<number>(
+    days?.filter(d => d.overnight != null).map(d => d.dayNumber) ?? []
+  );
+
   segments.forEach((segment, index) => {
     const segmentHours = segment.durationMinutes / 60;
     const fuelNeeded = segment.fuelNeededLitres ?? (segment.distanceKm / 100) * config.fuelEconomyL100km;
@@ -171,17 +178,20 @@ export function generateSmartStops(
         const dm = config.departureTime.getMinutes();
         const departStr = `${dh % 12 || 12}:${String(dm).padStart(2, '0')} ${dh >= 12 ? 'PM' : 'AM'}`;
 
-        suggestions.push({
-          id: `overnight-arrival-${index}`,
-          type: 'overnight',
-          reason: `Stopping for the night — continuing to ${segment.to.name} would mean arriving around ${arrivalTimeStr}${tzLabel ? ' ' + tzLabel : ''}, past the 9 PM check-in window. Rest up and depart fresh at ${departStr} tomorrow.`,
-          afterSegmentIndex: index - 1,
-          estimatedTime: new Date(currentTime),
-          duration: 8 * 60,
-          priority: 'required',
-          details: { hoursOnRoad },
-          dayNumber: currentDayNumber,
-        });
+        // Only suggest if user hasn't already filled in hotel info for this day
+        if (!daysWithHotel.has(currentDayNumber)) {
+          suggestions.push({
+            id: `overnight-arrival-${index}`,
+            type: 'overnight',
+            reason: `Stopping for the night — continuing to ${segment.to.name} would mean arriving around ${arrivalTimeStr}${tzLabel ? ' ' + tzLabel : ''}, past the 9 PM check-in window. Rest up and depart fresh at ${departStr} tomorrow.`,
+            afterSegmentIndex: index - 1,
+            estimatedTime: new Date(currentTime),
+            duration: 8 * 60,
+            priority: 'required',
+            details: { hoursOnRoad },
+            dayNumber: currentDayNumber,
+          });
+        }
 
         // Reset to next morning at configured departure time
         totalDrivingToday = 0;
@@ -373,23 +383,33 @@ export function generateSmartStops(
     // Don't suggest an overnight stop if this is the literal end of the trip
     const isFinalSegment = index === segments.length - 1;
     if (isOvernightNeeded && !isFinalSegment) {
-      const maxHoursText = config.maxDriveHoursPerDay === 1 ? '1 hour' : `${config.maxDriveHoursPerDay} hours`;
-      suggestions.push({
-        id: `overnight-${index}`,
-        type: 'overnight',
-        reason: `You've reached your daily driving limit (${totalDrivingToday.toFixed(1)} hours driven, max ${maxHoursText}/day). Find a hotel, get dinner, and recharge for tomorrow.`,
-        afterSegmentIndex: index,
-        estimatedTime: new Date(arrivalTime),
-        duration: 8 * 60, // 8 hours
-        priority: 'required',
-        details: {
-          hoursOnRoad: hoursOnRoad,
-        },
-        dayNumber: currentDayNumber,
-      });
+      // Only push the suggestion when user hasn't filled in hotel for this day.
+      // The simulation resets ALWAYS run so Day N+1 starts with correct state.
+      if (!daysWithHotel.has(currentDayNumber)) {
+        const maxHoursText = config.maxDriveHoursPerDay === 1 ? '1 hour' : `${config.maxDriveHoursPerDay} hours`;
+        suggestions.push({
+          id: `overnight-${index}`,
+          type: 'overnight',
+          reason: `You've reached your daily driving limit (${totalDrivingToday.toFixed(1)} hours driven, max ${maxHoursText}/day). Find a hotel, get dinner, and recharge for tomorrow.`,
+          afterSegmentIndex: index,
+          estimatedTime: new Date(arrivalTime),
+          duration: 8 * 60, // 8 hours
+          priority: 'required',
+          details: {
+            hoursOnRoad: hoursOnRoad,
+          },
+          dayNumber: currentDayNumber,
+        });
+      }
 
       totalDrivingToday = 0; // Reset for next day
       hoursOnRoad = 0;
+      // Overnight = parked + implicit refuel (same as checked-in hotel with morning fill-up).
+      // Without this, accumulated distanceSinceLastFill and low tank carry over to the
+      // return leg, firing two fuel stops in quick succession right after departure.
+      currentFuel = config.tankSizeLitres;
+      distanceSinceLastFill = 0;
+      hoursSinceLastFill = 0;
       // Move to next morning at configured departure time
       const departHour = config.departureTime.getHours();
       const departMinute = config.departureTime.getMinutes();

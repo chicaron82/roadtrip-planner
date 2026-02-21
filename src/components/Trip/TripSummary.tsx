@@ -76,11 +76,12 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
 
             <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 border border-amber-100 dark:border-amber-800">
               <div className="flex items-center gap-2 mb-1">
-                <div className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">⏱ Time</div>
+                <div className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">⏱ Drive Time</div>
               </div>
               <div className="text-lg font-bold text-amber-700 dark:text-amber-400">
                 {formatDuration(summary.totalDurationMinutes)}
               </div>
+              <div className="text-[9px] text-amber-500/70 mt-0.5">excl. stops</div>
             </div>
 
             <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-3 border border-green-100 dark:border-green-800">
