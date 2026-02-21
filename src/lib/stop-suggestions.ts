@@ -326,7 +326,7 @@ export function generateSmartStops(
         type: 'meal',
         reason: `${mealType} break around ${mealTime}. You'll have driven ${totalHoursOnRoad} hours. Refuel yourself and your vehicle with a proper meal.`,
         afterSegmentIndex: index,
-        estimatedTime: new Date(segmentStartTime.getTime() + segment.durationMinutes * 60 * 1000),
+        estimatedTime: crossesLunch ? new Date(lunchTs) : new Date(dinnerTs),
         duration: 45,
         priority: 'optional',
         details: {

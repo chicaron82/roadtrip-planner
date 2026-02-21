@@ -80,80 +80,22 @@ const stopTypeToEventType = (type: SuggestedStop['type']): TimedEventType => {
 
 
 /**
- * Collect ALL suggestions that should fire during or at the boundaries of
- * segment `i`. This includes:
- *   - afterSegmentIndex === i-1 → "before this segment" (pre-segment)
- *   - afterSegmentIndex === i   → "after this segment" (post-segment)
- * AND en-route stops whose `estimatedTime` falls INSIDE this segment's
- * time window (for long single-segment routes where multiple stops share
- * the same afterSegmentIndex because there's nothing else to anchor to).
- */
-function collectStopsForSegment(
-  i: number,
-  suggestions: SuggestedStop[],
-  segStartTime: Date,
-  segEndTime: Date,
-): { preStops: SuggestedStop[]; midStops: SuggestedStop[]; postStops: SuggestedStop[] } {
-  const preStops: SuggestedStop[] = [];
-  const midStops: SuggestedStop[] = [];
-  const postStops: SuggestedStop[] = [];
-
-  for (const s of suggestions) {
-    if (s.dismissed) continue;
-
-    // En-route stops — identified by id pattern fuel-enroute-* or by having
-    // estimatedTime strictly between segment start and end
-    const isEnRoute = s.id.startsWith('fuel-enroute-') || s.id.startsWith('meal-');
-    if (isEnRoute && s.afterSegmentIndex === i - 1 && s.estimatedTime) {
-      const t = s.estimatedTime.getTime();
-      // If the estimated time falls within this segment's driving window,
-      // it's a mid-segment stop
-      if (t > segStartTime.getTime() && t < segEndTime.getTime()) {
-        midStops.push(s);
-        continue;
-      }
-    }
-
-    // Meal stops use afterSegmentIndex === i (post-segment)
-    if (s.type === 'meal' && s.afterSegmentIndex === i) {
-      // Check if the meal time actually falls mid-segment (it usually does —
-      // "lunch at 12 PM" during a 9AM-5PM drive means it's mid-drive)
-      if (s.estimatedTime) {
-        const t = s.estimatedTime.getTime();
-        if (t > segStartTime.getTime() && t < segEndTime.getTime()) {
-          midStops.push(s);
-          continue;
-        }
-      }
-      postStops.push(s);
-      continue;
-    }
-
-    if (s.afterSegmentIndex === i - 1) {
-      preStops.push(s);
-    } else if (s.afterSegmentIndex === i) {
-      postStops.push(s);
-    }
-  }
-
-  // Sort mid-stops by estimatedTime
-  midStops.sort((a, b) => (a.estimatedTime?.getTime() ?? 0) - (b.estimatedTime?.getTime() ?? 0));
-
-  return { preStops, midStops, postStops };
-}
-
-
-/**
  * Build a flat list of timed events for a route.
  *
- * Key capability: for long segments with mid-drive stops (fuel, meals),
- * the drive is SPLIT into sub-drives around each stop. A 700km segment
- * with a fuel stop at km 487 becomes: drive 487km → fuel 15min → drive 213km.
+ * Key design:
+ *   1. Stops are placed by their `estimatedTime`, not just `afterSegmentIndex`.
+ *      For single-segment routes (e.g. Winnipeg → Thunder Bay, 700km), all stops
+ *      share the same afterSegmentIndex but have different estimatedTimes.
+ *   2. Long drives are SPLIT around mid-segment stops:
+ *        700km drive + fuel at km 487 →
+ *        drive 487km → fuel 15min → drive 213km
+ *   3. Overnight stops advance clock to next morning departure time (not +8h).
+ *   4. Each stop is emitted at most once (tracked by ID).
  *
  * @param segments    Route segments from TripSummary
  * @param suggestions All smart stop suggestions (accepted + pending)
  * @param settings    Trip settings (departure date/time, etc.)
- * @param vehicle     Vehicle (for tank size used in safety-net fuel logic)
+ * @param _vehicle    Vehicle (reserved for future use)
  */
 export function buildTimedTimeline(
   segments: RouteSegment[],
@@ -166,6 +108,7 @@ export function buildTimedTimeline(
   const events: TimedEvent[] = [];
   let currentTime = new Date(`${settings.departureDate}T${settings.departureTime}`);
   let cumulativeKm = 0;
+  const emittedIds = new Set<string>();
 
   const originName = segments[0].from.name;
 
@@ -175,7 +118,7 @@ export function buildTimedTimeline(
     return `~${rounded} km from ${originName}`;
   };
 
-  // Departure event
+  // ── Departure ──────────────────────────────────────────────────────────────
   events.push({
     id: 'departure',
     type: 'departure',
@@ -187,10 +130,13 @@ export function buildTimedTimeline(
     stops: [],
   });
 
-  // Emit a single stop event
+  // ── Emit helpers ───────────────────────────────────────────────────────────
   const emitStop = (stop: SuggestedStop) => {
+    if (emittedIds.has(stop.id)) return; // dedup
+    emittedIds.add(stop.id);
+
     const arr = new Date(currentTime);
-    const dep = new Date(currentTime.getTime() + stop.duration * 60 * 1000);
+    const dep = new Date(arr.getTime() + stop.duration * 60 * 1000);
     events.push({
       id: `event-${stop.id}`,
       type: stopTypeToEventType(stop.type),
@@ -201,10 +147,19 @@ export function buildTimedTimeline(
       locationHint: makeLocationHint(cumulativeKm),
       stops: [stop],
     });
-    currentTime = dep;
+
+    // Overnight: advance to next morning at departure time (not just +8h)
+    if (stop.type === 'overnight') {
+      const [dH, dM] = settings.departureTime.split(':').map(Number);
+      const nextMorning = new Date(arr);
+      nextMorning.setDate(nextMorning.getDate() + 1);
+      nextMorning.setHours(dH ?? 9, dM ?? 0, 0, 0);
+      currentTime = nextMorning;
+    } else {
+      currentTime = dep;
+    }
   };
 
-  // Emit a drive event for a sub-portion of a segment
   const emitDrive = (km: number, minutes: number, segIndex: number, subIndex?: number) => {
     const driveEnd = new Date(currentTime.getTime() + minutes * 60 * 1000);
     const startKm = cumulativeKm;
@@ -225,70 +180,114 @@ export function buildTimedTimeline(
     currentTime = driveEnd;
   };
 
-  // Pre-trip stops (afterSegmentIndex: -1)
-  const preTrip = suggestions.filter(s => !s.dismissed && s.afterSegmentIndex === -1);
-  // Sort: fuel first
-  preTrip.sort((a, b) => (a.type === 'fuel' ? -1 : b.type === 'fuel' ? 1 : 0));
-  preTrip.forEach(emitStop);
-
+  // ── Segment loop ───────────────────────────────────────────────────────────
   for (let i = 0; i < segments.length; i++) {
     const seg = segments[i];
     const segKm = seg.distanceKm ?? 0;
     const segMin = seg.durationMinutes ?? 0;
-    const segStartTime = new Date(currentTime);
-    const segEndTime = new Date(currentTime.getTime() + segMin * 60 * 1000);
 
-    const { preStops, midStops, postStops } = collectStopsForSegment(
-      i, suggestions, segStartTime, segEndTime,
-    );
+    // Compute the time window for this segment's pure driving time.
+    // This is BEFORE any stops — the window in which a stop's estimatedTime
+    // would fall if it happens during the drive.
+    const driveStartTime = new Date(currentTime);
+    const driveEndTime = new Date(currentTime.getTime() + segMin * 60 * 1000);
 
-    // Pre-segment stops (fuel check triggered for this segment, placed before driving)
-    preStops.sort((a, b) => (a.type === 'fuel' ? -1 : b.type === 'fuel' ? 1 : 0));
-    preStops.forEach(emitStop);
+    // ── Classify all non-emitted suggestions for this segment ────────────
+    //
+    // "Boundary" stops: afterSegmentIndex === i-1 (before) or i (after).
+    //   For i=0, boundary-before = afterSegmentIndex -1.
+    //
+    // "Mid-drive" stops: estimatedTime falls strictly within the drive window,
+    //   regardless of afterSegmentIndex. This is the key fix for single-segment
+    //   routes where en-route fuel and meals share the same afterSegmentIndex.
+    //
+    // A stop can only be in ONE bucket. Mid-drive takes priority.
 
-    // === DRIVE with mid-segment splits ===
-    if (midStops.length > 0) {
-      // Split the drive around each mid-stop using estimatedTime proportions
+    const boundaryBefore: SuggestedStop[] = [];
+    const midDrive: SuggestedStop[] = [];
+    const boundaryAfter: SuggestedStop[] = [];
+
+    for (const s of suggestions) {
+      if (s.dismissed || emittedIds.has(s.id)) continue;
+
+      // Check if this stop belongs to the current segment's time window
+      const hasMidDriveTime = s.estimatedTime &&
+        s.estimatedTime.getTime() > driveStartTime.getTime() + 60_000 && // >1 min after start
+        s.estimatedTime.getTime() < driveEndTime.getTime() - 60_000;     // >1 min before end
+
+      if (hasMidDriveTime) {
+        midDrive.push(s);
+        continue;
+      }
+
+      // Boundary classification by afterSegmentIndex
+      if (s.afterSegmentIndex === i - 1) {
+        // "Before this segment" — but skip en-route fuel (they should be mid-drive)
+        // If their estimatedTime didn't match mid-drive, they're boundary stops
+        if (s.id.startsWith('fuel-enroute-')) {
+          // En-route fuel whose time didn't match mid-drive — skip entirely
+          // (this means it was generated for a different segment)
+          continue;
+        }
+        boundaryBefore.push(s);
+      } else if (s.afterSegmentIndex === i) {
+        boundaryAfter.push(s);
+      }
+    }
+
+    // Sort mid-drive by estimated time
+    midDrive.sort((a, b) => (a.estimatedTime!.getTime()) - (b.estimatedTime!.getTime()));
+
+    // ── Pre-segment boundary stops ────────────────────────────────────────
+    // Skip redundant "fill up before leaving" fuel when we have en-route
+    // fuel stops that handle mid-drive refueling for this segment.
+    const hasEnRouteForThisSeg = midDrive.some(s => s.type === 'fuel');
+    const filteredBoundaryBefore = hasEnRouteForThisSeg
+      ? boundaryBefore.filter(s => s.type !== 'fuel')
+      : boundaryBefore;
+
+    filteredBoundaryBefore
+      .sort((a, b) => (a.type === 'fuel' ? -1 : b.type === 'fuel' ? 1 : 0))
+      .forEach(emitStop);
+
+    // ── Drive with mid-stop splitting ─────────────────────────────────────
+    if (midDrive.length > 0) {
       let drivenKm = 0;
       let drivenMin = 0;
 
-      for (let m = 0; m < midStops.length; m++) {
-        const stop = midStops[m];
-        // Calculate how far into the segment this stop falls
-        const stopTimeMs = (stop.estimatedTime?.getTime() ?? segStartTime.getTime()) - segStartTime.getTime();
-        const fractionIntoSeg = Math.max(0, Math.min(1, stopTimeMs / (segMin * 60 * 1000)));
-        const stopKmFromSegStart = segKm * fractionIntoSeg;
-        const stopMinFromSegStart = segMin * fractionIntoSeg;
+      for (let m = 0; m < midDrive.length; m++) {
+        const stop = midDrive[m];
+        // Proportion of the segment where this stop falls
+        const stopTimeMs = stop.estimatedTime!.getTime() - driveStartTime.getTime();
+        const fraction = Math.max(0, Math.min(1, stopTimeMs / (segMin * 60 * 1000)));
+        const stopKm = segKm * fraction;
+        const stopMin = segMin * fraction;
 
-        // Drive from current position to the stop
-        const driveKm = Math.max(0, stopKmFromSegStart - drivenKm);
-        const driveMin = Math.max(0, stopMinFromSegStart - drivenMin);
+        const driveKm = Math.max(0, stopKm - drivenKm);
+        const driveMin = Math.max(0, stopMin - drivenMin);
 
-        if (driveKm > 1) { // Don't emit tiny sub-drives
+        if (driveKm > 1) {
           emitDrive(driveKm, driveMin, i, m);
         }
 
-        drivenKm = stopKmFromSegStart;
-        drivenMin = stopMinFromSegStart;
-
-        // Emit the stop
+        drivenKm = stopKm;
+        drivenMin = stopMin;
         emitStop(stop);
       }
 
-      // Drive the remaining distance after the last mid-stop
+      // Remaining drive after last mid-stop
       const remainKm = segKm - drivenKm;
       const remainMin = segMin - drivenMin;
       if (remainKm > 1) {
-        emitDrive(remainKm, remainMin, i, midStops.length);
+        emitDrive(remainKm, remainMin, i, midDrive.length);
       } else {
-        cumulativeKm += remainKm; // Still count it even if we skip the drive event
+        cumulativeKm += remainKm;
       }
     } else {
-      // Single unbroken drive
       emitDrive(segKm, segMin, i);
     }
 
-    // Waypoint / arrival
+    // ── Waypoint / arrival ────────────────────────────────────────────────
     const isLastSegment = i === segments.length - 1;
     if (isLastSegment) {
       events.push({
@@ -317,9 +316,15 @@ export function buildTimedTimeline(
       }
     }
 
-    // Post-segment stops (overnight, end-of-segment fuel, etc.)
-    postStops.sort((a, b) => (a.type === 'fuel' ? -1 : b.type === 'fuel' ? 1 : 0));
-    postStops.forEach(emitStop);
+    // ── Post-segment boundary stops ───────────────────────────────────────
+    boundaryAfter
+      .filter(s => !emittedIds.has(s.id))
+      .sort((a, b) => {
+        // Fuel first, then meals, then overnight last
+        const order = { fuel: 0, meal: 1, rest: 2, overnight: 3 };
+        return (order[a.type] ?? 2) - (order[b.type] ?? 2);
+      })
+      .forEach(emitStop);
   }
 
   return events;
