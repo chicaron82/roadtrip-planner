@@ -6,10 +6,12 @@ import {
   getBudgetStatus,
   formatBudgetRemaining,
   createSmartBudget,
+  splitTripByDays,
   BUDGET_PROFILES,
   DEFAULT_BUDGET,
 } from './budget';
 import type { TripDay, TripBudget, TripSettings } from '../types';
+import { makeSegment, makeSettings } from '../test/fixtures';
 
 // ==================== BUDGET WEIGHT TESTS ====================
 
@@ -332,5 +334,62 @@ describe('BUDGET_PROFILES', () => {
       expect(profile.weights.food).toBeGreaterThanOrEqual(0);
       expect(profile.weights.misc).toBeGreaterThanOrEqual(0);
     }
+  });
+});
+
+// ==================== DAY 1→2 DEPARTURE SANITY ====================
+
+describe('splitTripByDays — Day 1→2 departure sanity', () => {
+  /**
+   * Helper: extract ISO departure timestamps from the generated days.
+   */
+  function getDayDepartures(segments: ReturnType<typeof makeSegment>[], settings: ReturnType<typeof makeSettings>) {
+    const days = splitTripByDays(segments, settings, settings.departureDate, settings.departureTime ?? '09:00');
+    return days.map(d => d.totals.departureTime ? new Date(d.totals.departureTime) : null);
+  }
+
+  it('Day 2 departs the morning after Day 1 arrival for normal 9 AM start', () => {
+    // 2 × 500-min segments; Day 1 hits max (600 min) after first segment.
+    const settings = makeSettings({ departureDate: '2024-08-01', departureTime: '09:00', maxDriveHours: 10 });
+    const segs = [makeSegment({ durationMinutes: 500 }), makeSegment({ durationMinutes: 500 })];
+    const departures = getDayDepartures(segs, settings);
+    // Day 2 departure must be on Aug 2 (next calendar day), not Aug 1.
+    expect(departures.length).toBeGreaterThanOrEqual(2);
+    const day2 = departures[1]!;
+    expect(day2.getFullYear()).toBe(2024);
+    expect(day2.getMonth()).toBe(7);     // August (0-indexed)
+    expect(day2.getDate()).toBe(2);      // next calendar day
+  });
+
+  it('Day 2 departs at least MIN_REST_HOURS after estimated Day 1 arrival for late-night departure', () => {
+    // Departure at 22:00 (10 PM). Drive 500 min → arrive ~06:20 Aug 2.
+    // Standard departure hour (computeTransitDepartureHour): max(5, min(10, 21−10)) = 10 AM.
+    // 10 AM Aug 2 is only 3h40m after arrival, well under 7h → must push to Aug 3.
+    const settings = makeSettings({ departureDate: '2024-08-01', departureTime: '22:00', maxDriveHours: 10 });
+    const segs = [makeSegment({ durationMinutes: 500 }), makeSegment({ durationMinutes: 500 })];
+    const departures = getDayDepartures(segs, settings);
+    expect(departures.length).toBeGreaterThanOrEqual(2);
+    const day1Depart = departures[0]!;  // Aug 1 22:00
+    const day2Depart = departures[1]!;
+    // Estimated arrival = Day 1 departure + 500 min drive.
+    const estimatedArrival = new Date(day1Depart.getTime() + 500 * 60 * 1000);
+    const restGapHours = (day2Depart.getTime() - estimatedArrival.getTime()) / (1000 * 60 * 60);
+    expect(restGapHours).toBeGreaterThanOrEqual(7);
+    // Specifically: arrival is ~6:20 Aug 2 → Day 2 should land on Aug 3.
+    expect(day2Depart.getDate()).toBe(3);
+  });
+
+  it('Day 2 departs same calendar day as arrival if rest gap is met naturally', () => {
+    // Departure at 00:00 (midnight). Drive 120 min → arrive 02:00.
+    // Standard departure 10 AM same day: 10−02 = 8h ≥ 7h → depart Aug 1 10 AM.
+    const settings = makeSettings({ departureDate: '2024-08-01', departureTime: '00:00', maxDriveHours: 10 });
+    // seg1 = 120 min, seg2 = 600 min → after seg1: 120 + 600 > 600 → new day
+    const segs = [makeSegment({ durationMinutes: 120 }), makeSegment({ durationMinutes: 600 })];
+    const departures = getDayDepartures(segs, settings);
+    expect(departures.length).toBeGreaterThanOrEqual(2);
+    const day2 = departures[1]!;
+    // Should be Aug 1 (same calendar day as arrival since rest gap is met).
+    expect(day2.getDate()).toBe(1);
+    expect(day2.getHours()).toBe(10); // standard departure hour
   });
 });

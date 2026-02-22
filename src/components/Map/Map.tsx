@@ -4,6 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Location, POI, MarkerCategory } from '../../types';
 import type { StrategicFuelStop } from '../../lib/calculations';
+import type { FeasibilityStatus } from '../../lib/feasibility';
 import { haversineDistance, estimateDetourTime } from '../../lib/poi-ranking';
 import { AnimatedPolyline } from './AnimatedPolyline';
 import { POIPopup, type PopupDayOption } from './POIPopup';
@@ -14,6 +15,15 @@ const PREVIEW_LINE_COLOR: Record<string, string> = {
   estimate:  '#3B82F6',
   adventure: '#F59E0B',
 };
+
+/** Main route line colour driven by trip feasibility status. */
+const FEASIBILITY_LINE_COLOR: Record<FeasibilityStatus, string> = {
+  'on-track': '#22C55E', // green
+  'tight':    '#F59E0B', // amber
+  'over':     '#EF4444', // red
+};
+
+const DEFAULT_ROUTE_COLOR = 'hsl(221.2 83.2% 53.3%)'; // blue fallback (no feasibility yet)
 
 interface MapProps {
   locations: Location[];
@@ -30,6 +40,8 @@ interface MapProps {
   previewGeometry?: [number, number][] | null;
   /** Current trip mode — determines preview line colour */
   tripMode?: string;
+  /** Feasibility status — drives main route line colour (green/amber/red) */
+  feasibilityStatus?: FeasibilityStatus | null;
 }
 
 const markerColors: Record<string, string> = {
@@ -212,13 +224,12 @@ export function Map({ locations, routeGeometry, pois, markerCategories, strategi
               weight={8}
               opacity={0.2}
               animationDuration={2000}
-              // animationDuration already set above
             />
-             {/* Main Line (animated) */}
+             {/* Main Line (animated) — colour reflects feasibility status */}
             <AnimatedPolyline
               positions={routeGeometry}
-              color="hsl(221.2 83.2% 53.3%)"
-              weight={5}
+              color={feasibilityStatus ? FEASIBILITY_LINE_COLOR[feasibilityStatus] : DEFAULT_ROUTE_COLOR}
+              weight={feasibilityStatus === 'on-track' ? 6 : 5}
               opacity={0.9}
               animationDuration={2000}
             />

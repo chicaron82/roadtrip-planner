@@ -301,6 +301,9 @@ function computeTransitDepartureHour(settings: TripSettings): number {
   return Math.max(5, Math.min(10, Math.round(targetArrivalHour - maxDriveHours)));
 }
 
+/** Minimum hours of rest guaranteed between estimated Day-N arrival and Day-(N+1) departure. */
+const MIN_REST_HOURS = 7;
+
 // ---------------------------------------------------------------------------
 
 /**
@@ -519,8 +522,22 @@ export function splitTripByDays(
 
       // Start new day — stamp auto-computed departure before any segments are added
       dayNumber++;
-      currentDate = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000); // Next day
-      currentDate.setHours(computeTransitDepartureHour(settings), 0, 0, 0); // Backwards from target arrival
+      // Estimate actual arrival time for this driving day (departure + accumulated drive time).
+      // This ensures the next-day departure always respects a minimum rest gap, even when
+      // Day 1 departs late and drives through the night (e.g. 10 PM → arrives 8 AM → must
+      // not depart 9 AM that same morning with only 1 h of rest).
+      const estimatedDayArrival = new Date(currentDate.getTime() + currentDayDriveMinutes * 60 * 1000);
+      // Try the standard departure hour on the same calendar day as arrival.
+      const nextDayCandidate = new Date(estimatedDayArrival);
+      nextDayCandidate.setHours(computeTransitDepartureHour(settings), 0, 0, 0);
+      // Guard: departure must be ≥ MIN_REST_HOURS after estimated arrival.
+      const earliestDeparture = new Date(estimatedDayArrival.getTime() + MIN_REST_HOURS * 60 * 60 * 1000);
+      if (nextDayCandidate < earliestDeparture) {
+        // Not enough rest this day — push to the next calendar day at the standard hour.
+        nextDayCandidate.setDate(nextDayCandidate.getDate() + 1);
+        nextDayCandidate.setHours(computeTransitDepartureHour(settings), 0, 0, 0);
+      }
+      currentDate = nextDayCandidate;
       currentDay = createEmptyDay(dayNumber, currentDate);
       currentDay.totals.departureTime = currentDate.toISOString(); // Override segment chain time
       currentDayDriveMinutes = 0;

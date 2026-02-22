@@ -243,18 +243,22 @@ function buildDayHTML(
     </div>
   `;
 
+  // Free/flexible days have no route string and identical departure/arrival times — suppress noise.
+  const routeLabel = day.route || (dayType === 'free' ? 'Free Day' : dayType === 'flexible' ? 'Flexible Day' : '—');
+  const sameTime = day.totals.departureTime === day.totals.arrivalTime;
+  const statsLine = dayType !== 'free'
+    ? `${formatDistance(day.totals.distanceKm, units)} •
+       ${formatDriveTime(day.totals.driveTimeMinutes)} driving •
+       Departure: ${formatTimeFromISO(day.totals.departureTime)}${sameTime ? '' : ` • Arrival: ${formatTimeFromISO(day.totals.arrivalTime)}`}`
+    : `Rest day — no driving`;
+
   return `
     <div class="day-section">
       <div class="day-header">
         <h2>🗓️ Day ${day.dayNumber} — ${day.dateFormatted}</h2>
         ${day.title ? `<div class="day-title">🚗 ${day.title}</div>` : ''}
-        <div class="day-route">Route: ${day.route}</div>
-        <div class="day-stats">
-          ${formatDistance(day.totals.distanceKm, units)} •
-          ${formatDriveTime(day.totals.driveTimeMinutes)} driving •
-          Departure: ${formatTimeFromISO(day.totals.departureTime)} •
-          Arrival: ${formatTimeFromISO(day.totals.arrivalTime)}
-        </div>
+        <div class="day-route">Route: ${routeLabel}</div>
+        <div class="day-stats">${statsLine}</div>
       </div>
       ${hotelHTML}
       ${tzHTML}

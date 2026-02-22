@@ -15,6 +15,7 @@ import { BUILTIN_PRESETS, CHICHARON_CLASSIC, parsePresetFromURL, copyPresetShare
 import { Spinner } from './components/UI/Spinner';
 import { AdventureMode, type AdventureSelection } from './components/Trip/AdventureMode';
 import { buildAdventureBudget } from './lib/adventure-service';
+import { analyzeFeasibility } from './lib/feasibility';
 import { Step1Content, Step2Content, Step3Content } from './components/Steps';
 import { LandingScreen } from './components/Landing/LandingScreen';
 import { MobileBottomSheet } from './components/Trip/MobileBottomSheet';
@@ -346,6 +347,12 @@ function AppContent() {
     );
     return filtered.length >= 2 ? filtered as [number, number][] : null;
   }, [summary]);
+
+  // Feasibility status — drives route line colour (green/amber/red)
+  const routeFeasibilityStatus = useMemo(
+    () => summary ? analyzeFeasibility(summary, settings).status : null,
+    [summary, settings],
+  );
 
   // Build day options for map popup day picker
   const mapDayOptions = useMemo(() => {
@@ -799,6 +806,7 @@ function AppContent() {
         <Map
           locations={locations}
           routeGeometry={validRouteGeometry}
+          feasibilityStatus={routeFeasibilityStatus}
           pois={pois}
           markerCategories={markerCategories}
           tripActive={tripActive}
