@@ -25,7 +25,8 @@ export type WarningCategory =
   | 'driver'        // Single driver fatigue, uneven rotation
   | 'timing'        // Late arrivals, early departures
   | 'passenger'     // Per-person cost changes
-  | 'fuel';         // Fuel range / gas stop warnings
+  | 'fuel'          // Fuel range / gas stop warnings
+  | 'date-window';  // Not enough calendar days for transit + free time
 
 export type WarningSeverity = 'info' | 'warning' | 'critical';
 
@@ -89,6 +90,7 @@ export function analyzeFeasibility(
   warnings.push(...analyzeDriverFatigue(days, settings));
   warnings.push(...analyzeTiming(days));
   warnings.push(...analyzePerPersonCosts(summary, settings));
+  warnings.push(...analyzeDateWindow(days, settings));
 
   // Determine overall status from worst warning
   const status = deriveStatus(warnings);
@@ -319,6 +321,96 @@ function analyzeTiming(days: TripDay[]): FeasibilityWarning[] {
   }
 
   return warnings;
+}
+
+// ==================== DATE WINDOW ANALYSIS ====================
+
+/**
+ * Check whether the user's departure→return date window actually fits the
+ * trip.  If transit days consume all or most of the calendar, suggest fixes.
+ */
+function analyzeDateWindow(
+  days: TripDay[],
+  settings: TripSettings,
+): FeasibilityWarning[] {
+  const warnings: FeasibilityWarning[] = [];
+
+  // Only meaningful when both dates are set (round-trip or fixed-end one-way).
+  if (!settings.departureDate || !settings.returnDate) return warnings;
+
+  const dep = new Date(settings.departureDate + 'T00:00:00');
+  const ret = new Date(settings.returnDate + 'T00:00:00');
+  const totalCalendarDays = Math.max(
+    1,
+    Math.round((ret.getTime() - dep.getTime()) / (1000 * 60 * 60 * 24)) + 1,
+  );
+
+  // Count transit days (days with at least one driving segment).
+  const transitDays = days.filter(
+    d => d.segments.length > 0 && d.dayType !== 'free',
+  ).length;
+
+  const freeDays = totalCalendarDays - transitDays;
+
+  if (freeDays < 0) {
+    // More transit days than calendar days — physically impossible.
+    const extraDaysNeeded = Math.abs(freeDays);
+    warnings.push({
+      category: 'date-window',
+      severity: 'critical',
+      message: `Trip doesn't fit — need ${extraDaysNeeded} more day${extraDaysNeeded > 1 ? 's' : ''}`,
+      detail: `${transitDays} driving days needed but only ${totalCalendarDays} calendar day${totalCalendarDays > 1 ? 's' : ''} between departure and return.`,
+      suggestion: buildDateWindowSuggestion(settings, extraDaysNeeded),
+    });
+  } else if (freeDays === 0) {
+    // Fits, but zero time at destination — every day is spent driving.
+    warnings.push({
+      category: 'date-window',
+      severity: 'warning',
+      message: 'No free days at destination — entire trip is driving',
+      detail: `All ${totalCalendarDays} day${totalCalendarDays > 1 ? 's' : ''} are transit days. You\'ll arrive and immediately turn around.`,
+      suggestion: buildDateWindowSuggestion(settings, 1),
+    });
+  } else if (freeDays === 1 && totalCalendarDays > 3) {
+    // Only 1 free day for a trip that's more than a long weekend.
+    warnings.push({
+      category: 'date-window',
+      severity: 'info',
+      message: `Only 1 free day at destination out of ${totalCalendarDays}`,
+      detail: `${transitDays} days driving, 1 day free. ${buildDateWindowSuggestion(settings, 0)}`,
+    });
+  }
+
+  return warnings;
+}
+
+/** Build a concrete suggestion string for date-window warnings. */
+function buildDateWindowSuggestion(
+  settings: TripSettings,
+  extraDaysNeeded: number,
+): string {
+  const parts: string[] = [];
+
+  // Can they drive more hours per day?
+  if (settings.numDrivers >= 2 && settings.maxDriveHours < 12) {
+    parts.push(
+      `Increase max drive hours (you have ${settings.numDrivers} drivers — up to 12h is safe)`,
+    );
+  } else if (settings.numDrivers === 1 && settings.maxDriveHours < 8) {
+    parts.push('Increase max drive hours to 8h');
+  }
+
+  // Extend the trip?
+  if (extraDaysNeeded > 0) {
+    parts.push(
+      `Extend your return date by ${extraDaysNeeded}+ day${extraDaysNeeded > 1 ? 's' : ''}`,
+    );
+  }
+
+  // Closer destination?
+  parts.push('Choose a closer destination that fits the drive window');
+
+  return parts.join(', or ');
 }
 
 // ==================== PER-PERSON COST ANALYSIS ====================

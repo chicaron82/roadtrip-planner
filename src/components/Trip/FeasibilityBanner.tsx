@@ -19,6 +19,7 @@ import {
   Sunrise,
   Fuel,
   Lightbulb,
+  CalendarRange,
 } from 'lucide-react';
 import type {
   FeasibilityResult,
@@ -77,6 +78,7 @@ const CATEGORY_ICONS: Record<WarningCategory, typeof DollarSign> = {
   timing: Sunrise,
   passenger: Users,
   fuel: Fuel,
+  'date-window': CalendarRange,
 };
 
 const SEVERITY_STYLES: Record<WarningSeverity, {
