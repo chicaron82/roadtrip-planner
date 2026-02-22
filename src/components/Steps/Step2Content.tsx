@@ -327,6 +327,52 @@ export function Step2Content({
               '🚀 Marathon mode! Ensure proper rotation and rest breaks.'}
           </p>
         </div>
+
+        {/* Target Arrival Time */}
+        <div className="border-t pt-4 mt-2">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <h3 className="text-sm font-semibold flex items-center gap-2">🕐 Daily Arrival Target</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Transit days auto-depart so you arrive by this time.
+              </p>
+            </div>
+            <span className="text-sm font-semibold tabular-nums">
+              {settings.targetArrivalHour < 12
+                ? `${settings.targetArrivalHour}:00 AM`
+                : settings.targetArrivalHour === 12
+                  ? '12:00 PM'
+                  : `${settings.targetArrivalHour - 12}:00 PM`}
+            </span>
+          </div>
+          <div className="grid grid-cols-5 gap-1.5">
+            {([17, 18, 19, 20, 21] as const).map((hour) => {
+              const label = hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`;
+              const isSelected = settings.targetArrivalHour === hour;
+              return (
+                <button
+                  key={hour}
+                  onClick={() => setSettings((prev) => ({ ...prev, targetArrivalHour: hour }))}
+                  className={`py-2 rounded-lg border-2 text-xs font-medium transition-all ${
+                    isSelected
+                      ? 'border-blue-500 bg-blue-500/15 text-blue-400'
+                      : 'border-border hover:border-muted-foreground/30'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="info-banner-blue text-xs mt-3 p-2 rounded-md border">
+            {(() => {
+              const depart = Math.max(5, Math.min(10, Math.round(settings.targetArrivalHour - settings.maxDriveHours)));
+              const departLabel = depart === 12 ? '12:00 PM' : depart > 12 ? `${depart - 12}:00 PM` : `${depart}:00 AM`;
+              const arriveLabel = settings.targetArrivalHour > 12 ? `${settings.targetArrivalHour - 12}:00 PM` : `${settings.targetArrivalHour}:00 AM`;
+              return `🗓️ Transit days will depart around ${departLabel} to arrive by ${arriveLabel}.`;
+            })()}
+          </p>
+        </div>
       </div>
 
       {/* Stop Frequency Preference */}

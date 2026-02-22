@@ -285,6 +285,25 @@ function splitLongSegments(
 // ---------------------------------------------------------------------------
 
 /**
+ * Compute the ideal departure hour for a transit day (days 2+) so the crew
+ * arrives by `settings.targetArrivalHour`. Clamped between 5 AM (nobody leaves
+ * earlier) and 10 AM (no leisurely midday starts for long hauls).
+ *
+ *   depart = clamp(targetArrivalHour − maxDriveHours, 5, 10)
+ *
+ * Examples using the 9 PM default target:
+ *   8h  drive → clamp(13, 5, 10) = 10 → depart 10 AM, arrive 6 PM
+ *   12h drive → clamp( 9, 5, 10) =  9 → depart  9 AM, arrive 9 PM ✅
+ *   16h drive → clamp( 5, 5, 10) =  5 → depart  5 AM, arrive 9 PM ✅
+ */
+function computeTransitDepartureHour(settings: TripSettings): number {
+  const { targetArrivalHour = 21, maxDriveHours } = settings;
+  return Math.max(5, Math.min(10, Math.round(targetArrivalHour - maxDriveHours)));
+}
+
+// ---------------------------------------------------------------------------
+
+/**
  * Split a trip into days based on max drive hours and overnight stops.
  * For round trips with a returnDate, free days are inserted at the destination
  * (between outbound and return legs) rather than at the end.
@@ -445,9 +464,9 @@ export function splitTripByDays(
       // Set up for the return leg — next morning after free days
       dayNumber++;
       currentDate = new Date(new Date(days[days.length - 1].date + 'T09:00:00').getTime() + 24 * 60 * 60 * 1000);
-      currentDate.setHours(9, 0, 0, 0);
+      currentDate.setHours(computeTransitDepartureHour(settings), 0, 0, 0);
       currentDay = createEmptyDay(dayNumber, currentDate);
-      currentDay.totals.departureTime = currentDate.toISOString(); // Stamp 9 AM — return leg departure
+      currentDay.totals.departureTime = currentDate.toISOString(); // Auto-computed return leg departure
       currentDayDriveMinutes = 0;
     }
 
@@ -498,10 +517,10 @@ export function splitTripByDays(
 
       days.push(currentDay);
 
-      // Start new day — stamp intended 9 AM departure before any segments are added
+      // Start new day — stamp auto-computed departure before any segments are added
       dayNumber++;
       currentDate = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000); // Next day
-      currentDate.setHours(9, 0, 0, 0); // Default 9 AM departure
+      currentDate.setHours(computeTransitDepartureHour(settings), 0, 0, 0); // Backwards from target arrival
       currentDay = createEmptyDay(dayNumber, currentDate);
       currentDay.totals.departureTime = currentDate.toISOString(); // Override segment chain time
       currentDayDriveMinutes = 0;
@@ -560,7 +579,7 @@ export function splitTripByDays(
       // But `calculateArrivalTimes` already factored in the 8 hour stop.
       // Easiest is to force it to the next calendar morning.
       currentDate.setDate(currentDate.getDate() + 1);
-      currentDate.setHours(9, 0, 0, 0); 
+      currentDate.setHours(computeTransitDepartureHour(settings), 0, 0, 0); // Backwards from target arrival
       
       currentDay = createEmptyDay(dayNumber, currentDate);
       currentDay.totals.departureTime = currentDate.toISOString();

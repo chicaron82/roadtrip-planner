@@ -113,6 +113,9 @@ export interface TripSettings {
   routePreference: RoutePreference;
   stopFrequency: StopFrequency;
   tripPreferences: TripPreference[]; // User's trip style preferences
+  /** Hour of the day (0-23) drivers aim to arrive by on transit days. Default 21 = 9 PM.
+   *  Budget logic works backwards: depart = max(5, min(10, targetArrivalHour - maxDriveHours)). */
+  targetArrivalHour: number;
 }
 
 export interface WeatherData {

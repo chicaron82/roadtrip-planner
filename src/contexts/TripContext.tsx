@@ -43,6 +43,7 @@ export const DEFAULT_SETTINGS: TripSettings = {
   routePreference: 'fastest',
   stopFrequency: 'balanced',
   tripPreferences: [],
+  targetArrivalHour: 21,
 };
 
 // ==================== CONTEXT TYPE ====================
