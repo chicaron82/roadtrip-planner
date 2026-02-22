@@ -196,7 +196,7 @@ export function DateRangePicker({
     if (phase === 'end') setHoverDate(ymd);
   }, [phase]);
 
-  const handleClear = useCallback((e: React.MouseEvent) => {
+  const handleClear = useCallback((e: React.MouseEvent | React.KeyboardEvent) => {
     e.stopPropagation();
     onChange('', '');
     setIsOpen(true);
@@ -260,14 +260,16 @@ export function DateRangePicker({
         )}
 
         {(startDate || endDate) && (
-          <button
-            type="button"
+          <div
+            role="button"
+            tabIndex={0}
             onClick={handleClear}
+            onKeyDown={(e) => e.key === 'Enter' && handleClear(e)}
             className="shrink-0 h-5 w-5 rounded-full flex items-center justify-center hover:bg-muted transition-colors"
             aria-label="Clear dates"
           >
             <X className="h-3 w-3 text-muted-foreground" />
-          </button>
+          </div>
         )}
       </button>
 
