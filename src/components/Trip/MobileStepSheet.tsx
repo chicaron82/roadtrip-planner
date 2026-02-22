@@ -185,10 +185,11 @@ export function MobileStepSheet({
       {/* ── Sheet body ── */}
       <div
         className={cn(
-          'flex-1 overflow-y-auto px-4 pb-4',
-          !isOpen && 'overflow-hidden pointer-events-none',
+          'flex-1 min-h-0 overflow-y-auto px-4 pb-4',
+          !isOpen && 'overflow-hidden pointer-events-none'
         )}
-        style={{ overscrollBehavior: 'contain' }}
+        style={{ overscrollBehavior: 'contain', touchAction: 'pan-y' }}
+        onPointerDown={(e) => e.stopPropagation()}
       >
         {isOpen && children}
       </div>
