@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Location } from '../../types';
 import { Button } from '../UI/Button';
 import { LocationSearchInput } from './LocationSearchInput';
@@ -68,6 +68,21 @@ function SortableLocationItem({
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const [favOpen, setFavOpen] = useState(false);
+  const favRef = useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!favOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (favRef.current && !favRef.current.contains(e.target as Node)) {
+        setFavOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [favOpen]);
+
   return (
     <div ref={setNodeRef} style={style} className="relative group">
       <div className="flex items-center gap-2 mb-1.5">
@@ -124,23 +139,31 @@ function SortableLocationItem({
           />
         </div>
         {!loc.name && favorites.length > 0 && (
-          <div className="relative group/fav">
-            <Button variant="ghost" size="icon" className="h-[38px] w-[38px] border border-dashed text-yellow-500/50 hover:text-yellow-600 hover:border-yellow-400">
+          <div ref={favRef} className="relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-[38px] w-[38px] border border-dashed text-yellow-500/50 hover:text-yellow-600 hover:border-yellow-400"
+              onClick={() => setFavOpen(o => !o)}
+              aria-label="Load favourite"
+            >
               <Star className="h-4 w-4" />
             </Button>
-            <div className="absolute right-0 top-full mt-1 w-48 bg-card border shadow-xl rounded-md p-1 z-50 hidden group-hover/fav:block">
-              <div className="text-[10px] text-muted-foreground px-2 py-1 uppercase tracking-wider font-semibold">Load Favorite</div>
-              {favorites.map((fav, i) => (
-                <button
-                  key={i}
-                  onClick={() => loadFavorite(index, fav)}
-                  className="w-full text-left px-2 py-1.5 text-xs hover:bg-muted rounded flex items-center gap-2 truncate"
-                >
-                  <Star className="h-3 w-3 text-yellow-500 fill-current flex-shrink-0" />
-                  <span className="truncate">{fav.name}</span>
-                </button>
-              ))}
-            </div>
+            {favOpen && (
+              <div className="absolute right-0 top-full mt-1 w-48 bg-card border shadow-xl rounded-md p-1 z-50">
+                <div className="text-[10px] text-muted-foreground px-2 py-1 uppercase tracking-wider font-semibold">Load Favourite</div>
+                {favorites.map((fav, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { loadFavorite(index, fav); setFavOpen(false); }}
+                    className="w-full text-left px-2 py-1.5 text-xs hover:bg-muted rounded flex items-center gap-2 truncate"
+                  >
+                    <Star className="h-3 w-3 text-yellow-500 fill-current flex-shrink-0" />
+                    <span className="truncate">{fav.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
