@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import type { POI, POICategory, RouteSegment } from '../types';
+import type { POI, POICategory, RouteSegment, TripSummary } from '../types';
 import type { SuggestedStop, SuggestionStopType } from '../lib/stop-suggestions';
 import { findNearestSegmentIndex, haversineDistance, estimateDetourTime } from '../lib/poi-ranking';
 
@@ -26,7 +26,7 @@ const CATEGORY_DEFAULTS: Record<POICategory, { stopType: SuggestionStopType; dur
 
 // ==================== HOOK ====================
 
-export function useAddedStops() {
+export function useAddedStops(summary?: TripSummary | null, isRoundTrip?: boolean) {
   const [addedStops, setAddedStops] = useState<AddedStop[]>([]);
 
   const addedPOIIds = useMemo(
@@ -83,6 +83,26 @@ export function useAddedStops() {
     }));
   }, [addedStops]);
 
+  /** Mirror gas/hotel stops onto the return leg for round trips */
+  const mirroredReturnStops = useMemo((): SuggestedStop[] => {
+    if (!summary || !isRoundTrip || addedStops.length === 0) return [];
+    const total = summary.segments.length;
+    const midpoint = total / 2;
+    return addedStops
+      .filter(s => s.afterSegmentIndex < midpoint && (s.poi.category === 'gas' || s.poi.category === 'hotel'))
+      .map(s => ({
+        id: `return-${s.id}`,
+        type: s.stopType,
+        reason: `${s.poi.name} (return leg)`,
+        afterSegmentIndex: (total - 1) - s.afterSegmentIndex,
+        estimatedTime: new Date(),
+        duration: s.duration,
+        priority: 'optional' as const,
+        details: { fuelCost: s.stopType === 'fuel' ? s.estimatedCost : undefined },
+        accepted: true,
+      }));
+  }, [addedStops, summary, isRoundTrip]);
+
   return {
     addedStops,
     addedPOIIds,
@@ -90,5 +110,6 @@ export function useAddedStops() {
     removeStop,
     clearStops,
     asSuggestedStops,
+    mirroredReturnStops,
   };
 }

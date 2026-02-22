@@ -1,838 +1,289 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useLayoutEffect, useEffect } from 'react';
 import { Map } from './components/Map/Map';
 import { TripSummaryCard } from './components/Trip/TripSummary';
-import { Button } from './components/UI/Button';
-import { Card, CardContent } from './components/UI/Card';
-import { StepIndicator } from './components/UI/StepIndicator';
-import type { Location, TripChallenge, TripSummary, TripMode, TripOrigin } from './types';
-import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-import { getHistory } from './lib/storage';
-import { parseStateFromURL, type TemplateImportResult } from './lib/url';
-import { showToast } from './lib/toast';
-import { saveLastOrigin, getLastOrigin } from './lib/storage';
-import { recordTrip, getAdaptiveDefaults, isAdaptiveMeaningful, type AdaptiveDefaults } from './lib/user-profile';
-import { BUILTIN_PRESETS, CHICHARON_CLASSIC, parsePresetFromURL, copyPresetShareURL, type StylePreset } from './lib/style-presets';
-import { Spinner } from './components/UI/Spinner';
-import { AdventureMode, type AdventureSelection } from './components/Trip/AdventureMode';
-import { buildAdventureBudget } from './lib/adventure-service';
-import { analyzeFeasibility } from './lib/feasibility';
-import { Step1Content, Step2Content, Step3Content } from './components/Steps';
+import { AdventureMode } from './components/Trip/AdventureMode';
 import { LandingScreen } from './components/Landing/LandingScreen';
 import { MobileBottomSheet } from './components/Trip/MobileBottomSheet';
 import { MobileStepSheet } from './components/Trip/MobileStepSheet';
+import { Sidebar } from './components/Sidebar/Sidebar';
+import { PlanningStepContent } from './components/Steps/PlanningStepContent';
 import './styles/sidebar.css';
-
-// Import contexts and hooks
 import { TripProvider, useTripContext, DEFAULT_LOCATIONS } from './contexts';
-import { useWizard, useTripCalculation, useJournal, usePOI, useEagerRoute, type PlanningStep } from './hooks';
-import { useAddedStops } from './hooks/useAddedStops';
-import type { SuggestedStop } from './lib/stop-suggestions';
+import {
+  useWizard, useTripCalculation, useJournal, usePOI, useEagerRoute, useAddedStops,
+  useStylePreset, useTripMode, useTripLoader, useMapInteractions, useURLHydration,
+  type PlanningStep,
+} from './hooks';
+import { recordTrip } from './lib/user-profile';
+import { getHistory } from './lib/storage';
+import type { TripSummary, TripMode, POICategory } from './types';
 
 // ==================== APP CONTENT (uses hooks) ====================
 
 function AppContent() {
-  const {
-    locations,
-    setLocations,
-    vehicle,
-    setVehicle,
-    settings,
-    setSettings,
-    summary,
-    setSummary,
-  } = useTripContext();
+  // Context
+  const { locations, setLocations, vehicle, setVehicle, settings, setSettings, summary, setSummary } = useTripContext();
 
-  // Eager route preview — dashed line on map as soon as origin+destination are set
+  // Eager route preview (dashed line before full calculation)
   const previewGeometry = useEagerRoute(locations);
 
-  // Stable ref for post-calculation callback (breaks circular dep between hooks)
-  const onCalcCompleteRef = React.useRef<() => void>(() => {});
-
-  // Stable ref for current settings (lets recordTrip read latest settings without bloating deps)
-  const settingsRef = React.useRef(settings);
-  settingsRef.current = settings;
-
-  // Ref to scroll sidebar to top on step change
+  // Stable refs — break circular dep between hooks, avoid stale closure in recordTrip
+  const onCalcCompleteRef = useRef<() => void>(() => {});
+  const settingsRef = useRef(settings);
   const sidebarScrollRef = useRef<HTMLDivElement>(null);
 
-  // POI Hook
+  // Local state
+  const [tripConfirmed, setTripConfirmed] = useState(false);
+  const [history] = useState<TripSummary[]>(() => getHistory());
+
+  // Mode management
   const {
-    pois,
-    markerCategories,
-    loadingCategory,
-    poiSuggestions,
-    isLoadingPOIs,
-    error: poiError,
-    toggleCategory,
-    addPOI,
-    dismissPOI,
-    fetchRoutePOIs,
-    clearError: clearPOIError,
-    resetPOIs,
+    tripMode, setTripMode,
+    showAdventureMode, setShowAdventureMode,
+    showModeSwitcher, setShowModeSwitcher,
+    modeSwitcherRef,
+    tripActive, setTripActive,
+  } = useTripMode();
+
+  // Style preset (travel style / hotel+meal defaults)
+  const {
+    activePreset, presetOptions, shareJustCopied,
+    handlePresetChange, handleSharePreset,
+    setAdaptiveDefaults, refreshAdaptiveDefaults,
+  } = useStylePreset({ setSettings });
+
+  // POI system
+  const {
+    pois, markerCategories, loadingCategory, poiSuggestions, isLoadingPOIs,
+    error: poiError, toggleCategory, addPOI, dismissPOI,
+    fetchRoutePOIs, clearError: clearPOIError, resetPOIs,
   } = usePOI();
 
-  // Added Stops Hook (map-click → add to plan)
+  // Map-click added stops + return-leg mirroring
+  const { addedStops, addedPOIIds, addStop, clearStops, asSuggestedStops, mirroredReturnStops } =
+    useAddedStops(summary, settings.isRoundTrip);
+
+  // Trip calculation
   const {
-    addedStops,
-    addedPOIIds,
-    addStop,
-    clearStops,
-    asSuggestedStops,
-  } = useAddedStops();
-
-  // Trip confirmation gate (Phase 3)
-  const [tripConfirmed, setTripConfirmed] = useState(false);
-
-  // Adaptive budget profile (computed from trip history)
-  const [adaptiveDefaults, setAdaptiveDefaults] = useState<AdaptiveDefaults | null>(null);
-
-  // Style preset — active travel style applied to hotel/meal inputs
-  const [activePreset, setActivePreset] = useState<StylePreset>(() => parsePresetFromURL() ?? CHICHARON_CLASSIC);
-  const [shareJustCopied, setShareJustCopied] = useState(false);
-  const shareCopiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Available preset options: built-ins + "My MEE Style" when adaptive is meaningful
-  const presetOptions = useMemo((): StylePreset[] => {
-    if (!adaptiveDefaults || !isAdaptiveMeaningful(adaptiveDefaults)) return BUILTIN_PRESETS;
-    const myStyle: StylePreset = {
-      id: 'my-mee-style',
-      name: 'My MEE Style',
-      creatorName: 'You',
-      hotelPricePerNight: adaptiveDefaults.hotelPricePerNight,
-      mealPricePerDay: adaptiveDefaults.mealPricePerDay,
-      description: `Based on your last ${adaptiveDefaults.tripCount} trip${adaptiveDefaults.tripCount !== 1 ? 's' : ''}.`,
-    };
-    return [CHICHARON_CLASSIC, myStyle];
-  }, [adaptiveDefaults]);
-
-  const handlePresetChange = useCallback((preset: StylePreset) => {
-    setActivePreset(preset);
-    setSettings(prev => ({
-      ...prev,
-      hotelPricePerNight: preset.hotelPricePerNight,
-      mealPricePerDay: preset.mealPricePerDay,
-    }));
-  }, [setSettings]);
-
-  const handleSharePreset = useCallback(async () => {
-    await copyPresetShareURL(activePreset);
-    setShareJustCopied(true);
-    if (shareCopiedTimerRef.current) clearTimeout(shareCopiedTimerRef.current);
-    shareCopiedTimerRef.current = setTimeout(() => setShareJustCopied(false), 2000);
-    showToast({ message: '"Make my MEE time, your MEE time." — Link copied!', type: 'success' });
-  }, [activePreset]);
-
-  // Take Me Home (Phase 4) — mirror gas/hotel stops onto the return leg
-  const mirroredReturnStops = useMemo((): SuggestedStop[] => {
-    if (!summary || !settings.isRoundTrip || addedStops.length === 0) return [];
-    const total = summary.segments.length;
-    const midpoint = total / 2;
-    return addedStops
-      .filter(s =>
-        s.afterSegmentIndex < midpoint &&
-        (s.poi.category === 'gas' || s.poi.category === 'hotel')
-      )
-      .map(s => ({
-        id: `return-${s.id}`,
-        type: s.stopType,
-        reason: `${s.poi.name} (return leg)`,
-        afterSegmentIndex: (total - 1) - s.afterSegmentIndex,
-        estimatedTime: new Date(),
-        duration: s.duration,
-        priority: 'optional' as const,
-        details: { fuelCost: s.stopType === 'fuel' ? s.estimatedCost : undefined },
-        accepted: true,
-      }));
-  }, [addedStops, summary, settings.isRoundTrip]);
-
-  const handleAddPOIFromMap = useCallback((poi: import('./types').POI, afterSegmentIndex?: number) => {
-    if (!summary) return;
-    addStop(poi, summary.segments, afterSegmentIndex);
-  }, [addStop, summary]);
-  // Trip Calculation Hook
-  const {
-    isCalculating,
-    error: calcError,
-    shareUrl,
-    strategicFuelStops,
-    showOvernightPrompt,
-    suggestedOvernightStop,
-    dismissOvernightPrompt,
-    calculateTrip,
-    updateStopType,
-    updateDayNotes,
-    updateDayTitle,
-    updateDayType,
-    updateDayOvernight,
-    clearError: clearCalcError,
-    clearTripCalculation,
+    isCalculating, error: calcError, shareUrl,
+    strategicFuelStops, showOvernightPrompt, suggestedOvernightStop,
+    dismissOvernightPrompt, calculateTrip,
+    updateStopType, updateDayNotes, updateDayTitle, updateDayType, updateDayOvernight,
+    clearError: clearCalcError, clearTripCalculation,
   } = useTripCalculation({
-    locations,
-    vehicle,
-    settings,
+    locations, vehicle, settings,
     onSummaryChange: setSummary,
     onCalculationComplete: () => onCalcCompleteRef.current(),
   });
 
-  // Calculate trip + fetch POIs together (used by both wizard and direct button)
+  // Calculate trip + fetch POIs together
   const calculateAndDiscover = useCallback(async () => {
-    setTripConfirmed(false); // New route calculation = plan needs reconfirmation
+    setTripConfirmed(false);
     const tripResult = await calculateTrip();
     if (!tripResult) return;
-    // Record this trip commit to the adaptive profile
     recordTrip(settingsRef.current);
-    setAdaptiveDefaults(getAdaptiveDefaults());
-    // Fetch POIs using returned summary (avoids stale closure)
+    setAdaptiveDefaults(refreshAdaptiveDefaults());
     const origin = locations.find(l => l.type === 'origin');
     const destination = locations.find(l => l.type === 'destination');
     if (origin && destination && tripResult.fullGeometry) {
       fetchRoutePOIs(
         tripResult.fullGeometry as [number, number][],
-        origin,
-        destination,
+        origin, destination,
         settings.tripPreferences,
-        tripResult.segments
+        tripResult.segments,
       );
     }
-  }, [calculateTrip, locations, settings.tripPreferences, fetchRoutePOIs]);
+  }, [calculateTrip, locations, settings.tripPreferences, fetchRoutePOIs, refreshAdaptiveDefaults, setAdaptiveDefaults]);
 
-  // Wizard Hook
+  // Wizard (step navigation)
   const {
-    planningStep,
-    completedSteps,
-    canProceedFromStep1,
-    canProceedFromStep2,
-    goToNextStep: wizardNext,
-    goToPrevStep,
-    goToStep,
-    forceStep,
-    markStepComplete,
-    resetWizard,
-  } = useWizard({
-    locations,
-    vehicle,
-    onCalculate: calculateAndDiscover,
-  });
+    planningStep, completedSteps, canProceedFromStep1, canProceedFromStep2,
+    goToNextStep: wizardNext, goToPrevStep, goToStep, forceStep,
+    markStepComplete, resetWizard,
+  } = useWizard({ locations, vehicle, onCalculate: calculateAndDiscover });
 
-  // Wire up the calculation-complete callback now that markStepComplete is available
-  onCalcCompleteRef.current = () => {
-    markStepComplete(1);
-    markStepComplete(2);
-    markStepComplete(3);
-    forceStep(3);
-  };
-
-  // Active challenge (set when user loads a challenge card)
-  const [activeChallenge, setActiveChallenge] = useState<TripChallenge | null>(null);
-
-  // Build origin for journal from active challenge or template import
-  const journalOrigin = useState<TripOrigin | null>(null);
-  const [tripOrigin, setTripOrigin] = journalOrigin;
-
-  // Journal Hook
-  const {
-    activeJournal,
-    viewMode,
-    startJournal,
-    updateActiveJournal,
-    setViewMode,
-  } = useJournal({
-    summary,
-    settings,
-    vehicle,
-    origin: tripOrigin,
-    defaultTitle: activeChallenge?.title,
-  });
-
-  // Local UI State
-
-  const [tripActive, setTripActive] = useState(false);
-  const [history] = useState<TripSummary[]>(() => getHistory());
-  const [showAdventureMode, setShowAdventureMode] = useState(false);
-  const [tripMode, setTripMode] = useState<TripMode | null>(null);
-  const [showModeSwitcher, setShowModeSwitcher] = useState(false);
-  const modeSwitcherRef = useRef<HTMLDivElement>(null);
-
-  // Click-outside to close mode switcher
-  useEffect(() => {
-    if (!showModeSwitcher) return;
-    const handler = (e: MouseEvent) => {
-      if (modeSwitcherRef.current && !modeSwitcherRef.current.contains(e.target as Node)) {
-        setShowModeSwitcher(false);
-      }
+  // Keep both refs current every render (no dep array = runs after every render)
+  useLayoutEffect(() => {
+    settingsRef.current = settings;
+    onCalcCompleteRef.current = () => {
+      markStepComplete(1); markStepComplete(2); markStepComplete(3); forceStep(3);
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [showModeSwitcher]);
+  });
 
-  // Combined error state
-  const error = poiError || calcError;
-  const clearError = () => {
-    clearPOIError();
-    clearCalcError();
-  };
+  // Trip loader (templates, challenges, adventure mode)
+  const {
+    activeChallenge, tripOrigin,
+    setActiveChallenge, setTripOrigin,
+    handleImportTemplate, handleSelectChallenge, handleAdventureSelect,
+  } = useTripLoader({
+    setLocations, setVehicle, setSettings,
+    markStepComplete, forceStep, goToStep,
+    onAdventureComplete: () => setShowAdventureMode(false),
+  });
 
-  // Load state from URL on mount — or pre-fill last-used origin for return users (run once)
-  useEffect(() => {
-    const parsedState = parseStateFromURL();
-    if (parsedState) {
-      if (parsedState.locations) setLocations(parsedState.locations);
-      if (parsedState.vehicle) setVehicle(parsedState.vehicle);
-      if (parsedState.settings) setSettings(parsedState.settings);
-      if (parsedState.locations?.some(l => l.name)) {
-        markStepComplete(1);
-        markStepComplete(2);
-        markStepComplete(3);
-        forceStep(3);
-      }
-    } else {
-      // No URL session — pre-fill origin from last visit if available
-      const lastOrigin = getLastOrigin();
-      if (lastOrigin) {
-        setLocations(prev => prev.map((loc, i) =>
-          i === 0 ? { ...lastOrigin, id: loc.id, type: 'origin' } : loc
-        ));
-      }
-      // Apply adaptive budget defaults silently (no label until n >= 3)
-      const defaults = getAdaptiveDefaults();
-      if (defaults) {
-        setAdaptiveDefaults(defaults);
-        // Only auto-apply values if user hasn't loaded a style from URL
-        if (!parsePresetFromURL()) {
-          setSettings(prev => ({
-            ...prev,
-            hotelPricePerNight: defaults.hotelPricePerNight,
-            mealPricePerDay: defaults.mealPricePerDay,
-          }));
-        }
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Journal
+  const { activeJournal, viewMode, startJournal, updateActiveJournal, setViewMode } =
+    useJournal({ summary, settings, vehicle, origin: tripOrigin, defaultTitle: activeChallenge?.title });
 
-  // Persist origin whenever user sets a valid one
-  useEffect(() => {
-    const origin = locations[0];
-    if (origin?.lat && origin.lat !== 0 && origin.name) {
-      saveLastOrigin(origin);
-    }
-  }, [locations]);
+  // Map interactions (geometry, feasibility, click handlers)
+  const {
+    validRouteGeometry, routeFeasibilityStatus, mapDayOptions,
+    handleMapClick, handleAddPOIFromMap, openInGoogleMaps,
+    copyShareLink: triggerCopyShareLink,
+  } = useMapInteractions({ locations, setLocations, summary, settings, addStop });
 
-  // Recalculate departure time when using "Arrive By"
-  useEffect(() => {
-    if (settings.useArrivalTime && settings.arrivalDate && settings.arrivalTime && summary) {
-      const arrivalDateTime = new Date(`${settings.arrivalDate}T${settings.arrivalTime}`);
-      const departureDateTime = new Date(arrivalDateTime.getTime() - (summary.totalDurationMinutes * 60 * 1000));
-      const newDepDate = departureDateTime.toISOString().split('T')[0];
-      const newDepTime = departureDateTime.toTimeString().slice(0, 5);
-      if (newDepDate !== settings.departureDate || newDepTime !== settings.departureTime) {
-        setSettings(prev => ({ ...prev, departureDate: newDepDate, departureTime: newDepTime }));
-      }
-    }
-  }, [settings.useArrivalTime, settings.arrivalDate, settings.arrivalTime, summary, settings.departureDate, settings.departureTime, setSettings]);
+  // URL hydration (mount load, origin persist, arrive-by recalc)
+  useURLHydration({
+    setLocations, setVehicle, setSettings,
+    locations, settings, summary,
+    markStepComplete, forceStep,
+    setAdaptiveDefaults,
+  });
 
-  // Scroll sidebar to top when step changes
+  // Scroll sidebar to top on step change
   useEffect(() => {
     sidebarScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
   }, [planningStep]);
 
-  // Valid route geometry for map
-  const validRouteGeometry = useMemo(() => {
-    const geometry = summary?.fullGeometry;
-    if (!geometry) return null;
-    const filtered = geometry.filter(coord =>
-      coord && Array.isArray(coord) && coord.length === 2 &&
-      typeof coord[0] === 'number' && typeof coord[1] === 'number' &&
-      !isNaN(coord[0]) && !isNaN(coord[1]) && coord[0] !== 0 && coord[1] !== 0
-    );
-    return filtered.length >= 2 ? filtered as [number, number][] : null;
-  }, [summary]);
+  // ==================== DERIVED / LOCAL CALLBACKS ====================
 
-  // Feasibility status — drives route line colour (green/amber/red)
-  const routeFeasibilityStatus = useMemo(
-    () => summary ? analyzeFeasibility(summary, settings).status : null,
-    [summary, settings],
-  );
+  const error = poiError || calcError;
 
-  // Build day options for map popup day picker
-  const mapDayOptions = useMemo(() => {
-    if (!summary?.days || summary.days.length <= 1) return undefined;
-    return summary.days.map(day => ({
-      dayNumber: day.dayNumber,
-      label: `Day ${day.dayNumber} — ${day.route}`,
-      // Use the last segment index of this day for afterSegmentIndex
-      segmentIndex: day.segmentIndices[day.segmentIndices.length - 1] ?? 0,
-    }));
-  }, [summary?.days]);
+  const clearError = useCallback(() => { clearPOIError(); clearCalcError(); }, [clearPOIError, clearCalcError]);
+  // Bind shareUrl into copyShareLink so PlanningStepContent gets () => void
+  const copyShareLink = useCallback(() => triggerCopyShareLink(shareUrl), [triggerCopyShareLink, shareUrl]);
 
-  // Handlers
-  const goToNextStep = useCallback(() => {
-    if (planningStep === 2) {
-      calculateAndDiscover();
-    } else {
-      wizardNext();
-    }
-  }, [planningStep, calculateAndDiscover, wizardNext]);
-
-  const handleStepClick = useCallback((step: PlanningStep) => {
-    goToStep(step);
-  }, [goToStep]);
-
-  const handleToggleCategory = useCallback((id: import('./types').POICategory) => {
-    const searchLocation = locations.find(l => l.type === 'destination' && l.lat !== 0) || locations[0];
-    toggleCategory(id, searchLocation.lat !== 0 ? searchLocation : null, validRouteGeometry);
+  const handleToggleCategory = useCallback((id: POICategory) => {
+    const loc = locations.find(l => l.type === 'destination' && l.lat !== 0) || locations[0];
+    toggleCategory(id, loc.lat !== 0 ? loc : null, validRouteGeometry);
   }, [locations, toggleCategory, validRouteGeometry]);
 
-  const handleMapClick = useCallback(async (lat: number, lng: number) => {
-    try {
-      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
-      const data = await response.json();
-      const name = data.display_name || `Location at ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  const goToNextStep = useCallback(() => {
+    if (planningStep === 2) calculateAndDiscover(); else wizardNext();
+  }, [planningStep, calculateAndDiscover, wizardNext]);
 
-      const originEmpty = !locations[0]?.name || locations[0].lat === 0;
-      const destEmpty = !locations[locations.length - 1]?.name || locations[locations.length - 1].lat === 0;
+  const handleStepClick = useCallback((step: PlanningStep) => goToStep(step), [goToStep]);
 
-      if (originEmpty) {
-        setLocations(prev => prev.map((loc, i) => i === 0 ? { ...loc, name, lat, lng } : loc));
-      } else if (destEmpty) {
-        setLocations(prev => prev.map((loc, i) => i === prev.length - 1 ? { ...loc, name, lat, lng } : loc));
-      } else {
-        const newWaypoint: Location = { id: `waypoint-${Date.now()}`, name, lat, lng, type: 'waypoint' };
-        setLocations(prev => [...prev.slice(0, -1), newWaypoint, prev[prev.length - 1]]);
-      }
-    } catch (err) {
-      console.error('Failed to reverse geocode:', err);
-    }
-  }, [locations, setLocations]);
-
-  const copyShareLink = useCallback(() => {
-    if (shareUrl) {
-      navigator.clipboard.writeText(shareUrl);
-      showToast({ message: 'Link copied — send it.', type: 'success' });
-    }
-  }, [shareUrl]);
-
-  // Import a shared trip template — populates locations, vehicle, settings
-  const handleImportTemplate = useCallback((result: TemplateImportResult) => {
-    // Load locations
-    if (result.locations.length > 0) {
-      setLocations(result.locations);
-    }
-
-    // Load vehicle if present
-    if (result.vehicle) {
-      setVehicle(result.vehicle);
-    }
-
-    // Merge shared settings into current settings (partial merge, keep user's dates/times)
-    if (result.settings) {
-      setSettings(prev => ({ ...prev, ...result.settings }));
-    }
-
-    // Record origin as template fork
-    setActiveChallenge(null);
-    setTripOrigin({
-      type: 'template',
-      title: result.meta.title,
-      author: result.meta.author,
-    });
-
-    // Mark steps 1+2 complete and jump to step 2 (so they can review vehicle)
-    markStepComplete(1);
-    if (result.vehicle) {
-      markStepComplete(2);
-      forceStep(2);
-    }
-  }, [setLocations, setVehicle, setSettings, setTripOrigin, markStepComplete, forceStep]);
-
-  // Load a Chicharon's Challenge — converts challenge data into locations/settings/vehicle
-  const handleSelectChallenge = useCallback((challenge: TripChallenge) => {
-    if (challenge.locations.length > 0) {
-      setLocations(challenge.locations);
-    }
-    if (challenge.vehicle) {
-      setVehicle(challenge.vehicle);
-    }
-    if (challenge.settings) {
-      setSettings(prev => ({ ...prev, ...challenge.settings }));
-    }
-    setActiveChallenge(challenge);
-    setTripOrigin({ type: 'challenge', id: challenge.id, title: challenge.title });
-    markStepComplete(1);
-    if (challenge.vehicle) {
-      markStepComplete(2);
-      forceStep(2);
-    }
-  }, [setLocations, setVehicle, setSettings, setTripOrigin, markStepComplete, forceStep]);
-
-  const openInGoogleMaps = useCallback(() => {
-    const validLocations = locations.filter(loc => loc.lat !== 0 && loc.lng !== 0);
-    if (validLocations.length < 2) return;
-    // Use city name/address strings so Google Maps routes to city centres,
-    // not whatever business happens to sit at the exact coordinate.
-    const locStr = (loc: import('./types').Location) =>
-      encodeURIComponent(loc.address || loc.name);
-    const origin = validLocations[0];
-    const destination = validLocations[validLocations.length - 1];
-    const waypoints = validLocations.slice(1, -1).map(locStr).join('|');
-    let url = `https://www.google.com/maps/dir/?api=1&origin=${locStr(origin)}&destination=${locStr(destination)}`;
-    if (waypoints) url += `&waypoints=${waypoints}`;
-    window.open(url, '_blank');
-  }, [locations]);
-
-  const handleAdventureSelect = useCallback((selection: AdventureSelection) => {
-    setLocations(prev => prev.map(loc =>
-      loc.type === 'destination' ? { ...loc, ...selection.destination, type: 'destination' as const } : loc
-    ));
-
-    const adventureBudget = buildAdventureBudget(
-      selection.budget,
-      selection.estimatedDistanceKm,
-      selection.preferences,
-      selection.accommodationType,
-    );
-
-    setSettings(prev => ({
-      ...prev,
-      numTravelers: selection.travelers,
-      numDrivers: Math.min(selection.travelers, prev.numDrivers),
-      isRoundTrip: selection.isRoundTrip,
-      tripPreferences: selection.preferences,
-      departureDate: selection.departureDate,
-      departureTime: selection.departureTime,
-      budget: {
-        ...prev.budget,
-        profile: adventureBudget.profile,
-        weights: adventureBudget.weights,
-        allocation: 'fixed' as const,
-        total: adventureBudget.total,
-        gas: adventureBudget.gas,
-        hotel: adventureBudget.hotel,
-        food: adventureBudget.food,
-        misc: adventureBudget.misc,
-      },
-    }));
-
-    setShowAdventureMode(false);
-    markStepComplete(1);
-    goToStep(2);
-  }, [setLocations, setSettings, markStepComplete, goToStep]);
+  const handleSwitchMode = useCallback((mode: TripMode) => {
+    if (mode === 'adventure') { setTripMode('adventure'); setShowAdventureMode(true); }
+    else setTripMode(mode);
+  }, [setTripMode, setShowAdventureMode]);
 
   const resetTrip = useCallback(() => {
-    setLocations(DEFAULT_LOCATIONS);
-    setSummary(null);
-    resetPOIs();
-    resetWizard();
-    clearStops();
-    clearTripCalculation();
-    setActiveChallenge(null);
-    setTripOrigin(null);
-    setTripConfirmed(false);
-    // Stay in current mode — go to Step 1, not landing
-  }, [setLocations, setSummary, resetWizard, resetPOIs, clearStops, clearTripCalculation, setTripOrigin]);
+    setLocations(DEFAULT_LOCATIONS); setSummary(null);
+    resetPOIs(); resetWizard(); clearStops(); clearTripCalculation();
+    setActiveChallenge(null); setTripOrigin(null); setTripConfirmed(false);
+  }, [setLocations, setSummary, resetWizard, resetPOIs, clearStops, clearTripCalculation, setActiveChallenge, setTripOrigin]);
 
-  // Handle mode selection from landing screen (FRESH START)
   const handleSelectMode = useCallback((mode: TripMode) => {
-    // 1. Wipe the current React session state
     resetTrip();
-    
-    // 2. Wipe the URL query parameters so back button/refresh doesn't resurrect it
     window.history.replaceState({}, '', window.location.pathname);
+    resetWizard(); setTripMode(mode);
+    if (mode === 'adventure') setShowAdventureMode(true);
+  }, [resetTrip, resetWizard, setTripMode, setShowAdventureMode]);
 
-    // 3. Proceed to Step 1
-    resetWizard();
-    setTripMode(mode);
-    if (mode === 'adventure') {
-      setShowAdventureMode(true);
-    }
-  }, [resetTrip, resetWizard]);
-
-  // Handle resume active session
   const handleResumeSession = useCallback(() => {
-    // We already have the state loaded from URL, just bypass the landing screen
-    setTripMode('plan'); // Or read it from URL if we stored mode, but defaulting to 'plan' works
-    
-    // If the URL loaded enough data to be on Step 3, we MUST recalculate the route
-    // because URL only stores Locations/Settings, not the actual 10mb OSRM geometry and POIs
-    if (planningStep === 3 && locations.length >= 2) {
-      calculateAndDiscover();
-    }
-  }, [setTripMode, planningStep, locations.length, calculateAndDiscover]);
-
-  // Handle continue saved trip from landing
-  const handleContinueSavedTrip = useCallback(() => {
     setTripMode('plan');
-  }, []);
+    if (planningStep === 3 && locations.length >= 2) calculateAndDiscover();
+  }, [setTripMode, planningStep, locations.length, calculateAndDiscover]);
 
   // ==================== RENDER ====================
 
-  // Determine if URL rehydrated an active session
   const hasActiveSession = locations.some(loc => loc.name && loc.name.trim() !== '');
 
-  // Show landing screen when no mode is selected
   if (!tripMode) {
     return (
       <LandingScreen
         onSelectMode={handleSelectMode}
         hasSavedTrip={history.length > 0}
-        onContinueSavedTrip={handleContinueSavedTrip}
+        onContinueSavedTrip={() => setTripMode('plan')}
         hasActiveSession={hasActiveSession}
         onResumeSession={handleResumeSession}
       />
     );
   }
 
+  const stepContent = (
+    <PlanningStepContent
+      planningStep={planningStep}
+      locations={locations} setLocations={setLocations}
+      vehicle={vehicle} setVehicle={setVehicle}
+      settings={settings} setSettings={setSettings}
+      summary={summary} tripMode={tripMode}
+      onShowAdventure={() => setShowAdventureMode(true)}
+      onImportTemplate={handleImportTemplate}
+      onSelectChallenge={handleSelectChallenge}
+      activePreset={activePreset} presetOptions={presetOptions}
+      onPresetChange={handlePresetChange}
+      onSharePreset={handleSharePreset}
+      shareJustCopied={shareJustCopied}
+      viewMode={viewMode} setViewMode={setViewMode}
+      activeJournal={activeJournal} activeChallenge={activeChallenge}
+      tripConfirmed={tripConfirmed} addedStopCount={addedStops.length}
+      externalStops={[...asSuggestedStops, ...mirroredReturnStops]}
+      history={history} shareUrl={shareUrl}
+      showOvernightPrompt={showOvernightPrompt}
+      suggestedOvernightStop={suggestedOvernightStop}
+      poiSuggestions={poiSuggestions} isLoadingPOIs={isLoadingPOIs}
+      onDismissOvernight={dismissOvernightPrompt}
+      onUpdateStopType={updateStopType}
+      onUpdateDayNotes={updateDayNotes}
+      onUpdateDayTitle={updateDayTitle}
+      onUpdateDayType={updateDayType}
+      onUpdateOvernight={updateDayOvernight}
+      onAddPOI={addPOI} onDismissPOI={dismissPOI}
+      onOpenGoogleMaps={openInGoogleMaps}
+      onCopyShareLink={copyShareLink}
+      onStartJournal={startJournal}
+      onUpdateJournal={updateActiveJournal}
+      onGoToStep={goToStep}
+      onConfirmTrip={() => setTripConfirmed(true)}
+      onUnconfirmTrip={() => { setTripConfirmed(false); setViewMode('plan'); }}
+    />
+  );
+
   return (
     <div className="flex flex-col md:flex-row h-screen w-full overflow-hidden bg-background text-foreground">
-      {/* Sidebar — dark mission control */}
-      <div className={`sidebar-dark sidebar-entrance w-full md:w-[420px] ${
-        'h-[45vh]'
-      } md:h-full flex flex-col z-10 shadow-2xl order-2 md:order-1 hidden md:flex`} style={{ background: 'hsl(225 30% 8%)' }}>
-        {/* Header */}
-        <div className="sidebar-header p-4">
-          <div className="mb-3">
-            <div className="flex items-center gap-2.5">
-              <h1 className="sidebar-brand-title">
-                My Experience Engine
-              </h1>
-              {/* Mode badge — click to switch modes */}
-              <div className="relative" ref={modeSwitcherRef}>
-                <button
-                  onClick={() => setShowModeSwitcher(prev => !prev)}
-                  className="mode-badge text-[9px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full whitespace-nowrap cursor-pointer transition-all hover:brightness-125"
-                  style={{
-                    fontFamily: "'DM Mono', monospace",
-                    background: tripMode === 'estimate' ? 'rgba(59, 130, 246, 0.15)' : tripMode === 'adventure' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                    color: tripMode === 'estimate' ? '#93C5FD' : tripMode === 'adventure' ? '#FDE68A' : '#BBF7D0',
-                    border: `1px solid ${tripMode === 'estimate' ? 'rgba(59, 130, 246, 0.3)' : tripMode === 'adventure' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`,
-                  }}
-                  aria-label="Switch trip mode"
-                >
-                  {tripMode === 'estimate' ? '💰 Estimate' : tripMode === 'adventure' ? '🧭 Adventure' : '📋 Plan'}
-                  <span className="ml-1 opacity-50">▾</span>
-                </button>
+      {/* Desktop sidebar */}
+      <Sidebar
+        planningStep={planningStep} completedSteps={completedSteps}
+        canProceedFromStep1={canProceedFromStep1} canProceedFromStep2={canProceedFromStep2}
+        isCalculating={isCalculating}
+        onStepClick={handleStepClick} onNext={goToNextStep} onBack={goToPrevStep} onReset={resetTrip}
+        tripMode={tripMode}
+        showModeSwitcher={showModeSwitcher} setShowModeSwitcher={setShowModeSwitcher}
+        modeSwitcherRef={modeSwitcherRef} onSwitchMode={handleSwitchMode}
+        markerCategories={markerCategories} loadingCategory={loadingCategory}
+        onToggleCategory={handleToggleCategory}
+        error={error} onClearError={clearError}
+        sidebarScrollRef={sidebarScrollRef}
+      >
+        {stepContent}
+      </Sidebar>
 
-                {/* Mode switcher dropdown */}
-                {showModeSwitcher && (
-                  <div className="mode-switcher-dropdown">
-                    {[
-                      { mode: 'plan' as TripMode, icon: '📋', label: 'Plan', desc: 'Design My MEE Time', color: '#22C55E', bg: 'rgba(34, 197, 94, 0.1)' },
-                      { mode: 'estimate' as TripMode, icon: '💰', label: 'Estimate', desc: 'Price My MEE Time', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.1)' },
-                      { mode: 'adventure' as TripMode, icon: '🧭', label: 'Adventure', desc: 'Find My MEE Time', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.1)' },
-                    ].map(({ mode, icon, label, desc, color, bg }) => (
-                      <button
-                        key={mode}
-                        disabled={mode === tripMode}
-                        onClick={() => {
-                          setShowModeSwitcher(false);
-                          if (mode === 'adventure') {
-                            setTripMode('adventure');
-                            setShowAdventureMode(true);
-                          } else {
-                            setTripMode(mode);
-                          }
-                        }}
-                        className="mode-switcher-option"
-                        style={{
-                          '--mode-color': color,
-                          '--mode-bg': bg,
-                          opacity: mode === tripMode ? 0.5 : 1,
-                        } as React.CSSProperties}
-                      >
-                        <span className="text-base">{icon}</span>
-                        <div className="flex-1 text-left">
-                          <div className="text-xs font-bold" style={{ color }}>{label}</div>
-                          <div className="text-[10px] text-muted-foreground">{desc}</div>
-                        </div>
-                        {mode === tripMode && (
-                          <span className="text-[9px] tracking-wider uppercase" style={{ color }}>Current</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-            <p className="sidebar-brand-sub">
-              Road trips worth remembering
-            </p>
-          </div>
-          <StepIndicator
-            currentStep={planningStep}
-            onStepClick={handleStepClick}
-            completedSteps={completedSteps}
-          />
-        </div>
-
-
-
-
-        {/* POI Controls */}
-        {planningStep === 3 && (
-          <div className="poi-bar px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar items-center">
-            {markerCategories.map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => !loadingCategory && handleToggleCategory(cat.id)}
-                disabled={!!loadingCategory}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all whitespace-nowrap ${
-                  cat.visible ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-background text-muted-foreground border-border hover:bg-muted'
-                } ${loadingCategory && loadingCategory !== cat.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                {loadingCategory === cat.id ? <Spinner size={12} className="text-current" /> : <span>{cat.emoji}</span>}
-                <span>{cat.label}</span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Error Display */}
-        {error && (
-          <div className="mx-4 mt-2 px-3 py-2 bg-red-50 text-red-600 text-xs rounded border border-red-100 flex items-center gap-2">
-            <span className="font-bold">Error:</span> {error}
-            <button onClick={clearError} className="ml-auto font-bold">×</button>
-          </div>
-        )}
-
-        {/* Step Content */}
-        <div ref={sidebarScrollRef} className="flex-1 overflow-y-auto p-4">
-          <Card className="border-0 shadow-none">
-            <CardContent className="px-0 pt-0">
-              {/* STEP 1 */}
-              {planningStep === 1 && (
-                <Step1Content
-                  locations={locations}
-                  setLocations={setLocations}
-                  settings={settings}
-                  setSettings={setSettings}
-                  tripMode={tripMode}
-                  onShowAdventure={() => setShowAdventureMode(true)}
-                  onImportTemplate={handleImportTemplate}
-                  onSelectChallenge={handleSelectChallenge}
-                />
-              )}
-
-              {/* STEP 2 */}
-              {planningStep === 2 && (
-                <Step2Content
-                  vehicle={vehicle}
-                  setVehicle={setVehicle}
-                  settings={settings}
-                  setSettings={setSettings}
-                  tripMode={tripMode}
-                  activePreset={activePreset}
-                  presetOptions={presetOptions}
-                  onPresetChange={handlePresetChange}
-                  onSharePreset={handleSharePreset}
-                  shareJustCopied={shareJustCopied}
-                />
-              )}
-
-              {/* STEP 3 */}
-              {planningStep === 3 && (
-                <Step3Content
-                  summary={summary}
-                  settings={settings}
-                  vehicle={vehicle}
-                  tripMode={tripMode}
-                  viewMode={viewMode}
-                  setViewMode={setViewMode}
-                  activeJournal={activeJournal}
-                  activeChallenge={activeChallenge}
-                  showOvernightPrompt={showOvernightPrompt}
-                  suggestedOvernightStop={suggestedOvernightStop}
-                  poiSuggestions={poiSuggestions}
-                  isLoadingPOIs={isLoadingPOIs}
-                  history={history}
-                  shareUrl={shareUrl}
-                  onOpenGoogleMaps={openInGoogleMaps}
-                  onCopyShareLink={copyShareLink}
-                  onStartJournal={startJournal}
-                  onUpdateJournal={updateActiveJournal}
-                  onUpdateStopType={updateStopType}
-                  onUpdateDayNotes={updateDayNotes}
-                  onUpdateDayTitle={updateDayTitle}
-                  onUpdateDayType={updateDayType}
-                  onUpdateOvernight={updateDayOvernight}
-                  onDismissOvernight={dismissOvernightPrompt}
-                  onAddPOI={addPOI}
-                  onDismissPOI={dismissPOI}
-                  onGoToStep={goToStep}
-                  externalStops={[...asSuggestedStops, ...mirroredReturnStops]}
-                  tripConfirmed={tripConfirmed}
-                  addedStopCount={addedStops.length}
-                  onConfirmTrip={() => setTripConfirmed(true)}
-                  onUnconfirmTrip={() => { setTripConfirmed(false); setViewMode('plan'); }}
-                />
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Navigation Footer */}
-        <div className="sidebar-nav-footer p-4">
-          <div className="flex gap-2">
-            {planningStep > 1 && (
-              <Button variant="outline" onClick={goToPrevStep} className="flex-1">
-                <ChevronLeft className="h-4 w-4 mr-1" /> Back
-              </Button>
-            )}
-            {planningStep < 3 && (
-              <Button
-                onClick={goToNextStep}
-                disabled={(planningStep === 1 && !canProceedFromStep1) || (planningStep === 2 && !canProceedFromStep2) || isCalculating}
-                className="flex-1"
-              >
-                {isCalculating ? (
-                  <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Calculating...</>
-                ) : planningStep === 2 ? (
-                  <>{tripMode === 'estimate' ? 'Price My MEE Time' : tripMode === 'adventure' ? 'Find My MEE Time' : 'Design My MEE Time'} <ChevronRight className="h-4 w-4 ml-1" /></>
-                ) : (
-                  <>Next <ChevronRight className="h-4 w-4 ml-1" /></>
-                )}
-              </Button>
-            )}
-            {planningStep === 3 && (
-              <Button onClick={resetTrip} variant="outline" className="flex-1">
-                Plan New Trip
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Map Area — full screen on mobile (bottom sheet overlays all steps) */}
+      {/* Map area */}
       <div className="flex-1 relative h-full md:h-full order-1 md:order-2">
         <Map
-          locations={locations}
-          routeGeometry={validRouteGeometry}
-          feasibilityStatus={routeFeasibilityStatus}
-          pois={pois}
-          markerCategories={markerCategories}
-          tripActive={tripActive}
-          strategicFuelStops={strategicFuelStops}
-          addedPOIIds={addedPOIIds}
-          dayOptions={mapDayOptions}
-          onMapClick={handleMapClick}
+          locations={locations} routeGeometry={validRouteGeometry}
+          feasibilityStatus={routeFeasibilityStatus} pois={pois}
+          markerCategories={markerCategories} tripActive={tripActive}
+          strategicFuelStops={strategicFuelStops} addedPOIIds={addedPOIIds}
+          dayOptions={mapDayOptions} onMapClick={handleMapClick}
           onAddPOI={summary ? handleAddPOIFromMap : undefined}
           previewGeometry={validRouteGeometry ? null : previewGeometry}
           tripMode={tripMode}
         />
         {summary && planningStep === 3 && (
-          // Hide on mobile — bottom sheet handles stats; show on md+
           <div className="hidden md:block">
             <TripSummaryCard
-              summary={summary}
-              settings={settings}
-              tripActive={tripActive}
-              onStop={() => setTripActive(false)}
-              onOpenVehicleTab={() => goToStep(2)}
+              summary={summary} settings={settings} tripActive={tripActive}
+              onStop={() => setTripActive(false)} onOpenVehicleTab={() => goToStep(2)}
             />
           </div>
         )}
       </div>
 
-      {/* Mobile Step Sheet — Steps 1 & 2, hidden on md+ */}
+      {/* Mobile: steps 1 & 2 sheet */}
       {planningStep < 3 && (
         <div className="md:hidden">
           <MobileStepSheet
@@ -850,109 +301,43 @@ function AppContent() {
             onBack={planningStep > 1 ? goToPrevStep : undefined}
             hasPreview={!!previewGeometry}
           >
-            {planningStep === 1 && (
-              <Step1Content
-                locations={locations}
-                setLocations={setLocations}
-                settings={settings}
-                setSettings={setSettings}
-                tripMode={tripMode}
-                onShowAdventure={() => setShowAdventureMode(true)}
-                onImportTemplate={handleImportTemplate}
-                onSelectChallenge={handleSelectChallenge}
-              />
-            )}
-            {planningStep === 2 && (
-              <Step2Content
-                vehicle={vehicle}
-                setVehicle={setVehicle}
-                settings={settings}
-                setSettings={setSettings}
-                tripMode={tripMode}
-                activePreset={activePreset}
-                presetOptions={presetOptions}
-                onPresetChange={handlePresetChange}
-                onSharePreset={handleSharePreset}
-                shareJustCopied={shareJustCopied}
-              />
-            )}
+            {stepContent}
           </MobileStepSheet>
         </div>
       )}
 
-      {/* Mobile Bottom Sheet — Step 3 only, hidden on md+ */}
+      {/* Mobile: step 3 bottom sheet */}
       {planningStep === 3 && (
         <div className="md:hidden">
           <MobileBottomSheet
-            summary={summary}
-            settings={settings}
-            onReset={resetTrip}
-            onGoBack={goToPrevStep}
-            viewMode={viewMode}
+            summary={summary} settings={settings}
+            onReset={resetTrip} onGoBack={goToPrevStep} viewMode={viewMode}
             poiBar={
               <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
                 {markerCategories.map(cat => (
                   <button
                     key={cat.id}
-                    onClick={() => !loadingCategory && handleToggleCategory(cat.id as Parameters<typeof handleToggleCategory>[0])}
+                    onClick={() => !loadingCategory && handleToggleCategory(cat.id)}
                     disabled={!!loadingCategory}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all whitespace-nowrap ${
-                      cat.visible ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-background text-muted-foreground border-border hover:bg-muted'
-                    } ${loadingCategory && loadingCategory !== cat.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all whitespace-nowrap ${cat.visible ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-background text-muted-foreground border-border hover:bg-muted'} ${loadingCategory && loadingCategory !== cat.id ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
-                    <span>{cat.emoji}</span>
-                    <span>{cat.label}</span>
+                    <span>{cat.emoji}</span><span>{cat.label}</span>
                   </button>
                 ))}
               </div>
             }
           >
-            <Step3Content
-              summary={summary}
-              settings={settings}
-              vehicle={vehicle}
-              tripMode={tripMode}
-              viewMode={viewMode}
-              setViewMode={setViewMode}
-              activeJournal={activeJournal}
-              activeChallenge={activeChallenge}
-              showOvernightPrompt={showOvernightPrompt}
-              suggestedOvernightStop={suggestedOvernightStop}
-              poiSuggestions={poiSuggestions}
-              isLoadingPOIs={isLoadingPOIs}
-              history={history}
-              shareUrl={shareUrl}
-              onOpenGoogleMaps={openInGoogleMaps}
-              onCopyShareLink={copyShareLink}
-              onStartJournal={startJournal}
-              onUpdateJournal={updateActiveJournal}
-              onUpdateStopType={updateStopType}
-              onUpdateDayNotes={updateDayNotes}
-              onUpdateDayTitle={updateDayTitle}
-              onUpdateDayType={updateDayType}
-              onUpdateOvernight={updateDayOvernight}
-              onDismissOvernight={dismissOvernightPrompt}
-              onAddPOI={addPOI}
-              onDismissPOI={dismissPOI}
-              onGoToStep={goToStep}
-              externalStops={[...asSuggestedStops, ...mirroredReturnStops]}
-              tripConfirmed={tripConfirmed}
-              addedStopCount={addedStops.length}
-              onConfirmTrip={() => setTripConfirmed(true)}
-              onUnconfirmTrip={() => { setTripConfirmed(false); setViewMode('plan'); }}
-            />
+            {stepContent}
           </MobileBottomSheet>
         </div>
       )}
 
-      {/* Adventure Mode Modal */}
+      {/* Adventure mode modal */}
       {showAdventureMode && (
         <AdventureMode
           origin={locations.find(l => l.type === 'origin') || null}
           onOriginChange={(newOrigin) => {
-            setLocations(prev => prev.map(loc =>
-              loc.type === 'origin' ? { ...loc, ...newOrigin } : loc
-            ));
+            setLocations(prev => prev.map(loc => loc.type === 'origin' ? { ...loc, ...newOrigin } : loc));
           }}
           onSelectDestination={handleAdventureSelect}
           onClose={() => setShowAdventureMode(false)}

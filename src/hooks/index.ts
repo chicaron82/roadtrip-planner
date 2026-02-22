@@ -4,3 +4,8 @@ export { useJournal, type ViewMode } from './useJournal';
 export { usePOI } from './usePOI';
 export { useAddedStops } from './useAddedStops';
 export { useEagerRoute } from './useEagerRoute';
+export { useStylePreset } from './useStylePreset';
+export { useTripMode } from './useTripMode';
+export { useTripLoader } from './useTripLoader';
+export { useMapInteractions } from './useMapInteractions';
+export { useURLHydration } from './useURLHydration';
