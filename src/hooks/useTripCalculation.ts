@@ -165,7 +165,8 @@ export function useTripCalculation({
         settings,
         settings.departureDate,
         settings.departureTime,
-        roundTripMidpoint
+        roundTripMidpoint,
+        routeData.fullGeometry,
       );
       tripSummary.days = tripDays;
 

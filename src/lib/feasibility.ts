@@ -262,6 +262,20 @@ function analyzeDriverFatigue(
     }
   }
 
+  // Multi-driver under-utilization hint
+  // If the user has set up team driving but kept the max daily limit at solo levels,
+  // nudge them to unlock the real benefit of having multiple drivers.
+  if (settings.numDrivers >= 2 && settings.maxDriveHours <= 8) {
+    const suggestedHours = settings.numDrivers === 2 ? 12 : 16;
+    warnings.push({
+      category: 'driver',
+      severity: 'info',
+      message: `${settings.numDrivers} drivers — you could safely drive up to ${suggestedHours}h/day`,
+      detail: `Your daily limit is ${settings.maxDriveHours}h, which is the recommended max for a solo driver. With ${settings.numDrivers} drivers rotating, you can push to ${suggestedHours}h/day and reduce transit days.`,
+      suggestion: `Increase "Max Drive Hours" to ${suggestedHours}h in Settings to cut driving days and get more time at your destination.`,
+    });
+  }
+
   return warnings;
 }
 
