@@ -38,7 +38,7 @@ export function LocationSearchInput({ value, onSelect, placeholder, className }:
     setQuery(text);
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
-    if (text.length < 3) {
+    if (text.length < 2) {
       setResults([]);
       setIsOpen(false);
       return;
@@ -50,7 +50,7 @@ export function LocationSearchInput({ value, onSelect, placeholder, className }:
       setResults(locations);
       setIsOpen(locations.length > 0);
       setIsLoading(false);
-    }, 500);
+    }, 300);
   };
 
   const handleSelect = (loc: Partial<Location>) => {
