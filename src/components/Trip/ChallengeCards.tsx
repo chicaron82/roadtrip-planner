@@ -120,7 +120,7 @@ export function ChallengeCards({ onSelectChallenge, initialOrigin }: ChallengeCa
       </div>
 
       {/* Card strip */}
-      <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory no-scrollbar touch-pan-y">
+      <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory no-scrollbar touch-pan-x">
         {challenges.map((challenge) => {
           const meta = DIFFICULTY_META[challenge.difficulty];
           const ready = isChallengeReady(challenge);
