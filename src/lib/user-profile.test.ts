@@ -61,6 +61,7 @@ const makeSettings = (overrides: Partial<TripSettings> = {}): TripSettings => ({
   routePreference: 'fastest',
   stopFrequency: 'balanced',
   tripPreferences: [],
+  targetArrivalHour: 21,
   ...overrides,
 });
 

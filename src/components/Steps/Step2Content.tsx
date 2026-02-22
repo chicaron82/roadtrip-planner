@@ -347,7 +347,7 @@ export function Step2Content({
           </div>
           <div className="grid grid-cols-5 gap-1.5">
             {([17, 18, 19, 20, 21] as const).map((hour) => {
-              const label = hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`;
+              const label = `${hour - 12} PM`;
               const isSelected = settings.targetArrivalHour === hour;
               return (
                 <button

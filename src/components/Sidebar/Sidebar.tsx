@@ -23,7 +23,7 @@ interface SidebarProps {
   tripMode: TripMode;
   showModeSwitcher: boolean;
   setShowModeSwitcher: React.Dispatch<React.SetStateAction<boolean>>;
-  modeSwitcherRef: React.RefObject<HTMLDivElement>;
+  modeSwitcherRef: React.RefObject<HTMLDivElement | null>;
   onSwitchMode: (mode: TripMode) => void;
 
   // POI bar
@@ -36,7 +36,7 @@ interface SidebarProps {
   onClearError: () => void;
 
   // DOM
-  sidebarScrollRef: React.RefObject<HTMLDivElement>;
+  sidebarScrollRef: React.RefObject<HTMLDivElement | null>;
 
   // Step content (pre-composed by App)
   children: React.ReactNode;

@@ -22,7 +22,7 @@ interface LandingScreenProps {
   onResumeSession?: () => void;
 }
 
-export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip, hasActiveSession, onResumeSession }: LandingScreenProps) {
+export function LandingScreen({ onSelectMode, hasActiveSession, onResumeSession }: LandingScreenProps) {
   const [hoveredMode, setHoveredMode] = useState<TripMode | null>(null);
   const [isExiting, setIsExiting] = useState(false);
   const [mounted, setMounted] = useState(false);

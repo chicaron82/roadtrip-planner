@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { analyzeFeasibility, compareRefinements } from './feasibility';
-import type { TripSummary, TripSettings, TripDay, RouteSegment } from '../types';
-import { makeSegment, makeDay, makeSummary, makeBudget, makeSettings } from '../test/fixtures';
+import { makeDay, makeSummary, makeBudget, makeSettings } from '../test/fixtures';
 
 // ==================== TESTS: analyzeFeasibility ====================
 

@@ -4,11 +4,10 @@ import { Step2Content } from './Step2Content';
 import { Step3Content } from './Step3Content';
 import type {
   Location, Vehicle, TripSettings, TripSummary, TripMode, TripChallenge,
-  POISuggestion, POI,
+  POISuggestion, TripJournal,
 } from '../../types';
 import type { StylePreset } from '../../lib/style-presets';
 import type { ViewMode } from '../../hooks/useJournal';
-import type { TripJournal } from '../../lib/journal-storage';
 import type { TemplateImportResult } from '../../lib/url';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
 import type { PlanningStep } from '../../hooks/useWizard';
@@ -20,7 +19,7 @@ interface PlanningStepContentProps {
   locations: Location[];
   setLocations: React.Dispatch<React.SetStateAction<Location[]>>;
   vehicle: Vehicle;
-  setVehicle: (v: Vehicle) => void;
+  setVehicle: React.Dispatch<React.SetStateAction<Vehicle>>;
   settings: TripSettings;
   setSettings: React.Dispatch<React.SetStateAction<TripSettings>>;
   summary: TripSummary | null;
@@ -57,8 +56,8 @@ interface PlanningStepContentProps {
   // Step 3 — POI
   poiSuggestions: POISuggestion[];
   isLoadingPOIs: boolean;
-  onAddPOI: (poi: POI) => void;
-  onDismissPOI: (id: string) => void;
+  onAddPOI: (poiId: string) => void;
+  onDismissPOI: (poiId: string) => void;
   // Step 3 — actions
   onOpenGoogleMaps: () => void;
   onCopyShareLink: () => void;

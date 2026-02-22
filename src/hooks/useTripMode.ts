@@ -8,7 +8,7 @@ interface UseTripModeReturn {
   setShowAdventureMode: (show: boolean) => void;
   showModeSwitcher: boolean;
   setShowModeSwitcher: React.Dispatch<React.SetStateAction<boolean>>;
-  modeSwitcherRef: React.RefObject<HTMLDivElement>;
+  modeSwitcherRef: React.RefObject<HTMLDivElement | null>;
   tripActive: boolean;
   setTripActive: (active: boolean) => void;
   handleContinueSavedTrip: () => void;

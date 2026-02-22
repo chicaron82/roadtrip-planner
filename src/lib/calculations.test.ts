@@ -166,6 +166,7 @@ describe('calculateTripCosts', () => {
     routePreference: 'fastest',
     stopFrequency: 'balanced',
     tripPreferences: [],
+    targetArrivalHour: 21,
   };
 
   const mockSegments: RouteSegment[] = [

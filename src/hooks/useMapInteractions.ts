@@ -1,6 +1,6 @@
 import { useMemo, useCallback } from 'react';
 import type { Location, TripSummary, TripSettings, POI, RouteSegment } from '../types';
-import { analyzeFeasibility } from '../lib/feasibility';
+import { analyzeFeasibility, type FeasibilityStatus } from '../lib/feasibility';
 import { showToast } from '../lib/toast';
 
 interface UseMapInteractionsOptions {
@@ -13,7 +13,7 @@ interface UseMapInteractionsOptions {
 
 interface UseMapInteractionsReturn {
   validRouteGeometry: [number, number][] | null;
-  routeFeasibilityStatus: 'green' | 'amber' | 'red' | null;
+  routeFeasibilityStatus: FeasibilityStatus | null;
   mapDayOptions: { dayNumber: number; label: string; segmentIndex: number }[] | undefined;
   handleMapClick: (lat: number, lng: number) => Promise<void>;
   handleAddPOIFromMap: (poi: POI, afterSegmentIndex?: number) => void;
