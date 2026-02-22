@@ -189,7 +189,7 @@ export function buildTimedTimeline(
     // Compute the time window for this segment's pure driving time.
     // This is BEFORE any stops — the window in which a stop's estimatedTime
     // would fall if it happens during the drive.
-    const driveStartTime = new Date(currentTime);
+    console.log('Before driveStartTime, currentTime:', currentTime); const driveStartTime = new Date(currentTime);
     const driveEndTime = new Date(currentTime.getTime() + segMin * 60 * 1000);
 
     // ── Classify all non-emitted suggestions for this segment ────────────
@@ -210,33 +210,35 @@ export function buildTimedTimeline(
     for (const s of suggestions) {
       if (s.dismissed || emittedIds.has(s.id)) continue;
 
-      // Check if this stop belongs to the current segment's time window
+      // Check if this stop belongs to the current segment's time window strictly based on time
       const hasMidDriveTime = s.estimatedTime &&
         s.estimatedTime.getTime() > driveStartTime.getTime() + 60_000 && // >1 min after start
         s.estimatedTime.getTime() < driveEndTime.getTime() - 60_000;     // >1 min before end
 
-      if (hasMidDriveTime) {
+      // Robust check: explicitly pull in ALL mid-drive stops (fuel, rest, meal)
+      // that were generated for this segment, even if their `estimatedTime` drifted slightly
+      // due to timezone or stop accumulations.
+      // `generateSmartStops` tags them with `afterSegmentIndex: i - 1` when they belong *inside* segment `i`
+      const isMidDriveForThisSegment =
+        (s.type === 'fuel' || s.type === 'rest' || s.type === 'meal') && 
+        s.afterSegmentIndex === i - 1;
+
+      if (hasMidDriveTime || isMidDriveForThisSegment) {
         midDrive.push(s);
         continue;
       }
 
       // Boundary classification by afterSegmentIndex
       if (s.afterSegmentIndex === i - 1) {
-        // "Before this segment" — but skip en-route fuel (they should be mid-drive)
-        // If their estimatedTime didn't match mid-drive, they're boundary stops
-        if (s.id.startsWith('fuel-enroute-')) {
-          // En-route fuel whose time didn't match mid-drive — skip entirely
-          // (this means it was generated for a different segment)
-          continue;
-        }
+        // "Before this segment" — note: en-route fuel is now handled fully by midDrive above
         boundaryBefore.push(s);
       } else if (s.afterSegmentIndex === i) {
         boundaryAfter.push(s);
       }
     }
 
-    // Sort mid-drive by estimated time
-    midDrive.sort((a, b) => (a.estimatedTime!.getTime()) - (b.estimatedTime!.getTime()));
+    // Sort mid-drive by estimated time (fallback to 0 if undefined to push them to start or let failsafe distribute them)
+    midDrive.sort((a, b) => (a.estimatedTime?.getTime() ?? 0) - (b.estimatedTime?.getTime() ?? 0));
 
     // ── Pre-segment boundary stops ────────────────────────────────────────
     // Skip redundant "fill up before leaving" fuel when we have en-route
@@ -257,9 +259,15 @@ export function buildTimedTimeline(
 
       for (let m = 0; m < midDrive.length; m++) {
         const stop = midDrive[m];
-        // Proportion of the segment where this stop falls
-        const stopTimeMs = stop.estimatedTime!.getTime() - driveStartTime.getTime();
-        const fraction = Math.max(0, Math.min(1, stopTimeMs / (segMin * 60 * 1000)));
+        // Proportion of the segment where this stop falls.
+        // Failsafe: Time drift across multiday single segments can cause stopTimeMs to blow past bounds or NaN.
+        // Rather than clumping them at the boundary, we geometrically distribute them evenly.
+        const stopTimeMs = stop.estimatedTime ? stop.estimatedTime.getTime() - driveStartTime.getTime() : NaN;
+        let fraction = stopTimeMs / (segMin * 60 * 1000);
+        if (isNaN(fraction) || fraction <= 0.05 || fraction >= 0.95) {
+          fraction = (m + 1) / (midDrive.length + 1);
+        }
+        
         const stopKm = segKm * fraction;
         const stopMin = segMin * fraction;
 

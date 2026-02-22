@@ -29,7 +29,7 @@ export type StopFrequency = 'conservative' | 'balanced' | 'aggressive';
 export type TripPreference = 'scenic' | 'family' | 'budget' | 'foodie';
 
 // Budget allocation profiles - each shifts category weights
-export type BudgetProfile = 'balanced' | 'foodie' | 'scenic' | 'backpacker' | 'comfort' | 'custom';
+export type BudgetProfile = 'balanced' | 'foodie' | 'scenic' | 'custom';
 
 // Saved budget profile (user's custom configurations)
 export interface SavedBudgetProfile {

@@ -22,18 +22,6 @@ export const BUDGET_PROFILES: Record<BudgetProfile, { weights: BudgetWeights; la
     emoji: '🏔️',
     description: 'Gas up, drive far, wake up somewhere worth it.',
   },
-  backpacker: {
-    weights: { gas: 35, hotel: 25, food: 25, misc: 15 },
-    label: 'Backpacker',
-    emoji: '🎒',
-    description: 'Maximum kilometres per dollar. No regrets about the mattress.',
-  },
-  comfort: {
-    weights: { gas: 20, hotel: 45, food: 25, misc: 10 },
-    label: 'Comfort',
-    emoji: '✨',
-    description: 'You\'ve earned the nice room. Act accordingly.',
-  },
   custom: {
     weights: { gas: 25, hotel: 35, food: 30, misc: 10 },
     label: 'Custom',

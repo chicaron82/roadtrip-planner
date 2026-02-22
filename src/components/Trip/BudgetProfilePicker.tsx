@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Star, Clock, Trash2, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Star, Clock, Trash2, Check } from 'lucide-react';
 import type { SavedBudgetProfile, BudgetProfile, TripBudget, LastTripBudget } from '../../types';
 import { BUDGET_PROFILES } from '../../lib/budget';
 import {
@@ -35,7 +35,6 @@ export function BudgetProfilePicker({
   const [savedProfiles, setSavedProfiles] = useState<SavedBudgetProfile[]>(getBudgetProfiles());
   const [lastTripBudget] = useState<LastTripBudget | null>(getLastTripBudget());
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [showAllProfiles, setShowAllProfiles] = useState(false);
 
   // Format relative time
   const formatRelativeTime = (dateStr?: string): string => {
@@ -222,75 +221,34 @@ export function BudgetProfilePicker({
       {/* System Profiles */}
       <div>
         <Label className="text-xs text-gray-500 mb-2 block">Budget Style</Label>
-        {(() => {
-          // Core profiles: Backpacker (budget) → Balanced (mid) → Comfort (splurge)
-          const coreProfiles: BudgetProfile[] = ['backpacker', 'balanced', 'comfort'];
-          const extraProfiles: BudgetProfile[] = ['foodie', 'scenic', 'custom'];
-
-          // If current selection is in extras and not expanded, show it
-          const currentIsExtra = extraProfiles.includes(currentBudget.profile) && currentBudget.profile !== 'custom';
-          const visibleProfiles = showAllProfiles
-            ? systemProfiles
-            : currentIsExtra
-              ? [...coreProfiles, currentBudget.profile]
-              : coreProfiles;
-
-          return (
-            <>
-              <div className={cn(
-                'grid gap-2',
-                showAllProfiles ? 'grid-cols-3 md:grid-cols-6' : 'grid-cols-3'
-              )}>
-                {visibleProfiles.map((profile) => {
-                  const { emoji, label } = BUDGET_PROFILES[profile];
-                  const isSelected = currentBudget.profile === profile;
-                  return (
-                    <button
-                      key={profile}
-                      onClick={() => handleSelectSystemProfile(profile)}
-                      className={cn(
-                        'p-2 rounded-lg border-2 text-center transition-all',
-                        isSelected
-                          ? 'border-green-500 bg-green-50'
-                          : 'border-gray-200 hover:border-gray-300 bg-white'
-                      )}
-                    >
-                      <div className="text-lg">{emoji}</div>
-                      <div
-                        className={cn(
-                          'text-[10px] font-medium',
-                          isSelected ? 'text-green-700' : 'text-gray-600'
-                        )}
-                      >
-                        {label}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Expand/Collapse button */}
-              {!showAllProfiles && (
-                <button
-                  onClick={() => setShowAllProfiles(true)}
-                  className="w-full mt-2 flex items-center justify-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors py-1"
+        <div className="grid grid-cols-4 gap-2">
+          {systemProfiles.map((profile) => {
+            const { emoji, label } = BUDGET_PROFILES[profile];
+            const isSelected = currentBudget.profile === profile;
+            return (
+              <button
+                key={profile}
+                onClick={() => handleSelectSystemProfile(profile)}
+                className={cn(
+                  'p-2 rounded-lg border-2 text-center transition-all',
+                  isSelected
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-gray-200 hover:border-gray-300 bg-white'
+                )}
+              >
+                <div className="text-lg">{emoji}</div>
+                <div
+                  className={cn(
+                    'text-[10px] font-medium',
+                    isSelected ? 'text-green-700' : 'text-gray-600'
+                  )}
                 >
-                  <ChevronDown className="h-3 w-3" />
-                  More styles (Foodie, Scenic, Custom)
-                </button>
-              )}
-              {showAllProfiles && (
-                <button
-                  onClick={() => setShowAllProfiles(false)}
-                  className="w-full mt-2 flex items-center justify-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors py-1"
-                >
-                  <ChevronUp className="h-3 w-3" />
-                  Show less
-                </button>
-              )}
-            </>
-          );
-        })()}
+                  {label}
+                </div>
+              </button>
+            );
+          })}
+        </div>
         <p className="text-[10px] text-gray-500 mt-1.5 text-center">
           {BUDGET_PROFILES[currentBudget.profile].description}
         </p>

@@ -292,17 +292,15 @@ export function formatCostBreakdown(costs: AdventureDestination['estimatedCosts'
 const PREFERENCE_TO_PROFILE: Record<string, BudgetProfile> = {
   foodie: 'foodie',
   scenic: 'scenic',
-  budget: 'backpacker',
-  family: 'comfort',
+  budget: 'balanced',
+  family: 'balanced',
 };
 
 const DISCRETIONARY_WEIGHTS: Record<BudgetProfile, { hotel: number; food: number; misc: number }> = {
-  balanced:   { hotel: 45, food: 40, misc: 15 },
-  foodie:     { hotel: 25, food: 60, misc: 15 },
-  scenic:     { hotel: 50, food: 30, misc: 20 },
-  backpacker: { hotel: 35, food: 40, misc: 25 },
-  comfort:    { hotel: 55, food: 35, misc: 10 },
-  custom:     { hotel: 45, food: 40, misc: 15 },
+  balanced: { hotel: 45, food: 40, misc: 15 },
+  foodie:   { hotel: 25, food: 60, misc: 15 },
+  scenic:   { hotel: 50, food: 30, misc: 20 },
+  custom:   { hotel: 45, food: 40, misc: 15 },
 };
 
 export interface AdventureBudgetResult {
@@ -325,10 +323,8 @@ export function buildAdventureBudget(
   let profile: BudgetProfile = 'balanced';
   if (preferences.length > 0) {
     profile = PREFERENCE_TO_PROFILE[preferences[0]] || 'balanced';
-  } else if (accommodationType === 'budget') {
-    profile = 'backpacker';
-  } else if (accommodationType === 'comfort') {
-    profile = 'comfort';
+  } else if (accommodationType === 'budget' || accommodationType === 'comfort') {
+    profile = 'balanced';
   }
 
   const estimatedGasCost = Math.round(estimatedDistanceKm * 0.12);

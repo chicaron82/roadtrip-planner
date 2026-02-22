@@ -156,10 +156,10 @@ describe('recordTrip', () => {
 
   it('captures budgetProfile from settings.budget.profile', () => {
     const settings = makeSettings();
-    settings.budget.profile = 'comfort';
+    settings.budget.profile = 'scenic';
     recordTrip(settings);
     _clearProfileCache();
-    expect(getUserProfile().trips[0].budgetProfile).toBe('comfort');
+    expect(getUserProfile().trips[0].budgetProfile).toBe('scenic');
   });
 
   it('captures numTravelers', () => {
