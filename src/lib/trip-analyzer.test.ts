@@ -10,80 +10,7 @@ import {
   calculateRouteConfidence,
   generateTripOverview,
 } from './trip-analyzer';
-import type { TripSummary, TripSettings, RouteSegment, Location } from '../types';
-
-// ==================== HELPERS ====================
-
-function makeLocation(name: string, lat = 49.8, lng = -97.1): Location {
-  return { id: `loc-${name}`, name, lat, lng, type: 'waypoint' };
-}
-
-function makeSegment(overrides: Partial<RouteSegment> = {}): RouteSegment {
-  return {
-    from: makeLocation('A'),
-    to: makeLocation('B'),
-    distanceKm: 200,
-    durationMinutes: 120,
-    fuelNeededLitres: 15,
-    fuelCost: 25,
-    ...overrides,
-  };
-}
-
-function makeSummary(overrides: Partial<TripSummary> = {}): TripSummary {
-  return {
-    totalDistanceKm: 500,
-    totalDurationMinutes: 360,
-    totalFuelLitres: 40,
-    totalFuelCost: 70,
-    gasStops: 1,
-    costPerPerson: 200,
-    drivingDays: 1,
-    segments: [makeSegment()],
-    fullGeometry: [],
-    ...overrides,
-  };
-}
-
-function makeSettings(overrides: Partial<TripSettings> = {}): TripSettings {
-  return {
-    units: 'metric',
-    currency: 'CAD',
-    maxDriveHours: 8,
-    numTravelers: 2,
-    numDrivers: 1,
-    budgetMode: 'plan-to-budget',
-    budget: {
-      mode: 'plan-to-budget',
-      profile: 'balanced',
-      weights: { gas: 25, hotel: 40, food: 25, misc: 10 },
-      allocation: 'flexible',
-      total: 2000,
-      gas: 500,
-      hotel: 800,
-      food: 500,
-      misc: 200,
-    },
-    departureDate: '2025-08-16',
-    departureTime: '09:00',
-    returnDate: '',
-    arrivalDate: '',
-    arrivalTime: '',
-    useArrivalTime: false,
-    gasPrice: 1.65,
-    hotelPricePerNight: 150,
-    mealPricePerDay: 50,
-    isRoundTrip: false,
-    avoidTolls: false,
-    avoidBorders: false,
-    scenicMode: false,
-    routePreference: 'fastest',
-    stopFrequency: 'balanced',
-    tripPreferences: [],
-    targetArrivalHour: 21,
-    ...overrides,
-  };
-}
+import { makeSegment, makeSummary, makeSettings } from '../test/fixtures';
 
 // ==================== TESTS ====================
 
@@ -216,11 +143,10 @@ describe('calculateRouteConfidence', () => {
   });
 
   it('adds bonus for round trips', () => {
-    const baseline = calculateRouteConfidence(makeSummary(), makeSettings());
-    const roundTrip = calculateRouteConfidence(
-      makeSummary(),
-      makeSettings({ isRoundTrip: true }),
-    );
+    // Use a demanding route so baseline doesn't max out at 100 before the bonus
+    const demandingSummary = makeSummary({ totalDistanceKm: 1800, totalDurationMinutes: 900 });
+    const baseline = calculateRouteConfidence(demandingSummary, makeSettings({ isRoundTrip: false }));
+    const roundTrip = calculateRouteConfidence(demandingSummary, makeSettings({ isRoundTrip: true }));
     expect(roundTrip.score).toBeGreaterThan(baseline.score);
   });
 
