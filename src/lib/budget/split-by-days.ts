@@ -1,286 +1,7 @@
-import type {
-  TripBudget,
-  TripDay,
-  TripSettings,
-  RouteSegment,
-  Location,
-  CostBreakdown,
-  BudgetProfile,
-  BudgetWeights,
-} from '../types';
-import { interpolateRoutePosition } from './route-geocoder';
-
-// ==================== BUDGET WEIGHT PROFILES ====================
-// Each profile shifts where your money goes
-
-export const BUDGET_PROFILES: Record<BudgetProfile, { weights: BudgetWeights; label: string; emoji: string; description: string }> = {
-  balanced: {
-    weights: { gas: 25, hotel: 35, food: 30, misc: 10 },
-    label: 'Balanced',
-    emoji: '⚖️',
-    description: 'A little of everything. The sensible choice — until it isn\'t.',
-  },
-  foodie: {
-    weights: { gas: 20, hotel: 20, food: 50, misc: 10 },
-    label: 'Foodie',
-    emoji: '🍜',
-    description: 'Eat like royalty, sleep like a backpacker',
-  },
-  scenic: {
-    weights: { gas: 35, hotel: 35, food: 20, misc: 10 },
-    label: 'Scenic',
-    emoji: '🏔️',
-    description: 'Gas up, drive far, wake up somewhere worth it.',
-  },
-  backpacker: {
-    weights: { gas: 35, hotel: 25, food: 25, misc: 15 },
-    label: 'Backpacker',
-    emoji: '🎒',
-    description: 'Maximum kilometres per dollar. No regrets about the mattress.',
-  },
-  comfort: {
-    weights: { gas: 20, hotel: 45, food: 25, misc: 10 },
-    label: 'Comfort',
-    emoji: '✨',
-    description: 'You\'ve earned the nice room. Act accordingly.',
-  },
-  custom: {
-    weights: { gas: 25, hotel: 35, food: 30, misc: 10 },
-    label: 'Custom',
-    emoji: '🎛️',
-    description: 'Your trip, your rules. Set priorities that actually match how you travel.',
-  },
-};
-
-// Default budget values (CAD)
-export const DEFAULT_BUDGET: TripBudget = {
-  mode: 'open',
-  allocation: 'flexible',
-  profile: 'balanced',
-  weights: BUDGET_PROFILES.balanced.weights,
-  gas: 0,
-  hotel: 0,
-  food: 0,
-  misc: 0,
-  total: 0,
-};
-
-// Average cost estimates for planning
-export const COST_ESTIMATES = {
-  hotelPerNight: {
-    budget: 100,
-    moderate: 150,
-    comfort: 200,
-  },
-  mealPerDay: {
-    budget: 30,
-    moderate: 50,
-    comfort: 75,
-  },
-  gasPerKm: 0.12, // Rough estimate at $1.50/L and 8L/100km
-};
-
-/**
- * Apply weight profile to a total budget amount
- * Returns category amounts based on percentage weights
- */
-export function applyBudgetWeights(total: number, weights: BudgetWeights): Pick<TripBudget, 'gas' | 'hotel' | 'food' | 'misc'> {
-  const gas = Math.round(total * (weights.gas / 100));
-  const hotel = Math.round(total * (weights.hotel / 100));
-  const food = Math.round(total * (weights.food / 100));
-  const misc = total - gas - hotel - food; // Absorb rounding remainder
-  return { gas, hotel, food, misc };
-}
-
-/**
- * Calculate per-person cost
- */
-export function getPerPersonCost(total: number, numTravelers: number): number {
-  return numTravelers > 0 ? Math.round(total / numTravelers) : 0;
-}
-
-/**
- * Create a budget with smart defaults based on trip parameters
- */
-export function createSmartBudget(
-  totalDays: number,
-  totalDistanceKm: number,
-  numTravelers: number,
-  settings: TripSettings,
-  plannedNights?: number, // explicit overnight stops; defaults to totalDays - 1 if omitted
-): TripBudget {
-  const nights = plannedNights !== undefined
-    ? plannedNights
-    : Math.max(0, totalDays - 1);
-  const roomsNeeded = Math.ceil(numTravelers / 2);
-
-  // Estimate costs
-  const gasEstimate = totalDistanceKm * COST_ESTIMATES.gasPerKm;
-  const hotelEstimate = nights * roomsNeeded * settings.hotelPricePerNight;
-  const foodEstimate = totalDays * numTravelers * settings.mealPricePerDay;
-  const total = Math.round(gasEstimate + hotelEstimate + foodEstimate);
-
-  // Calculate actual weights based on estimates (misc absorbs rounding remainder)
-  let weights: BudgetWeights;
-  if (total > 0) {
-    const gasW = Math.round((gasEstimate / total) * 100);
-    const hotelW = Math.round((hotelEstimate / total) * 100);
-    const foodW = Math.round((foodEstimate / total) * 100);
-    weights = { gas: gasW, hotel: hotelW, food: foodW, misc: 100 - gasW - hotelW - foodW };
-  } else {
-    weights = BUDGET_PROFILES.balanced.weights;
-  }
-
-  return {
-    mode: 'open',
-    allocation: 'flexible',
-    profile: 'balanced',
-    weights,
-    gas: Math.round(gasEstimate),
-    hotel: Math.round(hotelEstimate),
-    food: Math.round(foodEstimate),
-    misc: 0,
-    total,
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Internal type & helper for long-segment splitting
-// ---------------------------------------------------------------------------
-
-/** RouteSegment extended with original-index tracking for split sub-segments. */
-type ProcessedSegment = RouteSegment & {
-  /** Index into the original `segments` array this sub-segment was derived from. */
-  _originalIndex: number;
-  /** Populated when the original segment was split; tracks which part this is. */
-  _transitPart?: { index: number; total: number };
-};
-
-/**
- * Pre-process the segments array so that any single segment whose
- * `durationMinutes` exceeds `maxDriveMinutes` is split into proportional
- * sub-segments, each fitting within one driving day.
- *
- * The `_originalIndex` field lets downstream code map back to the original
- * segment (important for `roundTripMidpoint` boundary detection).
- */
-function splitLongSegments(
-  segments: RouteSegment[],
-  maxDriveMinutes: number,
-  /**
-   * Actual OSRM road polyline for the outbound leg ([lat,lng][]).
-   * When provided, split-point coordinates walk along the real road instead
-   * of a straight line between the segment endpoints.
-   */
-  routeGeometry?: [number, number][],
-  /**
-   * Cumulative km from the route origin at the start of each segment.
-   * segKmStarts[i] = sum of distanceKm for segments[0..i-1].
-   */
-  segKmStarts?: number[],
-  /**
-   * Total km of the outbound leg (sum of outbound segment distances).
-   * Used to mirror return-leg split points onto the outbound geometry.
-   */
-  outboundTotalKm?: number,
-): ProcessedSegment[] {
-  const result: ProcessedSegment[] = [];
-
-  for (let origIdx = 0; origIdx < segments.length; origIdx++) {
-    const seg = segments[origIdx];
-
-    if (seg.durationMinutes <= maxDriveMinutes) {
-      result.push({ ...seg, _originalIndex: origIdx });
-      continue;
-    }
-
-    const numParts = Math.ceil(seg.durationMinutes / maxDriveMinutes);
-
-    // Pre-compute split-point locations.
-    // If fullGeometry is available we walk the actual road polyline;
-    // otherwise we fall back to straight-line interpolation.
-    const splitPoints: Location[] = [];
-    for (let sp = 0; sp < numParts - 1; sp++) {
-      // At this split boundary, what fraction of the segment has elapsed?
-      const timeFraction = (maxDriveMinutes * (sp + 1)) / seg.durationMinutes;
-      // Proportional km into this segment at the split boundary
-      const splitKmAlongSeg = timeFraction * seg.distanceKm;
-
-      let lat: number;
-      let lng: number;
-
-      if (routeGeometry && segKmStarts && outboundTotalKm !== undefined) {
-        const segKmStart = segKmStarts[origIdx] ?? 0;
-
-        // Map this split onto the outbound geometry.
-        // For outbound segments: walk forward from the route origin.
-        // For return segments: mirror back — the road is the same in reverse.
-        let kmOnOutbound: number;
-        if (segKmStart < outboundTotalKm) {
-          kmOnOutbound = segKmStart + splitKmAlongSeg;
-        } else {
-          // Return leg — distance from the return origin (destination city)
-          const kmFromReturnOrigin = (segKmStart - outboundTotalKm) + splitKmAlongSeg;
-          kmOnOutbound = outboundTotalKm - kmFromReturnOrigin;
-        }
-
-        const pos = interpolateRoutePosition(
-          routeGeometry as number[][],
-          Math.max(0, kmOnOutbound),
-        );
-        if (pos) {
-          lat = pos.lat;
-          lng = pos.lng;
-        } else {
-          // Geometry exhausted — fall back to straight-line
-          lat = seg.from.lat + timeFraction * (seg.to.lat - seg.from.lat);
-          lng = seg.from.lng + timeFraction * (seg.to.lng - seg.from.lng);
-        }
-      } else {
-        // No geometry provided — straight-line interpolation
-        lat = seg.from.lat + timeFraction * (seg.to.lat - seg.from.lat);
-        lng = seg.from.lng + timeFraction * (seg.to.lng - seg.from.lng);
-      }
-
-      splitPoints.push({
-        id: `transit-split-${origIdx}-${sp}`,
-        name: 'Overnight Stop', // placeholder — geocoded async after splitting
-        type: 'waypoint',
-        lat,
-        lng,
-      });
-    }
-
-    for (let part = 0; part < numParts; part++) {
-      const partMinutes =
-        part < numParts - 1
-          ? maxDriveMinutes
-          : seg.durationMinutes - maxDriveMinutes * (numParts - 1);
-      const ratio = partMinutes / seg.durationMinutes;
-
-      const fromLoc: Location = part === 0 ? seg.from : splitPoints[part - 1];
-      const toLoc: Location   = part === numParts - 1 ? seg.to : splitPoints[part];
-
-      result.push({
-        ...seg,
-        from: fromLoc,
-        to: toLoc,
-        _originalIndex: origIdx,
-        durationMinutes: Math.round(partMinutes),
-        distanceKm: Math.round(seg.distanceKm * ratio * 10) / 10,
-        fuelCost: Math.round(seg.fuelCost * ratio * 100) / 100,
-        fuelNeededLitres: Math.round(seg.fuelNeededLitres * ratio * 100) / 100,
-        // Only the first sub-segment inherits the departure time; only the
-        // last inherits the arrival time — intermediates have neither.
-        departureTime: part === 0 ? seg.departureTime : undefined,
-        arrivalTime: part === numParts - 1 ? seg.arrivalTime : undefined,
-        _transitPart: { index: part, total: numParts },
-      });
-    }
-  }
-
-  return result;
-}
+import type { RouteSegment, TripDay, TripSettings } from '../../types';
+import { splitLongSegments, type ProcessedSegment } from './segment-processor';
+import { createEmptyDay, finalizeTripDay } from './day-builder';
+import { getTimezoneOffset, getTimezoneName } from './timezone';
 
 // ---------------------------------------------------------------------------
 
@@ -422,14 +143,14 @@ export function splitTripByDays(
           : null;
         const destName = destination?.name || 'Destination';
 
-        for (let i = 0; i < freeDaysCount; i++) {
+        for (let j = 0; j < freeDaysCount; j++) {
           dayNumber++;
           const lastDay = days[days.length - 1];
           const freeDate = new Date(new Date(lastDay.date + 'T09:00:00').getTime() + 24 * 60 * 60 * 1000);
           const freeDay = createEmptyDay(dayNumber, freeDate);
           freeDay.route = `📍 ${destName}`;
           freeDay.dayType = 'free';
-          freeDay.title = i === 0 ? 'Explore!' : `Day ${i + 1} at ${destName}`;
+          freeDay.title = j === 0 ? 'Explore!' : `Day ${j + 1} at ${destName}`;
 
           const roomsNeeded = Math.ceil(settings.numTravelers / 2);
           const hotelCost = roomsNeeded * settings.hotelPricePerNight;
@@ -483,9 +204,6 @@ export function splitTripByDays(
     // We also trigger a new day *after* this segment if it's an explicit overnight stop
     const isOvernightStop = segment.stopType === 'overnight';
 
-    // Check for overnight stop type BEFORE adding to day, but wait wait wait
-    // We add it to the CURRENT day, so the segment belongs to this day.
-    
     // Check if we need to start a new day (max drive hours exceeded)
     // However, if the CURRENT segment is an overnight stop, we add it to THIS day, and then force a new day AFTER.
     // The overnight belongs to the day you drove — you check in at end of Day 1, so Day 1 pays for it.
@@ -591,13 +309,13 @@ export function splitTripByDays(
       // If the segment has an arrival time, the next day starts the morning after
       const arrivalBase = segment.arrivalTime ? new Date(segment.arrivalTime) : currentDate;
       currentDate = new Date(arrivalBase.getTime());
-      
+
       // If it's earlier than 9 AM, maybe it's the same morning. Generally, advance 1 day if we stopped overnight.
       // But `calculateArrivalTimes` already factored in the 8 hour stop.
       // Easiest is to force it to the next calendar morning.
       currentDate.setDate(currentDate.getDate() + 1);
       currentDate.setHours(computeTransitDepartureHour(settings), 0, 0, 0); // Backwards from target arrival
-      
+
       currentDay = createEmptyDay(dayNumber, currentDate);
       currentDay.totals.departureTime = currentDate.toISOString();
       currentDayDriveMinutes = 0;
@@ -645,13 +363,13 @@ export function splitTripByDays(
         foodRemaining -= lastDrivingDay.budget.foodEstimate;
       }
 
-      for (let i = 1; i < gapDays; i++) {
+      for (let k = 1; k < gapDays; k++) {
         dayNumber++;
-        const freeDate = new Date(lastDriveDate.getTime() + i * 24 * 60 * 60 * 1000);
+        const freeDate = new Date(lastDriveDate.getTime() + k * 24 * 60 * 60 * 1000);
         const freeDay = createEmptyDay(dayNumber, freeDate);
         freeDay.route = `📍 ${destName}`;
         freeDay.dayType = 'free';
-        freeDay.title = i === 1 ? 'Explore!' : `Day ${i} at ${destName}`;
+        freeDay.title = k === 1 ? 'Explore!' : `Day ${k} at ${destName}`;
 
         // Budget: food + hotel for free days (no gas)
         const roomsNeeded = Math.ceil(settings.numTravelers / 2);
@@ -686,198 +404,4 @@ export function splitTripByDays(
   }
 
   return days;
-}
-
-/**
- * Create an empty day structure
- */
-function createEmptyDay(dayNumber: number, date: Date): TripDay {
-  const dateStr = date.toISOString().split('T')[0];
-  const dateFormatted = date.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  });
-
-  return {
-    dayNumber,
-    date: dateStr,
-    dateFormatted,
-    route: '',
-    segments: [],
-    segmentIndices: [],
-    timezoneChanges: [],
-    budget: {
-      gasUsed: 0,
-      hotelCost: 0,
-      foodEstimate: 0,
-      miscCost: 0,
-      dayTotal: 0,
-      gasRemaining: 0,
-      hotelRemaining: 0,
-      foodRemaining: 0,
-    },
-    totals: {
-      distanceKm: 0,
-      driveTimeMinutes: 0,
-      stopTimeMinutes: 0,
-      departureTime: date.toISOString(),
-      arrivalTime: date.toISOString(),
-    },
-  };
-}
-
-/**
- * Finalize a trip day with calculated totals
- */
-function finalizeTripDay(
-  day: TripDay,
-  gasRemaining: number,
-  hotelRemaining: number,
-  foodRemaining: number,
-  settings: TripSettings
-): void {
-  if (day.segments.length === 0) return;
-
-  // Calculate route string
-  const firstStop = day.segments[0].from.name;
-  const lastStop = day.segments[day.segments.length - 1].to.name;
-  day.route = `${firstStop} → ${lastStop}`;
-
-  // Calculate totals
-  day.totals.distanceKm = day.segments.reduce((sum, s) => sum + s.distanceKm, 0);
-  day.totals.driveTimeMinutes = day.segments.reduce((sum, s) => sum + s.durationMinutes, 0);
-  day.totals.stopTimeMinutes = day.segments.reduce((sum, s) => sum + (s.stopDuration || 0), 0);
-
-  // Get departure and arrival times from segments
-  const firstSegment = day.segments[0];
-  const lastSegment = day.segments[day.segments.length - 1];
-
-  // Use segment times only if not already stamped (day-splits stamp intended departure above)
-  if (firstSegment?.departureTime && !day.totals.departureTime) {
-    day.totals.departureTime = firstSegment.departureTime;
-  }
-  if (lastSegment?.arrivalTime) {
-    day.totals.arrivalTime = lastSegment.arrivalTime;
-  }
-
-  // Calculate budget
-  const gasUsed = day.segments.reduce((sum, s) => sum + s.fuelCost, 0);
-  const hotelCost = day.overnight?.cost || 0;
-  const mealsToday = estimateMealsForDay(day, settings);
-  const foodEstimate = mealsToday * settings.mealPricePerDay / 3; // Per meal
-
-  day.budget = {
-    gasUsed: Math.round(gasUsed * 100) / 100,
-    hotelCost,
-    foodEstimate: Math.round(foodEstimate * 100) / 100,
-    miscCost: 0,
-    dayTotal: Math.round((gasUsed + hotelCost + foodEstimate) * 100) / 100,
-    gasRemaining: Math.round((gasRemaining - gasUsed) * 100) / 100,
-    hotelRemaining: Math.round((hotelRemaining - hotelCost) * 100) / 100,
-    foodRemaining: Math.round((foodRemaining - foodEstimate) * 100) / 100,
-  };
-}
-
-/**
- * Estimate number of meals needed for a day based on drive time and stops
- */
-function estimateMealsForDay(day: TripDay, settings: TripSettings): number {
-  const mealStops = day.segments.filter(s =>
-    s.stopType === 'meal' || s.stopType === 'quickMeal'
-  ).length;
-
-  // At least count meal stops, plus estimate based on day length
-  const driveHours = day.totals.driveTimeMinutes / 60;
-  const estimatedMeals = Math.ceil(driveHours / 4); // One meal per 4 hours of travel
-
-  return Math.max(mealStops, estimatedMeals) * settings.numTravelers;
-}
-
-/**
- * Calculate overall cost breakdown for the trip
- */
-export function calculateCostBreakdown(
-  days: TripDay[],
-  numTravelers: number
-): CostBreakdown {
-  const fuel = days.reduce((sum, d) => sum + d.budget.gasUsed, 0);
-  const accommodation = days.reduce((sum, d) => sum + d.budget.hotelCost, 0);
-  const meals = days.reduce((sum, d) => sum + d.budget.foodEstimate, 0);
-  const misc = days.reduce((sum, d) => sum + d.budget.miscCost, 0);
-  const total = fuel + accommodation + meals + misc;
-
-  return {
-    fuel: Math.round(fuel * 100) / 100,
-    accommodation: Math.round(accommodation * 100) / 100,
-    meals: Math.round(meals * 100) / 100,
-    misc: Math.round(misc * 100) / 100,
-    total: Math.round(total * 100) / 100,
-    perPerson: numTravelers > 0 ? Math.round((total / numTravelers) * 100) / 100 : Math.round(total * 100) / 100,
-  };
-}
-
-/**
- * Determine budget status based on planned vs actual
- */
-export function getBudgetStatus(
-  budget: TripBudget,
-  costBreakdown: CostBreakdown
-): 'under' | 'at' | 'over' {
-  if (budget.mode === 'open' || budget.total === 0) return 'under';
-
-  const diff = budget.total - costBreakdown.total;
-  if (diff > budget.total * 0.1) return 'under'; // More than 10% under
-  if (diff < 0) return 'over';
-  return 'at';
-}
-
-/**
- * Get timezone offset between two timezone abbreviations
- * Simplified for common North American timezones
- */
-function getTimezoneOffset(from: string, to: string): number {
-  const offsets: Record<string, number> = {
-    'PST': -8, 'PDT': -7,
-    'MST': -7, 'MDT': -6,
-    'CST': -6, 'CDT': -5,
-    'EST': -5, 'EDT': -4,
-  };
-
-  const fromOffset = offsets[from] || 0;
-  const toOffset = offsets[to] || 0;
-  return toOffset - fromOffset;
-}
-
-/**
- * Get full timezone name from abbreviation
- */
-function getTimezoneName(abbr: string): string {
-  const names: Record<string, string> = {
-    'PST': 'Pacific Standard Time',
-    'PDT': 'Pacific Daylight Time',
-    'MST': 'Mountain Standard Time',
-    'MDT': 'Mountain Daylight Time',
-    'CST': 'Central Standard Time',
-    'CDT': 'Central Daylight Time',
-    'EST': 'Eastern Standard Time',
-    'EDT': 'Eastern Daylight Time',
-  };
-  return names[abbr] || `${abbr} Time Zone`;
-}
-
-/**
- * Format budget remaining with status indicator
- */
-export function formatBudgetRemaining(remaining: number): {
-  text: string;
-  status: 'good' | 'warning' | 'over';
-} {
-  if (remaining > 0) {
-    return { text: `$${remaining.toFixed(0)} remaining`, status: 'good' };
-  } else if (remaining === 0) {
-    return { text: 'Budget reached', status: 'warning' };
-  } else {
-    return { text: `$${Math.abs(remaining).toFixed(0)} over`, status: 'over' };
-  }
 }
