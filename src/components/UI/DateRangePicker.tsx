@@ -275,7 +275,7 @@ export function DateRangePicker({
 
       {/* ── Calendar panel ── */}
       {isOpen && (
-        <div className="absolute left-0 right-0 z-50 mt-2 border border-border rounded-2xl bg-background shadow-xl overflow-hidden">
+        <div className="absolute left-0 z-50 mt-2 border border-border rounded-2xl bg-background shadow-xl overflow-hidden" style={{ minWidth: '580px' }}>
 
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border/60 bg-muted/30">

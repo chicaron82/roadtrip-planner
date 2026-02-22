@@ -171,7 +171,7 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip,
             margin: '0 0 14px',
             fontWeight: 300,
           }}>
-            Not just a planner. Built on 18 years of bad ideas that turned out great.
+            Start planning. Get driving. Enjoy your MEE time.
           </p>
 
           {/* Active Session Resume Button - Only show if a session was rehydrated */}
@@ -350,35 +350,24 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip,
             letterSpacing: '0.1em',
             margin: 0,
           }}>
-            My Experience Engine™ · Built by Aaron "Chicharon" with help from the crew.
-          </p>
-
-          {/* Continue saved trip */}
-          {hasSavedTrip && onContinueSavedTrip && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsExiting(true);
-                setTimeout(() => onContinueSavedTrip(), 600);
-              }}
+            My Experience Engine™ · Built by Aaron "Chicharon" with help from the{' '}
+            <a
+              href="https://chicaron82.github.io/Version-848/#who"
+              target="_blank"
+              rel="noopener noreferrer"
               style={{
-                fontFamily: "'DM Mono', monospace",
-                fontSize: '10px',
-                color: 'rgba(255,255,255,0.12)',
-                letterSpacing: '0.08em',
-                margin: '6px 0 0',
-                cursor: 'pointer',
+                color: 'rgba(255,255,255,0.35)',
+                textDecoration: 'underline',
+                textDecorationColor: 'rgba(255,255,255,0.15)',
+                textUnderlineOffset: '3px',
                 transition: 'color 0.2s',
-                background: 'none',
-                border: 'none',
-                padding: 0,
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.3)')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.12)')}
+              onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.6)')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.35)')}
             >
-              Continue a Saved Trip →
-            </button>
-          )}
+              United Voices 7 (UV7) crew
+            </a>.
+          </p>
 
           {/* Live route dots */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
