@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import type { Location, Vehicle, TripSettings, TripSummary } from '../types';
 import { calculateRoute } from '../lib/api';
 import {
@@ -16,6 +16,7 @@ import {
 import { fetchWeather } from '../lib/weather';
 import { addToHistory } from '../lib/storage';
 import { serializeStateToURL } from '../lib/url';
+import { reverseGeocodeTown } from '../lib/route-geocoder';
 
 interface UseTripCalculationOptions {
   locations: Location[];
@@ -67,9 +68,18 @@ export function useTripCalculation({
   // Store summary locally for updateStopType
   const [localSummary, setLocalSummary] = useState<TripSummary | null>(null);
 
+  // Abort controller for background overnight-stop geocoding.
+  // Cancelled when a new calculation starts so stale results never overwrite.
+  const geocodeAbortRef = useRef<AbortController | null>(null);
+
   const calculateTrip = useCallback(async (): Promise<TripSummary | null> => {
     setIsCalculating(true);
     setError(null);
+
+    // Cancel any in-progress geocoding from a prior calculation.
+    geocodeAbortRef.current?.abort();
+    const geocodeController = new AbortController();
+    geocodeAbortRef.current = geocodeController;
 
     try {
       const routeData = await calculateRoute(locations, {
@@ -213,6 +223,58 @@ export function useTripCalculation({
       setLocalSummary(tripSummary);
       onSummaryChange(tripSummary);
       onCalculationComplete?.();
+
+      // ── Async overnight-stop geocoding (fire-and-forget) ──────────────
+      // Transit split overnight locations start with name='Overnight Stop'
+      // and linearly-interpolated lat/lng.  Resolve them to real city names
+      // after emitting the initial summary so the UI isn't blocked.
+      const transitDays = tripDays.filter(
+        d => d.overnight?.location.name === 'Overnight Stop'
+      );
+      if (transitDays.length > 0) {
+        (async () => {
+          const enriched = tripDays.map(d => ({ ...d })); // shallow clone per day
+          let changed = false;
+
+          for (let i = 0; i < transitDays.length; i++) {
+            if (geocodeController.signal.aborted) break;
+
+            const day = transitDays[i];
+            if (!day.overnight) continue;
+
+            const { lat, lng } = day.overnight.location;
+            const town = await reverseGeocodeTown(lat, lng, geocodeController.signal);
+
+            if (town && !geocodeController.signal.aborted) {
+              const idx = enriched.findIndex(d => d.dayNumber === day.dayNumber);
+              if (idx >= 0) {
+                const firstFrom = enriched[idx].segments[0]?.from.name ?? '';
+                enriched[idx] = {
+                  ...enriched[idx],
+                  route: `${firstFrom} \u2192 ${town}`,
+                  overnight: {
+                    ...enriched[idx].overnight!,
+                    location: { ...enriched[idx].overnight!.location, name: town },
+                  },
+                };
+                changed = true;
+              }
+            }
+
+            // Nominatim usage policy: max 1 req/sec
+            if (i < transitDays.length - 1) {
+              await new Promise<void>(r => setTimeout(r, 1100));
+            }
+          }
+
+          if (changed && !geocodeController.signal.aborted) {
+            const updatedSummary = { ...tripSummary, days: enriched };
+            setLocalSummary(updatedSummary);
+            onSummaryChange(updatedSummary);
+          }
+        })();
+      }
+      // ─────────────────────────────────────────────────────────────────
 
       return tripSummary;
     } catch (e) {

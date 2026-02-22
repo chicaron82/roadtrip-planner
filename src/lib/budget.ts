@@ -3,6 +3,7 @@ import type {
   TripDay,
   TripSettings,
   RouteSegment,
+  Location,
   CostBreakdown,
   BudgetProfile,
   BudgetWeights,
@@ -177,6 +178,23 @@ function splitLongSegments(
     }
 
     const numParts = Math.ceil(seg.durationMinutes / maxDriveMinutes);
+
+    // Pre-compute linearly-interpolated split-point locations so each
+    // sub-segment has a distinct from/to with real approximate coordinates.
+    // These are straight-line interpolations between the segment endpoints —
+    // good enough for reverse-geocoding a nearby city name.
+    const splitPoints: Location[] = [];
+    for (let sp = 0; sp < numParts - 1; sp++) {
+      const f = (maxDriveMinutes * (sp + 1)) / seg.durationMinutes; // 0..1
+      splitPoints.push({
+        id: `transit-split-${origIdx}-${sp}`,
+        name: 'Overnight Stop',        // placeholder — geocoded async after splitting
+        type: 'waypoint',
+        lat: seg.from.lat + f * (seg.to.lat - seg.from.lat),
+        lng: seg.from.lng + f * (seg.to.lng - seg.from.lng),
+      });
+    }
+
     for (let part = 0; part < numParts; part++) {
       const partMinutes =
         part < numParts - 1
@@ -184,8 +202,13 @@ function splitLongSegments(
           : seg.durationMinutes - maxDriveMinutes * (numParts - 1);
       const ratio = partMinutes / seg.durationMinutes;
 
+      const fromLoc: Location = part === 0 ? seg.from : splitPoints[part - 1];
+      const toLoc: Location   = part === numParts - 1 ? seg.to : splitPoints[part];
+
       result.push({
         ...seg,
+        from: fromLoc,
+        to: toLoc,
         _originalIndex: origIdx,
         durationMinutes: Math.round(partMinutes),
         distanceKm: Math.round(seg.distanceKm * ratio * 10) / 10,
