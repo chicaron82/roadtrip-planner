@@ -8,6 +8,7 @@ import { ChallengeCards } from '../Trip/ChallengeCards';
 import { Button } from '../UI/Button';
 import { Input } from '../UI/Input';
 import { Label } from '../UI/Label';
+import { DateRangePicker } from '../UI/DateRangePicker';
 
 const MODE_HEADERS: Record<TripMode, { title: string; subtitle: string }> = {
   plan: { title: 'Where are you going?', subtitle: 'Add your starting point, destination, and any stops along the way.' },
@@ -73,29 +74,15 @@ export function Step1Content({
           When?
         </h3>
 
-        {/* Date Range — Departure + Return */}
-        <div className="grid grid-cols-2 gap-3 mb-3">
-          <div>
-            <Label htmlFor="depDate" className="text-xs">Departure Date</Label>
-            <Input
-              id="depDate"
-              type="date"
-              value={settings.departureDate}
-              onChange={(e) => setSettings((prev) => ({ ...prev, departureDate: e.target.value }))}
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <Label htmlFor="returnDate" className="text-xs">Return Date</Label>
-            <Input
-              id="returnDate"
-              type="date"
-              value={settings.returnDate}
-              min={settings.departureDate}
-              onChange={(e) => setSettings((prev) => ({ ...prev, returnDate: e.target.value }))}
-              className="mt-1"
-            />
-          </div>
+        {/* Date Range — single calendar range picker */}
+        <div className="mb-3">
+          <DateRangePicker
+            startDate={settings.departureDate}
+            endDate={settings.returnDate}
+            onChange={(start, end) =>
+              setSettings((prev) => ({ ...prev, departureDate: start, returnDate: end }))
+            }
+          />
         </div>
 
         {/* Time + Arrive By toggle */}
