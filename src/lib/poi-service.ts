@@ -6,12 +6,15 @@ const OVERPASS_API = 'https://overpass-api.de/api/interpreter';
 // Destination search radius (50km around destination city center)
 const DESTINATION_RADIUS = 50000;
 
-// Delay between corridor and destination queries to avoid 429 (ms)
-const INTER_QUERY_DELAY = 1500;
+// Delay between sequential Overpass queries to avoid 429 (ms)
+const INTER_QUERY_DELAY = 2500;
+
+// Delay between corridor and park-relation queries when run sequentially
+const INTRA_FETCH_DELAY = 1500;
 
 // Max Overpass retries on 429 (rate limit)
-const MAX_RETRIES = 2;
-const RETRY_DELAY_MS = 2000;
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 3000;
 
 // ==================== SESSION CACHE ====================
 // Prevents hammering Overpass with repeat queries for the same route.
@@ -26,6 +29,13 @@ interface POICacheEntry {
 }
 
 const POI_SESSION_CACHE = new Map<string, POICacheEntry>();
+
+/**
+ * In-flight deduplication — if two fetchPOISuggestions calls arrive for the
+ * same cache key before the first resolves, share the same promise instead
+ * of firing a second set of Overpass queries.
+ */
+const POI_IN_FLIGHT = new Map<string, Promise<POISuggestionGroup>>();
 
 /**
  * Lightweight route geometry hash: round coords to 2dp (~1km precision),
@@ -285,8 +295,12 @@ async function executeOverpassQuery(query: string): Promise<OverpassElement[]> {
       });
 
       if (response.status === 429 && attempt < MAX_RETRIES) {
-        console.warn(`Overpass 429 rate limit — retrying in ${RETRY_DELAY_MS * (attempt + 1)}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
-        await delay(RETRY_DELAY_MS * (attempt + 1));
+        // Exponential backoff with ±20% jitter to spread retries
+        const base = RETRY_DELAY_MS * Math.pow(2, attempt);
+        const jitter = base * 0.2 * (Math.random() - 0.5);
+        const wait = Math.round(base + jitter);
+        console.warn(`Overpass 429 rate limit — retrying in ${wait}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+        await delay(wait);
         continue;
       }
 
@@ -426,12 +440,12 @@ function getRelevantCategories(tripPreferences: TripPreference[]): POISuggestion
  *
  * Makes THREE Overpass API calls:
  *  1. Corridor query — node+way for all categories, single union bbox
- *  2. Park relation query — concurrent with corridor, targeted around: sample
+ *  2. Park relation query — sequential (delayed), targeted around: sample
  *     points for boundary=protected_area relations (provincial/national parks)
  *  3. Destination query — all categories in one around: query
  *
- * Calls 1 and 2 run concurrently (both are fast independently).
- * Call 3 runs after a delay to stay under Overpass rate limits.
+ * All three run sequentially with delays to stay friendly to Overpass rate limits.
+ * Concurrent calls for the same route key share a single in-flight promise.
  */
 export async function fetchPOISuggestions(
   routeGeometry: [number, number][],
@@ -439,8 +453,6 @@ export async function fetchPOISuggestions(
   destination: Location,
   tripPreferences: TripPreference[]
 ): Promise<POISuggestionGroup> {
-  const startTime = performance.now();
-
   // ── Cache check — skip Overpass entirely if we've fetched this route recently ──
   const cacheKey = hashRouteKey(routeGeometry, destination, tripPreferences);
   const cached = getCachedPOIs(cacheKey);
@@ -449,14 +461,34 @@ export async function fetchPOISuggestions(
     return cached;
   }
 
-  // Determine relevant categories from user preferences
-  const categories = getRelevantCategories(tripPreferences);
+  // ── In-flight dedup — share a single promise if the same key is already fetching ──
+  const inFlight = POI_IN_FLIGHT.get(cacheKey);
+  if (inFlight) {
+    console.info('POI fetch already in flight for this route — sharing promise');
+    return inFlight;
+  }
 
+  const fetchPromise = _doFetchPOISuggestions(cacheKey, routeGeometry, origin, destination, tripPreferences);
+  POI_IN_FLIGHT.set(cacheKey, fetchPromise);
+  fetchPromise.finally(() => POI_IN_FLIGHT.delete(cacheKey));
+  return fetchPromise;
+}
+
+/** Internal implementation — called only once per unique in-flight key. */
+async function _doFetchPOISuggestions(
+  cacheKey: string,
+  routeGeometry: [number, number][],
+  origin: Location,
+  destination: Location,
+  tripPreferences: TripPreference[]
+): Promise<POISuggestionGroup> {
+  const startTime = performance.now();
+
+  const categories = getRelevantCategories(tripPreferences);
   const routeDistanceKm = estimateRouteDistanceKm(routeGeometry);
 
   // ── Queries 1 + 2: Corridor (node/way bbox) + Park relations (sampled around:) ──
-  // Run concurrently — park relation query uses small targeted circles so it's
-  // fast and won't contend with the corridor bbox query.
+  // Run sequentially with a short pause to avoid simultaneous 429s.
   const bbox = computeRouteBbox(routeGeometry, 15);
   const corridorQuery = buildCorridorQuery(bbox, categories);
 
@@ -464,14 +496,13 @@ export async function fetchPOISuggestions(
   const stepKm = Math.max(40, routeDistanceKm / 12);
   const samplePoints = sampleRouteByKm(routeGeometry, stepKm);
 
-  const parkQueryPromise = categories.includes('park') && samplePoints.length > 0
-    ? executeOverpassQuery(buildParkRelationQuery(samplePoints))
-    : Promise.resolve<OverpassElement[]>([]);
+  const corridorElements = await executeOverpassQuery(corridorQuery);
 
-  const [corridorElements, parkRelationElements] = await Promise.all([
-    executeOverpassQuery(corridorQuery),
-    parkQueryPromise,
-  ]);
+  let parkRelationElements: OverpassElement[] = [];
+  if (categories.includes('park') && samplePoints.length > 0) {
+    await delay(INTRA_FETCH_DELAY);
+    parkRelationElements = await executeOverpassQuery(buildParkRelationQuery(samplePoints));
+  }
 
   const toPOI = (bucket: 'along-way') => (el: OverpassElement): POISuggestion | null => {
     const poi = overpassElementToPOI(el);

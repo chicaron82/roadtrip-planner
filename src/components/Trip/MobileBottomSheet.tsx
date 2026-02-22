@@ -16,6 +16,7 @@ import { cn } from '../../lib/utils';
 import { formatDistance, formatDuration, formatCurrency } from '../../lib/calculations';
 import type { TripSummary, TripSettings } from '../../types';
 import { Button } from '../UI/Button';
+import type { ViewMode } from './JournalModeToggle';
 
 // ==================== SNAP POINTS ====================
 
@@ -48,6 +49,7 @@ interface MobileBottomSheetProps {
   onGoBack: () => void;
   children: React.ReactNode;
   poiBar?: React.ReactNode;
+  viewMode?: ViewMode;
   className?: string;
 }
 
@@ -60,6 +62,7 @@ export function MobileBottomSheet({
   onGoBack,
   children,
   poiBar,
+  viewMode,
   className,
 }: MobileBottomSheetProps) {
   const [snap, setSnap] = useState<SnapPoint>('peek');
@@ -67,12 +70,24 @@ export function MobileBottomSheet({
   const sheetRef = useRef<HTMLDivElement>(null);
   const dragStartY = useRef<number>(0);
   const dragStartTranslate = useRef<number>(0);
+  const preJournalSnap = useRef<SnapPoint>('half');
 
   // Auto-advance peek → half after 1.5s so route animation is visible first
   useEffect(() => {
     const timer = setTimeout(() => setSnap('half'), 1500);
     return () => clearTimeout(timer);
   }, []);
+
+  // Journal mode → snap to full (map hidden); exit → restore prior snap
+  useEffect(() => {
+    if (viewMode === 'journal') {
+      preJournalSnap.current = snap === 'peek' ? 'half' : snap;
+      setSnap('full');
+    } else if (viewMode === 'plan') {
+      setSnap(preJournalSnap.current);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode]);
 
   // ── Drag handling ──────────────────────────────────────────────────────────
 

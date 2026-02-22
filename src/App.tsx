@@ -880,6 +880,7 @@ function AppContent() {
             settings={settings}
             onReset={resetTrip}
             onGoBack={goToPrevStep}
+            viewMode={viewMode}
             poiBar={
               <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
                 {markerCategories.map(cat => (
