@@ -226,11 +226,11 @@ export function useTripCalculation({
       onCalculationComplete?.();
 
       // ── Async overnight-stop geocoding (fire-and-forget) ──────────────
-      // Transit split overnight locations start with name='Overnight Stop'
+      // Transit split overnight locations have id='transit-split-N-M'
       // and linearly-interpolated lat/lng.  Resolve them to real city names
       // after emitting the initial summary so the UI isn't blocked.
       const transitDays = tripDays.filter(
-        d => d.overnight?.location.name === 'Overnight Stop'
+        d => d.overnight?.location.id?.startsWith('transit-split-')
       );
       if (transitDays.length > 0) {
         (async () => {
@@ -250,14 +250,47 @@ export function useTripCalculation({
               const idx = enriched.findIndex(d => d.dayNumber === day.dayNumber);
               if (idx >= 0) {
                 const firstFrom = enriched[idx].segments[0]?.from.name ?? '';
+                const clonedSegments = [...enriched[idx].segments];
+                if (clonedSegments.length > 0) {
+                  // The last segment is the one leading to the overnight stop
+                  const lastSegIdx = clonedSegments.length - 1;
+                  clonedSegments[lastSegIdx] = {
+                    ...clonedSegments[lastSegIdx],
+                    to: { ...clonedSegments[lastSegIdx].to, name: town }
+                  };
+                }
+
                 enriched[idx] = {
                   ...enriched[idx],
                   route: `${firstFrom} \u2192 ${town}`,
+                  segments: clonedSegments,
                   overnight: {
                     ...enriched[idx].overnight!,
                     location: { ...enriched[idx].overnight!.location, name: town },
                   },
                 };
+                
+                // Also update the starting location of the NEXT day
+                if (idx + 1 < enriched.length) {
+                  const nextDay = enriched[idx + 1];
+                  // Only update if it currently says 'Overnight Stop' to avoid overwriting real names
+                  // if they somehow already have one.
+                  const nextClonedSegments = [...nextDay.segments];
+                  if (nextClonedSegments.length > 0 && nextClonedSegments[0].from.name === 'Overnight Stop') {
+                    nextClonedSegments[0] = {
+                      ...nextClonedSegments[0],
+                      from: { ...nextClonedSegments[0].from, name: town }
+                    };
+                    
+                    const nextLastTo = nextClonedSegments[nextClonedSegments.length - 1]?.to.name ?? 'Destination';
+                    enriched[idx + 1] = {
+                      ...nextDay,
+                      route: `${town} \u2192 ${nextLastTo}`,
+                      segments: nextClonedSegments
+                    };
+                  }
+                }
+                
                 changed = true;
               }
             }

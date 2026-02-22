@@ -6,20 +6,43 @@ import { getTimezoneOffset, getTimezoneName } from './timezone';
 // ---------------------------------------------------------------------------
 
 /**
- * Compute the ideal departure hour for a transit day (days 2+) so the crew
- * arrives by `settings.targetArrivalHour`. Clamped between 5 AM (nobody leaves
- * earlier) and 10 AM (no leisurely midday starts for long hauls).
+ * Compute the ideal departure hour for a transit day so the crew arrives by
+ * `settings.targetArrivalHour`, scaled to how much driving is *actually* left
+ * for that specific day (not always the maximum).
  *
- *   depart = clamp(targetArrivalHour − maxDriveHours, 5, 10)
+ * Full-day legs (≥75% of maxDriveHours): capped at 10 AM — can't dawdle.
+ * Short final legs (<75%): allowed up to 6 PM — no sense waking at 5 AM for a 3h drive.
  *
  * Examples using the 9 PM default target:
- *   8h  drive → clamp(13, 5, 10) = 10 → depart 10 AM, arrive 6 PM
- *   12h drive → clamp( 9, 5, 10) =  9 → depart  9 AM, arrive 9 PM ✅
- *   16h drive → clamp( 5, 5, 10) =  5 → depart  5 AM, arrive 9 PM ✅
+ *   16h drive → clamp(21−16, 5, 10) =  5 AM → arrive 9 PM ✅
+ *    8h drive → clamp(21− 8, 5, 10) = 10 AM → arrive 6 PM ✅
+ *    3h drive → clamp(21− 3, 5, 18) =  6 PM → arrive 9 PM ✅ (was wrongly 5 AM)
  */
-function computeTransitDepartureHour(settings: TripSettings): number {
+function computeSmartDepartureHour(settings: TripSettings, actualDriveHours: number): number {
   const { targetArrivalHour = 21, maxDriveHours } = settings;
-  return Math.max(5, Math.min(10, Math.round(targetArrivalHour - maxDriveHours)));
+  const isFullDay = actualDriveHours >= maxDriveHours * 0.75;
+  const maxDeparture = isFullDay ? 10 : 18; // short legs: allow up to 6 PM start
+  return Math.max(5, Math.min(maxDeparture, Math.round(targetArrivalHour - actualDriveHours)));
+}
+
+/**
+ * Look ahead from `fromIndex` in the processed segments array and accumulate
+ * drive minutes for the *next* day — stopping when a new day boundary would
+ * be triggered (accumulated + next segment > maxDriveMinutes) or when segments
+ * run out. Used to compute the smart departure hour for the upcoming day.
+ */
+function getNextDayDriveMinutes(
+  segments: ProcessedSegment[],
+  fromIndex: number,
+  maxDriveMinutes: number,
+): number {
+  let accumulated = 0;
+  for (let i = fromIndex; i < segments.length; i++) {
+    const m = segments[i].durationMinutes;
+    if (accumulated > 0 && accumulated + m > maxDriveMinutes) break;
+    accumulated += m;
+  }
+  return accumulated;
 }
 
 /** Minimum hours of rest guaranteed between estimated Day-N arrival and Day-(N+1) departure. */
@@ -115,9 +138,9 @@ export function splitTripByDays(
         }
 
         finalizeTripDay(currentDay, gasRemaining, hotelRemaining, foodRemaining, settings);
-        gasRemaining -= currentDay.budget.gasUsed;
-        hotelRemaining -= currentDay.budget.hotelCost;
-        foodRemaining -= currentDay.budget.foodEstimate;
+        gasRemaining = currentDay.budget.gasRemaining;
+        hotelRemaining = currentDay.budget.hotelRemaining;
+        foodRemaining = currentDay.budget.foodRemaining;
         days.push(currentDay);
         currentDay = null;
         currentDayDriveMinutes = 0;
@@ -188,7 +211,8 @@ export function splitTripByDays(
       // Set up for the return leg — next morning after free days
       dayNumber++;
       currentDate = new Date(new Date(days[days.length - 1].date + 'T09:00:00').getTime() + 24 * 60 * 60 * 1000);
-      currentDate.setHours(computeTransitDepartureHour(settings), 0, 0, 0);
+      const returnLegHours = getNextDayDriveMinutes(processedSegments, i, maxDriveMinutes) / 60;
+      currentDate.setHours(computeSmartDepartureHour(settings, returnLegHours), 0, 0, 0);
       currentDay = createEmptyDay(dayNumber, currentDate);
       currentDay.totals.departureTime = currentDate.toISOString(); // Auto-computed return leg departure
       currentDayDriveMinutes = 0;
@@ -231,10 +255,10 @@ export function splitTripByDays(
         currentDay.title = `In Transit to ${destName} (Day ${lastPS._transitPart.index + 1}/${lastPS._transitPart.total})`;
       }
 
-      // Update running totals
-      gasRemaining -= currentDay.budget.gasUsed;
-      hotelRemaining -= currentDay.budget.hotelCost;
-      foodRemaining -= currentDay.budget.foodEstimate;
+      // Update running totals for the NEXT day
+      gasRemaining = currentDay.budget.gasRemaining;
+      hotelRemaining = currentDay.budget.hotelRemaining;
+      foodRemaining = currentDay.budget.foodRemaining;
 
       days.push(currentDay);
 
@@ -245,15 +269,17 @@ export function splitTripByDays(
       // Day 1 departs late and drives through the night (e.g. 10 PM → arrives 8 AM → must
       // not depart 9 AM that same morning with only 1 h of rest).
       const estimatedDayArrival = new Date(currentDate.getTime() + currentDayDriveMinutes * 60 * 1000);
-      // Try the standard departure hour on the same calendar day as arrival.
+      // Try the smart departure hour on the same calendar day as arrival.
+      // Use how much driving is actually left (not the max) so short final legs get later starts.
+      const nextDayHours = getNextDayDriveMinutes(processedSegments, i, maxDriveMinutes) / 60;
       const nextDayCandidate = new Date(estimatedDayArrival);
-      nextDayCandidate.setHours(computeTransitDepartureHour(settings), 0, 0, 0);
+      nextDayCandidate.setHours(computeSmartDepartureHour(settings, nextDayHours), 0, 0, 0);
       // Guard: departure must be ≥ MIN_REST_HOURS after estimated arrival.
       const earliestDeparture = new Date(estimatedDayArrival.getTime() + MIN_REST_HOURS * 60 * 60 * 1000);
       if (nextDayCandidate < earliestDeparture) {
-        // Not enough rest this day — push to the next calendar day at the standard hour.
+        // Not enough rest this day — push to the next calendar day at the smart hour.
         nextDayCandidate.setDate(nextDayCandidate.getDate() + 1);
-        nextDayCandidate.setHours(computeTransitDepartureHour(settings), 0, 0, 0);
+        nextDayCandidate.setHours(computeSmartDepartureHour(settings, nextDayHours), 0, 0, 0);
       }
       currentDate = nextDayCandidate;
       currentDay = createEmptyDay(dayNumber, currentDate);
@@ -298,9 +324,9 @@ export function splitTripByDays(
       // Finalize current day consisting of segments up to this overnight stop
       finalizeTripDay(currentDay, gasRemaining, hotelRemaining, foodRemaining, settings);
 
-      gasRemaining -= currentDay.budget.gasUsed;
-      hotelRemaining -= currentDay.budget.hotelCost;
-      foodRemaining -= currentDay.budget.foodEstimate;
+      gasRemaining = currentDay.budget.gasRemaining;
+      hotelRemaining = currentDay.budget.hotelRemaining;
+      foodRemaining = currentDay.budget.foodRemaining;
 
       days.push(currentDay);
 
@@ -314,7 +340,8 @@ export function splitTripByDays(
       // But `calculateArrivalTimes` already factored in the 8 hour stop.
       // Easiest is to force it to the next calendar morning.
       currentDate.setDate(currentDate.getDate() + 1);
-      currentDate.setHours(computeTransitDepartureHour(settings), 0, 0, 0); // Backwards from target arrival
+      const overnightNextDayHours = getNextDayDriveMinutes(processedSegments, i + 1, maxDriveMinutes) / 60;
+      currentDate.setHours(computeSmartDepartureHour(settings, overnightNextDayHours), 0, 0, 0); // Smart: based on remaining drive hours
 
       currentDay = createEmptyDay(dayNumber, currentDate);
       currentDay.totals.departureTime = currentDate.toISOString();
@@ -358,9 +385,6 @@ export function splitTripByDays(
         gasRemaining += lastDrivingDay.budget.gasUsed;
         foodRemaining += lastDrivingDay.budget.foodEstimate;
         finalizeTripDay(lastDrivingDay, gasRemaining, hotelRemaining, foodRemaining, settings);
-        gasRemaining -= lastDrivingDay.budget.gasUsed;
-        hotelRemaining -= lastDrivingDay.budget.hotelCost;
-        foodRemaining -= lastDrivingDay.budget.foodEstimate;
       }
 
       for (let k = 1; k < gapDays; k++) {

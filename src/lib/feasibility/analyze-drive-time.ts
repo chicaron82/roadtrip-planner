@@ -78,6 +78,26 @@ export function analyzeDriverFatigue(
     }
   }
 
+  // Per-driver shift breakdown — show how the driving is distributed when rotating
+  if (settings.numDrivers >= 2) {
+    const drivingDays = days.filter(d => d.totals.driveTimeMinutes >= 120);
+    for (const day of drivingDays) {
+      const perDriverMinutes = Math.round(day.totals.driveTimeMinutes / settings.numDrivers);
+      const perDriverHours = Math.floor(perDriverMinutes / 60);
+      const perDriverMins = perDriverMinutes % 60;
+      const shiftLabel = perDriverMins > 0
+        ? `${perDriverHours}h ${perDriverMins}m`
+        : `${perDriverHours}h`;
+      warnings.push({
+        category: 'driver',
+        severity: 'info',
+        message: `Day ${day.dayNumber}: each driver takes ~${shiftLabel} (${settings.numDrivers} rotating)`,
+        detail: `${formatDuration(day.totals.driveTimeMinutes)} total driving split across ${settings.numDrivers} drivers.`,
+        dayNumber: day.dayNumber,
+      });
+    }
+  }
+
   // Multi-driver under-utilization hint
   // If the user has set up team driving but kept the max daily limit at solo levels,
   // nudge them to unlock the real benefit of having multiple drivers.

@@ -99,9 +99,11 @@ export function splitLongSegments(
         lng = seg.from.lng + timeFraction * (seg.to.lng - seg.from.lng);
       }
 
+      const fromCity = seg.from.name.split(',')[0].trim();
+      const toCity = seg.to.name.split(',')[0].trim();
       splitPoints.push({
         id: `transit-split-${origIdx}-${sp}`,
-        name: 'Overnight Stop', // placeholder — geocoded async after splitting
+        name: `${fromCity} → ${toCity} (transit)`, // replaced by reverse geocoder async
         type: 'waypoint',
         lat,
         lng,
