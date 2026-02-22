@@ -3,10 +3,11 @@ import { Share2, Printer, Maximize2, Minimize2, ArrowLeft, PenLine } from 'lucid
 import type { Location, Vehicle, TripSettings, TripSummary, POISuggestion, TripJournal, StopType, DayType, OvernightStop, TripMode, TripChallenge } from '../../types';
 import { Button } from '../UI/Button';
 import { OvernightStopPrompt } from '../Trip/OvernightStopPrompt';
-import { JournalModeToggle, StartJournalCTA, type ViewMode } from '../Trip/JournalModeToggle';
+import { JournalModeToggle, type ViewMode } from '../Trip/JournalModeToggle';
+import { TripTimelineView } from '../Trip/TripTimelineView';
 import { JournalTimeline } from '../Trip/JournalTimeline';
-import { ItineraryTimeline } from '../Trip/ItineraryTimeline';
-import { SmartTimeline } from '../Trip/SmartTimeline';
+import { FeasibilityBanner } from '../Trip/FeasibilityBanner';
+import { analyzeFeasibility } from '../../lib/feasibility';
 import { ConfirmTripCard } from '../Trip/ConfirmTripCard';
 import { printTrip } from '../Trip/TripPrintView';
 import { generateEstimate } from '../../lib/estimate-service';
@@ -85,6 +86,11 @@ export function Step3Content({
   const [isExpanded, setIsExpanded] = useState(false);
   const [isJournalFullscreen, setIsJournalFullscreen] = useState(false);
 
+  const feasibility = useMemo(
+    () => summary ? analyzeFeasibility(summary, settings) : null,
+    [summary, settings],
+  );
+
   // Generate estimate when in estimate mode
   const estimate = useMemo(() => {
     if (tripMode !== 'estimate' || !summary) return null;
@@ -106,47 +112,27 @@ export function Step3Content({
             <Minimize2 className="h-3 w-3" /> Collapse
           </Button>
         </div>
-        {viewMode === 'plan' && (
-          <SmartTimeline
-            summary={summary}
-            settings={settings}
-            vehicle={vehicle}
-            poiSuggestions={poiSuggestions}
-          />
-        )}
-        {viewMode === 'journal' ? (
-          activeJournal ? (
-            <JournalTimeline
-              summary={summary}
-              settings={settings}
-              journal={activeJournal}
-              onUpdateJournal={onUpdateJournal}
-            />
-          ) : (
-            <StartJournalCTA
-              onStart={onStartJournal}
-              defaultName={activeChallenge?.title}
-              tripMode={tripMode}
-            />
-          )
-        ) : (
-          <ItineraryTimeline
-            summary={summary}
-            settings={settings}
-            vehicle={vehicle}
-            days={summary.days}
-            onUpdateStopType={onUpdateStopType}
-            onUpdateDayNotes={onUpdateDayNotes}
-            onUpdateDayTitle={onUpdateDayTitle}
-            onUpdateDayType={onUpdateDayType}
-            onUpdateOvernight={onUpdateOvernight}
-            poiSuggestions={poiSuggestions}
-            isLoadingPOIs={isLoadingPOIs}
-            onAddPOI={onAddPOI}
-            onDismissPOI={onDismissPOI}
-            externalStops={externalStops}
-          />
-        )}
+        <TripTimelineView
+          summary={summary}
+          settings={settings}
+          vehicle={vehicle}
+          viewMode={viewMode}
+          activeJournal={activeJournal}
+          activeChallenge={activeChallenge}
+          tripMode={tripMode}
+          onStartJournal={onStartJournal}
+          onUpdateJournal={onUpdateJournal}
+          onUpdateStopType={onUpdateStopType}
+          onUpdateDayNotes={onUpdateDayNotes}
+          onUpdateDayTitle={onUpdateDayTitle}
+          onUpdateDayType={onUpdateDayType}
+          onUpdateOvernight={onUpdateOvernight}
+          poiSuggestions={poiSuggestions}
+          isLoadingPOIs={isLoadingPOIs}
+          onAddPOI={onAddPOI}
+          onDismissPOI={onDismissPOI}
+          externalStops={externalStops}
+        />
       </div>
     );
   }
@@ -228,6 +214,15 @@ export function Step3Content({
           </div>
         </div>
 
+        {/* Trip Health — plan mode only, above the mode toggle */}
+        {summary && viewMode !== 'journal' && feasibility && (
+          <FeasibilityBanner
+            result={feasibility}
+            numTravelers={settings.numTravelers}
+            defaultCollapsed
+          />
+        )}
+
         {/* Journal Mode Toggle */}
         {summary && (
           <JournalModeToggle
@@ -265,15 +260,27 @@ export function Step3Content({
 
       {summary ? (
         <>
-          {/* Smart Timeline — time-first view with combo stop optimization */}
-          {viewMode === 'plan' && (
-            <SmartTimeline
-              summary={summary}
-              settings={settings}
-              vehicle={vehicle}
-              poiSuggestions={poiSuggestions}
-            />
-          )}
+          <TripTimelineView
+            summary={summary}
+            settings={settings}
+            vehicle={vehicle}
+            viewMode={viewMode}
+            activeJournal={activeJournal}
+            activeChallenge={activeChallenge}
+            tripMode={tripMode}
+            onStartJournal={onStartJournal}
+            onUpdateJournal={onUpdateJournal}
+            onUpdateStopType={onUpdateStopType}
+            onUpdateDayNotes={onUpdateDayNotes}
+            onUpdateDayTitle={onUpdateDayTitle}
+            onUpdateDayType={onUpdateDayType}
+            onUpdateOvernight={onUpdateOvernight}
+            poiSuggestions={poiSuggestions}
+            isLoadingPOIs={isLoadingPOIs}
+            onAddPOI={onAddPOI}
+            onDismissPOI={onDismissPOI}
+            externalStops={externalStops}
+          />
 
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-muted-foreground">
@@ -329,39 +336,6 @@ export function Step3Content({
                 </div>
               </div>
             </div>
-          )}
-          {viewMode === 'journal' ? (
-            activeJournal ? (
-              <JournalTimeline
-                summary={summary}
-                settings={settings}
-                journal={activeJournal}
-                onUpdateJournal={onUpdateJournal}
-              />
-            ) : (
-              <StartJournalCTA
-                onStart={onStartJournal}
-                defaultName={activeChallenge?.title}
-                tripMode={tripMode}
-              />
-            )
-          ) : (
-            <ItineraryTimeline
-              summary={summary}
-              settings={settings}
-              vehicle={vehicle}
-              days={summary.days}
-              onUpdateStopType={onUpdateStopType}
-              onUpdateDayNotes={onUpdateDayNotes}
-              onUpdateDayTitle={onUpdateDayTitle}
-              onUpdateDayType={onUpdateDayType}
-              onUpdateOvernight={onUpdateOvernight}
-              poiSuggestions={poiSuggestions}
-              isLoadingPOIs={isLoadingPOIs}
-              onAddPOI={onAddPOI}
-              onDismissPOI={onDismissPOI}
-              externalStops={externalStops}
-            />
           )}
 
           {/* Confirm Trip Card — shown in plan view */}
