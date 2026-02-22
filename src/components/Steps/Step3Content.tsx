@@ -314,7 +314,7 @@ export function Step3Content({
                   <ArrowLeft className="h-4 w-4" /> Back
                 </Button>
                 <span className="text-sm font-semibold truncate flex-1">
-                  {activeJournal.title || 'Journal'}
+                  {activeJournal.metadata.title || 'Journal'}
                 </span>
               </div>
               {/* Scrollable journal body */}
