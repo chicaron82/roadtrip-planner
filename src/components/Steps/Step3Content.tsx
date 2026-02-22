@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Share2, Printer, Maximize2, Minimize2 } from 'lucide-react';
+import { Share2, Printer, Maximize2, Minimize2, ArrowLeft, PenLine } from 'lucide-react';
 import type { Location, Vehicle, TripSettings, TripSummary, POISuggestion, TripJournal, StopType, DayType, OvernightStop, TripMode, TripChallenge } from '../../types';
 import { Button } from '../UI/Button';
 import { OvernightStopPrompt } from '../Trip/OvernightStopPrompt';
@@ -83,6 +83,7 @@ export function Step3Content({
   onUnconfirmTrip,
 }: Step3ContentProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isJournalFullscreen, setIsJournalFullscreen] = useState(false);
 
   // Generate estimate when in estimate mode
   const estimate = useMemo(() => {
@@ -278,15 +279,57 @@ export function Step3Content({
             <h3 className="text-sm font-semibold text-muted-foreground">
               {viewMode === 'journal' ? 'Journal' : 'Itinerary'}
             </h3>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="gap-1 h-7 text-xs text-muted-foreground hover:text-foreground"
-              onClick={() => setIsExpanded(true)}
-            >
-              <Maximize2 className="h-3 w-3" /> Expand
-            </Button>
+            {viewMode === 'journal' && activeJournal ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="gap-1 h-7 text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => setIsJournalFullscreen(true)}
+              >
+                <PenLine className="h-3 w-3" /> Write
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="gap-1 h-7 text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => setIsExpanded(true)}
+              >
+                <Maximize2 className="h-3 w-3" /> Expand
+              </Button>
+            )}
           </div>
+
+          {/* Journal fullscreen overlay — covers full viewport on mobile for writing */}
+          {isJournalFullscreen && activeJournal && (
+            <div className="fixed inset-0 z-50 flex flex-col bg-background">
+              {/* Header */}
+              <div className="flex items-center gap-3 px-4 border-b shrink-0" style={{ height: '52px', minHeight: '52px' }}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="gap-1.5 -ml-2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setIsJournalFullscreen(false)}
+                >
+                  <ArrowLeft className="h-4 w-4" /> Back
+                </Button>
+                <span className="text-sm font-semibold truncate flex-1">
+                  {activeJournal.title || 'Journal'}
+                </span>
+              </div>
+              {/* Scrollable journal body */}
+              <div className="flex-1 overflow-y-auto">
+                <div className="px-4 py-4">
+                  <JournalTimeline
+                    summary={summary}
+                    settings={settings}
+                    journal={activeJournal}
+                    onUpdateJournal={onUpdateJournal}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
           {viewMode === 'journal' ? (
             activeJournal ? (
               <JournalTimeline
