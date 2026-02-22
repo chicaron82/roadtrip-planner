@@ -237,7 +237,13 @@ function StopCard({
   // ── Regular stop (fuel / meal / rest / overnight) ───────────────────────
   const icon = EVENT_ICON[event.type];
   const label =
-    event.type === 'fuel' ? 'Fuel Stop'
+    event.type === 'fuel' ? (() => {
+        const stop = event.stops[0];
+        const fillType = stop?.details?.fillType;
+        const cost = stop?.details?.fuelCost;
+        const costStr = cost != null ? ` · ~$${cost.toFixed(0)}` : '';
+        return fillType === 'topup' ? `Top-Up${costStr}` : `Full Fill${costStr}`;
+      })()
     : event.type === 'meal' ? (() => {
         const h = event.arrivalTime.getHours();
         return h < 10 || (h === 10 && event.arrivalTime.getMinutes() < 30) ? 'Breakfast'

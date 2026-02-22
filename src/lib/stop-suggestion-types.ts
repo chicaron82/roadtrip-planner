@@ -18,8 +18,11 @@ export interface SuggestedStop {
   duration: number; // minutes
   priority: 'required' | 'recommended' | 'optional';
   details: {
-    fuelNeeded?: number; // litres
-    fuelCost?: number;
+    fuelNeeded?: number; // litres to fill to full from current level
+    fuelCost?: number;   // estimated cost at current gas price
+    /** 'full' = tank was critically/range-low (fill to 100%).
+     *  'topup' = comfort/precautionary stop (topped from ~25-50% to full). */
+    fillType?: 'full' | 'topup';
     hoursOnRoad?: number; // hours driven before this stop
   };
   warning?: string; // Sparse stretch warning

@@ -243,6 +243,7 @@ export function generateSmartStops(
         details: {
           fuelNeeded: refillAmount,
           fuelCost: refillCost,
+          fillType: (wouldRunCriticallyLow || exceededSafeRange) ? 'full' : 'topup',
         },
         warning: sparseWarning,
         dayNumber: currentDayNumber,

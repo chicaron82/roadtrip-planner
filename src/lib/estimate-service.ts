@@ -52,6 +52,21 @@ export interface TripEstimate {
 }
 
 /**
+ * Round a cost estimate UP to the next "budget-friendly" milestone.
+ * Applied to mid and high outputs only — low stays precise (it's the honest floor).
+ * Better to have money left over than come up short on the road.
+ *
+ * Examples: $23→$30 · $42→$60 · $68→$100 · $110→$150 · $340→$350
+ */
+function roundToBudget(amount: number): number {
+  if (amount < 25) return 30;
+  if (amount < 50) return 60;   // not 50 — 50 exact gives zero buffer
+  if (amount < 75) return 100;
+  if (amount < 125) return 150;
+  return Math.ceil(amount / 50) * 50;
+}
+
+/**
  * Calculate fuel cost for a trip based on vehicle and distance.
  */
 function estimateFuelCost(
@@ -108,30 +123,35 @@ export function generateEstimate(
   const currencySymbol = settings.currency === 'USD' ? '$' : 'C$';
 
   // ── Fuel ──
-  const fuel = estimateFuelCost(distanceKm, vehicle, settings.units, settings.gasPrice || undefined);
+  const fuelPrecise = estimateFuelCost(distanceKm, vehicle, settings.units, settings.gasPrice || undefined);
+  const fuel = {
+    low: Math.round(fuelPrecise.low),
+    mid: roundToBudget(fuelPrecise.mid),
+    high: roundToBudget(fuelPrecise.high),
+  };
 
   // ── Hotels ──
   const hotel = {
-    low: nights * roomsNeeded * ESTIMATES.hotel.low,
-    mid: nights * roomsNeeded * ESTIMATES.hotel.mid,
-    high: nights * roomsNeeded * ESTIMATES.hotel.high,
+    low: Math.round(nights * roomsNeeded * ESTIMATES.hotel.low),
+    mid: roundToBudget(nights * roomsNeeded * ESTIMATES.hotel.mid),
+    high: roundToBudget(nights * roomsNeeded * ESTIMATES.hotel.high),
   };
 
   // ── Food ──
   const food = {
-    low: days * numTravelers * ESTIMATES.food.low,
-    mid: days * numTravelers * ESTIMATES.food.mid,
-    high: days * numTravelers * ESTIMATES.food.high,
+    low: Math.round(days * numTravelers * ESTIMATES.food.low),
+    mid: roundToBudget(days * numTravelers * ESTIMATES.food.mid),
+    high: roundToBudget(days * numTravelers * ESTIMATES.food.high),
   };
 
   // ── Misc ──
   const misc = {
-    low: days * numTravelers * ESTIMATES.misc.low,
-    mid: days * numTravelers * ESTIMATES.misc.mid,
-    high: days * numTravelers * ESTIMATES.misc.high,
+    low: Math.round(days * numTravelers * ESTIMATES.misc.low),
+    mid: roundToBudget(days * numTravelers * ESTIMATES.misc.mid),
+    high: roundToBudget(days * numTravelers * ESTIMATES.misc.high),
   };
 
-  // ── Totals ──
+  // ── Totals — sum already-rounded line items (no double-rounding) ──
   const totalLow = fuel.low + hotel.low + food.low + misc.low;
   const totalMid = fuel.mid + hotel.mid + food.mid + misc.mid;
   const totalHigh = fuel.high + hotel.high + food.high + misc.high;
@@ -174,12 +194,12 @@ export function generateEstimate(
   ];
 
   return {
-    totalLow: Math.round(totalLow),
-    totalMid: Math.round(totalMid),
-    totalHigh: Math.round(totalHigh),
+    totalLow,
+    totalMid,
+    totalHigh,
     perPersonLow: Math.round(totalLow / numTravelers),
-    perPersonMid: Math.round(totalMid / numTravelers),
-    perPersonHigh: Math.round(totalHigh / numTravelers),
+    perPersonMid: Math.ceil(totalMid / numTravelers),
+    perPersonHigh: Math.ceil(totalHigh / numTravelers),
     breakdown,
     days,
     nights,
