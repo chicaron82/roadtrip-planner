@@ -1,18 +1,17 @@
 /**
  * MobileStepSheet — Draggable bottom sheet for Steps 1 & 2 on mobile.
  *
- * Simpler than MobileBottomSheet (no summary stats, no POI bar).
- * Shows a mode-colored top accent, step context in the peek row,
- * and step-nav buttons in the footer.
- *
  * Snap points:
- *   peek  —  88px visible: handle + step title
+ *   peek  —  88px visible: handle + step title + nav buttons
  *   half  —  50vh visible: shows top of step content   ← default
  *   full  —  85vh visible: full step content scrollable
+ *
+ * Nav buttons (Back / Next) live in the always-visible handle row so
+ * they're reachable at any snap point without expanding first.
  */
 
 import { useRef, useState, useCallback } from 'react';
-import { ChevronDown, ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../UI/Button';
 import type { TripMode } from '../../types';
@@ -161,24 +160,46 @@ export function MobileStepSheet({
         <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-gray-600 mb-3" />
 
         <div className="flex items-center justify-between w-full px-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
             <span
-              className="text-xs font-bold px-2 py-0.5 rounded-full"
+              className="text-xs font-bold px-2 py-0.5 rounded-full shrink-0"
               style={{ background: `${accent}22`, color: accent }}
             >
               Step {stepNumber}
             </span>
-            <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+            <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
               {stepTitle}
             </span>
             {hasPreview && snap === 'peek' && (
-              <span className="text-[10px] text-gray-400">Route ready ↑</span>
+              <span className="text-[10px] text-gray-400 shrink-0">Route ready ↑</span>
             )}
           </div>
-          <ChevronDown
-            className="w-4 h-4 text-gray-400 transition-transform duration-300"
-            style={{ transform: snap === 'full' ? 'rotate(180deg)' : 'rotate(0deg)' }}
-          />
+          {/* Nav buttons — always visible at every snap point.
+               stopPropagation prevents clicks from firing the drag/snap toggle. */}
+          <div
+            className="flex items-center gap-1.5 shrink-0"
+            onClick={e => e.stopPropagation()}
+            onPointerDown={e => e.stopPropagation()}
+          >
+            {onBack && (
+              <Button variant="outline" size="sm" onClick={onBack} className="h-7 px-2">
+                <ChevronLeft className="h-3 w-3" />
+              </Button>
+            )}
+            <Button
+              size="sm"
+              onClick={onNext}
+              disabled={!canProceed || !!isLoading}
+              className="gap-1 h-7 text-xs text-white px-3"
+              style={{ background: canProceed ? accent : undefined, borderColor: accent }}
+            >
+              {isLoading ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <>{nextLabel} <ChevronRight className="h-3 w-3" /></>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -193,30 +214,6 @@ export function MobileStepSheet({
       >
         {isOpen && children}
       </div>
-
-      {/* ── Footer nav ── */}
-      {isOpen && (
-        <div className="shrink-0 border-t border-gray-100 dark:border-gray-800 p-3 flex gap-2">
-          {onBack && (
-            <Button variant="outline" size="sm" onClick={onBack} className="gap-1">
-              <ChevronLeft className="h-3 w-3" /> Back
-            </Button>
-          )}
-          <Button
-            size="sm"
-            onClick={onNext}
-            disabled={!canProceed || !!isLoading}
-            className="flex-1 gap-1 text-white"
-            style={{ background: canProceed ? accent : undefined, borderColor: accent }}
-          >
-            {isLoading ? (
-              <><Loader2 className="h-3 w-3 animate-spin" /> Calculating…</>
-            ) : (
-              <>{nextLabel} <ChevronRight className="h-3 w-3" /></>
-            )}
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
