@@ -142,6 +142,69 @@ export function createSmartBudget(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Internal type & helper for long-segment splitting
+// ---------------------------------------------------------------------------
+
+/** RouteSegment extended with original-index tracking for split sub-segments. */
+type ProcessedSegment = RouteSegment & {
+  /** Index into the original `segments` array this sub-segment was derived from. */
+  _originalIndex: number;
+  /** Populated when the original segment was split; tracks which part this is. */
+  _transitPart?: { index: number; total: number };
+};
+
+/**
+ * Pre-process the segments array so that any single segment whose
+ * `durationMinutes` exceeds `maxDriveMinutes` is split into proportional
+ * sub-segments, each fitting within one driving day.
+ *
+ * The `_originalIndex` field lets downstream code map back to the original
+ * segment (important for `roundTripMidpoint` boundary detection).
+ */
+function splitLongSegments(
+  segments: RouteSegment[],
+  maxDriveMinutes: number
+): ProcessedSegment[] {
+  const result: ProcessedSegment[] = [];
+
+  for (let origIdx = 0; origIdx < segments.length; origIdx++) {
+    const seg = segments[origIdx];
+
+    if (seg.durationMinutes <= maxDriveMinutes) {
+      result.push({ ...seg, _originalIndex: origIdx });
+      continue;
+    }
+
+    const numParts = Math.ceil(seg.durationMinutes / maxDriveMinutes);
+    for (let part = 0; part < numParts; part++) {
+      const partMinutes =
+        part < numParts - 1
+          ? maxDriveMinutes
+          : seg.durationMinutes - maxDriveMinutes * (numParts - 1);
+      const ratio = partMinutes / seg.durationMinutes;
+
+      result.push({
+        ...seg,
+        _originalIndex: origIdx,
+        durationMinutes: Math.round(partMinutes),
+        distanceKm: Math.round(seg.distanceKm * ratio * 10) / 10,
+        fuelCost: Math.round(seg.fuelCost * ratio * 100) / 100,
+        fuelNeededLitres: Math.round(seg.fuelNeededLitres * ratio * 100) / 100,
+        // Only the first sub-segment inherits the departure time; only the
+        // last inherits the arrival time — intermediates have neither.
+        departureTime: part === 0 ? seg.departureTime : undefined,
+        arrivalTime: part === numParts - 1 ? seg.arrivalTime : undefined,
+        _transitPart: { index: part, total: numParts },
+      });
+    }
+  }
+
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+
 /**
  * Split a trip into days based on max drive hours and overnight stops.
  * For round trips with a returnDate, free days are inserted at the destination
@@ -172,17 +235,24 @@ export function splitTripByDays(
 
   const maxDriveMinutes = settings.maxDriveHours * 60;
 
+  // Pre-split any single segment that exceeds the max drive limit so that each
+  // processed sub-segment always fits within one driving day.
+  const processedSegments = splitLongSegments(segments, maxDriveMinutes);
+
   // Track whether we've inserted the destination free days
   let insertedFreeDays = false;
 
-  for (let index = 0; index < segments.length; index++) {
-    const segment = segments[index];
+  for (let i = 0; i < processedSegments.length; i++) {
+    const segment = processedSegments[i];
 
     // === INSERT FREE DAYS AT ROUND-TRIP MIDPOINT ===
+    // Use _originalIndex so we correctly detect the midpoint even when a long
+    // segment was split into multiple sub-segments by splitLongSegments.
     if (
       !insertedFreeDays &&
       roundTripMidpoint !== undefined &&
-      index === roundTripMidpoint &&
+      segment._originalIndex === roundTripMidpoint &&
+      (i === 0 || processedSegments[i - 1]._originalIndex < roundTripMidpoint) &&
       settings.returnDate &&
       settings.departureDate
     ) {
@@ -297,8 +367,28 @@ export function splitTripByDays(
     // However, if the CURRENT segment is an overnight stop, we add it to THIS day, and then force a new day AFTER.
     // The overnight belongs to the day you drove — you check in at end of Day 1, so Day 1 pays for it.
     if (wouldExceedMaxDrive && currentDay.segments.length > 0 && !isOvernightStop) {
+      // Assign overnight — driver stops at end of this driving day.
+      if (!currentDay.overnight) {
+        const lastSeg = currentDay.segments[currentDay.segments.length - 1];
+        if (lastSeg) {
+          const roomsNeeded = Math.ceil(settings.numTravelers / 2);
+          currentDay.overnight = {
+            location: lastSeg.to,
+            cost: roomsNeeded * settings.hotelPricePerNight,
+            roomsNeeded,
+          };
+        }
+      }
+
       // Finalize current day
       finalizeTripDay(currentDay, gasRemaining, hotelRemaining, foodRemaining, settings);
+
+      // Label transit days when the segment was split by splitLongSegments.
+      const lastPS = currentDay.segments[currentDay.segments.length - 1] as ProcessedSegment;
+      if (lastPS?._transitPart) {
+        const destName = segments[lastPS._originalIndex].to.name.split(',')[0].trim();
+        currentDay.title = `In Transit to ${destName} (Day ${lastPS._transitPart.index + 1}/${lastPS._transitPart.total})`;
+      }
 
       // Update running totals
       gasRemaining -= currentDay.budget.gasUsed;
@@ -318,13 +408,15 @@ export function splitTripByDays(
 
     // Add segment to current day
     currentDay.segments.push(segment);
-    currentDay.segmentIndices.push(index);
+    // Store the original segment index (before any long-segment splitting) so
+    // downstream consumers like stop-suggestions can map back correctly.
+    currentDay.segmentIndices.push(segment._originalIndex);
     currentDayDriveMinutes += segmentDriveMinutes;
 
     // Check for timezone changes
     if (segment.timezoneCrossing && segment.weather?.timezoneAbbr) {
-      const prevTimezone = index > 0
-        ? segments[index - 1].weather?.timezoneAbbr || 'Unknown'
+      const prevTimezone = i > 0
+        ? processedSegments[i - 1].weather?.timezoneAbbr || 'Unknown'
         : 'CDT'; // Default assumption
 
       currentDay.timezoneChanges.push({
