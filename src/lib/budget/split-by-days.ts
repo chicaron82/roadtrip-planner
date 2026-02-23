@@ -2,6 +2,8 @@ import type { RouteSegment, TripDay, TripSettings } from '../../types';
 import { splitLongSegments, type ProcessedSegment } from './segment-processor';
 import { createEmptyDay, finalizeTripDay } from './day-builder';
 import { getTimezoneOffset, getTimezoneName } from './timezone';
+import { TRIP_CONSTANTS } from '../trip-constants';
+import { getHotelMultiplier } from '../regional-costs';
 
 // ---------------------------------------------------------------------------
 
@@ -20,9 +22,14 @@ import { getTimezoneOffset, getTimezoneName } from './timezone';
  */
 function computeSmartDepartureHour(settings: TripSettings, actualDriveHours: number): number {
   const { targetArrivalHour = 21, maxDriveHours } = settings;
-  const isFullDay = actualDriveHours >= maxDriveHours * 0.75;
-  const maxDeparture = isFullDay ? 10 : 18; // short legs: allow up to 6 PM start
-  return Math.max(5, Math.min(maxDeparture, Math.round(targetArrivalHour - actualDriveHours)));
+  const isFullDay = actualDriveHours >= maxDriveHours * TRIP_CONSTANTS.departure.fullDayThreshold;
+  const maxDeparture = isFullDay
+    ? TRIP_CONSTANTS.departure.maxHourFullDay
+    : TRIP_CONSTANTS.departure.maxHourShortLeg;
+  return Math.max(
+    TRIP_CONSTANTS.departure.minHour,
+    Math.min(maxDeparture, Math.round(targetArrivalHour - actualDriveHours)),
+  );
 }
 
 /**
@@ -46,7 +53,7 @@ function getNextDayDriveMinutes(
 }
 
 /** Minimum hours of rest guaranteed between estimated Day-N arrival and Day-(N+1) departure. */
-const MIN_REST_HOURS = 7;
+const MIN_REST_HOURS = TRIP_CONSTANTS.rest.minHours;
 
 // ---------------------------------------------------------------------------
 
@@ -146,7 +153,7 @@ export function splitTripByDays(
           const roomsNeeded = Math.ceil(settings.numTravelers / 2);
           currentDay.overnight = {
             location: lastSeg.to,
-            cost: roomsNeeded * settings.hotelPricePerNight,
+            cost: roomsNeeded * getHotelMultiplier(lastSeg.to.name) * settings.hotelPricePerNight,
             roomsNeeded,
           };
         }
@@ -190,7 +197,7 @@ export function splitTripByDays(
           freeDay.title = `Day ${j + 1} at ${destName}`;
 
           const roomsNeeded = Math.ceil(settings.numTravelers / 2);
-          const hotelCost = roomsNeeded * settings.hotelPricePerNight;
+          const hotelCost = roomsNeeded * getHotelMultiplier(destination?.name ?? '') * settings.hotelPricePerNight;
           const foodCost = settings.mealPricePerDay * settings.numTravelers;
 
           hotelRemaining -= hotelCost;
@@ -253,7 +260,7 @@ export function splitTripByDays(
           const roomsNeeded = Math.ceil(settings.numTravelers / 2);
           currentDay.overnight = {
             location: lastSeg.to,
-            cost: roomsNeeded * settings.hotelPricePerNight,
+            cost: roomsNeeded * getHotelMultiplier(lastSeg.to.name) * settings.hotelPricePerNight,
             roomsNeeded,
           };
         }
@@ -312,19 +319,19 @@ export function splitTripByDays(
     }
     currentDayDriveMinutes += segmentDriveMinutes;
 
-    // Check for timezone changes
-    if (segment.timezoneCrossing && segment.weather?.timezoneAbbr) {
-      const prevTimezone = i > 0
-        ? processedSegments[i - 1].weather?.timezoneAbbr || 'Unknown'
-        : 'CDT'; // Default assumption
-
+    // Check for timezone changes using real weather API abbreviations.
+    // Comparing consecutive segments' actual timezoneAbbr is more accurate than
+    // the longitude heuristic (handles Saskatchewan CST, short diagonal segments, etc.)
+    const toAbbr = segment.weather?.timezoneAbbr;
+    const fromAbbr = i > 0 ? processedSegments[i - 1].weather?.timezoneAbbr : null;
+    if (toAbbr && fromAbbr && toAbbr !== fromAbbr) {
       currentDay.timezoneChanges.push({
         afterSegmentIndex: currentDay.segments.length - 1,
-        fromTimezone: prevTimezone,
-        toTimezone: segment.weather.timezoneAbbr,
-        offset: getTimezoneOffset(prevTimezone, segment.weather.timezoneAbbr),
-        message: `Enter ${getTimezoneName(segment.weather.timezoneAbbr)} (${
-          getTimezoneOffset(prevTimezone, segment.weather.timezoneAbbr) > 0 ? 'gain' : 'lose'
+        fromTimezone: fromAbbr,
+        toTimezone: toAbbr,
+        offset: getTimezoneOffset(fromAbbr, toAbbr),
+        message: `Enter ${getTimezoneName(toAbbr)} (${
+          getTimezoneOffset(fromAbbr, toAbbr) > 0 ? 'gain' : 'lose'
         } 1 hour)`,
       });
     }
@@ -334,7 +341,7 @@ export function splitTripByDays(
       const roomsNeeded = Math.ceil(settings.numTravelers / 2);
       currentDay.overnight = {
         location: segment.to,
-        cost: roomsNeeded * settings.hotelPricePerNight,
+        cost: roomsNeeded * getHotelMultiplier(segment.to.name) * settings.hotelPricePerNight,
         roomsNeeded,
       };
 
@@ -392,7 +399,7 @@ export function splitTripByDays(
       // You arrive and check in that evening — Night 1 belongs to the day you drove.
       if (!lastDrivingDay.overnight && destination) {
         const roomsNeeded = Math.ceil(settings.numTravelers / 2);
-        const hotelCost = roomsNeeded * settings.hotelPricePerNight;
+        const hotelCost = roomsNeeded * getHotelMultiplier(destination.name) * settings.hotelPricePerNight;
         lastDrivingDay.overnight = {
           location: destination,
           cost: hotelCost,
@@ -415,7 +422,7 @@ export function splitTripByDays(
 
         // Budget: food + hotel for free days (no gas)
         const roomsNeeded = Math.ceil(settings.numTravelers / 2);
-        const hotelCost = roomsNeeded * settings.hotelPricePerNight;
+        const hotelCost = roomsNeeded * getHotelMultiplier(destination?.name ?? '') * settings.hotelPricePerNight;
         const foodCost = settings.mealPricePerDay * settings.numTravelers;
 
         hotelRemaining -= hotelCost;

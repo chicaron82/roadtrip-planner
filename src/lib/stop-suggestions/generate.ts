@@ -2,6 +2,7 @@ import type { RouteSegment, TripDay } from '../../types';
 import type { SuggestedStop, StopSuggestionConfig } from '../stop-suggestion-types';
 import type { SimState } from './types';
 import { consolidateStops } from './consolidate';
+import { TRIP_CONSTANTS } from '../trip-constants';
 import {
   handleDayBoundaryReset,
   checkArrivalWindow,
@@ -26,8 +27,8 @@ function createInitialState(config: StopSuggestionConfig, segments: RouteSegment
     lastBreakTime: new Date(config.departureTime),
     currentDayNumber: 1,
     currentTzAbbr: segments[0]?.weather?.timezoneAbbr ?? null,
-    restBreakInterval: stopFrequency === 'conservative' ? 1.5 : stopFrequency === 'balanced' ? 2 : 2.5,
-    comfortRefuelHours: stopFrequency === 'conservative' ? 2.5 : stopFrequency === 'balanced' ? 3.5 : 4.5,
+    restBreakInterval: TRIP_CONSTANTS.stops.restInterval[stopFrequency],
+    comfortRefuelHours: TRIP_CONSTANTS.stops.comfortRefuel[stopFrequency],
   };
 }
 
@@ -41,8 +42,7 @@ export function generateSmartStops(
 ): SuggestedStop[] {
   const stopFrequency = config.stopFrequency || 'balanced';
 
-  const bufferMultipliers = { conservative: 0.30, balanced: 0.25, aggressive: 0.20 };
-  const actualBuffer = bufferMultipliers[stopFrequency];
+  const actualBuffer = TRIP_CONSTANTS.stops.buffers[stopFrequency];
   const vehicleRangeKm = (config.tankSizeLitres / config.fuelEconomyL100km) * 100;
   const safeRangeKm = vehicleRangeKm * (1 - actualBuffer);
 

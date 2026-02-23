@@ -1,9 +1,7 @@
 import type { TripDay, TripSettings } from '../../types';
 import type { FeasibilityWarning } from './types';
 import { formatDuration } from './helpers';
-
-/** Drive time thresholds (relative to maxDriveHours) */
-const DRIVE_TIME_GRACE_HOURS = 1;  // 1h buffer before warning fires
+import { TRIP_CONSTANTS } from '../trip-constants';
 
 export function analyzeDriveTime(
   days: TripDay[],
@@ -11,7 +9,7 @@ export function analyzeDriveTime(
 ): FeasibilityWarning[] {
   const warnings: FeasibilityWarning[] = [];
   const maxDriveMinutes = settings.maxDriveHours * 60;
-  const tightDriveMinutes = maxDriveMinutes * 0.9; // 90% threshold for warning
+  const tightDriveMinutes = maxDriveMinutes * TRIP_CONSTANTS.feasibility.tightDriveThreshold;
 
   // ── Day 1 late-arrival check ──────────────────────────────────────────────
   // Day 1 always uses the user's explicit departureTime (e.g. "09:00"). If the
@@ -27,7 +25,7 @@ export function analyzeDriveTime(
     const actualDriveHours = day1.totals.driveTimeMinutes / 60;
     const estimatedArrivalHour = departureDecimal + actualDriveHours;
 
-    if (estimatedArrivalHour > targetArrivalHour + 0.5) {
+    if (estimatedArrivalHour > targetArrivalHour + TRIP_CONSTANTS.feasibility.day1ArrivalBuffer) {
       // Suggest the ideal departure so they'd hit the target arrival
       const suggestedDep = Math.max(5, Math.round(targetArrivalHour - actualDriveHours));
       const suggestedH = Math.floor(suggestedDep);
@@ -51,7 +49,7 @@ export function analyzeDriveTime(
 
   for (const day of days) {
     const driveMinutes = day.totals.driveTimeMinutes;
-    const hardLimitMinutes = maxDriveMinutes + DRIVE_TIME_GRACE_HOURS * 60;
+    const hardLimitMinutes = maxDriveMinutes + TRIP_CONSTANTS.feasibility.driveTimeGraceHours * 60;
 
     if (driveMinutes > hardLimitMinutes) {
       const overBy = Math.round((driveMinutes - maxDriveMinutes) / 60 * 10) / 10;
@@ -115,8 +113,8 @@ export function analyzeDriverFatigue(
   }
 
   // Per-driver shift breakdown — show how the driving is distributed when rotating
-  if (settings.numDrivers >= 2) {
-    const drivingDays = days.filter(d => d.totals.driveTimeMinutes >= 120);
+  if (settings.numDrivers >= TRIP_CONSTANTS.feasibility.minDriversForRotation) {
+    const drivingDays = days.filter(d => d.totals.driveTimeMinutes >= TRIP_CONSTANTS.feasibility.minDrivingMinutesForBreakdown);
     for (const day of drivingDays) {
       const perDriverMinutes = Math.round(day.totals.driveTimeMinutes / settings.numDrivers);
       const perDriverHours = Math.floor(perDriverMinutes / 60);
@@ -137,7 +135,7 @@ export function analyzeDriverFatigue(
   // Multi-driver under-utilization hint
   // If the user has set up team driving but kept the max daily limit at solo levels,
   // nudge them to unlock the real benefit of having multiple drivers.
-  if (settings.numDrivers >= 2 && settings.maxDriveHours <= 8) {
+  if (settings.numDrivers >= TRIP_CONSTANTS.feasibility.minDriversForRotation && settings.maxDriveHours <= 8) {
     const suggestedHours = settings.numDrivers === 2 ? 12 : 16;
     warnings.push({
       category: 'driver',

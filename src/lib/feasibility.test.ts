@@ -129,7 +129,7 @@ describe('analyzeFeasibility', () => {
       expect(result.warnings.some(w => w.message.includes('1 driver'))).toBe(true);
     });
 
-    it('no driver warning with 2+ drivers', () => {
+    it('no driver warning with 2+ drivers (only info-level rotation hints)', () => {
       const day = makeDay({
         totals: { distanceKm: 1421, driveTimeMinutes: 940, stopTimeMinutes: 90, departureTime: '2025-08-16T03:30:00', arrivalTime: '2025-08-16T22:45:00' },
       });
@@ -137,7 +137,11 @@ describe('analyzeFeasibility', () => {
       const settings = makeSettings({ numDrivers: 2 });
 
       const result = analyzeFeasibility(summary, settings);
-      expect(result.warnings.filter(w => w.category === 'driver')).toHaveLength(0);
+      // With 2+ drivers there are no warnings or critical issues — only info rotation hints
+      const driverWarnings = result.warnings.filter(
+        w => w.category === 'driver' && (w.severity === 'warning' || w.severity === 'critical'),
+      );
+      expect(driverWarnings).toHaveLength(0);
     });
 
     it('no driver warning when drive time is under 8 hours', () => {

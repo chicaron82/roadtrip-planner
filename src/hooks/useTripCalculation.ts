@@ -17,6 +17,7 @@ import { fetchWeather } from '../lib/weather';
 import { addToHistory } from '../lib/storage';
 import { serializeStateToURL } from '../lib/url';
 import { reverseGeocodeTown } from '../lib/route-geocoder';
+import { validateTripInputs } from '../lib/validate-inputs';
 
 interface UseTripCalculationOptions {
   locations: Location[];
@@ -90,6 +91,13 @@ export function useTripCalculation({
 
       if (!routeData) {
         setError('Could not calculate route. Please check your locations.');
+        return null;
+      }
+
+      // Validate inputs before any expensive calculation
+      const validationErrors = validateTripInputs(routeData.segments, settings);
+      if (validationErrors.length > 0) {
+        setError(validationErrors[0]);
         return null;
       }
 

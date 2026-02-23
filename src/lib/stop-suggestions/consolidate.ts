@@ -1,4 +1,5 @@
 import type { SuggestionStopType, SuggestedStop } from '../stop-suggestion-types';
+import { TRIP_CONSTANTS } from '../trip-constants';
 
 /**
  * Merge priority tiers: higher wins when stops collide.
@@ -6,10 +7,7 @@ import type { SuggestionStopType, SuggestedStop } from '../stop-suggestion-types
  * POI/attraction (future) would slot in below rest.
  */
 export const STOP_MERGE_PRIORITY: Record<SuggestionStopType, number> = {
-  overnight: 4,
-  fuel:      3,
-  meal:      2,
-  rest:      1,
+  ...TRIP_CONSTANTS.stops.priorities,
 };
 
 /**
@@ -27,7 +25,7 @@ export const STOP_MERGE_PRIORITY: Record<SuggestionStopType, number> = {
 export function consolidateStops(stops: SuggestedStop[]): SuggestedStop[] {
   if (stops.length <= 1) return stops;
 
-  const MERGE_WINDOW_MS = 60 * 60 * 1000; // 60-minute merge window
+  const MERGE_WINDOW_MS = TRIP_CONSTANTS.stops.mergeWindowMs;
 
   const consolidated: SuggestedStop[] = [];
   let acc = stops[0]; // Running accumulator

@@ -1,10 +1,7 @@
 import type { TripSummary, TripSettings } from '../../types';
 import type { FeasibilityWarning } from './types';
 import { calculateTotalBudgetUsed } from './helpers';
-
-/** Budget utilization thresholds */
-const BUDGET_TIGHT_THRESHOLD = 0.85;  // 85% = amber
-const BUDGET_OVER_THRESHOLD = 1.0;    // 100% = red
+import { TRIP_CONSTANTS } from '../trip-constants';
 
 export function analyzeBudget(
   summary: TripSummary,
@@ -21,7 +18,7 @@ export function analyzeBudget(
   const totalUsed = calculateTotalBudgetUsed(days);
   const utilization = totalUsed / budget.total;
 
-  if (utilization > BUDGET_OVER_THRESHOLD) {
+  if (utilization > TRIP_CONSTANTS.budget.overThreshold) {
     const overBy = Math.round(totalUsed - budget.total);
     warnings.push({
       category: 'budget',
@@ -30,7 +27,7 @@ export function analyzeBudget(
       detail: `Total estimated cost: $${Math.round(totalUsed)}. Budget: $${Math.round(budget.total)}.`,
       suggestion: 'Consider reducing hotel costs, cutting a stop, or increasing the budget.',
     });
-  } else if (utilization >= BUDGET_TIGHT_THRESHOLD) {
+  } else if (utilization >= TRIP_CONSTANTS.budget.tightThreshold) {
     const remaining = Math.round(budget.total - totalUsed);
     warnings.push({
       category: 'budget',

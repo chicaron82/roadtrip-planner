@@ -6,6 +6,7 @@ import { Car, Fuel, Users } from 'lucide-react';
 import { Button } from '../UI/Button';
 import { TripOverview } from './TripOverview';
 import { FeasibilityBanner } from './FeasibilityBanner';
+import { BudgetSensitivity } from './BudgetSensitivity';
 import { analyzeFeasibility } from '../../lib/feasibility';
 
 interface TripSummaryProps {
@@ -109,6 +110,11 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
             <div className="mt-4 animate-in fade-in duration-300">
               {/* Trip Overview - Difficulty & Confidence */}
               <TripOverview summary={summary} settings={settings} />
+
+              {/* What-If Budget Scenarios */}
+              {summary.costBreakdown && (
+                <BudgetSensitivity summary={summary} settings={settings} className="mt-3" />
+              )}
 
               {/* Feasibility Health Check */}
               {feasibility && (
