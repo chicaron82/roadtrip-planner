@@ -1,13 +1,32 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import type { Location, POI, MarkerCategory } from '../../types';
+import type { Location, POI, MarkerCategory, RouteSegment, TripDay } from '../../types';
 import type { StrategicFuelStop } from '../../lib/calculations';
 import type { FeasibilityStatus } from '../../lib/feasibility';
 import { haversineDistance, estimateDetourTime } from '../../lib/poi-ranking';
+import { formatDuration } from '../../lib/calculations';
 import { AnimatedPolyline } from './AnimatedPolyline';
 import { POIPopup, type PopupDayOption } from './POIPopup';
+import { DayRouteLayer } from './DayRouteLayer';
+
+// ── Tile layers ──────────────────────────────────────────────────────────────
+const TILE_LAYERS = {
+  street: {
+    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  },
+  terrain: {
+    url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)',
+  },
+  satellite: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+  },
+} as const;
+type TileStyle = keyof typeof TILE_LAYERS;
 
 // Mode-tinted colours for the dashed preview line
 const PREVIEW_LINE_COLOR: Record<string, string> = {
@@ -24,6 +43,28 @@ const FEASIBILITY_LINE_COLOR: Record<FeasibilityStatus, string> = {
 };
 
 const DEFAULT_ROUTE_COLOR = 'hsl(221.2 83.2% 53.3%)'; // blue fallback (no feasibility yet)
+
+/** Quick weather emoji from Open-Meteo weather codes. */
+function weatherEmoji(w: { temperatureMax: number; precipitationProb: number; weatherCode: number }): string {
+  if (w.temperatureMax > 25) return '☀️';
+  if (w.precipitationProb > 40) return '🌧️';
+  if (w.weatherCode > 3) return '☁️';
+  return '🌤️';
+}
+
+/** Find the RouteSegment closest to a clicked map point (uses segment midpoints). */
+function findNearestSegment(lat: number, lng: number, segments: RouteSegment[]): RouteSegment | null {
+  if (!segments.length) return null;
+  let best: RouteSegment | null = null;
+  let bestDist = Infinity;
+  for (const seg of segments) {
+    const midLat = (seg.from.lat + seg.to.lat) / 2;
+    const midLng = (seg.from.lng + seg.to.lng) / 2;
+    const d = Math.hypot(lat - midLat, lng - midLng);
+    if (d < bestDist) { bestDist = d; best = seg; }
+  }
+  return best;
+}
 
 interface AlternateRouteGeometry {
   geometry: [number, number][];
@@ -51,6 +92,10 @@ interface MapProps {
   feasibilityStatus?: FeasibilityStatus | null;
   /** Inactive named route strategies shown as ghost lines — click to select */
   alternateGeometries?: AlternateRouteGeometry[];
+  /** Multi-day breakdown — enables day-colored route + 🏨 overnight markers */
+  tripDays?: TripDay[];
+  /** All route segments — used for click-to-inspect popup */
+  routeSegments?: RouteSegment[];
 }
 
 const markerColors: Record<string, string> = {
@@ -120,12 +165,21 @@ function MapClickHandler({ onMapClick }: { onMapClick?: (lat: number, lng: numbe
   return null;
 }
 
-export function Map({ locations, routeGeometry, pois, markerCategories, strategicFuelStops = [], addedPOIIds, dayOptions, onMapClick, onAddPOI, previewGeometry, tripMode, feasibilityStatus, alternateGeometries }: MapProps) {
+export function Map({ locations, routeGeometry, pois, markerCategories, strategicFuelStops = [], addedPOIIds, dayOptions, onMapClick, onAddPOI, previewGeometry, tripMode, feasibilityStatus, alternateGeometries, tripDays, routeSegments }: MapProps) {
+  const [tileStyle, setTileStyle] = useState<TileStyle>('street');
+  const [clickedSegment, setClickedSegment] = useState<{
+    lat: number;
+    lng: number;
+    segment: RouteSegment;
+  } | null>(null);
+
+  const isMultiDay = (tripDays?.length ?? 0) > 1;
+
   // Custom Icon Generator
   const createCustomIcon = (type: string, categoryColor?: string, emoji?: string) => {
     // Basic color mapping for tailwind classes if passed directly
     let color = categoryColor || markerColors[type] || '#333';
-    
+
     // Quick hack map tailwind classes to hex if passed from category (e.g. 'green-500' -> hex)
     // In a real app we'd use a proper color utility or pass hex codes in config
     if (categoryColor === 'green-500') color = '#22c55e';
@@ -134,7 +188,7 @@ export function Map({ locations, routeGeometry, pois, markerCategories, strategi
     if (categoryColor === 'purple-500') color = '#a855f7';
 
     const label = emoji || markerLabels[type] || '•';
-    
+
     return L.divIcon({
       className: 'custom-marker-container',
       html: `<div class="custom-marker" style="
@@ -196,6 +250,23 @@ export function Map({ locations, routeGeometry, pois, markerCategories, strategi
 
   return (
     <div className="h-full w-full relative z-0">
+      {/* Tile layer switcher — floating pills, top-right corner */}
+      <div className="absolute top-2 right-2 z-[1000] flex flex-col gap-1">
+        {(['street', 'terrain', 'satellite'] as TileStyle[]).map(style => (
+          <button
+            key={style}
+            onClick={() => setTileStyle(style)}
+            className={`text-xs px-2.5 py-1 rounded-full shadow-md transition-all border ${
+              tileStyle === style
+                ? 'bg-white text-gray-900 font-semibold border-white/80 shadow-lg'
+                : 'bg-black/50 text-white border-white/10 hover:bg-black/70 backdrop-blur-sm'
+            }`}
+          >
+            {style === 'street' ? '🗺 Street' : style === 'terrain' ? '⛰ Terrain' : '🛰 Satellite'}
+          </button>
+        ))}
+      </div>
+
       <MapContainer
         center={[49.8951, -97.1384]}
         zoom={5}
@@ -203,8 +274,9 @@ export function Map({ locations, routeGeometry, pois, markerCategories, strategi
         zoomControl={false}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          key={tileStyle}
+          attribution={TILE_LAYERS[tileStyle].attribution}
+          url={TILE_LAYERS[tileStyle].url}
         />
 
         <MapUpdater locations={locations} routeGeometry={routeGeometry} previewGeometry={previewGeometry} />
@@ -239,10 +311,10 @@ export function Map({ locations, routeGeometry, pois, markerCategories, strategi
           />
         ))}
 
-        {/* Route Polylines with Animation */}
+        {/* Route lines */}
         {routeGeometry && (
           <>
-             {/* Shadow/Outline (animated) */}
+            {/* Shadow/Outline (animated) */}
             <AnimatedPolyline
               positions={routeGeometry}
               color="#000"
@@ -250,14 +322,70 @@ export function Map({ locations, routeGeometry, pois, markerCategories, strategi
               opacity={0.2}
               animationDuration={2000}
             />
-             {/* Main Line (animated) — colour reflects feasibility status */}
-            <AnimatedPolyline
-              positions={routeGeometry}
-              color={feasibilityStatus ? FEASIBILITY_LINE_COLOR[feasibilityStatus] : DEFAULT_ROUTE_COLOR}
-              weight={feasibilityStatus === 'on-track' ? 6 : 5}
-              opacity={0.9}
-              animationDuration={2000}
-            />
+
+            {/* Multi-day: day-colored segments + overnight markers */}
+            {isMultiDay && tripDays ? (
+              <DayRouteLayer days={tripDays} fullGeometry={routeGeometry} />
+            ) : (
+              /* Single-day: feasibility-colored animated line */
+              <AnimatedPolyline
+                positions={routeGeometry}
+                color={feasibilityStatus ? FEASIBILITY_LINE_COLOR[feasibilityStatus] : DEFAULT_ROUTE_COLOR}
+                weight={feasibilityStatus === 'on-track' ? 6 : 5}
+                opacity={0.9}
+                animationDuration={2000}
+              />
+            )}
+
+            {/* Transparent click-capture polyline — fires segment detail popup */}
+            {routeSegments && routeSegments.length > 0 && (
+              <Polyline
+                positions={routeGeometry}
+                pathOptions={{ color: 'transparent', weight: 20, opacity: 0.001 }}
+                eventHandlers={{
+                  click(e) {
+                    const { lat, lng } = e.latlng;
+                    const seg = findNearestSegment(lat, lng, routeSegments);
+                    if (seg) setClickedSegment({ lat, lng, segment: seg });
+                  },
+                }}
+              />
+            )}
+
+            {/* Segment detail popup */}
+            {clickedSegment && (
+              <Popup
+                position={[clickedSegment.lat, clickedSegment.lng]}
+                onClose={() => setClickedSegment(null)}
+                className="font-sans"
+              >
+                <div className="p-1 min-w-[180px]">
+                  <div className="text-xs font-semibold text-gray-900 leading-snug">
+                    {clickedSegment.segment.from.name}
+                    <span className="text-gray-400 mx-1">→</span>
+                    {clickedSegment.segment.to.name}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1.5 space-y-0.5">
+                    <div>📏 {clickedSegment.segment.distanceKm.toFixed(0)} km</div>
+                    <div>⏱ {formatDuration(clickedSegment.segment.durationMinutes)}</div>
+                    {clickedSegment.segment.fuelCost > 0 && (
+                      <div>⛽ ${clickedSegment.segment.fuelCost.toFixed(2)}</div>
+                    )}
+                    {clickedSegment.segment.weather && (
+                      <div>
+                        {weatherEmoji(clickedSegment.segment.weather)}{' '}
+                        {clickedSegment.segment.weather.temperatureMax.toFixed(0)}°C
+                        {clickedSegment.segment.weather.precipitationProb > 0 && (
+                          <span className="text-gray-400 ml-1">
+                            · {clickedSegment.segment.weather.precipitationProb}% rain
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Popup>
+            )}
           </>
         )}
 

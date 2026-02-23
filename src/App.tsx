@@ -306,6 +306,8 @@ function AppContent() {
               onSelect: () => selectStrategy(routeStrategies.indexOf(s)),
             }))
           }
+          tripDays={summary?.days}
+          routeSegments={summary?.segments}
         />
         {summary && planningStep === 3 && (
           <div className="hidden md:block relative">
