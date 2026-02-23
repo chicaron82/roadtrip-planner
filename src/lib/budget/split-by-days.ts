@@ -187,7 +187,7 @@ export function splitTripByDays(
           const freeDay = createEmptyDay(dayNumber, freeDate);
           freeDay.route = `📍 ${destName}`;
           freeDay.dayType = 'free';
-          freeDay.title = j === 0 ? 'Explore!' : `Day ${j + 1} at ${destName}`;
+          freeDay.title = `Day ${j + 1} at ${destName}`;
 
           const roomsNeeded = Math.ceil(settings.numTravelers / 2);
           const hotelCost = roomsNeeded * settings.hotelPricePerNight;
@@ -305,7 +305,11 @@ export function splitTripByDays(
     currentDay.segments.push(segment);
     // Store the original segment index (before any long-segment splitting) so
     // downstream consumers like stop-suggestions can map back correctly.
-    currentDay.segmentIndices.push(segment._originalIndex);
+    // Deduplicate: multiple sub-segments from the same original segment should
+    // only appear once in segmentIndices (avoids [0, 0] for split days).
+    if (!currentDay.segmentIndices.includes(segment._originalIndex)) {
+      currentDay.segmentIndices.push(segment._originalIndex);
+    }
     currentDayDriveMinutes += segmentDriveMinutes;
 
     // Check for timezone changes
