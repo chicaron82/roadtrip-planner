@@ -12,9 +12,11 @@ export const INTER_QUERY_DELAY = 2500;
 // Delay between corridor and park-relation queries when run sequentially
 export const INTRA_FETCH_DELAY = 1500;
 
-// Max Overpass retries on 429 (rate limit)
+// Max Overpass retries on 429 (rate limit).
+// Overpass recommends ~30s cooldown after a 429. With exponential backoff
+// at base 12s: retries fire at ~12s, ~24s, ~48s — much friendlier.
 export const MAX_RETRIES = 3;
-export const RETRY_DELAY_MS = 3000;
+export const RETRY_DELAY_MS = 12000;
 
 /**
  * OSM tag mapping for POI categories.

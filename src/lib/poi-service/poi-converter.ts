@@ -110,8 +110,11 @@ export function calculatePopularityScore(tags: Record<string, string>): number {
  */
 export function getRelevantCategories(tripPreferences: TripPreference[]): POISuggestionCategory[] {
   if (tripPreferences.length === 0) {
-    // Default: discovery-focused mix (skip food/gas — not interesting discoveries)
-    return ['viewpoint', 'attraction', 'landmark', 'park', 'waterfall', 'museum'];
+    // No preferences selected — skip POI discovery entirely.
+    // Firing Overpass when the user hasn't asked for anything wastes rate-limit
+    // quota and causes unnecessary 429s. Return [] so fetchPOISuggestions
+    // short-circuits before touching the API.
+    return [];
   }
 
   // Combine categories from selected preferences

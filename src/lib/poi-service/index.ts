@@ -57,6 +57,12 @@ async function _doFetchPOISuggestions(
   const startTime = performance.now();
 
   const categories = getRelevantCategories(tripPreferences);
+
+  // No categories → no POI preferences set → skip Overpass entirely.
+  if (categories.length === 0) {
+    return { alongWay: [], atDestination: [], totalFound: 0, queryDurationMs: 0 };
+  }
+
   const routeDistanceKm = estimateRouteDistanceKm(routeGeometry);
 
   // ── Queries 1 + 2: Corridor (node/way bbox) + Park relations (sampled around:) ──
