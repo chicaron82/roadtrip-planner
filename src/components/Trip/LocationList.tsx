@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { Location } from '../../types';
 import { Button } from '../UI/Button';
 import { LocationSearchInput } from './LocationSearchInput';
-import { MapPin, Flag, Circle, X, Star, GripVertical } from 'lucide-react';
+import { MapPin, Flag, Circle, X, Star, GripVertical, Loader2 } from 'lucide-react';
 import { getFavorites, toggleFavorite, type SavedLocation } from '../../lib/storage';
 import {
   DndContext,
@@ -315,7 +315,9 @@ export function LocationList({ locations, setLocations, onCalculate, isCalculati
           disabled={isCalculating || locations.some(l => !l.name)}
           className="w-full h-12 text-sm font-semibold shadow-lg"
         >
-          {isCalculating ? "Calculating..." : "🗺️ Calculate Route"}
+          {isCalculating ? (
+            <><Loader2 className="h-4 w-4 animate-spin mr-2" />Calculating...</>
+          ) : "🗺️ Calculate Route"}
         </Button>
       )}
     </div>

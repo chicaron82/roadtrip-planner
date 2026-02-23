@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import type { TripSummary, TripSettings } from '../../types';
 import { Card, CardContent } from '../UI/Card';
 import { formatDistance, formatDuration, formatCurrency } from '../../lib/calculations';
-import { Car, Fuel, Users, TrendingDown, TrendingUp, Gauge } from 'lucide-react';
+import { Car, Fuel, Users, TrendingDown, TrendingUp, Gauge, ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from '../UI/Button';
 import { TripOverview } from './TripOverview';
 import { FeasibilityBanner } from './FeasibilityBanner';
@@ -54,10 +54,10 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
               )}
               <button
                 onClick={() => setIsMinimized(!isMinimized)}
-                className="h-7 w-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground text-lg leading-none"
+                className="h-7 w-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground"
                 title={isMinimized ? "Expand" : "Minimize"}
               >
-                {isMinimized ? '+' : '‒'}
+                {isMinimized ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               </button>
             </div>
           </div>

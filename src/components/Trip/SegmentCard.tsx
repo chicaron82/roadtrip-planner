@@ -16,14 +16,23 @@ export function SegmentCard({ segment, settings, segmentIndex, arrivalTime }: Se
   const hasWarnings = segment.warnings && segment.warnings.length > 0;
 
   // Determine card style based on warnings
-  const severityColor = segment.warnings?.some(w => w.severity === 'critical')
+  const isCritical = segment.warnings?.some(w => w.severity === 'critical');
+  const isWarning = !isCritical && segment.warnings?.some(w => w.severity === 'warning');
+
+  const severityColor = isCritical
     ? 'border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-900/10'
-    : segment.warnings?.some(w => w.severity === 'warning')
+    : isWarning
     ? 'border-yellow-200 bg-yellow-50/50 dark:border-yellow-800 dark:bg-yellow-900/10'
     : 'border-border bg-background';
 
+  const accentStripe = isCritical
+    ? 'border-l-4 border-l-red-500'
+    : isWarning
+    ? 'border-l-4 border-l-yellow-400'
+    : '';
+
   return (
-    <div className={cn("rounded-lg border p-4 space-y-3 transition-all hover:shadow-md", severityColor)}>
+    <div className={cn("rounded-lg border p-4 space-y-3 transition-all hover:shadow-md", severityColor, accentStripe)}>
       {/* Header: From → To */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -42,7 +51,7 @@ export function SegmentCard({ segment, settings, segmentIndex, arrivalTime }: Se
       </div>
 
       {/* Metrics */}
-      <div className="grid grid-cols-3 gap-2 text-xs">
+      <div className={cn("grid gap-2 text-xs", arrivalTime ? "grid-cols-3" : "grid-cols-2")}>
         <div>
           <div className="text-muted-foreground">Distance</div>
           <div className="font-semibold">{formatDistance(segment.distanceKm, settings.units)}</div>
@@ -51,10 +60,12 @@ export function SegmentCard({ segment, settings, segmentIndex, arrivalTime }: Se
           <div className="text-muted-foreground">Duration</div>
           <div className="font-semibold">{formatDuration(segment.durationMinutes)}</div>
         </div>
-        <div>
-          <div className="text-muted-foreground">Arrival</div>
-          <div className="font-semibold">{arrivalTime || 'TBD'}</div>
-        </div>
+        {arrivalTime && (
+          <div>
+            <div className="text-muted-foreground">Arrival</div>
+            <div className="font-semibold">{arrivalTime}</div>
+          </div>
+        )}
       </div>
 
       {/* Weather */}
