@@ -73,6 +73,9 @@ export function useTripCalculation({
   // Cancelled when a new calculation starts so stale results never overwrite.
   const geocodeAbortRef = useRef<AbortController | null>(null);
 
+  // Retain roundTripMidpoint across calculations so updateStopType can re-split days correctly
+  const roundTripMidpointRef = useRef<number | undefined>(undefined);
+
   const calculateTrip = useCallback(async (): Promise<TripSummary | null> => {
     setIsCalculating(true);
     setError(null);
@@ -125,6 +128,7 @@ export function useTripCalculation({
       if (settings.isRoundTrip) {
         const outboundSegments = segmentsWithTimes;
         roundTripMidpoint = outboundSegments.length; // Index where return leg begins
+        roundTripMidpointRef.current = roundTripMidpoint;
         const returnSegments = [...outboundSegments].reverse().map((seg) => ({
           ...seg,
           from: seg.to,
@@ -344,16 +348,33 @@ export function useTripCalculation({
         settings.departureTime
       );
 
-      // Update summary with recalculated times
+      // Re-split days so overnight markings update day budgets and structure
+      const updatedDays = splitTripByDays(
+        segmentsWithTimes,
+        settings,
+        settings.departureDate,
+        settings.departureTime,
+        roundTripMidpointRef.current,
+        localSummary.fullGeometry,
+      );
+
+      const updatedCostBreakdown = updatedDays.length > 0
+        ? calculateCostBreakdown(updatedDays, settings.numTravelers)
+        : localSummary.costBreakdown;
+
       const updatedSummary = {
         ...localSummary,
         segments: segmentsWithTimes,
+        days: updatedDays,
+        costBreakdown: updatedCostBreakdown,
+        budgetStatus: updatedCostBreakdown ? getBudgetStatus(settings.budget, updatedCostBreakdown) : localSummary.budgetStatus,
+        budgetRemaining: updatedCostBreakdown ? settings.budget.total - updatedCostBreakdown.total : localSummary.budgetRemaining,
       };
 
       setLocalSummary(updatedSummary);
       onSummaryChange(updatedSummary);
     },
-    [localSummary, settings.departureDate, settings.departureTime, onSummaryChange]
+    [localSummary, settings, onSummaryChange]
   );
 
   // Generic day updater — updates a single day in summary.days

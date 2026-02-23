@@ -211,12 +211,12 @@ export function SettingsForm({ settings, setSettings }: SettingsFormProps) {
             onChange={(value) => handleChange('routePreference', value)}
           />
 
-          {/* Round Trip Toggle with Premium Badge */}
+          {/* Auto Return Toggle */}
           <div className="flex items-center justify-between p-3 rounded-lg border bg-gradient-to-r from-primary/5 to-transparent">
             <div className="flex items-center gap-2">
               <Repeat className="h-4 w-4 text-primary" />
               <Label className="cursor-pointer font-medium" htmlFor="round-trip">
-                Round Trip
+                Auto Return
               </Label>
               {settings.isRoundTrip && (
                 <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-primary text-primary-foreground">
@@ -233,7 +233,7 @@ export function SettingsForm({ settings, setSettings }: SettingsFormProps) {
 
           {settings.isRoundTrip && (
             <div className="text-xs text-muted-foreground pl-9 -mt-2 animate-in slide-in-from-top-1 fade-in">
-              ✨ Distance, cost, and gas stops will be doubled
+              ✨ Trip ends where it started — distance and cost doubled
             </div>
           )}
        </div>

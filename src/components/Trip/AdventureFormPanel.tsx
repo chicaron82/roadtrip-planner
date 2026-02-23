@@ -143,9 +143,9 @@ export function AdventureFormPanel({
         </div>
       </div>
 
-      {/* Round Trip Toggle */}
+      {/* Auto / Manual route mode */}
       <div>
-        <Label className="text-xs text-gray-500 mb-2 block">Trip Type</Label>
+        <Label className="text-xs text-gray-500 mb-2 block">Route Mode</Label>
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => onIsRoundTripChange(true)}
@@ -154,7 +154,7 @@ export function AdventureFormPanel({
               isRoundTrip ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 hover:border-gray-300'
             )}
           >
-            <RotateCcw className="h-4 w-4" /> Round Trip
+            <RotateCcw className="h-4 w-4" /> Auto
           </button>
           <button
             onClick={() => onIsRoundTripChange(false)}
@@ -163,12 +163,12 @@ export function AdventureFormPanel({
               !isRoundTrip ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 hover:border-gray-300'
             )}
           >
-            <ArrowRight className="h-4 w-4" /> One Way
+            <ArrowRight className="h-4 w-4" /> Manual
           </button>
         </div>
         {!isRoundTrip && (
           <p className="text-xs text-purple-600 mt-1.5 text-center">
-            Go twice as far! Plan to fly/bus back.
+            You plot every leg — including the return.
           </p>
         )}
       </div>

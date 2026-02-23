@@ -63,6 +63,21 @@ function AppContent() {
   const { addedStops, addedPOIIds, addStop, clearStops, asSuggestedStops, mirroredReturnStops } =
     useAddedStops(summary, settings.isRoundTrip);
 
+  // POI add — marks suggestion as added AND inserts it as a route waypoint
+  const handleAddPOI = useCallback((poiId: string) => {
+    addPOI(poiId);
+    const poi = poiSuggestions.find(p => p.id === poiId);
+    if (poi) {
+      const categoryMap: Partial<Record<string, POICategory>> = {
+        gas: 'gas', food: 'food', restaurant: 'food', cafe: 'food', hotel: 'hotel', attraction: 'attraction',
+      };
+      addStop(
+        { id: poi.id, name: poi.name, lat: poi.lat, lng: poi.lng, address: poi.address, category: categoryMap[poi.category] ?? 'attraction' },
+        summary?.segments ?? []
+      );
+    }
+  }, [addPOI, poiSuggestions, addStop, summary]);
+
   // Trip calculation
   const {
     isCalculating, error: calcError, shareUrl,
@@ -231,7 +246,7 @@ function AppContent() {
       onUpdateDayTitle={updateDayTitle}
       onUpdateDayType={updateDayType}
       onUpdateOvernight={updateDayOvernight}
-      onAddPOI={addPOI} onDismissPOI={dismissPOI}
+      onAddPOI={handleAddPOI} onDismissPOI={dismissPOI}
       onOpenGoogleMaps={openInGoogleMaps}
       onCopyShareLink={copyShareLink}
       onStartJournal={startJournal}

@@ -1,5 +1,5 @@
 import { Calendar, Upload } from 'lucide-react';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import type { Location, TripChallenge, TripMode, TripSettings } from '../../types';
 import { parseSharedTemplate, type TemplateImportResult } from '../../lib/url';
 import { showToast } from '../../lib/toast';
@@ -38,6 +38,19 @@ export function Step1Content({
   onSelectChallenge,
 }: Step1ContentProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [openEndedDismissed, setOpenEndedDismissed] = useState(false);
+
+  // Detect open-ended manual trip (last stop far from origin)
+  const origin = locations.find(l => l.type === 'origin');
+  const lastDest = locations.filter(l => l.type === 'destination').at(-1);
+  const isOpenEnded = !settings.isRoundTrip
+    && !!origin && !!lastDest
+    && origin.lat !== 0 && lastDest.lat !== 0
+    && (() => {
+      const dLat = Math.abs(lastDest.lat - origin.lat);
+      const dLng = Math.abs(lastDest.lng - origin.lng);
+      return Math.sqrt(dLat * dLat + dLng * dLng) * 111 > 50;
+    })();
 
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -183,30 +196,51 @@ export function Step1Content({
           hideCalculateButton
         />
 
-        {/* One-Way Toggle (default is round trip) */}
-        <div className={`mt-4 flex items-center justify-between p-3 rounded-lg border transition-colors ${settings.isRoundTrip ? 'border-blue-500/30 bg-blue-500/10' : 'border-amber-500/30 bg-amber-500/10'}`}>
-          <div className="flex items-center gap-3">
-            <div className="text-2xl">{settings.isRoundTrip ? '🔄' : '➡️'}</div>
-            <div>
-              <div className={`text-sm font-semibold ${settings.isRoundTrip ? 'text-blue-300' : 'text-amber-300'}`}>
-                {settings.isRoundTrip ? 'Round Trip' : 'One-Way Journey'}
+        {/* Auto / Manual route mode */}
+        <div className="mt-4">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setSettings(prev => ({ ...prev, isRoundTrip: true }))}
+              className={`p-3 rounded-lg border-2 text-left transition-all ${
+                settings.isRoundTrip
+                  ? 'border-green-500/50 bg-green-500/10 text-green-300'
+                  : 'border-white/10 text-muted-foreground hover:border-white/20'
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-0.5">
+                <span>🔄</span>
+                <span className="text-sm font-semibold">Auto</span>
               </div>
-              <div className="text-xs text-muted-foreground">
-                {settings.isRoundTrip
-                  ? 'Returning to starting point (doubles costs & distance)'
-                  : 'No return — costs & distance for outbound only'}
+              <div className="text-xs opacity-60">Returns to start</div>
+            </button>
+            <button
+              onClick={() => { setSettings(prev => ({ ...prev, isRoundTrip: false })); setOpenEndedDismissed(false); }}
+              className={`p-3 rounded-lg border-2 text-left transition-all ${
+                !settings.isRoundTrip
+                  ? 'border-amber-500/50 bg-amber-500/10 text-amber-300'
+                  : 'border-white/10 text-muted-foreground hover:border-white/20'
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-0.5">
+                <span>✏️</span>
+                <span className="text-sm font-semibold">Manual</span>
               </div>
-            </div>
+              <div className="text-xs opacity-60">You plot the full route</div>
+            </button>
           </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={!settings.isRoundTrip}
-              onChange={(e) => setSettings((prev) => ({ ...prev, isRoundTrip: !e.target.checked }))}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-amber-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
-          </label>
+
+          {/* Open-ended trip nudge */}
+          {isOpenEnded && !openEndedDismissed && (
+            <div className="mt-2 flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300">
+              <span>↗ Your trip ends in <strong>{lastDest!.name}</strong>, not {origin!.name}. Intentional?</span>
+              <button
+                onClick={() => setOpenEndedDismissed(true)}
+                className="shrink-0 font-semibold hover:text-amber-200 transition-colors"
+              >
+                Got it ✓
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Adventure Mode Button — only show in plan mode as secondary option */}

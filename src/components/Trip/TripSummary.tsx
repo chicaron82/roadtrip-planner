@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import type { TripSummary, TripSettings } from '../../types';
 import { Card, CardContent } from '../UI/Card';
 import { formatDistance, formatDuration, formatCurrency } from '../../lib/calculations';
-import { Car, Fuel, Users } from 'lucide-react';
+import { Car, Fuel, Users, TrendingDown, TrendingUp, Gauge } from 'lucide-react';
 import { Button } from '../UI/Button';
 import { TripOverview } from './TripOverview';
 import { FeasibilityBanner } from './FeasibilityBanner';
@@ -73,6 +73,12 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
                 {formatDistance(summary.totalDistanceKm, settings.units)}
                 {settings.isRoundTrip && <span className="text-xs ml-1 font-normal opacity-70">(x2)</span>}
               </div>
+              {summary.gasStops > 0 && (
+                <div className="text-[9px] text-blue-500/70 mt-0.5 flex items-center gap-1">
+                  <Gauge className="w-2.5 h-2.5" />
+                  {summary.gasStops} fill-up{summary.gasStops !== 1 ? 's' : ''}
+                </div>
+              )}
             </div>
 
             <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 border border-amber-100 dark:border-amber-800">
@@ -105,6 +111,28 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
               </div>
             </div>
           </div>
+
+          {/* Budget status row */}
+          {summary.budgetStatus && summary.budgetRemaining !== undefined && settings.budget.total > 0 && (
+            <div className={`mt-3 rounded-xl px-3 py-2 flex items-center justify-between text-sm border ${
+              summary.budgetStatus === 'over'
+                ? 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-800'
+                : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800'
+            }`}>
+              <div className={`flex items-center gap-1.5 font-semibold text-xs uppercase tracking-wider ${
+                summary.budgetStatus === 'over' ? 'text-red-600' : 'text-emerald-600'
+              }`}>
+                {summary.budgetStatus === 'over'
+                  ? <TrendingUp className="w-3.5 h-3.5" />
+                  : <TrendingDown className="w-3.5 h-3.5" />
+                }
+                {summary.budgetStatus === 'over' ? 'Over budget' : 'Under budget'}
+              </div>
+              <div className={`font-bold ${summary.budgetStatus === 'over' ? 'text-red-700 dark:text-red-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                {formatCurrency(Math.abs(summary.budgetRemaining), settings.currency)}
+              </div>
+            </div>
+          )}
 
           {!isMinimized && (
             <div className="mt-4 animate-in fade-in duration-300">

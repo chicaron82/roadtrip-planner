@@ -6,6 +6,7 @@ import type { TripBudget, Currency, BudgetWeights, SavedBudgetProfile } from '..
 import { applyBudgetWeights, getPerPersonCost } from '../../lib/budget';
 import { cn } from '../../lib/utils';
 import { BudgetProfilePicker, SaveProfileDialog } from './BudgetProfilePicker';
+import { getAdaptiveDefaults, isAdaptiveMeaningful } from '../../lib/user-profile';
 
 interface BudgetInputProps {
   budget: TripBudget;
@@ -181,6 +182,9 @@ export function BudgetInput({ budget, onChange, currency: _currency, numTraveler
   const perPersonCost = getPerPersonCost(budget.total, numTravelers);
   const currencySymbol = '$';
 
+  const adaptiveDefaults = getAdaptiveDefaults();
+  const showAdaptiveCallout = adaptiveDefaults !== null && isAdaptiveMeaningful(adaptiveDefaults);
+
   return (
     <div className={cn("space-y-4", className)}>
       {/* Header with Fixed/Flexible Toggle */}
@@ -213,6 +217,16 @@ export function BudgetInput({ budget, onChange, currency: _currency, numTraveler
           )}
         </button>
       </div>
+
+      {/* Adaptive defaults callout */}
+      {showAdaptiveCallout && adaptiveDefaults && (
+        <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-100 text-xs text-amber-800">
+          <Sparkles className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-500" />
+          <span>
+            Based on your past {adaptiveDefaults.tripCount} trips — Hotel ~${adaptiveDefaults.hotelPricePerNight}/night · Meals ~${adaptiveDefaults.mealPricePerDay}/day
+          </span>
+        </div>
+      )}
 
       {/* Budget Container */}
       <div className="space-y-4 p-4 rounded-lg bg-gray-50 border border-gray-200">

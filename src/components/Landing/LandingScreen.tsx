@@ -22,7 +22,7 @@ interface LandingScreenProps {
   onResumeSession?: () => void;
 }
 
-export function LandingScreen({ onSelectMode, hasActiveSession, onResumeSession }: LandingScreenProps) {
+export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip, hasActiveSession, onResumeSession }: LandingScreenProps) {
   const [hoveredMode, setHoveredMode] = useState<TripMode | null>(null);
   const [isExiting, setIsExiting] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -174,6 +174,52 @@ export function LandingScreen({ onSelectMode, hasActiveSession, onResumeSession 
           }}>
             Start planning. Get driving. Enjoy your MEE time.
           </p>
+
+          {/* Continue Saved Trip */}
+          {hasSavedTrip && onContinueSavedTrip && !hasActiveSession && (
+            <div style={{ marginBottom: '24px' }}>
+              <p style={{
+                fontFamily: "'DM Mono', monospace",
+                fontSize: '11px',
+                color: '#22C55E',
+                letterSpacing: '0.05em',
+                marginBottom: '8px',
+              }}>
+                ✦ You have a saved trip
+              </p>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsExiting(true);
+                  setTimeout(() => onContinueSavedTrip(), 600);
+                }}
+                style={{
+                  background: 'rgba(34, 197, 94, 0.12)',
+                  border: '1px solid rgba(34, 197, 94, 0.35)',
+                  color: '#86EFAC',
+                  padding: '10px 24px',
+                  borderRadius: '100px',
+                  fontFamily: "'DM Mono', monospace",
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  letterSpacing: '0.05em',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 0 20px rgba(34, 197, 94, 0.08)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(34, 197, 94, 0.22)';
+                  e.currentTarget.style.boxShadow = '0 0 30px rgba(34, 197, 94, 0.18)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(34, 197, 94, 0.12)';
+                  e.currentTarget.style.boxShadow = '0 0 20px rgba(34, 197, 94, 0.08)';
+                }}
+              >
+                Continue where you left off →
+              </button>
+            </div>
+          )}
 
           {/* Active Session Resume Button - Only show if a session was rehydrated */}
           {hasActiveSession && onResumeSession && (
