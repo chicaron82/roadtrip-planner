@@ -32,11 +32,11 @@ describe('applyBudgetWeights', () => {
     expect(result.misc).toBe(100);   // 10%
   });
 
-  it('distributes budget according to comfort profile', () => {
-    const result = applyBudgetWeights(1000, BUDGET_PROFILES.comfort.weights);
-    expect(result.gas).toBe(200);    // 20%
-    expect(result.hotel).toBe(450);  // 45%
-    expect(result.food).toBe(250);   // 25%
+  it('distributes budget according to scenic profile', () => {
+    const result = applyBudgetWeights(1000, BUDGET_PROFILES.scenic.weights);
+    expect(result.gas).toBe(350);    // 35%
+    expect(result.hotel).toBe(350);  // 35%
+    expect(result.food).toBe(200);   // 20%
     expect(result.misc).toBe(100);   // 10%
   });
 
@@ -318,14 +318,14 @@ describe('createSmartBudget', () => {
 
 describe('BUDGET_PROFILES', () => {
   it('all profiles have weights summing to 100', () => {
-    for (const [_name, profile] of Object.entries(BUDGET_PROFILES)) {
+    for (const profile of Object.values(BUDGET_PROFILES)) {
       const sum = profile.weights.gas + profile.weights.hotel + profile.weights.food + profile.weights.misc;
       expect(sum).toBe(100);
     }
   });
 
   it('all profiles have required fields', () => {
-    for (const [_name, profile] of Object.entries(BUDGET_PROFILES)) {
+    for (const profile of Object.values(BUDGET_PROFILES)) {
       expect(profile.label).toBeDefined();
       expect(profile.emoji).toBeDefined();
       expect(profile.description).toBeDefined();
