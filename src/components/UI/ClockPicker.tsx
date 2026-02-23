@@ -10,15 +10,18 @@ const SIZE = 164;
 const CENTER = SIZE / 2;
 const RADIUS = 60;
 
-// Precompute hour number positions around the clock face
+// Hours 1–12 at standard clock positions
 const HOUR_POSITIONS = Array.from({ length: 12 }, (_, i) => {
   const hour = i + 1;
   const angle = (hour / 12) * 2 * Math.PI - Math.PI / 2;
-  return {
-    hour,
-    x: CENTER + RADIUS * Math.cos(angle),
-    y: CENTER + RADIUS * Math.sin(angle),
-  };
+  return { hour, x: CENTER + RADIUS * Math.cos(angle), y: CENTER + RADIUS * Math.sin(angle) };
+});
+
+// Minutes 00–55 in 5-min steps at the same 12 clock positions (00 at top)
+const MINUTE_POSITIONS = Array.from({ length: 12 }, (_, i) => {
+  const minute = i * 5;
+  const angle = (i / 12) * 2 * Math.PI - Math.PI / 2;
+  return { minute, x: CENTER + RADIUS * Math.cos(angle), y: CENTER + RADIUS * Math.sin(angle) };
 });
 
 function parse(value: string): { h: number; m: number } {
@@ -30,37 +33,53 @@ function format(h: number, m: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-// Convert 12-hour + PM flag back to 24-hour
 function to24(hour12: number, pm: boolean): number {
-  if (pm)  return hour12 === 12 ? 12 : hour12 + 12;
+  if (pm) return hour12 === 12 ? 12 : hour12 + 12;
   return hour12 === 12 ? 0 : hour12;
 }
 
 export function ClockPicker({ value, onChange, disabled }: ClockPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [step, setStep] = useState<'hour' | 'minute'>('hour');
   const ref = useRef<HTMLDivElement>(null);
 
   const { h, m } = parse(value);
   const isPM = h >= 12;
   const hour12 = h % 12 || 12;
+  // Snap displayed minutes to nearest 5 for highlight matching
+  const snappedM = Math.round(m / 5) * 5 % 60;
+
   const displayLabel = `${hour12}:${String(m).padStart(2, '0')} ${isPM ? 'PM' : 'AM'}`;
 
-  // Close on click outside
+  // Close on outside click, reset step for next open
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setIsOpen(false);
+        setStep('hour');
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [isOpen]);
 
-  const handleHour = (clickedHour: number) => {
-    onChange(format(to24(clickedHour, isPM), m));
+  const handleOpen = () => {
+    setStep('hour');
+    setIsOpen(o => !o);
   };
 
+  // Clicking an hour advances to minute selection
+  const handleHour = (clickedHour: number) => {
+    onChange(format(to24(clickedHour, isPM), m));
+    setStep('minute');
+  };
+
+  // Clicking a minute closes the picker
   const handleMinute = (clickedMin: number) => {
     onChange(format(to24(hour12, isPM), clickedMin));
+    setIsOpen(false);
+    setStep('hour');
   };
 
   const handleAmPm = (pm: boolean) => {
@@ -73,7 +92,7 @@ export function ClockPicker({ value, onChange, disabled }: ClockPickerProps) {
       <button
         type="button"
         disabled={disabled}
-        onClick={() => setIsOpen(o => !o)}
+        onClick={handleOpen}
         className="w-full mt-1 px-3 py-2 text-sm rounded-md border border-input bg-background text-left
                    disabled:opacity-50 disabled:cursor-not-allowed
                    hover:border-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-ring
@@ -82,7 +101,6 @@ export function ClockPicker({ value, onChange, disabled }: ClockPickerProps) {
         {displayLabel}
       </button>
 
-      {/* Picker panel */}
       {isOpen && !disabled && (
         <div
           className="absolute z-50 mt-1.5 p-3 rounded-xl border border-border bg-popover shadow-xl"
@@ -106,52 +124,66 @@ export function ClockPicker({ value, onChange, disabled }: ClockPickerProps) {
             ))}
           </div>
 
+          {/* Time display — click hour or minute segment to jump back/forward */}
+          <div className="flex items-center justify-center gap-0.5 mb-2">
+            <button
+              type="button"
+              onClick={() => setStep('hour')}
+              className={`px-2 py-0.5 rounded font-mono text-lg font-semibold transition-colors ${
+                step === 'hour' ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {String(hour12).padStart(2, '0')}
+            </button>
+            <span className="text-lg font-semibold text-muted-foreground select-none">:</span>
+            <button
+              type="button"
+              onClick={() => setStep('minute')}
+              className={`px-2 py-0.5 rounded font-mono text-lg font-semibold transition-colors ${
+                step === 'minute' ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {String(m).padStart(2, '0')}
+            </button>
+          </div>
+
           {/* Clock face */}
           <div className="relative mx-auto" style={{ width: SIZE, height: SIZE }}>
-            {/* Face ring */}
             <div className="absolute inset-0 rounded-full border-2 border-border/60" />
-
-            {/* Center dot */}
             <div
-              className="absolute w-2 h-2 rounded-full bg-muted-foreground/50"
+              className="absolute w-2 h-2 rounded-full bg-muted-foreground/40"
               style={{ left: CENTER - 4, top: CENTER - 4 }}
             />
 
-            {/* Hour buttons */}
-            {HOUR_POSITIONS.map(({ hour, x, y }) => {
-              const selected = hour === hour12;
-              return (
-                <button
-                  key={hour}
-                  type="button"
-                  onClick={() => handleHour(hour)}
-                  style={{ position: 'absolute', left: x - 15, top: y - 15, width: 30, height: 30 }}
-                  className={`rounded-full text-xs font-medium transition-colors flex items-center justify-center ${
-                    selected
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'text-foreground hover:bg-muted'
-                  }`}
-                >
-                  {hour}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Minutes row */}
-          <div className="flex gap-1.5 mt-3">
-            {[0, 15, 30, 45].map(min => (
+            {step === 'hour' && HOUR_POSITIONS.map(({ hour, x, y }) => (
               <button
-                key={min}
+                key={hour}
                 type="button"
-                onClick={() => handleMinute(min)}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                  m === min
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground hover:bg-muted/70'
+                onClick={() => handleHour(hour)}
+                style={{ position: 'absolute', left: x - 15, top: y - 15, width: 30, height: 30 }}
+                className={`rounded-full text-xs font-medium transition-colors flex items-center justify-center ${
+                  hour === hour12
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-foreground hover:bg-muted'
                 }`}
               >
-                :{String(min).padStart(2, '0')}
+                {hour}
+              </button>
+            ))}
+
+            {step === 'minute' && MINUTE_POSITIONS.map(({ minute, x, y }) => (
+              <button
+                key={minute}
+                type="button"
+                onClick={() => handleMinute(minute)}
+                style={{ position: 'absolute', left: x - 15, top: y - 15, width: 30, height: 30 }}
+                className={`rounded-full text-xs font-medium transition-colors flex items-center justify-center ${
+                  minute === snappedM
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-foreground hover:bg-muted'
+                }`}
+              >
+                {String(minute).padStart(2, '0')}
               </button>
             ))}
           </div>
