@@ -164,7 +164,6 @@ export function DateRangePicker({
   const [hoverDate, setHoverDate] = useState<string | null>(null);
   const panelRef                  = useRef<HTMLDivElement>(null);
 
-  const rightMonth = addMonths(leftMonth, 1);
   const phase: 'start' | 'end' | 'done' = !startDate ? 'start' : !endDate ? 'end' : 'done';
 
   // Close on outside click
@@ -275,7 +274,7 @@ export function DateRangePicker({
 
       {/* ── Calendar panel ── */}
       {isOpen && (
-        <div className="absolute left-0 z-50 mt-2 border border-border rounded-2xl bg-background shadow-xl overflow-hidden" style={{ minWidth: '580px' }}>
+        <div className="absolute left-0 z-50 mt-2 border border-border rounded-2xl bg-background shadow-xl overflow-hidden" style={{ width: '300px' }}>
 
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border/60 bg-muted/30">
@@ -288,14 +287,9 @@ export function DateRangePicker({
               <ChevronLeft className="h-4 w-4" />
             </button>
 
-            <div className="flex items-center gap-8">
-              <span className="text-sm font-semibold">
-                {MONTHS[leftMonth.getMonth()]} {leftMonth.getFullYear()}
-              </span>
-              <span className="hidden sm:block text-sm font-semibold">
-                {MONTHS[rightMonth.getMonth()]} {rightMonth.getFullYear()}
-              </span>
-            </div>
+            <span className="text-sm font-semibold">
+              {MONTHS[leftMonth.getMonth()]} {leftMonth.getFullYear()}
+            </span>
 
             <button
               type="button"
@@ -307,13 +301,9 @@ export function DateRangePicker({
             </button>
           </div>
 
-          {/* Month grids */}
-          <div className="flex gap-0 px-4 pt-3 pb-2">
+          {/* Month grid */}
+          <div className="px-4 pt-3 pb-2">
             <MonthPanel year={leftMonth.getFullYear()} month={leftMonth.getMonth()} {...sharedPanelProps} />
-            <div className="hidden sm:flex items-stretch">
-              <div className="w-px bg-border/60 mx-4" />
-              <MonthPanel year={rightMonth.getFullYear()} month={rightMonth.getMonth()} {...sharedPanelProps} />
-            </div>
           </div>
 
           {/* Footer hint */}
