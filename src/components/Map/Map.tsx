@@ -357,7 +357,7 @@ export function Map({ locations, routeGeometry, pois, markerCategories, strategi
             {clickedSegment && (
               <Popup
                 position={[clickedSegment.lat, clickedSegment.lng]}
-                onClose={() => setClickedSegment(null)}
+                eventHandlers={{ remove: () => setClickedSegment(null) }}
                 className="font-sans"
               >
                 <div className="p-1 min-w-[180px]">

@@ -417,7 +417,7 @@ export function useTripCalculation({
         settings.departureDate,
         settings.departureTime,
         roundTripMidpointRef.current,
-        localSummary.fullGeometry,
+        localSummary.fullGeometry as [number, number][],
       );
 
       const updatedCostBreakdown = updatedDays.length > 0
