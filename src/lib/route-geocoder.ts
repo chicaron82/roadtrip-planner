@@ -4,7 +4,7 @@
  * Given a route polyline and a km mark, interpolate the lat/lng position
  * then reverse geocode via Nominatim to get a human-readable town name.
  *
- * Used by SmartTimeline to replace "~250 km from Winnipeg" with "near Dryden".
+ * Used by SmartTimeline to replace "~250 km from Winnipeg" with "near Dryden, ON".
  *
  * 💚 My Experience Engine
  */
@@ -64,10 +64,11 @@ export function interpolateRoutePosition(
 // ─── Reverse geocoding ───────────────────────────────────────────────────────
 
 /**
- * Reverse geocode a lat/lng to a town/city name via Nominatim.
+ * Reverse geocode a lat/lng to a "Town, Province" string via Nominatim.
  *
  * Uses zoom=10 for city-level resolution (not street-level).
- * Returns just the town name (e.g. "Dryden") or null on failure.
+ * Returns a formatted string like "Dryden, ON" or "Fargo, ND", or null on failure.
+ * The province/state code is appended so users can place unfamiliar stop names.
  */
 export async function reverseGeocodeTown(
   lat: number,
@@ -98,20 +99,33 @@ export async function reverseGeocodeTown(
       addr.village ??
       addr.hamlet;
 
-    if (directName) return directName;
+    let townName: string | null = null;
 
-    // Fallback: county/district — strip "Unorganized " prefix and " District"/" County"
-    // suffix so "Unorganized Kenora District" → "Kenora"
-    const rawCounty: string | undefined = addr.county ?? addr.municipality ?? addr.state_district;
-    if (rawCounty) {
-      return rawCounty
-        .replace(/^Unorganized\s+/i, '')
-        .replace(/\s+District$/i, '')
-        .replace(/\s+County$/i, '')
-        .trim() || null;
+    if (directName) {
+      townName = directName;
+    } else {
+      // Fallback: county/district — strip "Unorganized " prefix and " District"/" County"
+      // suffix so "Unorganized Kenora District" → "Kenora"
+      const rawCounty: string | undefined = addr.county ?? addr.municipality ?? addr.state_district;
+      if (rawCounty) {
+        townName = rawCounty
+          .replace(/^Unorganized\s+/i, '')
+          .replace(/\s+District$/i, '')
+          .replace(/\s+County$/i, '')
+          .trim() || null;
+      }
     }
 
-    return null;
+    if (!townName) return null;
+
+    // Append province/state code so users can place unfamiliar stop names.
+    // Nominatim provides ISO 3166-2 codes (e.g. "ON", "MB", "ND", "MN").
+    const stateCode: string | undefined = addr.ISO3166_2_lvl4
+      ? (addr.ISO3166_2_lvl4 as string).replace(/^[A-Z]+-/, '') // "CA-ON" → "ON"
+      : addr.state_code;
+
+    if (stateCode) return `${townName}, ${stateCode}`;
+    return townName;
   } catch {
     // Network error, abort, etc — graceful fallback
     return null;
