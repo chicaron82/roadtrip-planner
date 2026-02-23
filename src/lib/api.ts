@@ -198,15 +198,20 @@ export async function fetchAllRouteStrategies(
     }
   });
 
-  // Only show picker when strategies are meaningfully different (>3% delta in distance)
-  // This avoids showing 3 identical lines for short same-country routes
   if (out.length >= 2) {
     const fastest = out.find(s => s.id === 'fastest');
     if (fastest) {
+      // Canada Only is a categorical choice (stay in Canada vs take the fastest path),
+      // not a distance optimisation. Distance delta is the wrong filter — Winnipeg →
+      // Niagara Falls via US vs via Lake Superior are similar in km but completely
+      // different paths. Use border detection on the fastest geometry instead.
+      const { crossesUS } = detectBorderCrossing(fastest.geometry);
+
       return out.filter(s => {
         if (s.id === 'fastest') return true;
+        if (s.id === 'canada-only') return crossesUS; // show iff fastest cuts through the US
         const delta = Math.abs(s.distanceKm - fastest.distanceKm) / fastest.distanceKm;
-        return delta > 0.03; // Keep if >3% different
+        return delta > 0.03; // keep scenic only when meaningfully different
       });
     }
   }
