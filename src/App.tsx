@@ -239,6 +239,7 @@ function AppContent() {
       onGoToStep={goToStep}
       onConfirmTrip={() => setTripConfirmed(true)}
       onUnconfirmTrip={() => { setTripConfirmed(false); setViewMode('plan'); }}
+      onLoadHistoryTrip={setSummary}
     />
   );
 

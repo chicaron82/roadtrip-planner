@@ -48,11 +48,9 @@
 
 /* ── Sidebar header ── */
 .sidebar-header {
-  background: linear-gradient(
-    180deg,
-    hsl(225 30% 10%) 0%,
-    hsl(225 28% 8%) 100%
-  );
+  background:
+    linear-gradient(180deg, rgba(10, 14, 26, 0.48) 0%, rgba(10, 14, 26, 0.58) 100%),
+    url('/bg_top.png') center/cover no-repeat;
   border-bottom: 1px solid hsl(225 18% 16%);
 }
 

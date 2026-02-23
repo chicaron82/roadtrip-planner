@@ -57,6 +57,7 @@ export function LandingScreen({ onSelectMode, hasActiveSession, onResumeSession 
     >
       {/* Background layers */}
       <div className="landing-starfield" />
+      <div className="landing-bg-overlay" />
       <div
         className="landing-aurora"
         style={{ animation: 'landing-aurora 12s ease-in-out infinite' }}

@@ -66,6 +66,7 @@ interface PlanningStepContentProps {
   onGoToStep: (step: PlanningStep) => void;
   onConfirmTrip: () => void;
   onUnconfirmTrip: () => void;
+  onLoadHistoryTrip?: (trip: TripSummary) => void;
 }
 
 export function PlanningStepContent(p: PlanningStepContentProps) {
@@ -120,6 +121,7 @@ export function PlanningStepContent(p: PlanningStepContentProps) {
       addedStopCount={p.addedStopCount}
       onConfirmTrip={p.onConfirmTrip}
       onUnconfirmTrip={p.onUnconfirmTrip}
+      onLoadHistoryTrip={p.onLoadHistoryTrip}
     />
   );
 }
