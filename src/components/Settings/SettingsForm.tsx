@@ -3,6 +3,7 @@ import { Input } from '../UI/Input';
 import { Label } from '../UI/Label';
 import { Button } from '../UI/Button';
 import { Switch } from '../UI/Switch';
+import { ClockPicker } from '../UI/ClockPicker';
 import { RoutePreferenceCards } from './RoutePreferenceCards';
 import { Repeat } from 'lucide-react';
 
@@ -76,12 +77,10 @@ export function SettingsForm({ settings, setSettings }: SettingsFormProps) {
               </div>
               <div>
                   <Label className="text-xs text-muted-foreground">{settings.useArrivalTime ? "Depart By (Calc)" : "Depart At"}</Label>
-                  <Input 
-                        type="time" 
-                        value={settings.departureTime} 
-                        onChange={(e) => handleChange('departureTime', e.target.value)} 
-                        className="mt-1"
-                        disabled={settings.useArrivalTime}
+                  <ClockPicker
+                    value={settings.departureTime}
+                    onChange={(v) => handleChange('departureTime', v)}
+                    disabled={settings.useArrivalTime}
                   />
               </div>
           </div>
@@ -110,11 +109,9 @@ export function SettingsForm({ settings, setSettings }: SettingsFormProps) {
               </div>
               <div>
                   <Label className="text-xs text-muted-foreground">Arrive By</Label>
-                  <Input 
-                        type="time" 
-                        value={settings.arrivalTime} 
-                        onChange={(e) => handleChange('arrivalTime', e.target.value)} 
-                        className="mt-1"
+                  <ClockPicker
+                    value={settings.arrivalTime || '17:00'}
+                    onChange={(v) => handleChange('arrivalTime', v)}
                   />
               </div>
              </div>
