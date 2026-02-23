@@ -115,8 +115,6 @@ export function ItineraryTimeline({
 
         {/* Simulation Items */}
         {simulationItems.map((item, idx) => {
-          const dayEntry = typeof item.index === 'number' ? dayStartMap.get(item.index) : undefined;
-
           if (item.type === 'gas') {
             return (
               <GasStopNode
@@ -141,13 +139,14 @@ export function ItineraryTimeline({
 
           if (item.segment && typeof item.index === 'number') {
             const freeDaysAfter = freeDaysAfterSegment.get(item.index) ?? [];
+            const dayEntries = typeof item.index === 'number' ? (dayStartMap.get(item.index) ?? []) : [];
             return (
               <div key={`stop-${item.index}`}>
-                {dayEntry && (
-                  <div className="mb-4">
+                {dayEntries.map(({ day: entryDay, isFirst }) => (
+                  <div key={`day-${entryDay.dayNumber}`} className="mb-4">
                     <DaySection
-                      day={dayEntry.day}
-                      isFirst={dayEntry.isFirst}
+                      day={entryDay}
+                      isFirst={isFirst}
                       editable={!!onUpdateDayType}
                       budgetMode={settings.budgetMode}
                       onDayTypeChange={onUpdateDayType}
@@ -156,8 +155,8 @@ export function ItineraryTimeline({
                       onAddDayOption={onAddDayOption}
                       onRemoveDayOption={onRemoveDayOption}
                       onSelectDayOption={onSelectDayOption}
-                      overnightNights={overnightNightsByDay.get(dayEntry.day.dayNumber)}
-                      onEditOvernight={onUpdateOvernight && dayEntry.day.overnight ? (dayNum) => {
+                      overnightNights={overnightNightsByDay.get(entryDay.dayNumber)}
+                      onEditOvernight={onUpdateOvernight && entryDay.overnight ? (dayNum) => {
                         const target = days?.find(d => d.dayNumber === dayNum);
                         if (target?.overnight) {
                           setEditingOvernight({ dayNumber: dayNum, overnight: target.overnight });
@@ -165,7 +164,7 @@ export function ItineraryTimeline({
                       } : undefined}
                     />
                     {/* Inline suggestions for this day */}
-                    {(pendingSuggestionsByDay.get(dayEntry.day.dayNumber) ?? []).map(stop => (
+                    {(pendingSuggestionsByDay.get(entryDay.dayNumber) ?? []).map(stop => (
                       <div key={stop.id} className="mt-2 ml-10">
                         <SuggestedStopCard
                           stop={stop}
@@ -175,7 +174,7 @@ export function ItineraryTimeline({
                       </div>
                     ))}
                   </div>
-                )}
+                ))}
                 <WaypointNode
                   segment={item.segment}
                   arrivalTime={item.arrivalTime}

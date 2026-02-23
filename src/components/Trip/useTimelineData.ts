@@ -248,13 +248,19 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
     return new Map(driverRotation.assignments.map(a => [a.segmentIndex, a.driver]));
   }, [driverRotation]);
 
-  // Map: segment index → TripDay, keyed on the day's first segment
+  // Map: segment index → TripDay[], keyed on the day's first segment.
+  // Multiple days can share the same segmentIndices[0] when a long segment was
+  // split by splitLongSegments (e.g. Winnipeg→Montreal split across Day 1 + Day 2 —
+  // both reference original segment index 0). Accumulating into an array prevents
+  // the later day from silently overwriting the earlier one.
   const dayStartMap = useMemo(() => {
-    const map = new Map<number, { day: TripDay; isFirst: boolean }>();
+    const map = new Map<number, { day: TripDay; isFirst: boolean }[]>();
     if (days) {
       days.forEach((day, idx) => {
         if (day.segmentIndices.length > 0) {
-          map.set(day.segmentIndices[0], { day, isFirst: idx === 0 });
+          const key = day.segmentIndices[0];
+          const existing = map.get(key) ?? [];
+          map.set(key, [...existing, { day, isFirst: idx === 0 }]);
         }
       });
     }
