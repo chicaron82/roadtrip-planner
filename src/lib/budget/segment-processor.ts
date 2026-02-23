@@ -53,13 +53,20 @@ export function splitLongSegments(
 
     const numParts = Math.ceil(seg.durationMinutes / maxDriveMinutes);
 
+    // Distribute drive time evenly across sub-segments instead of filling each
+    // part to maxDriveMinutes. Fill-to-max creates heavily imbalanced splits
+    // like [8h, 1h] for a 9h segment — the near-empty tail forces a needless
+    // extra day. Even distribution (e.g. [4.5h, 4.5h]) lets the stacking loop
+    // combine the second half with the next leg, reducing total day count.
+    const evenPartMinutes = Math.round(seg.durationMinutes / numParts);
+
     // Pre-compute split-point locations.
     // If fullGeometry is available we walk the actual road polyline;
     // otherwise we fall back to straight-line interpolation.
     const splitPoints: Location[] = [];
     for (let sp = 0; sp < numParts - 1; sp++) {
       // At this split boundary, what fraction of the segment has elapsed?
-      const timeFraction = (maxDriveMinutes * (sp + 1)) / seg.durationMinutes;
+      const timeFraction = (evenPartMinutes * (sp + 1)) / seg.durationMinutes;
       // Proportional km into this segment at the split boundary
       const splitKmAlongSeg = timeFraction * seg.distanceKm;
 
@@ -113,8 +120,8 @@ export function splitLongSegments(
     for (let part = 0; part < numParts; part++) {
       const partMinutes =
         part < numParts - 1
-          ? maxDriveMinutes
-          : seg.durationMinutes - maxDriveMinutes * (numParts - 1);
+          ? evenPartMinutes
+          : seg.durationMinutes - evenPartMinutes * (numParts - 1);
       const ratio = partMinutes / seg.durationMinutes;
 
       const fromLoc: Location = part === 0 ? seg.from : splitPoints[part - 1];
