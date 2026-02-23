@@ -299,7 +299,7 @@ export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [] 
       ? generateSmartStops(summary.segments, createStopConfig(vehicle, settings), summary.days)
       : [];
 
-    const raw = buildTimedTimeline(summary.segments, allSuggestions, settings, vehicle);
+    const raw = buildTimedTimeline(summary.segments, allSuggestions, settings);
     return applyComboOptimization(raw);
   }, [summary, settings, vehicle]);
 

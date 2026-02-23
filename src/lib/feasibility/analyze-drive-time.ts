@@ -13,6 +13,42 @@ export function analyzeDriveTime(
   const maxDriveMinutes = settings.maxDriveHours * 60;
   const tightDriveMinutes = maxDriveMinutes * 0.9; // 90% threshold for warning
 
+  // ── Day 1 late-arrival check ──────────────────────────────────────────────
+  // Day 1 always uses the user's explicit departureTime (e.g. "09:00"). If the
+  // first driving day has more drive time than the gap between departure and the
+  // target arrival hour, the crew will arrive well past their intended time.
+  // We warn and suggest an earlier departure rather than silently adjusting it.
+  const day1 = days.find(d => d.dayNumber === 1 && d.totals.driveTimeMinutes > 0);
+  if (day1) {
+    const [depH, depM] = settings.departureTime.split(':').map(Number);
+    const departureDecimal = depH + (depM || 0) / 60;
+    const targetArrivalHour = settings.targetArrivalHour ?? 21;
+    const availableHours = targetArrivalHour - departureDecimal;
+    const actualDriveHours = day1.totals.driveTimeMinutes / 60;
+    const estimatedArrivalHour = departureDecimal + actualDriveHours;
+
+    if (estimatedArrivalHour > targetArrivalHour + 0.5) {
+      // Suggest the ideal departure so they'd hit the target arrival
+      const suggestedDep = Math.max(5, Math.round(targetArrivalHour - actualDriveHours));
+      const suggestedH = Math.floor(suggestedDep);
+      const suggestedMin = Math.round((suggestedDep - suggestedH) * 60);
+      const suggestedLabel = `${suggestedH}:${String(suggestedMin).padStart(2, '0')}`;
+      const arrivalH = Math.floor(estimatedArrivalHour);
+      const arrivalMin = Math.round((estimatedArrivalHour - arrivalH) * 60);
+      const arrivalLabel = `${arrivalH}:${String(arrivalMin).padStart(2, '0')}`;
+      const overByHours = Math.round((estimatedArrivalHour - targetArrivalHour) * 10) / 10;
+
+      warnings.push({
+        category: 'drive-time',
+        severity: 'info',
+        message: `Day 1: departing at ${settings.departureTime} means arriving around ${arrivalLabel}`,
+        detail: `With ${formatDuration(day1.totals.driveTimeMinutes)} of driving, you'll arrive ~${overByHours}h past your ${targetArrivalHour}:00 target. ${availableHours < actualDriveHours ? 'The drive is longer than the day allows.' : ''}`,
+        dayNumber: 1,
+        suggestion: `Depart by ${suggestedLabel} to arrive near your ${targetArrivalHour}:00 target, or add a planned overnight stop to split the drive.`,
+      });
+    }
+  }
+
   for (const day of days) {
     const driveMinutes = day.totals.driveTimeMinutes;
     const hardLimitMinutes = maxDriveMinutes + DRIVE_TIME_GRACE_HOURS * 60;

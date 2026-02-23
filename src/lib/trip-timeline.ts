@@ -9,7 +9,7 @@
  * 💚 My Experience Engine
  */
 
-import type { RouteSegment, TripSettings, Vehicle } from '../types';
+import type { RouteSegment, TripSettings } from '../types';
 import type { SuggestedStop } from './stop-suggestions';
 
 export type TimedEventType =
@@ -101,7 +101,6 @@ export function buildTimedTimeline(
   segments: RouteSegment[],
   suggestions: SuggestedStop[],
   settings: TripSettings,
-  _vehicle?: Vehicle,
 ): TimedEvent[] {
   if (segments.length === 0) return [];
 
@@ -189,7 +188,7 @@ export function buildTimedTimeline(
     // Compute the time window for this segment's pure driving time.
     // This is BEFORE any stops — the window in which a stop's estimatedTime
     // would fall if it happens during the drive.
-    console.log('Before driveStartTime, currentTime:', currentTime); const driveStartTime = new Date(currentTime);
+    const driveStartTime = new Date(currentTime);
     const driveEndTime = new Date(currentTime.getTime() + segMin * 60 * 1000);
 
     // ── Classify all non-emitted suggestions for this segment ────────────

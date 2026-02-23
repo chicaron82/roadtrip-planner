@@ -76,10 +76,24 @@ export function splitTripByDays(
   let currentDate = new Date(`${departureDate}T${departureTime}`);
   let dayNumber = 1;
 
-  // Initialize running budget totals
-  let gasRemaining = settings.budget.gas;
-  let hotelRemaining = settings.budget.hotel;
-  let foodRemaining = settings.budget.food;
+  // Initialize running budget totals.
+  // In 'flexible' allocation mode the per-category fields are 0 (the user hasn't
+  // allocated them manually), so derive from total × weight percentages instead.
+  // In 'manual' / 'plan-to-budget' mode the explicit per-category values are used.
+  const { budget } = settings;
+  const hasExplicitCategoryBudgets = budget.gas > 0 || budget.hotel > 0 || budget.food > 0;
+  const gasRemaining0 = hasExplicitCategoryBudgets
+    ? budget.gas
+    : budget.total > 0 ? budget.total * budget.weights.gas / 100 : 0;
+  const hotelRemaining0 = hasExplicitCategoryBudgets
+    ? budget.hotel
+    : budget.total > 0 ? budget.total * budget.weights.hotel / 100 : 0;
+  const foodRemaining0 = hasExplicitCategoryBudgets
+    ? budget.food
+    : budget.total > 0 ? budget.total * budget.weights.food / 100 : 0;
+  let gasRemaining = gasRemaining0;
+  let hotelRemaining = hotelRemaining0;
+  let foodRemaining = foodRemaining0;
 
   const maxDriveMinutes = settings.maxDriveHours * 60;
 
