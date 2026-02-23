@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
-import type { Location, Vehicle, TripSettings, TripSummary } from '../types';
-import { calculateRoute } from '../lib/api';
+import type { Location, Vehicle, TripSettings, TripSummary, RouteStrategy } from '../types';
+import { calculateRoute, fetchAllRouteStrategies } from '../lib/api';
 import {
   calculateTripCosts,
   calculateStrategicFuelStops,
@@ -34,6 +34,10 @@ interface UseTripCalculationReturn {
   shareUrl: string | null;
   strategicFuelStops: StrategicFuelStop[];
 
+  // Route strategies (named alternatives: fastest / canada-only / scenic)
+  routeStrategies: RouteStrategy[];
+  activeStrategyIndex: number;
+
   // Overnight Stop Prompt
   showOvernightPrompt: boolean;
   suggestedOvernightStop: Location | null;
@@ -41,6 +45,7 @@ interface UseTripCalculationReturn {
 
   // Actions
   calculateTrip: () => Promise<TripSummary | null>;
+  selectStrategy: (index: number) => void;
   updateStopType: (segmentIndex: number, newStopType: import('../types').StopType) => void;
   updateDayNotes: (dayNumber: number, notes: string) => void;
   updateDayTitle: (dayNumber: number, title: string) => void;
@@ -61,6 +66,8 @@ export function useTripCalculation({
   const [error, setError] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [strategicFuelStops, setStrategicFuelStops] = useState<StrategicFuelStop[]>([]);
+  const [routeStrategies, setRouteStrategies] = useState<RouteStrategy[]>([]);
+  const [activeStrategyIndex, setActiveStrategyIndex] = useState(0);
 
   // Overnight stop prompt state
   const [showOvernightPrompt, setShowOvernightPrompt] = useState(false);
@@ -237,6 +244,18 @@ export function useTripCalculation({
       onSummaryChange(tripSummary);
       onCalculationComplete?.();
 
+      // ── Fetch named route strategies in the background ─────────────────
+      // Fire-and-forget: populates the strategy picker after the main result
+      // is already displayed, so it never blocks the primary calculation.
+      setRouteStrategies([]);
+      setActiveStrategyIndex(0);
+      fetchAllRouteStrategies(locations, settings.avoidTolls).then(strategies => {
+        if (!geocodeController.signal.aborted) {
+          setRouteStrategies(strategies);
+        }
+      });
+      // ─────────────────────────────────────────────────────────────────
+
       // ── Async overnight-stop geocoding (fire-and-forget) ──────────────
       // Transit split overnight locations have id='transit-split-N-M'
       // and linearly-interpolated lat/lng.  Resolve them to real city names
@@ -331,6 +350,49 @@ export function useTripCalculation({
       setIsCalculating(false);
     }
   }, [locations, vehicle, settings, onSummaryChange, onCalculationComplete]);
+
+  // Switch to a named route strategy — swaps geometry + recalculates fuel costs.
+  // Day itinerary, weather, and POIs are preserved from the primary calculation.
+  const selectStrategy = useCallback(
+    (index: number) => {
+      const strategy = routeStrategies[index];
+      if (!strategy || !localSummary) return;
+
+      setActiveStrategyIndex(index);
+
+      // Recalculate costs from the strategy's segments (one-way distances)
+      const newSummary = calculateTripCosts(strategy.segments, vehicle, settings);
+
+      // Apply round-trip multiplier if needed (matches logic in calculateTrip)
+      if (settings.isRoundTrip) {
+        newSummary.totalDistanceKm *= 2;
+        newSummary.totalFuelLitres *= 2;
+        newSummary.totalFuelCost *= 2;
+        newSummary.totalDurationMinutes *= 2;
+        const tankSizeLitres = getTankSizeLitres(vehicle, settings.units);
+        newSummary.gasStops = estimateGasStops(newSummary.totalFuelLitres, tankSizeLitres);
+        newSummary.costPerPerson = settings.numTravelers > 0
+          ? newSummary.totalFuelCost / settings.numTravelers
+          : newSummary.totalFuelCost;
+      }
+
+      const updatedSummary: TripSummary = {
+        ...localSummary,
+        totalDistanceKm: newSummary.totalDistanceKm,
+        totalDurationMinutes: newSummary.totalDurationMinutes,
+        totalFuelLitres: newSummary.totalFuelLitres,
+        totalFuelCost: newSummary.totalFuelCost,
+        costPerPerson: newSummary.costPerPerson,
+        gasStops: newSummary.gasStops,
+        fullGeometry: strategy.geometry,
+        segments: newSummary.segments,
+      };
+
+      setLocalSummary(updatedSummary);
+      onSummaryChange(updatedSummary);
+    },
+    [routeStrategies, localSummary, vehicle, settings, onSummaryChange]
+  );
 
   const updateStopType = useCallback(
     (segmentIndex: number, newStopType: import('../types').StopType) => {
@@ -428,6 +490,8 @@ export function useTripCalculation({
 
   const clearTripCalculation = useCallback(() => {
     setStrategicFuelStops([]);
+    setRouteStrategies([]);
+    setActiveStrategyIndex(0);
     setLocalSummary(null);
     setShareUrl(null);
     setError(null);
@@ -441,10 +505,13 @@ export function useTripCalculation({
     error,
     shareUrl,
     strategicFuelStops,
+    routeStrategies,
+    activeStrategyIndex,
     showOvernightPrompt,
     suggestedOvernightStop,
     dismissOvernightPrompt,
     calculateTrip,
+    selectStrategy,
     updateStopType,
     updateDayNotes,
     updateDayTitle,

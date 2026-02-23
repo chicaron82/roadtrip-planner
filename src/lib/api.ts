@@ -162,6 +162,59 @@ export async function calculateRoute(locations: Location[], options?: { avoidTol
 }
 
 /**
+ * Fetch all three named route strategies in parallel.
+ * Returns whichever strategies OSRM successfully routes (may be fewer than 3
+ * for short or single-country trips where avoidBorders makes no difference).
+ */
+export async function fetchAllRouteStrategies(
+  locations: Location[],
+  avoidTolls: boolean
+): Promise<import('../types').RouteStrategy[]> {
+  const strategies = [
+    { id: 'fastest' as const,      label: 'Fastest',      emoji: '⚡', avoidBorders: false, scenicMode: false },
+    { id: 'canada-only' as const,  label: 'Canada Only',  emoji: '🍁', avoidBorders: true,  scenicMode: false },
+    { id: 'scenic' as const,       label: 'Scenic',       emoji: '🌄', avoidBorders: false, scenicMode: true  },
+  ];
+
+  const results = await Promise.allSettled(
+    strategies.map(s =>
+      calculateRoute(locations, { avoidTolls, avoidBorders: s.avoidBorders, scenicMode: s.scenicMode })
+    )
+  );
+
+  const out: import('../types').RouteStrategy[] = [];
+  results.forEach((r, i) => {
+    if (r.status === 'fulfilled' && r.value) {
+      const { segments, fullGeometry } = r.value;
+      out.push({
+        id: strategies[i].id,
+        label: strategies[i].label,
+        emoji: strategies[i].emoji,
+        distanceKm: segments.reduce((sum, s) => sum + s.distanceKm, 0),
+        durationMinutes: segments.reduce((sum, s) => sum + s.durationMinutes, 0),
+        geometry: fullGeometry,
+        segments,
+      });
+    }
+  });
+
+  // Only show picker when strategies are meaningfully different (>3% delta in distance)
+  // This avoids showing 3 identical lines for short same-country routes
+  if (out.length >= 2) {
+    const fastest = out.find(s => s.id === 'fastest');
+    if (fastest) {
+      return out.filter(s => {
+        if (s.id === 'fastest') return true;
+        const delta = Math.abs(s.distanceKm - fastest.distanceKm) / fastest.distanceKm;
+        return delta > 0.03; // Keep if >3% different
+      });
+    }
+  }
+
+  return out;
+}
+
+/**
  * Core OSRM route fetch — extracted so border avoidance can call it twice.
  */
 async function fetchOSRMRoute(

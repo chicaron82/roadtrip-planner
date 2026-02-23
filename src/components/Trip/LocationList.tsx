@@ -237,7 +237,11 @@ export function LocationList({ locations, setLocations, onCalculate, isCalculati
       const newIndex = locations.findIndex((loc) => loc.id === over.id);
 
       const reordered = arrayMove(locations, oldIndex, newIndex);
-      setLocations(reordered);
+      const reTyped = reordered.map((loc, i, arr) => ({
+        ...loc,
+        type: (i === 0 ? 'origin' : i === arr.length - 1 ? 'destination' : 'waypoint') as Location['type'],
+      }));
+      setLocations(reTyped);
     }
   };
 

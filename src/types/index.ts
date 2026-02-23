@@ -282,6 +282,16 @@ export interface TripSummary {
   budgetRemaining?: number;
 }
 
+export interface RouteStrategy {
+  id: 'fastest' | 'canada-only' | 'scenic';
+  label: string;
+  emoji: string;
+  distanceKm: number;
+  durationMinutes: number;
+  geometry: [number, number][];
+  segments: RouteSegment[];
+}
+
 export type POICategory = 'gas' | 'food' | 'hotel' | 'attraction';
 
 export interface POI {

@@ -25,6 +25,13 @@ const FEASIBILITY_LINE_COLOR: Record<FeasibilityStatus, string> = {
 
 const DEFAULT_ROUTE_COLOR = 'hsl(221.2 83.2% 53.3%)'; // blue fallback (no feasibility yet)
 
+interface AlternateRouteGeometry {
+  geometry: [number, number][];
+  label: string;
+  emoji: string;
+  onSelect: () => void;
+}
+
 interface MapProps {
   locations: Location[];
   routeGeometry: [number, number][] | null;
@@ -42,6 +49,8 @@ interface MapProps {
   tripMode?: string;
   /** Feasibility status — drives main route line colour (green/amber/red) */
   feasibilityStatus?: FeasibilityStatus | null;
+  /** Inactive named route strategies shown as ghost lines — click to select */
+  alternateGeometries?: AlternateRouteGeometry[];
 }
 
 const markerColors: Record<string, string> = {
@@ -111,7 +120,7 @@ function MapClickHandler({ onMapClick }: { onMapClick?: (lat: number, lng: numbe
   return null;
 }
 
-export function Map({ locations, routeGeometry, pois, markerCategories, strategicFuelStops = [], addedPOIIds, dayOptions, onMapClick, onAddPOI, previewGeometry, tripMode, feasibilityStatus }: MapProps) {
+export function Map({ locations, routeGeometry, pois, markerCategories, strategicFuelStops = [], addedPOIIds, dayOptions, onMapClick, onAddPOI, previewGeometry, tripMode, feasibilityStatus, alternateGeometries }: MapProps) {
   // Custom Icon Generator
   const createCustomIcon = (type: string, categoryColor?: string, emoji?: string) => {
     // Basic color mapping for tailwind classes if passed directly
@@ -213,6 +222,22 @@ export function Map({ locations, routeGeometry, pois, markerCategories, strategi
             }}
           />
         )}
+
+        {/* Alternate route ghost lines — rendered behind the active route */}
+        {alternateGeometries?.map((alt, i) => (
+          <Polyline
+            key={`alt-route-${i}`}
+            positions={alt.geometry}
+            pathOptions={{
+              color: '#94A3B8',
+              weight: 4,
+              opacity: 0.5,
+              dashArray: '2 7',
+              lineCap: 'round',
+            }}
+            eventHandlers={{ click: alt.onSelect }}
+          />
+        ))}
 
         {/* Route Polylines with Animation */}
         {routeGeometry && (

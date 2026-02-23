@@ -1,6 +1,7 @@
 import { useRef, useState, useCallback, useLayoutEffect, useEffect } from 'react';
 import { Map } from './components/Map/Map';
 import { TripSummaryCard } from './components/Trip/TripSummary';
+import { RouteStrategyPicker } from './components/Trip/RouteStrategyPicker';
 import { AdventureMode } from './components/Trip/AdventureMode';
 import { LandingScreen } from './components/Landing/LandingScreen';
 import { MobileBottomSheet } from './components/Trip/MobileBottomSheet';
@@ -15,7 +16,7 @@ import {
   type PlanningStep,
 } from './hooks';
 import { recordTrip } from './lib/user-profile';
-import { getHistory } from './lib/storage';
+import { getHistory, getLastOrigin } from './lib/storage';
 import type { TripSummary, TripMode, POICategory } from './types';
 
 // ==================== APP CONTENT (uses hooks) ====================
@@ -83,6 +84,7 @@ function AppContent() {
     isCalculating, error: calcError, shareUrl,
     strategicFuelStops, showOvernightPrompt, suggestedOvernightStop,
     dismissOvernightPrompt, calculateTrip,
+    routeStrategies, activeStrategyIndex, selectStrategy,
     updateStopType, updateDayNotes, updateDayTitle, updateDayType, updateDayOvernight,
     clearError: clearCalcError, clearTripCalculation,
   } = useTripCalculation({
@@ -195,7 +197,14 @@ function AppContent() {
     window.history.replaceState({}, '', window.location.pathname);
     resetWizard(); setTripMode(mode);
     if (mode === 'adventure') setShowAdventureMode(true);
-  }, [resetTrip, resetWizard, setTripMode, setShowAdventureMode]);
+    // Re-apply saved origin after reset so the field pre-fills on Step 1
+    const lastOrigin = getLastOrigin();
+    if (lastOrigin) {
+      setLocations(prev =>
+        prev.map((loc, i) => i === 0 ? { ...lastOrigin, id: loc.id, type: 'origin' } : loc)
+      );
+    }
+  }, [resetTrip, resetWizard, setTripMode, setShowAdventureMode, setLocations]);
 
   const handleResumeSession = useCallback(() => {
     setTripMode('plan');
@@ -288,9 +297,25 @@ function AppContent() {
           onAddPOI={summary ? handleAddPOIFromMap : undefined}
           previewGeometry={validRouteGeometry ? null : previewGeometry}
           tripMode={tripMode}
+          alternateGeometries={routeStrategies
+            .filter((_, i) => i !== activeStrategyIndex)
+            .map((s) => ({
+              geometry: s.geometry,
+              label: s.label,
+              emoji: s.emoji,
+              onSelect: () => selectStrategy(routeStrategies.indexOf(s)),
+            }))
+          }
         />
         {summary && planningStep === 3 && (
-          <div className="hidden md:block">
+          <div className="hidden md:block relative">
+            <RouteStrategyPicker
+              strategies={routeStrategies}
+              activeIndex={activeStrategyIndex}
+              onSelect={selectStrategy}
+              units={settings.units}
+              isRoundTrip={settings.isRoundTrip}
+            />
             <TripSummaryCard
               summary={summary} settings={settings} tripActive={tripActive}
               onStop={() => setTripActive(false)} onOpenVehicleTab={() => goToStep(2)}
