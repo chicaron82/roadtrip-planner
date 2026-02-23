@@ -6,9 +6,9 @@ import { showToast } from '../../lib/toast';
 import { LocationList } from '../Trip/LocationList';
 import { ChallengeCards } from '../Trip/ChallengeCards';
 import { Button } from '../UI/Button';
-import { Input } from '../UI/Input';
 import { Label } from '../UI/Label';
 import { DateRangePicker } from '../UI/DateRangePicker';
+import { ClockPicker } from '../UI/ClockPicker';
 
 const MODE_HEADERS: Record<TripMode, { title: string; subtitle: string }> = {
   plan: { title: 'Where are you going?', subtitle: 'Add your starting point, destination, and any stops along the way.' },
@@ -91,18 +91,15 @@ export function Step1Content({
             <Label htmlFor="depTime" className="text-xs">
               {settings.useArrivalTime ? 'Arrive By' : 'Departure Time'}
             </Label>
-            <Input
-              id="depTime"
-              type="time"
-              value={settings.useArrivalTime ? settings.arrivalTime : settings.departureTime}
-              onChange={(e) =>
+            <ClockPicker
+              value={settings.useArrivalTime ? (settings.arrivalTime || '17:00') : settings.departureTime}
+              onChange={(v) =>
                 setSettings((prev) =>
                   settings.useArrivalTime
-                    ? { ...prev, arrivalTime: e.target.value }
-                    : { ...prev, departureTime: e.target.value }
+                    ? { ...prev, arrivalTime: v }
+                    : { ...prev, departureTime: v }
                 )
               }
-              className="mt-1"
             />
           </div>
           <div className="flex items-center gap-1 bg-muted/40 rounded-lg p-1 mt-5">
