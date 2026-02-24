@@ -1,6 +1,7 @@
 import { Clock } from 'lucide-react';
 import type { TripSettings } from '../../types';
 import { Label } from '../UI/Label';
+import { Switch } from '../UI/Switch';
 
 interface DrivingPreferencesSectionProps {
   settings: TripSettings;
@@ -177,6 +178,25 @@ export function DrivingPreferencesSection({ settings, setSettings }: DrivingPref
             return `🗓️ Transit days will depart around ${departLabel} to arrive by ${arriveLabel}.`;
           })()}
         </p>
+      </div>
+      {/* Beast Mode */}
+      <div className={`mt-4 flex items-center justify-between p-3 rounded-lg border transition-colors ${settings.beastMode ? 'bg-amber-500/10 border-amber-500/40' : 'bg-muted/20 border-border'}`}>
+        <div className="flex items-center gap-2">
+          <span className="text-base">🔥</span>
+          <div>
+            <Label className="cursor-pointer font-medium text-sm" htmlFor="beast-mode">
+              Beast Mode
+            </Label>
+            <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+              {settings.beastMode ? 'Drive-time cap bypassed — relay team only' : 'Override the overnight cap for marathon drives'}
+            </p>
+          </div>
+        </div>
+        <Switch
+          id="beast-mode"
+          checked={settings.beastMode ?? false}
+          onCheckedChange={(checked) => setSettings(prev => ({ ...prev, beastMode: checked }))}
+        />
       </div>
     </div>
   );

@@ -7,6 +7,7 @@ import { LocationList } from '../Trip/LocationList';
 import { ChallengeCards } from '../Trip/ChallengeCards';
 import { Button } from '../UI/Button';
 import { Label } from '../UI/Label';
+import { Switch } from '../UI/Switch';
 import { DateRangePicker } from '../UI/DateRangePicker';
 import { ClockPicker } from '../UI/ClockPicker';
 
@@ -300,6 +301,28 @@ export function Step1Content({
           onChange={handleImportFile}
           className="hidden"
         />
+
+        {/* Privacy — hide starting location from exported templates */}
+        <div className="mt-3 flex items-center justify-between p-3 rounded-lg border bg-muted/20">
+          <div className="flex items-center gap-2">
+            <span className="text-base">🔒</span>
+            <div>
+              <Label className="cursor-pointer font-medium text-sm" htmlFor="include-start">
+                Include starting location in shared templates
+              </Label>
+              <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                {(settings.includeStartingLocation ?? true)
+                  ? 'Starting location will appear in exported templates'
+                  : 'Origin will be hidden when you share or export this trip'}
+              </p>
+            </div>
+          </div>
+          <Switch
+            id="include-start"
+            checked={settings.includeStartingLocation ?? true}
+            onCheckedChange={(checked) => setSettings(prev => ({ ...prev, includeStartingLocation: checked }))}
+          />
+        </div>
       </div>
 
     </div>

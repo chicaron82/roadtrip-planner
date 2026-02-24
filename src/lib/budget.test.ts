@@ -276,6 +276,9 @@ describe('createSmartBudget', () => {
     stopFrequency: 'balanced',
     tripPreferences: [],
     targetArrivalHour: 21,
+    dayTripDurationHours: 0,
+    beastMode: false,
+    includeStartingLocation: true,
   };
 
   it('calculates gas estimate based on distance', () => {

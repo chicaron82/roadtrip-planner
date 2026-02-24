@@ -167,6 +167,9 @@ describe('calculateTripCosts', () => {
     stopFrequency: 'balanced',
     tripPreferences: [],
     targetArrivalHour: 21,
+    dayTripDurationHours: 0,
+    beastMode: false,
+    includeStartingLocation: true,
   };
 
   const mockSegments: RouteSegment[] = [
