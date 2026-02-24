@@ -85,6 +85,7 @@ export function makeSettings(overrides: Partial<TripSettings> = {}): TripSetting
     stopFrequency: 'balanced',
     tripPreferences: [],
     targetArrivalHour: 21,
+    dayTripDurationHours: 0,
     ...overrides,
   };
 }
