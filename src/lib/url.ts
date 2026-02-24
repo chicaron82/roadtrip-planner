@@ -1,4 +1,5 @@
 import type { Location, Vehicle, TripSettings } from '../types';
+import { validateSharedTemplate, sanitizeSharedTemplate } from './template-validator';
 
 // ==================== SHARED TEMPLATE TYPES ====================
 
@@ -80,13 +81,27 @@ export const serializeStateToURL = (locations: Location[], vehicle: Vehicle, set
 /**
  * Parse a shared template JSON file and extract loadable trip data.
  * Returns locations (origin + waypoints + destination), vehicle, and settings.
+ * Validates the template structure before importing and sanitizes all strings.
  */
 export function parseSharedTemplate(json: string): TemplateImportResult {
-  const data = JSON.parse(json) as SharedTemplate;
-
-  if (data.type !== 'roadtrip-template') {
-    throw new Error('Not a valid roadtrip template file');
+  let raw: unknown;
+  try {
+    raw = JSON.parse(json);
+  } catch {
+    throw new Error('Invalid JSON: could not parse template file');
   }
+
+  const { valid, errors, warnings } = validateSharedTemplate(raw);
+
+  if (warnings.length > 0) {
+    warnings.forEach(w => console.warn('[TemplateImport]', w));
+  }
+
+  if (!valid) {
+    throw new Error(`Template validation failed: ${errors[0]}`);
+  }
+
+  const data = sanitizeSharedTemplate(raw as SharedTemplate);
 
   // Build ordered location list: origin → waypoints → destination
   const locations: Location[] = [];
