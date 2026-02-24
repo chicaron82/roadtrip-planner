@@ -1,7 +1,8 @@
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import type { Location, Vehicle, TripSettings, TripSummary, TripBudget } from '../types';
 import { DEFAULT_BUDGET } from '../lib/budget';
 import { getDefaultVehicleId, getGarage, loadSettingsDefaults, saveSettingsDefaults } from '../lib/storage';
+import { getFuelPriceDefault } from '../lib/regional-costs';
 
 // ==================== DEFAULT VALUES ====================
 
@@ -119,6 +120,24 @@ export function TripProvider({
   useEffect(() => {
     saveSettingsDefaults(settings);
   }, [settings]);
+
+  // Auto-populate gasPrice from regional data when origin changes.
+  // Uses a ref to track the last auto-set value so user overrides are respected.
+  const lastAutoFuelPrice = useRef<number | null>(null);
+  const originName = locations.find(l => l.type === 'origin')?.name ?? '';
+  useEffect(() => {
+    if (!originName) return;
+    const suggested = getFuelPriceDefault(originName, settings.currency);
+    if (suggested === null) return;
+    setSettings(prev => {
+      // If the user has manually changed gasPrice since our last auto-set, leave it alone.
+      const userModified = lastAutoFuelPrice.current !== null && prev.gasPrice !== lastAutoFuelPrice.current;
+      if (userModified) return prev;
+      lastAutoFuelPrice.current = suggested;
+      return { ...prev, gasPrice: suggested };
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [originName, settings.currency]);
 
   // Location Helpers
   const updateLocation = useCallback((index: number, updates: Partial<Location>) => {

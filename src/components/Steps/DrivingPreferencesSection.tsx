@@ -198,6 +198,34 @@ export function DrivingPreferencesSection({ settings, setSettings }: DrivingPref
           onCheckedChange={(checked) => setSettings(prev => ({ ...prev, beastMode: checked }))}
         />
       </div>
+
+      {/* Fuel Price */}
+      <div className="mt-3 flex items-center justify-between p-3 rounded-lg border bg-muted/20">
+        <div className="flex items-center gap-2">
+          <span className="text-base">⛽</span>
+          <div>
+            <Label htmlFor="fuel-price" className="cursor-pointer font-medium text-sm">
+              Fuel Price
+            </Label>
+            <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+              {settings.currency}/L · Regional estimate from origin
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-muted-foreground">$</span>
+          <input
+            id="fuel-price"
+            type="number"
+            step="0.01"
+            min="0"
+            value={settings.gasPrice}
+            onChange={(e) => setSettings(prev => ({ ...prev, gasPrice: parseFloat(e.target.value) || 0 }))}
+            className="w-16 text-right bg-background border border-border rounded px-2 py-1 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+          <span className="text-xs text-muted-foreground">/L</span>
+        </div>
+      </div>
     </div>
   );
 }
