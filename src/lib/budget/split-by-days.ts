@@ -261,7 +261,8 @@ export function splitTripByDays(
     // Check if we need to start a new day (max drive hours exceeded)
     // However, if the CURRENT segment is an overnight stop, we add it to THIS day, and then force a new day AFTER.
     // The overnight belongs to the day you drove — you check in at end of Day 1, so Day 1 pays for it.
-    if (wouldExceedMaxDrive && currentDay.segments.length > 0 && !isOvernightStop) {
+    // Beast mode bypasses the drive-time cap entirely — the user accepts the fatigue risk.
+    if (wouldExceedMaxDrive && currentDay.segments.length > 0 && !isOvernightStop && !settings.beastMode) {
       // Assign overnight — driver stops at end of this driving day.
       if (!currentDay.overnight) {
         const lastSeg = currentDay.segments[currentDay.segments.length - 1];

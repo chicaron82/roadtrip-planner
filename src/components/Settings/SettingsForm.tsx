@@ -139,6 +139,26 @@ export function SettingsForm({ settings, setSettings }: SettingsFormProps) {
         </div>
       </div>
 
+      {/* Beast Mode */}
+      <div className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${settings.beastMode ? 'bg-amber-50 border-amber-300' : 'bg-muted/20 border-border'}`}>
+        <div className="flex items-center gap-2">
+          <span className="text-base">🔥</span>
+          <div>
+            <Label className="cursor-pointer font-medium text-sm" htmlFor="beast-mode">
+              Beast Mode
+            </Label>
+            <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+              {settings.beastMode ? 'Drive-time cap bypassed — relay team only' : 'Override the overnight cap for marathon drives'}
+            </p>
+          </div>
+        </div>
+        <Switch
+          id="beast-mode"
+          checked={settings.beastMode ?? false}
+          onCheckedChange={(checked) => handleChange('beastMode', checked)}
+        />
+      </div>
+
        <div className="grid grid-cols-2 gap-3">
         <div>
             <Label className="text-xs text-muted-foreground">Travelers</Label>

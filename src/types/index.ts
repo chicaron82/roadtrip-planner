@@ -121,6 +121,10 @@ export interface TripSettings {
   /** Hours spent at the destination before heading home on a round-trip day trip.
    *  0 = drive through with no scheduled stop. Shown in Smart Timeline as "Time at [Destination]". */
   dayTripDurationHours: number;
+  /** Beast mode: bypass forced overnight stops imposed by maxDriveHours.
+   *  Intended for multi-driver relay teams or emergency drives. Feasibility
+   *  engine will warn based on driver count. */
+  beastMode?: boolean;
 }
 
 export interface WeatherData {
