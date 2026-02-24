@@ -142,7 +142,8 @@ export function splitTripByDays(
     // we skip the forced overnight so the user doesn't get an unwanted hotel stop.
     // e.g. Toronto → Ottawa → Toronto is ~9h22m driving, which fits in a 10h day.
     const totalRoundTripMinutes = processedSegments.reduce((sum, s) => sum + s.durationMinutes, 0);
-    const isRoundTripDayTrip = totalRoundTripMinutes <= maxDriveMinutes;
+    // Beast mode bypasses the forced midpoint overnight — user accepts the fatigue risk.
+    const isRoundTripDayTrip = totalRoundTripMinutes <= maxDriveMinutes || settings.beastMode;
 
     if (
       !insertedFreeDays &&

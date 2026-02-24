@@ -128,7 +128,51 @@ describe('splitTripByDays — round trip, 2 free days', () => {
   });
 });
 
-// ── 5. Flexible budget mode — derives per-category from total × weights ───────
+// ── 5. Beast mode — suppresses forced overnight at round-trip midpoint ────────
+
+describe('splitTripByDays — beast mode round trip', () => {
+  it('treats a long round trip as a day trip when beastMode is enabled', () => {
+    // Each leg is 480 min (8h) → total 960 min > 8h max
+    // Without beast mode this forces an overnight at Thunder Bay.
+    // With beast mode it should stay as one driving day — no overnight stop.
+    const outbound = makeSegment({ from: WINNIPEG, to: THUNDER, distanceKm: 700, durationMinutes: 480 });
+    const returnSeg = makeSegment({ from: THUNDER, to: WINNIPEG, distanceKm: 700, durationMinutes: 480 });
+    const allSegments = [outbound, returnSeg];
+
+    const settings = makeSettings({
+      maxDriveHours: 8,
+      beastMode: true,
+      isRoundTrip: true,
+      departureDate: '2025-08-16',
+      returnDate: '2025-08-16',
+    });
+    const days = splitTripByDays(allSegments, settings, '2025-08-16', '09:00', 1);
+
+    const drivingDays = days.filter(d => d.segments.length > 0);
+    expect(drivingDays).toHaveLength(1);
+    expect(drivingDays[0].overnight).toBeUndefined();
+  });
+
+  it('still forces overnight for long round trip without beast mode', () => {
+    const outbound = makeSegment({ from: WINNIPEG, to: THUNDER, distanceKm: 700, durationMinutes: 480 });
+    const returnSeg = makeSegment({ from: THUNDER, to: WINNIPEG, distanceKm: 700, durationMinutes: 480 });
+    const allSegments = [outbound, returnSeg];
+
+    const settings = makeSettings({
+      maxDriveHours: 8,
+      beastMode: false,
+      isRoundTrip: true,
+      departureDate: '2025-08-16',
+      returnDate: '2025-08-17',
+    });
+    const days = splitTripByDays(allSegments, settings, '2025-08-16', '09:00', 1);
+
+    const drivingDays = days.filter(d => d.segments.length > 0);
+    expect(drivingDays.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+// ── 6. Flexible budget mode — derives per-category from total × weights ───────
 
 describe('splitTripByDays — flexible budget mode', () => {
   it('derives per-category budgets from total when category amounts are 0', () => {
