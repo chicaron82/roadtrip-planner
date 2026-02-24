@@ -112,26 +112,6 @@ function detectTimezoneCrossing(segment: RouteSegment): {
 }
 
 /**
- * Calculates estimated arrival time for a segment
- */
-export function calculateArrivalTime(
-  departureTime: string,
-  durationMinutes: number,
-  departureDate?: string
-): { time: string; date: string } {
-  const [hours, minutes] = departureTime.split(':').map(Number);
-  const date = departureDate ? new Date(departureDate) : new Date();
-
-  date.setHours(hours, minutes, 0, 0);
-  date.setMinutes(date.getMinutes() + durationMinutes);
-
-  const arrivalTime = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-  const arrivalDate = date.toISOString().split('T')[0];
-
-  return { time: arrivalTime, date: arrivalDate };
-}
-
-/**
  * Generates smart pacing suggestions based on trip duration.
  * @param maxDayMinutes - Longest single driving day in minutes (not total trip)
  * @param settings - Trip settings
@@ -171,35 +151,3 @@ export function generatePacingSuggestions(
   return suggestions;
 }
 
-/**
- * Calculates fuel stop recommendations
- */
-export function calculateFuelStops(
-  segments: RouteSegment[],
-  tankSizeLitres: number,
-  fuelEconomyL100km: number
-): { segmentIndex: number; distanceFromStart: number; fuelRemaining: number }[] {
-  const usableTank = tankSizeLitres * 0.75; // 75% usable capacity
-  let currentFuel = tankSizeLitres;
-  let totalDistance = 0;
-  const stops: { segmentIndex: number; distanceFromStart: number; fuelRemaining: number }[] = [];
-
-  segments.forEach((segment, index) => {
-    const fuelNeeded = (segment.distanceKm / 100) * fuelEconomyL100km;
-    totalDistance += segment.distanceKm;
-
-    // Check if we need to refuel before this segment
-    if (currentFuel - fuelNeeded < usableTank * 0.25) {
-      stops.push({
-        segmentIndex: index,
-        distanceFromStart: totalDistance - segment.distanceKm,
-        fuelRemaining: currentFuel,
-      });
-      currentFuel = tankSizeLitres; // Refill
-    }
-
-    currentFuel -= fuelNeeded;
-  });
-
-  return stops;
-}
