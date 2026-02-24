@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Calendar, Clock, MapPin, Route, Edit3 } from 'lucide-react';
-import type { TripDay, DayType } from '../../types';
+import type { TripDay, DayType, AccommodationType } from '../../types';
 import { cn } from '../../lib/utils';
 import { DayTypeToggle, DayTypeBadge } from './FlexibleDay';
 import { Input } from '../UI/Input';
@@ -44,6 +44,16 @@ export function DayHeader({
     const period = hours >= 12 ? 'PM' : 'AM';
     const displayHours = hours % 12 || 12;
     return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+  };
+
+  const getAccommodationMeta = (type?: AccommodationType): { emoji: string; label: string } => {
+    switch (type) {
+      case 'camping':  return { emoji: '⛺', label: 'Campsite' };
+      case 'airbnb':   return { emoji: '🏠', label: 'Airbnb' };
+      case 'friends':  return { emoji: '👥', label: 'Friends/Family' };
+      case 'other':    return { emoji: '📍', label: 'Accommodation' };
+      default:         return { emoji: '🏨', label: 'Overnight Stay' };
+    }
   };
 
   return (
@@ -174,11 +184,11 @@ export function DayHeader({
         >
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-              <span className="text-lg">🏨</span>
+              <span className="text-lg">{getAccommodationMeta(day.overnight.accommodationType).emoji}</span>
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-semibold text-indigo-900 text-sm flex items-center gap-2">
-                {day.overnight.hotelName || 'Overnight Stay'}
+                {day.overnight.hotelName || getAccommodationMeta(day.overnight.accommodationType).label}
                 {onEditOvernight && !day.overnight.hotelName && (
                   <span className="text-[10px] text-indigo-400 font-normal">click to add details</span>
                 )}

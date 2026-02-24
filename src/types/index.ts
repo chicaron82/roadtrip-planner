@@ -1,6 +1,8 @@
 // Trip mode determines the user's intent — plan, explore, or estimate
 export type TripMode = 'plan' | 'adventure' | 'estimate';
 
+export type AccommodationType = 'hotel' | 'camping' | 'airbnb' | 'friends' | 'other';
+
 export type LocationType = 'origin' | 'destination' | 'waypoint';
 
 export interface Location {
@@ -207,6 +209,7 @@ export interface TimezoneChange {
 // Overnight accommodation details
 export interface OvernightStop {
   location: Location;
+  accommodationType?: AccommodationType; // defaults to 'hotel'
   hotelName?: string;
   address?: string;
   cost: number;

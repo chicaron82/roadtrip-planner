@@ -4,7 +4,33 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../UI/Dialog';
 import { Input } from '../UI/Input';
 import { Label } from '../UI/Label';
 import { Button } from '../UI/Button';
-import type { OvernightStop } from '../../types';
+import type { OvernightStop, AccommodationType } from '../../types';
+
+// ==================== ACCOMMODATION TYPES ====================
+
+const ACCOMMODATION_TYPES: { value: AccommodationType; emoji: string; label: string }[] = [
+  { value: 'hotel', emoji: '🏨', label: 'Hotel' },
+  { value: 'camping', emoji: '⛺', label: 'Camping' },
+  { value: 'airbnb', emoji: '🏠', label: 'Airbnb' },
+  { value: 'friends', emoji: '👥', label: 'Friends/Family' },
+  { value: 'other', emoji: '📍', label: 'Other' },
+];
+
+const NAME_PLACEHOLDERS: Record<AccommodationType, string> = {
+  hotel: 'e.g., Holiday Inn Express',
+  camping: 'e.g., Algonquin Park Campground',
+  airbnb: 'e.g., Cozy Downtown Loft',
+  friends: 'e.g., Aunt Sarah\'s place',
+  other: 'e.g., Hostel / Motel / Cottage',
+};
+
+const NAME_LABELS: Record<AccommodationType, string> = {
+  hotel: 'Hotel Name',
+  camping: 'Campsite Name',
+  airbnb: 'Listing Name',
+  friends: 'Host / Description',
+  other: 'Name / Description',
+};
 
 // ==================== AMENITY OPTIONS ====================
 
@@ -36,6 +62,9 @@ export function OvernightEditor({
   overnight,
   onSave,
 }: OvernightEditorProps) {
+  const [accommodationType, setAccommodationType] = useState<AccommodationType>(
+    overnight.accommodationType ?? 'hotel'
+  );
   const [hotelName, setHotelName] = useState(overnight.hotelName || '');
   const [address, setAddress] = useState(overnight.address || '');
   const [cost, setCost] = useState(overnight.cost.toString());
@@ -53,12 +82,21 @@ export function OvernightEditor({
     );
   };
 
+  const handleTypeChange = (type: AccommodationType) => {
+    setAccommodationType(type);
+    // Auto-zero cost for stays that are typically free
+    if (type === 'friends' || type === 'other') {
+      setCost('0');
+    }
+  };
+
   const handleSave = () => {
     const updated: OvernightStop = {
       ...overnight,
+      accommodationType,
       hotelName: hotelName.trim() || undefined,
       address: address.trim() || undefined,
-      cost: parseFloat(cost) || overnight.cost,
+      cost: parseFloat(cost) || 0,
       roomsNeeded,
       checkIn: checkIn || undefined,
       checkOut: checkOut || undefined,
@@ -75,18 +113,39 @@ export function OvernightEditor({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Hotel className="h-5 w-5 text-indigo-600" />
-            Hotel Details
+            Accommodation Details
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Hotel Name */}
+          {/* Accommodation Type */}
           <div>
-            <Label className="text-sm font-medium">Hotel Name</Label>
+            <Label className="text-sm font-medium mb-2 block">Type</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {ACCOMMODATION_TYPES.map(({ value, emoji, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => handleTypeChange(value)}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                    accommodationType === value
+                      ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                      : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
+                  }`}
+                >
+                  {emoji} {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Name */}
+          <div>
+            <Label className="text-sm font-medium">{NAME_LABELS[accommodationType]}</Label>
             <Input
               value={hotelName}
               onChange={(e) => setHotelName(e.target.value)}
-              placeholder="e.g., Holiday Inn Express"
+              placeholder={NAME_PLACEHOLDERS[accommodationType]}
               className="mt-1"
             />
           </div>
@@ -205,7 +264,7 @@ export function OvernightEditor({
               onClick={handleSave}
               className="bg-indigo-600 hover:bg-indigo-700 text-white"
             >
-              Save Hotel Details
+              Save Details
             </Button>
           </div>
         </div>

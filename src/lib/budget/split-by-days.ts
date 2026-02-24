@@ -159,6 +159,7 @@ export function splitTripByDays(
           const roomsNeeded = Math.ceil(settings.numTravelers / 2);
           currentDay.overnight = {
             location: lastSeg.to,
+            accommodationType: 'hotel',
             cost: roomsNeeded * getHotelMultiplier(lastSeg.to.name) * settings.hotelPricePerNight,
             roomsNeeded,
           };
@@ -224,6 +225,7 @@ export function splitTripByDays(
           if (destination) {
             freeDay.overnight = {
               location: destination,
+              accommodationType: 'hotel',
               cost: hotelCost,
               roomsNeeded,
             };
@@ -267,6 +269,7 @@ export function splitTripByDays(
           const roomsNeeded = Math.ceil(settings.numTravelers / 2);
           currentDay.overnight = {
             location: lastSeg.to,
+            accommodationType: 'hotel',
             cost: roomsNeeded * getHotelMultiplier(lastSeg.to.name) * settings.hotelPricePerNight,
             roomsNeeded,
           };
@@ -348,6 +351,7 @@ export function splitTripByDays(
       const roomsNeeded = Math.ceil(settings.numTravelers / 2);
       currentDay.overnight = {
         location: segment.to,
+        accommodationType: 'hotel',
         cost: roomsNeeded * getHotelMultiplier(segment.to.name) * settings.hotelPricePerNight,
         roomsNeeded,
       };
@@ -409,6 +413,7 @@ export function splitTripByDays(
         const hotelCost = roomsNeeded * getHotelMultiplier(destination.name) * settings.hotelPricePerNight;
         lastDrivingDay.overnight = {
           location: destination,
+          accommodationType: 'hotel',
           cost: hotelCost,
           roomsNeeded,
         };
@@ -449,6 +454,7 @@ export function splitTripByDays(
         if (destination) {
           freeDay.overnight = {
             location: destination,
+            accommodationType: 'hotel',
             cost: hotelCost,
             roomsNeeded,
           };
