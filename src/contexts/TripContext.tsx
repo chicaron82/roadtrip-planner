@@ -1,7 +1,7 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import type { Location, Vehicle, TripSettings, TripSummary, TripBudget } from '../types';
 import { DEFAULT_BUDGET } from '../lib/budget';
-import { getDefaultVehicleId, getGarage } from '../lib/storage';
+import { getDefaultVehicleId, getGarage, loadSettingsDefaults, saveSettingsDefaults } from '../lib/storage';
 
 // ==================== DEFAULT VALUES ====================
 
@@ -108,8 +108,17 @@ export function TripProvider({
     }
     return DEFAULT_VEHICLE;
   });
-  const [settings, setSettings] = useState<TripSettings>(initialSettings || DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<TripSettings>(() => ({
+    ...DEFAULT_SETTINGS,
+    ...loadSettingsDefaults(),
+    ...(initialSettings || {}),
+  }));
   const [summary, setSummary] = useState<TripSummary | null>(null);
+
+  // Auto-persist preference fields whenever settings change
+  useEffect(() => {
+    saveSettingsDefaults(settings);
+  }, [settings]);
 
   // Location Helpers
   const updateLocation = useCallback((index: number, updates: Partial<Location>) => {

@@ -257,6 +257,29 @@ export function SettingsForm({ settings, setSettings }: SettingsFormProps) {
             </div>
           )}
        </div>
+
+       {/* Privacy */}
+       <div className="space-y-3 pt-2 border-t">
+          <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Privacy</Label>
+          <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/20">
+            <div className="flex items-center gap-2">
+              <span className="text-base">🔒</span>
+              <div>
+                <Label className="cursor-pointer font-medium text-sm" htmlFor="include-start">
+                  Include starting location in shared templates
+                </Label>
+                <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                  {(settings.includeStartingLocation ?? true) ? 'Starting location will appear in exported templates' : 'Origin will be hidden when you share or export this trip'}
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="include-start"
+              checked={settings.includeStartingLocation ?? true}
+              onCheckedChange={(checked) => handleChange('includeStartingLocation', checked)}
+            />
+          </div>
+       </div>
     </div>
   );
 }

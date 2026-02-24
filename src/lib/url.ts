@@ -55,9 +55,14 @@ export interface TemplateImportResult {
 
 export const serializeStateToURL = (locations: Location[], vehicle: Vehicle, settings: TripSettings) => {
     const params = new URLSearchParams();
-    
-    // Locations
-    const locData = locations.map(l => ({ name: l.name, lat: l.lat, lng: l.lng, type: l.type }));
+
+    // Locations — strip origin if privacy mode is enabled
+    const locData = locations.map((l, i) => {
+      if (i === 0 && settings.includeStartingLocation === false) {
+        return { name: '', lat: 0, lng: 0, type: l.type };
+      }
+      return { name: l.name, lat: l.lat, lng: l.lng, type: l.type };
+    });
     params.set('locs', JSON.stringify(locData));
 
     // Vehicle (only key stats to keep url short-ish, or just stringify all if small)

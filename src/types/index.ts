@@ -125,6 +125,9 @@ export interface TripSettings {
    *  Intended for multi-driver relay teams or emergency drives. Feasibility
    *  engine will warn based on driver count. */
   beastMode?: boolean;
+  /** Privacy: when false, template exports strip the starting location so
+   *  the user's home address isn't embedded in shared templates. Default: true. */
+  includeStartingLocation?: boolean;
 }
 
 export interface WeatherData {

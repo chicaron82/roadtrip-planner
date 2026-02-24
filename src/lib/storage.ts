@@ -1,4 +1,4 @@
-import type { Vehicle, Location, TripSummary, SavedBudgetProfile, LastTripBudget, TripBudget } from '../types';
+import type { Vehicle, Location, TripSummary, SavedBudgetProfile, LastTripBudget, TripBudget, TripSettings } from '../types';
 
 const STORAGE_VERSION = 1;
 
@@ -13,6 +13,7 @@ const KEYS = {
   LAST_TRIP_BUDGET: 'roadtrip_last_trip_budget',
   LAST_ORIGIN: 'roadtrip_last_origin',
   VERSION: 'roadtrip_storage_version',
+  DEFAULT_SETTINGS: 'roadtrip_default_settings',
 };
 
 export interface SavedVehicle extends Vehicle {
@@ -313,4 +314,35 @@ export const saveLastTripBudget = (
     numTravelers,
   };
   localStorage.setItem(KEYS.LAST_TRIP_BUDGET, JSON.stringify(lastTrip));
+};
+
+// --- Settings Defaults (user preference persistence) ---
+// Only persists preference-level fields — NOT trip-specific dates or budget totals.
+
+const SETTINGS_DEFAULTS_KEYS: (keyof TripSettings)[] = [
+  'units', 'currency', 'maxDriveHours', 'numTravelers', 'numDrivers',
+  'gasPrice', 'hotelPricePerNight', 'mealPricePerDay',
+  'budgetMode', 'routePreference', 'stopFrequency',
+  'beastMode', 'includeStartingLocation',
+];
+
+export const saveSettingsDefaults = (settings: TripSettings): void => {
+  const toSave: Partial<TripSettings> = {};
+  for (const key of SETTINGS_DEFAULTS_KEYS) {
+    (toSave as Record<string, unknown>)[key] = settings[key];
+  }
+  try {
+    localStorage.setItem(KEYS.DEFAULT_SETTINGS, JSON.stringify(toSave));
+  } catch (e) {
+    console.warn('Failed to save settings defaults', e);
+  }
+};
+
+export const loadSettingsDefaults = (): Partial<TripSettings> => {
+  try {
+    const data = localStorage.getItem(KEYS.DEFAULT_SETTINGS);
+    return data ? JSON.parse(data) : {};
+  } catch {
+    return {};
+  }
 };
