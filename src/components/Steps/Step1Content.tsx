@@ -62,13 +62,13 @@ export function Step1Content({
         const result = parseSharedTemplate(reader.result as string);
         onImportTemplate?.(result);
         showToast({
-          message: `Loaded "${result.meta.title}" by ${result.meta.author}!`,
+          message: `MEE time loaded — "${result.meta.title}" by ${result.meta.author}!`,
           type: 'success',
           duration: 4000,
         });
       } catch {
         showToast({
-          message: 'Invalid template file. Please use a file shared from My Experience Engine.',
+          message: 'Not a valid MEE time template. Make sure it was exported from My Experience Engine.',
           type: 'error',
           duration: 5000,
         });
@@ -285,13 +285,13 @@ export function Step1Content({
           </div>
         )}
 
-        {/* Import Shared Template */}
+        {/* Load MEE Time Template */}
         <button
           onClick={() => fileInputRef.current?.click()}
           className="mt-3 w-full flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed border-green-500/30 text-sm text-muted-foreground hover:border-green-400 hover:text-green-400 hover:bg-green-500/10 transition-all"
         >
           <Upload className="h-4 w-4" />
-          Load a Shared Trip Template
+          Load a MEE Time Template
         </button>
         <input
           ref={fileInputRef}
