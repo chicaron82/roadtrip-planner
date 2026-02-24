@@ -7,6 +7,11 @@ import { validateSharedTemplate, sanitizeSharedTemplate } from './template-valid
 export interface SharedTemplate {
   type: 'roadtrip-template';
   version: string;
+  /** Stable identifier for this template — used to build fork lineage. */
+  id?: string;
+  /** Ordered list of ancestor template IDs, oldest first.
+   *  e.g. ['original-id', 'fork1-id'] means this is a 2nd-generation fork. */
+  lineage?: string[];
   author: string;
   trip: {
     title: string;
@@ -50,7 +55,26 @@ export interface TemplateImportResult {
     author: string;
     description: string;
     recommendations: SharedTemplate['recommendations'];
+    /** ID of the loaded template — used to build lineage when re-forking. */
+    templateId?: string;
+    /** Lineage of the loaded template (oldest ancestor first). */
+    lineage?: string[];
   };
+}
+
+/**
+ * Build the lineage array for a new template being forked from a parent.
+ *
+ * Usage when exporting/sharing a trip that was originally imported:
+ *   const newLineage = buildTemplateLineage(importResult.meta);
+ *   // → [...parent.lineage, parent.id] (oldest ancestor first, parent last)
+ */
+export function buildTemplateLineage(
+  parentMeta: TemplateImportResult['meta']
+): string[] {
+  const ancestors = parentMeta.lineage ?? [];
+  const parentId = parentMeta.templateId;
+  return parentId ? [...ancestors, parentId] : [...ancestors];
 }
 
 
@@ -143,6 +167,8 @@ export function parseSharedTemplate(json: string): TemplateImportResult {
       author: data.author,
       description: data.trip.description,
       recommendations: data.recommendations,
+      templateId: data.id,
+      lineage: data.lineage,
     },
   };
 }

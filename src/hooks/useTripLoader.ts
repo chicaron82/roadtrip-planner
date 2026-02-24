@@ -44,6 +44,7 @@ export function useTripLoader({
     setActiveChallenge(null);
     setTripOrigin({
       type: 'template',
+      id: result.meta.templateId,
       title: result.meta.title,
       author: result.meta.author,
     });

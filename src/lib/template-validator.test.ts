@@ -235,3 +235,88 @@ describe('sanitizeSharedTemplate', () => {
     expect(sanitized.route.waypoints[0].name).toBe('Thunder Bay');
   });
 });
+
+// ==================== LINEAGE (Course 5) ====================
+
+describe('validateSharedTemplate — lineage', () => {
+  it('accepts template with no lineage (default)', () => {
+    const result = validateSharedTemplate(makeValidTemplate());
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('accepts template with empty lineage array', () => {
+    const result = validateSharedTemplate(makeValidTemplate({ lineage: [] }));
+    expect(result.valid).toBe(true);
+  });
+
+  it('accepts template with valid lineage array', () => {
+    const result = validateSharedTemplate(makeValidTemplate({
+      id: 'fork-001',
+      lineage: ['original-abc', 'fork-xyz'],
+    }));
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('rejects non-array lineage', () => {
+    const result = validateSharedTemplate({ ...makeValidTemplate(), lineage: 'not-array' } as unknown);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes('lineage must be an array'))).toBe(true);
+  });
+
+  it('rejects lineage with non-string entries', () => {
+    const result = validateSharedTemplate({ ...makeValidTemplate(), lineage: ['valid', 42] } as unknown);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes('non-string'))).toBe(true);
+  });
+
+  it('warns on non-string id field', () => {
+    const result = validateSharedTemplate({ ...makeValidTemplate(), id: 123 } as unknown);
+    expect(result.valid).toBe(true);
+    expect(result.warnings.some(w => w.includes('id field'))).toBe(true);
+  });
+
+  it('accepts valid id string', () => {
+    const result = validateSharedTemplate(makeValidTemplate({ id: 'template-abc-123' }));
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+});
+
+// ==================== buildTemplateLineage ====================
+
+describe('buildTemplateLineage', () => {
+  it('returns empty array when no lineage and no id', async () => {
+    const { buildTemplateLineage } = await import('./url');
+    const result = buildTemplateLineage({ title: '', author: '', description: '', recommendations: undefined });
+    expect(result).toEqual([]);
+  });
+
+  it('appends parent id to empty lineage', async () => {
+    const { buildTemplateLineage } = await import('./url');
+    const result = buildTemplateLineage({
+      title: 'T', author: 'A', description: '', recommendations: undefined,
+      templateId: 'parent-001', lineage: [],
+    });
+    expect(result).toEqual(['parent-001']);
+  });
+
+  it('appends parent id to existing lineage', async () => {
+    const { buildTemplateLineage } = await import('./url');
+    const result = buildTemplateLineage({
+      title: 'T', author: 'A', description: '', recommendations: undefined,
+      templateId: 'parent-002', lineage: ['grandparent-001'],
+    });
+    expect(result).toEqual(['grandparent-001', 'parent-002']);
+  });
+
+  it('preserves lineage when no parent id', async () => {
+    const { buildTemplateLineage } = await import('./url');
+    const result = buildTemplateLineage({
+      title: 'T', author: 'A', description: '', recommendations: undefined,
+      lineage: ['ancestor-001'],
+    });
+    expect(result).toEqual(['ancestor-001']);
+  });
+});

@@ -10,10 +10,10 @@ import type { SharedTemplate } from './url';
 
 // ==================== CONSTANTS ====================
 
-export const CURRENT_TEMPLATE_VERSION = '1';
+export const CURRENT_TEMPLATE_VERSION = '2';
 
 /** All versions we can safely import. Unknown versions get a warning, not an error. */
-const KNOWN_VERSIONS = new Set(['1']);
+const KNOWN_VERSIONS = new Set(['1', '2']);
 
 // ==================== RESULT TYPE ====================
 
@@ -113,6 +113,23 @@ export function validateSharedTemplate(raw: unknown): ValidationResult {
     warnings.push(
       `Unknown template version '${data.version}' — some fields may not import correctly`
     );
+  }
+
+  // ── id (optional) ─────────────────────────────────────────────────────────
+  if (data.id !== undefined && !isString(data.id)) {
+    warnings.push('id field is not a string — will be ignored');
+  }
+
+  // ── lineage (optional) ────────────────────────────────────────────────────
+  if (data.lineage !== undefined) {
+    if (!Array.isArray(data.lineage)) {
+      errors.push('lineage must be an array of strings');
+    } else {
+      const badEntries = (data.lineage as unknown[]).filter(e => !isString(e));
+      if (badEntries.length > 0) {
+        errors.push(`lineage contains ${badEntries.length} non-string element(s)`);
+      }
+    }
   }
 
   // ── route ─────────────────────────────────────────────────────────────────
