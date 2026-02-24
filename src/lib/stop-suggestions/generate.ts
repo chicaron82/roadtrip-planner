@@ -69,6 +69,32 @@ export function generateSmartStops(
   );
 
   segments.forEach((segment, index) => {
+    // When crossing a day boundary, synthesize an overnight stop from TripDay
+    // overnight data if the auto-generator would have been suppressed by daysWithHotel.
+    // This covers round-trip destinations where the outbound leg fits within
+    // maxDriveHours so checkOvernightStop never fires, but a hotel stop was
+    // still assigned by splitTripByDays.
+    const incomingDay = drivingDayStartMap.get(index);
+    if (incomingDay && days) {
+      const prevDrivingDay = days
+        .filter(d => d.segmentIndices.length > 0 && d.dayNumber < incomingDay.dayNumber)
+        .at(-1);
+      if (prevDrivingDay?.overnight && daysWithHotel.has(prevDrivingDay.dayNumber)) {
+        const overnight = prevDrivingDay.overnight;
+        suggestions.push({
+          id: `overnight-midpoint-day${prevDrivingDay.dayNumber}`,
+          type: 'overnight',
+          reason: `Overnight at ${overnight.location.name}. Check in, rest up, and continue tomorrow.`,
+          afterSegmentIndex: index - 1,
+          estimatedTime: new Date(state.currentTime),
+          duration: 720,
+          priority: 'required',
+          details: { hoursOnRoad: state.totalDrivingToday },
+          dayNumber: prevDrivingDay.dayNumber,
+        });
+      }
+    }
+
     // Day boundary reset (multi-day gap handling)
     handleDayBoundaryReset(state, index, drivingDayStartMap, config);
 

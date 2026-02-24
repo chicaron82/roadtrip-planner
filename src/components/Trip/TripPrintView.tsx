@@ -11,18 +11,22 @@
  * - Running budget totals
  */
 
-import type { TripSummary, TripSettings, TripDay, RouteSegment } from '../../types';
+import type { TripSummary, TripSettings, TripDay, RouteSegment, Vehicle } from '../../types';
 import type { DriverRotationResult } from '../../lib/driver-rotation';
 import { assignDrivers, formatDriveTime } from '../../lib/driver-rotation';
 import { formatCurrencySimple as formatCurrency } from '../../lib/calculations';
 import { KM_TO_MILES } from '../../lib/constants';
 import { showToast } from '../../lib/toast';
+import { generateSmartStops, createStopConfig } from '../../lib/stop-suggestions';
+import { buildTimedTimeline, formatTime, formatDuration, type TimedEvent } from '../../lib/trip-timeline';
+import { applyComboOptimization } from '../../lib/stop-consolidator';
 
 // ==================== TYPES ====================
 
 interface TripPrintViewProps {
   summary: TripSummary;
   settings: TripSettings;
+  vehicle?: Vehicle;
 }
 
 // ==================== HELPERS ====================
@@ -48,7 +52,7 @@ function getDriverForSegment(
 // ==================== PRINT FUNCTION ====================
 
 export function printTrip(props: TripPrintViewProps): void {
-  const { summary, settings } = props;
+  const { summary, settings, vehicle } = props;
   const days = summary.days || [];
 
   // Compute driver rotation (same logic as ItineraryTimeline)
@@ -61,11 +65,29 @@ export function printTrip(props: TripPrintViewProps): void {
     driverRotation = assignDrivers(summary.segments, settings.numDrivers, fuelIndices);
   }
 
+  // Build timed events (mirrors SmartTimeline logic)
+  let timedEvents: TimedEvent[] = [];
+  if (vehicle) {
+    const allSuggestions = generateSmartStops(
+      summary.segments,
+      createStopConfig(vehicle, settings),
+      summary.days,
+    );
+    const raw = buildTimedTimeline(
+      summary.segments,
+      allSuggestions,
+      settings,
+      summary.roundTripMidpoint,
+      (settings.dayTripDurationHours ?? 0) * 60,
+    );
+    timedEvents = applyComboOptimization(raw);
+  }
+
   const origin = summary.segments[0]?.from.name || 'Origin';
   const destination = summary.segments[summary.segments.length - 1]?.to.name || 'Destination';
   const tripTitle = `${origin} → ${destination}`;
 
-  const html = buildPrintHTML(tripTitle, summary, settings, days, driverRotation);
+  const html = buildPrintHTML(tripTitle, summary, settings, days, driverRotation, timedEvents);
 
   // Open print window
   const printWindow = window.open('', '_blank', 'width=800,height=600');
@@ -91,6 +113,7 @@ function buildPrintHTML(
   settings: TripSettings,
   days: TripDay[],
   driverRotation: DriverRotationResult | null,
+  timedEvents: TimedEvent[],
 ): string {
   const units = settings.units;
 
@@ -121,7 +144,7 @@ function buildPrintHTML(
   `;
 
   // Per-day sections
-  const daysHTML = days.map(day => buildDayHTML(day, settings, driverRotation, units)).join('\n');
+  const daysHTML = days.map(day => buildDayHTML(day, settings, driverRotation, units, timedEvents)).join('\n');
 
   // Driver stats (if multiple drivers)
   let driverHTML = '';
@@ -173,6 +196,7 @@ function buildDayHTML(
   _settings: TripSettings,
   driverRotation: DriverRotationResult | null,
   units: 'metric' | 'imperial',
+  timedEvents: TimedEvent[],
 ): string {
   const dayType = day.dayType || 'planned';
 
@@ -201,9 +225,21 @@ function buildDayHTML(
     <div class="tz-alert">⏰ ${tz.message}</div>
   `).join('');
 
-  // Segments timeline
+  // Build timeline from timed events if available, else fallback to segments
   let timelineHTML = '';
-  if (dayType === 'planned' && day.segments.length > 0) {
+  if (timedEvents.length > 0 && dayType === 'planned') {
+    // Filter events for this day by matching calendar date
+    // day.dateFormatted is like "Mon, Feb 24" — extract from departure time instead
+    const dayDate = new Date(day.totals.departureTime).toDateString();
+
+    const dayEvents = timedEvents.filter(e => {
+      // Match events whose arrival falls on this calendar day
+      return e.arrivalTime.toDateString() === dayDate;
+    });
+
+    timelineHTML = dayEvents.map((event, i) => buildEventHTML(event, units, i === 0)).join('');
+  } else if (dayType === 'planned' && day.segments.length > 0) {
+    // Fallback to old segment-based rendering
     timelineHTML = day.segments.map((seg, i) => {
       const globalIndex = day.segmentIndices[i];
       const driver = getDriverForSegment(globalIndex, driverRotation);
@@ -266,6 +302,104 @@ function buildDayHTML(
       ${timelineHTML}
       ${notesHTML}
       ${budgetHTML}
+    </div>
+  `;
+}
+
+// ==================== EVENT BUILDER (SmartTimeline style) ====================
+
+function getEventEmoji(type: TimedEvent['type']): string {
+  switch (type) {
+    case 'departure': return '🚗';
+    case 'arrival': return '🏁';
+    case 'fuel': return '⛽';
+    case 'meal': return '🍽️';
+    case 'rest': return '☕';
+    case 'overnight': return '🏨';
+    case 'destination': return '⏱️';
+    case 'combo': return '⛽🍽️';
+    case 'drive': return '→';
+    default: return '📍';
+  }
+}
+
+function getEventLabel(event: TimedEvent): string {
+  switch (event.type) {
+    case 'departure': return 'Depart';
+    case 'arrival': return 'Arrive';
+    case 'fuel': {
+      const fillType = event.stops[0]?.details?.fillType;
+      const cost = event.stops[0]?.details?.fuelCost;
+      const costStr = cost != null ? ` · ~$${cost.toFixed(0)}` : '';
+      return fillType === 'topup' ? `Top-Up${costStr}` : `Full Fill${costStr}`;
+    }
+    case 'meal': {
+      const h = event.arrivalTime.getHours();
+      return h < 10 || (h === 10 && event.arrivalTime.getMinutes() < 30) ? 'Breakfast'
+        : h >= 17 ? 'Dinner' : 'Lunch';
+    }
+    case 'rest': return 'Break';
+    case 'overnight': return 'Overnight';
+    case 'destination': return `Time at ${event.locationHint}`;
+    case 'combo': return event.comboLabel ?? 'Fuel + Stop';
+    case 'drive': return 'Drive';
+    default: return 'Stop';
+  }
+}
+
+function buildEventHTML(
+  event: TimedEvent,
+  units: 'metric' | 'imperial',
+  isFirst: boolean,
+): string {
+  const emoji = getEventEmoji(event.type);
+  const label = getEventLabel(event);
+
+  // Drive segments — show as connector
+  if (event.type === 'drive') {
+    const km = event.segmentDistanceKm ?? 0;
+    const min = event.segmentDurationMinutes ?? 0;
+    return `
+      <div class="drive-connector">
+        <span class="drive-arrow">↓</span>
+        <span class="drive-info">${formatDuration(min)} · ${formatDistance(km, units)}</span>
+      </div>
+    `;
+  }
+
+  // Skip waypoints
+  if (event.type === 'waypoint') return '';
+
+  // Departure / Arrival — simple format
+  if (event.type === 'departure' || event.type === 'arrival') {
+    return `
+      <div class="event ${event.type} ${isFirst ? 'first-event' : ''}">
+        <div class="event-time">${formatTime(event.arrivalTime)}</div>
+        <div class="event-body">
+          <span class="event-emoji">${emoji}</span>
+          <strong>${label}</strong>
+          <span class="event-location">${event.locationHint}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // Stop events — show arrive / duration / depart
+  const showDepart = event.type !== 'overnight';
+  return `
+    <div class="event stop-event ${event.type} ${isFirst ? 'first-event' : ''}">
+      <div class="event-time">${formatTime(event.arrivalTime)}</div>
+      <div class="event-body">
+        <div class="event-header">
+          <span class="event-emoji">${emoji}</span>
+          <strong>${label}</strong>
+          ${event.type !== 'destination' ? `<span class="event-location">${event.locationHint}</span>` : ''}
+        </div>
+        <div class="event-timing">
+          Arrive ${formatTime(event.arrivalTime)} · ${formatDuration(event.durationMinutes)}${showDepart ? ` · Depart ${formatTime(event.departureTime)}` : ''}
+        </div>
+        ${event.timeSavedMinutes ? `<span class="time-saved">saves ${event.timeSavedMinutes} min</span>` : ''}
+      </div>
     </div>
   `;
 }
@@ -434,6 +568,111 @@ const PRINT_STYLES = `
     font-weight: 600;
   }
 
+  /* Event-based timeline (SmartTimeline style) */
+  .event {
+    display: flex;
+    gap: 12px;
+    padding: 6px 0;
+    border-top: 1px dotted #e0e0e0;
+    font-size: 10pt;
+  }
+
+  .event.first-event {
+    border-top: none;
+  }
+
+  .event.departure, .event.arrival {
+    background: #f0fff4;
+  }
+
+  .event.fuel {
+    background: #fffbeb;
+  }
+
+  .event.meal {
+    background: #eff6ff;
+  }
+
+  .event.combo {
+    background: #fffbeb;
+  }
+
+  .event.destination {
+    background: #ecfeff;
+  }
+
+  .event-time {
+    width: 70px;
+    flex-shrink: 0;
+    font-weight: 700;
+    color: #333;
+    font-size: 10pt;
+  }
+
+  .event-body {
+    flex: 1;
+  }
+
+  .event-emoji {
+    margin-right: 6px;
+  }
+
+  .event-location {
+    display: block;
+    color: #666;
+    font-size: 9pt;
+    margin-top: 1px;
+  }
+
+  .event-header {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .event-header .event-location {
+    display: inline;
+    margin-left: 8px;
+  }
+
+  .event-timing {
+    font-size: 9pt;
+    color: #555;
+    margin-top: 3px;
+    font-family: ui-monospace, monospace;
+  }
+
+  .time-saved {
+    display: inline-block;
+    background: #dcfce7;
+    color: #166534;
+    font-size: 8pt;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-top: 3px;
+  }
+
+  .drive-connector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0 4px 78px;
+    font-size: 9pt;
+    color: #888;
+  }
+
+  .drive-arrow {
+    color: #ccc;
+  }
+
+  .drive-info {
+    font-family: ui-monospace, monospace;
+    font-size: 8.5pt;
+  }
+
+  /* Legacy segment styles (fallback) */
   .segment {
     display: flex;
     gap: 12px;

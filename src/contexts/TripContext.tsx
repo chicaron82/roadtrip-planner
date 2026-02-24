@@ -44,6 +44,7 @@ export const DEFAULT_SETTINGS: TripSettings = {
   stopFrequency: 'balanced',
   tripPreferences: [],
   targetArrivalHour: 21,
+  dayTripDurationHours: 0,
 };
 
 // ==================== CONTEXT TYPE ====================

@@ -21,7 +21,8 @@ export type TimedEventType =
   | 'overnight'
   | 'waypoint'
   | 'arrival'
-  | 'combo';     // merged fuel + meal (or fuel + rest)
+  | 'combo'       // merged fuel + meal (or fuel + rest)
+  | 'destination'; // day-trip dwell stop at the round-trip turnaround point
 
 export interface TimedEvent {
   id: string;
@@ -101,6 +102,8 @@ export function buildTimedTimeline(
   segments: RouteSegment[],
   suggestions: SuggestedStop[],
   settings: TripSettings,
+  roundTripMidpoint?: number,
+  destinationStayMinutes?: number,
 ): TimedEvent[] {
   if (segments.length === 0) return [];
 
@@ -181,6 +184,32 @@ export function buildTimedTimeline(
 
   // ── Segment loop ───────────────────────────────────────────────────────────
   for (let i = 0; i < segments.length; i++) {
+    // ── Day-trip destination dwell ──────────────────────────────────────────
+    // At the round-trip midpoint (first return segment), inject a "Time at
+    // [Destination]" stop before driving back. This only fires when the user
+    // has set dayTripDurationHours > 0 and the trip fits in a single day.
+    if (
+      roundTripMidpoint !== undefined &&
+      destinationStayMinutes &&
+      destinationStayMinutes > 0 &&
+      i === roundTripMidpoint
+    ) {
+      const destName = segments[i - 1]?.to.name ?? 'Destination';
+      const arr = new Date(currentTime);
+      const dep = new Date(arr.getTime() + destinationStayMinutes * 60 * 1000);
+      events.push({
+        id: 'destination-dwell',
+        type: 'destination',
+        arrivalTime: arr,
+        departureTime: dep,
+        durationMinutes: destinationStayMinutes,
+        distanceFromOriginKm: cumulativeKm,
+        locationHint: destName,
+        stops: [],
+      });
+      currentTime = dep;
+    }
+
     const seg = segments[i];
     const segKm = seg.distanceKm ?? 0;
     const segMin = seg.durationMinutes ?? 0;

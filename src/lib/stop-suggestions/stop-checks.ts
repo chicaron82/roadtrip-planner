@@ -19,10 +19,18 @@ export function handleDayBoundaryReset(
   const newDrivingDay = drivingDayStartMap.get(index);
   if (!newDrivingDay) return;
 
-  const h = config.departureTime.getHours();
-  const m = config.departureTime.getMinutes();
-  const dayStart = new Date(newDrivingDay.date + 'T00:00:00');
-  dayStart.setHours(h, m, 0, 0);
+  // Prefer the smart departure time computed by splitTripByDays (accounts for rest
+  // minimums, target arrival, and how much driving remains). Fall back to the
+  // user's configured departure time when not available.
+  let dayStart: Date;
+  if (newDrivingDay.totals?.departureTime) {
+    dayStart = new Date(newDrivingDay.totals.departureTime);
+  } else {
+    const h = config.departureTime.getHours();
+    const m = config.departureTime.getMinutes();
+    dayStart = new Date(newDrivingDay.date + 'T00:00:00');
+    dayStart.setHours(h, m, 0, 0);
+  }
   state.currentTime = dayStart;
   state.totalDrivingToday = 0;
   state.lastBreakTime = new Date(dayStart);

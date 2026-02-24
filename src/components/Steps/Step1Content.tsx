@@ -229,6 +229,28 @@ export function Step1Content({
             </button>
           </div>
 
+          {/* Day trip duration — how long to spend at the destination before heading back */}
+          {settings.isRoundTrip && (
+            <div className="mt-3">
+              <div className="text-xs text-muted-foreground mb-1.5">Time at destination</div>
+              <div className="flex gap-1.5 flex-wrap">
+                {([0, 1, 2, 3, 4, 6] as const).map(h => (
+                  <button
+                    key={h}
+                    onClick={() => setSettings(prev => ({ ...prev, dayTripDurationHours: h }))}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                      (settings.dayTripDurationHours ?? 0) === h
+                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                        : 'bg-muted/40 text-muted-foreground border border-white/10 hover:border-white/20'
+                    }`}
+                  >
+                    {h === 0 ? 'None' : `${h}h`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Open-ended trip nudge */}
           {isOpenEnded && !openEndedDismissed && (
             <div className="mt-2 flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300">

@@ -13,7 +13,7 @@
  * CTA appears — loading the harder variant without adding an extra card.
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Trophy, Lock, ChevronRight, MapPin } from 'lucide-react';
 import type { TripChallenge, Location } from '../../types';
 import { LocationSearchInput } from './LocationSearchInput';
@@ -67,29 +67,28 @@ export function ChallengeCards({ onSelectChallenge, initialOrigin }: ChallengeCa
   const challenges = getChallenges();
 
   // User's custom start city — auto-syncs with Step 1 origin unless manually overridden
-  const [userOrigin, setUserOrigin] = useState<Partial<Location> | null>(null);
+  const [manualOrigin, setManualOrigin] = useState<Partial<Location> | null>(null);
   const [hasManualOverride, setHasManualOverride] = useState(false);
 
-  useEffect(() => {
-    if (!hasManualOverride && initialOrigin?.lat && initialOrigin.lat !== 0 && initialOrigin.name) {
-      setUserOrigin(initialOrigin);
-    }
-  }, [initialOrigin, hasManualOverride]);
+  // Derived origin: use manual override if set, otherwise sync with Step 1
+  const currentUserOrigin = hasManualOverride
+    ? manualOrigin
+    : (initialOrigin?.lat && initialOrigin.lat !== 0 && initialOrigin.name) ? initialOrigin : null;
 
   const handleOriginSelect = (loc: Partial<Location>) => {
     setHasManualOverride(true);
-    setUserOrigin(loc.lat && loc.lat !== 0 ? loc : null);
+    setManualOrigin(loc.lat && loc.lat !== 0 ? loc : null);
   };
 
   const notFromWinnipeg = !!(
-    userOrigin?.lat &&
-    userOrigin.lat !== 0 &&
-    !isWinnipegCoords(userOrigin.lat, userOrigin.lng ?? 0)
+    currentUserOrigin?.lat &&
+    currentUserOrigin.lat !== 0 &&
+    !isWinnipegCoords(currentUserOrigin.lat, currentUserOrigin.lng ?? 0)
   );
 
   const handleLoad = (challenge: TripChallenge) => {
-    const adapted = notFromWinnipeg && userOrigin
-      ? adaptChallengeForOrigin(challenge, userOrigin)
+    const adapted = notFromWinnipeg && currentUserOrigin
+      ? adaptChallengeForOrigin(challenge, currentUserOrigin)
       : challenge;
     onSelectChallenge(adapted);
   };
@@ -111,7 +110,7 @@ export function ChallengeCards({ onSelectChallenge, initialOrigin }: ChallengeCa
         <span className="text-xs text-muted-foreground whitespace-nowrap">Starting from:</span>
         <div className="flex-1 min-w-0">
           <LocationSearchInput
-            value={userOrigin?.name || ''}
+            value={currentUserOrigin?.name || ''}
             onSelect={handleOriginSelect}
             placeholder="Winnipeg, MB (Chicharon's home base)"
             className="text-xs"

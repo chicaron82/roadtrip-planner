@@ -86,14 +86,18 @@ export function analyzeDateWindow(
       suggestion: buildDateWindowSuggestion(settings, extraDaysNeeded),
     });
   } else if (freeDays === 0) {
-    // Fits, but zero time at destination — every day is spent driving.
-    warnings.push({
-      category: 'date-window',
-      severity: 'warning',
-      message: 'No free days at destination — entire trip is driving',
-      detail: `All ${totalCalendarDays} day${totalCalendarDays > 1 ? 's' : ''} are transit days. You\'ll arrive and immediately turn around.`,
-      suggestion: buildDateWindowSuggestion(settings, 1),
-    });
+    // Same-day round trip (1 calendar day): "0 free days" is the expected and
+    // intentional result — the user is doing a day trip. No warning needed.
+    if (totalCalendarDays > 1) {
+      // Multi-day trip with no free days at destination — worth flagging.
+      warnings.push({
+        category: 'date-window',
+        severity: 'warning',
+        message: 'No free days at destination — entire trip is driving',
+        detail: `All ${totalCalendarDays} days are transit days. You\'ll arrive and immediately turn around.`,
+        suggestion: buildDateWindowSuggestion(settings, 1),
+      });
+    }
   } else if (freeDays === 1 && totalCalendarDays > 3) {
     // Only 1 free day for a trip that's more than a long weekend.
     warnings.push({

@@ -56,7 +56,12 @@ export function FuelStopLayer({ stops }: FuelStopLayerProps) {
           <Popup className="font-sans">
             <div className="p-2 text-center">
               <div className="text-2xl mb-2">⛽</div>
-              <div className="font-semibold text-orange-900 mb-1">Recommended Fuel Stop</div>
+              <div className="font-semibold text-orange-900 mb-1">
+                {stop.stationName ?? 'Recommended Fuel Stop'}
+              </div>
+              {stop.stationAddress && (
+                <div className="text-xs text-gray-500 mb-1">{stop.stationAddress}</div>
+              )}
               <div className="text-xs text-gray-600 space-y-1">
                 <div>📍 {stop.distanceFromStart.toFixed(0)} km from start</div>
                 <div>⏱️ After {stop.estimatedTime}</div>
@@ -64,9 +69,16 @@ export function FuelStopLayer({ stops }: FuelStopLayerProps) {
                   🔋 ~{stop.fuelRemaining.toFixed(0)}% fuel remaining
                 </div>
               </div>
-              <div className="text-[10px] text-gray-500 mt-2 italic">
-                Based on your vehicle's range
-              </div>
+              {stop.isRemote && (
+                <div className="text-[10px] text-amber-700 bg-amber-50 rounded px-2 py-1 mt-2">
+                  ⚠️ Remote area — verify fuel availability
+                </div>
+              )}
+              {!stop.isRemote && !stop.stationName && (
+                <div className="text-[10px] text-gray-500 mt-2 italic">
+                  Based on your vehicle's range
+                </div>
+              )}
             </div>
           </Popup>
         </Marker>

@@ -8,15 +8,17 @@ import {
   type StrategicFuelStop,
 } from '../lib/calculations';
 import { getTankSizeLitres, estimateGasStops } from '../lib/unit-conversions';
+import { snapFuelStopsToStations } from '../lib/fuel-stop-snapper';
+import { snapOvernightsToTowns } from '../lib/overnight-snapper';
 import {
   splitTripByDays,
   calculateCostBreakdown,
   getBudgetStatus,
 } from '../lib/budget';
+import { generateSmartStops, createStopConfig } from '../lib/stop-suggestions';
 import { fetchWeather } from '../lib/weather';
 import { addToHistory } from '../lib/storage';
 import { serializeStateToURL } from '../lib/url';
-import { reverseGeocodeTown } from '../lib/route-geocoder';
 import { validateTripInputs } from '../lib/validate-inputs';
 
 interface UseTripCalculationOptions {
@@ -146,13 +148,18 @@ export function useTripCalculation({
           stopType: 'drive' as const,
         }));
 
-        // Combine outbound + return and recalculate times
+        // Combine outbound + return and recalculate times.
+        // For day trips (total drive ≤ maxDriveHours), pass the dwell time so the
+        // return leg departs the same day instead of jumping to next morning.
         const fullRoundTripSegments = [...outboundSegments, ...returnSegments];
+        const totalRTMinutes = fullRoundTripSegments.reduce((sum, s) => sum + s.durationMinutes, 0);
+        const isRTDayTrip = totalRTMinutes <= settings.maxDriveHours * 60;
         segmentsWithTimes = calculateArrivalTimes(
           fullRoundTripSegments,
           settings.departureDate,
           settings.departureTime,
-          roundTripMidpoint
+          roundTripMidpoint,
+          isRTDayTrip ? (settings.dayTripDurationHours ?? 0) * 60 : undefined,
         );
 
         // Recalculate totals from duplicated segments
@@ -177,6 +184,7 @@ export function useTripCalculation({
       }
 
       tripSummary.segments = segmentsWithTimes;
+      tripSummary.roundTripMidpoint = roundTripMidpoint;
 
       // Split trip into days with budget tracking
       const tripDays = splitTripByDays(
@@ -204,6 +212,35 @@ export function useTripCalculation({
         settings
       );
       setStrategicFuelStops(fuelStops);
+
+      // Day trip arrival time sync: segment arrivalTimes don't include fuel/meal stop
+      // durations (those are computed separately by generateSmartStops). Without this
+      // adjustment, the printed itinerary shows ~45min earlier arrival than SmartTimeline.
+      if (tripDays.length === 1 && tripDays[0].totals.arrivalTime) {
+        const smartStops = generateSmartStops(
+          tripSummary.segments,
+          createStopConfig(vehicle, settings),
+          tripDays,
+        );
+        // Sum non-overnight stop durations (fuel, meal, rest)
+        const totalStopMinutes = smartStops
+          .filter(s => s.type !== 'overnight' && !s.dismissed)
+          .reduce((sum, s) => sum + s.duration, 0);
+
+        if (totalStopMinutes > 0) {
+          const adjustedArrival = new Date(tripDays[0].totals.arrivalTime);
+          adjustedArrival.setMinutes(adjustedArrival.getMinutes() + totalStopMinutes);
+          tripDays[0].totals.arrivalTime = adjustedArrival.toISOString();
+        }
+      }
+
+      // Background: snap fuel stop pins to real OSM gas stations.
+      // Fire-and-forget — updates markers in place once the query resolves.
+      snapFuelStopsToStations(fuelStops).then(snapped => {
+        setStrategicFuelStops(snapped);
+      }).catch(() => {
+        // Silently keep geometry-interpolated positions if Overpass is unavailable
+      });
 
       // Check if overnight stop is recommended
       // Skip if trip is already split into multiple days — day splitter handled it
@@ -256,89 +293,89 @@ export function useTripCalculation({
       });
       // ─────────────────────────────────────────────────────────────────
 
-      // ── Async overnight-stop geocoding (fire-and-forget) ──────────────
-      // Transit split overnight locations have id='transit-split-N-M'
-      // and linearly-interpolated lat/lng.  Resolve them to real city names
-      // after emitting the initial summary so the UI isn't blocked.
-      const transitDays = tripDays.filter(
-        d => d.overnight?.location.id?.startsWith('transit-split-')
-      );
-      if (transitDays.length > 0) {
-        (async () => {
-          const enriched = tripDays.map(d => ({ ...d })); // shallow clone per day
+      // ── Async overnight-stop snapping (fire-and-forget) ──────────────
+      // Transit-split overnight locations have id='transit-split-N-M' and
+      // geometry-interpolated lat/lng — they land on the road, not in a town.
+      // snapOvernightsToTowns fires one Overpass query and returns the nearest
+      // real settlement for each, updating both coordinates AND name.
+      snapOvernightsToTowns(tripDays, geocodeController.signal)
+        .then(snapped => {
+          if (geocodeController.signal.aborted || snapped.length === 0) return;
+
+          const enriched = tripDays.map(d => ({ ...d }));
           let changed = false;
 
-          for (let i = 0; i < transitDays.length; i++) {
-            if (geocodeController.signal.aborted) break;
+          for (const snap of snapped) {
+            const idx = enriched.findIndex(d => d.dayNumber === snap.dayNumber);
+            if (idx < 0) continue;
 
-            const day = transitDays[i];
-            if (!day.overnight) continue;
+            const day = enriched[idx];
+            const firstFrom = day.segments[0]?.from.name ?? '';
+            const clonedSegments = [...day.segments];
 
-            const { lat, lng } = day.overnight.location;
-            const town = await reverseGeocodeTown(lat, lng, geocodeController.signal);
+            if (clonedSegments.length > 0) {
+              const lastSegIdx = clonedSegments.length - 1;
+              clonedSegments[lastSegIdx] = {
+                ...clonedSegments[lastSegIdx],
+                to: {
+                  ...clonedSegments[lastSegIdx].to,
+                  lat: snap.lat,
+                  lng: snap.lng,
+                  name: snap.name,
+                },
+              };
+            }
 
-            if (town && !geocodeController.signal.aborted) {
-              const idx = enriched.findIndex(d => d.dayNumber === day.dayNumber);
-              if (idx >= 0) {
-                const firstFrom = enriched[idx].segments[0]?.from.name ?? '';
-                const clonedSegments = [...enriched[idx].segments];
-                if (clonedSegments.length > 0) {
-                  // The last segment is the one leading to the overnight stop
-                  const lastSegIdx = clonedSegments.length - 1;
-                  clonedSegments[lastSegIdx] = {
-                    ...clonedSegments[lastSegIdx],
-                    to: { ...clonedSegments[lastSegIdx].to, name: town }
-                  };
-                }
+            enriched[idx] = {
+              ...day,
+              route: `${firstFrom} \u2192 ${snap.name}`,
+              segments: clonedSegments,
+              overnight: {
+                ...day.overnight!,
+                location: {
+                  ...day.overnight!.location,
+                  lat: snap.lat,
+                  lng: snap.lng,
+                  name: snap.name,
+                },
+              },
+            };
 
-                enriched[idx] = {
-                  ...enriched[idx],
-                  route: `${firstFrom} \u2192 ${town}`,
-                  segments: clonedSegments,
-                  overnight: {
-                    ...enriched[idx].overnight!,
-                    location: { ...enriched[idx].overnight!.location, name: town },
+            // Propagate to next day's departure point
+            if (idx + 1 < enriched.length) {
+              const nextDay = enriched[idx + 1];
+              const nextCloned = [...nextDay.segments];
+              if (nextCloned.length > 0 && nextCloned[0].from.name === 'Overnight Stop') {
+                nextCloned[0] = {
+                  ...nextCloned[0],
+                  from: {
+                    ...nextCloned[0].from,
+                    lat: snap.lat,
+                    lng: snap.lng,
+                    name: snap.name,
                   },
                 };
-                
-                // Also update the starting location of the NEXT day
-                if (idx + 1 < enriched.length) {
-                  const nextDay = enriched[idx + 1];
-                  // Only update if it currently says 'Overnight Stop' to avoid overwriting real names
-                  // if they somehow already have one.
-                  const nextClonedSegments = [...nextDay.segments];
-                  if (nextClonedSegments.length > 0 && nextClonedSegments[0].from.name === 'Overnight Stop') {
-                    nextClonedSegments[0] = {
-                      ...nextClonedSegments[0],
-                      from: { ...nextClonedSegments[0].from, name: town }
-                    };
-                    
-                    const nextLastTo = nextClonedSegments[nextClonedSegments.length - 1]?.to.name ?? 'Destination';
-                    enriched[idx + 1] = {
-                      ...nextDay,
-                      route: `${town} \u2192 ${nextLastTo}`,
-                      segments: nextClonedSegments
-                    };
-                  }
-                }
-                
-                changed = true;
+                const nextLastTo = nextCloned[nextCloned.length - 1]?.to.name ?? 'Destination';
+                enriched[idx + 1] = {
+                  ...nextDay,
+                  route: `${snap.name} \u2192 ${nextLastTo}`,
+                  segments: nextCloned,
+                };
               }
             }
 
-            // Nominatim usage policy: max 1 req/sec
-            if (i < transitDays.length - 1) {
-              await new Promise<void>(r => setTimeout(r, 1100));
-            }
+            changed = true;
           }
 
-          if (changed && !geocodeController.signal.aborted) {
+          if (changed) {
             const updatedSummary = { ...tripSummary, days: enriched };
             setLocalSummary(updatedSummary);
             onSummaryChange(updatedSummary);
           }
-        })();
-      }
+        })
+        .catch(() => {
+          // Silently keep interpolated positions if Overpass is unavailable
+        });
       // ─────────────────────────────────────────────────────────────────
 
       return tripSummary;
@@ -360,15 +397,35 @@ export function useTripCalculation({
 
       setActiveStrategyIndex(index);
 
-      // Recalculate costs from the strategy's segments (one-way distances)
+      // Recalculate costs from the strategy's one-way segments
       const newSummary = calculateTripCosts(strategy.segments, vehicle, settings);
 
-      // Apply round-trip multiplier if needed (matches logic in calculateTrip)
+      // For round trips, mirror the full outbound+return structure that calculateTrip
+      // builds — without this, summary.segments is one-way and any code that iterates
+      // segments (stop-type editor, print views) only sees half the trip.
+      let allSegments = newSummary.segments;
       if (settings.isRoundTrip) {
-        newSummary.totalDistanceKm *= 2;
-        newSummary.totalFuelLitres *= 2;
-        newSummary.totalFuelCost *= 2;
-        newSummary.totalDurationMinutes *= 2;
+        const outbound = newSummary.segments;
+        const returnLegs = [...outbound].reverse().map(seg => ({
+          ...seg,
+          from: seg.to,
+          to: seg.from,
+          departureTime: undefined,
+          arrivalTime: undefined,
+          stopDuration: undefined,
+          stopType: 'drive' as const,
+        }));
+        allSegments = calculateArrivalTimes(
+          [...outbound, ...returnLegs],
+          settings.departureDate,
+          settings.departureTime,
+          outbound.length, // roundTripMidpoint
+        );
+        // Recalculate totals from the full round trip
+        newSummary.totalDistanceKm = allSegments.reduce((s, seg) => s + seg.distanceKm, 0);
+        newSummary.totalDurationMinutes = allSegments.reduce((s, seg) => s + seg.durationMinutes, 0);
+        newSummary.totalFuelLitres = allSegments.reduce((s, seg) => s + seg.fuelNeededLitres, 0);
+        newSummary.totalFuelCost = allSegments.reduce((s, seg) => s + seg.fuelCost, 0);
         const tankSizeLitres = getTankSizeLitres(vehicle, settings.units);
         newSummary.gasStops = estimateGasStops(newSummary.totalFuelLitres, tankSizeLitres);
         newSummary.costPerPerson = settings.numTravelers > 0
@@ -385,7 +442,7 @@ export function useTripCalculation({
         costPerPerson: newSummary.costPerPerson,
         gasStops: newSummary.gasStops,
         fullGeometry: strategy.geometry,
-        segments: newSummary.segments,
+        segments: allSegments,
       };
 
       setLocalSummary(updatedSummary);

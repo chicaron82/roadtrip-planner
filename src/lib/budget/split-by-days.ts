@@ -133,21 +133,27 @@ export function splitTripByDays(
   for (let i = 0; i < processedSegments.length; i++) {
     const segment = processedSegments[i];
 
-    // === INSERT FREE DAYS AT ROUND-TRIP MIDPOINT ===
+    // === INSERT OVERNIGHT + FREE DAYS AT ROUND-TRIP MIDPOINT ===
     // Use _originalIndex so we correctly detect the midpoint even when a long
     // segment was split into multiple sub-segments by splitLongSegments.
+    //
+    // The overnight fires for round trips where the TOTAL driving time (both legs)
+    // exceeds maxDriveHours. If the round trip fits in a single day (day trip),
+    // we skip the forced overnight so the user doesn't get an unwanted hotel stop.
+    // e.g. Toronto → Ottawa → Toronto is ~9h22m driving, which fits in a 10h day.
+    const totalRoundTripMinutes = processedSegments.reduce((sum, s) => sum + s.durationMinutes, 0);
+    const isRoundTripDayTrip = totalRoundTripMinutes <= maxDriveMinutes;
+
     if (
       !insertedFreeDays &&
       roundTripMidpoint !== undefined &&
+      !isRoundTripDayTrip &&
       segment._originalIndex === roundTripMidpoint &&
-      (i === 0 || processedSegments[i - 1]._originalIndex < roundTripMidpoint) &&
-      settings.returnDate &&
-      settings.departureDate
+      (i === 0 || processedSegments[i - 1]._originalIndex < roundTripMidpoint)
     ) {
-      // Finalize outbound's last day before inserting free days
+      // Finalize outbound's last day — assign overnight at the destination.
+      // Night 1 belongs to Day 1's budget (the day you drove, not the free day after).
       if (currentDay && currentDay.segments.length > 0) {
-        // Assign overnight to the last outbound driving day — you arrive and check in that evening.
-        // Night 1 belongs to Day 1's budget (the day you drove, not the free day after).
         const lastSeg = currentDay.segments[currentDay.segments.length - 1];
         if (!currentDay.overnight && lastSeg) {
           const roomsNeeded = Math.ceil(settings.numTravelers / 2);
@@ -167,17 +173,18 @@ export function splitTripByDays(
         currentDayDriveMinutes = 0;
       }
 
-      // Calculate how many total calendar days the trip spans (inclusive of departure and return)
-      const departureDateObj = new Date(settings.departureDate + 'T00:00:00');
-      const returnDateObj = new Date(settings.returnDate + 'T00:00:00');
-      const totalTripDays = Math.max(1, Math.round((returnDateObj.getTime() - departureDateObj.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-
-      // Outbound driving days already consumed
-      const outboundDrivingDays = days.length;
-      // Return driving will be approximately the same as outbound
-      const returnDrivingDays = outboundDrivingDays;
-      // Free days = total trip days - outbound driving - return driving
-      const freeDaysCount = Math.max(0, totalTripDays - outboundDrivingDays - returnDrivingDays);
+      // Free days: only when a returnDate is explicitly set and there are
+      // calendar days to spare between outbound and return driving days.
+      const freeDaysCount = (settings.returnDate && settings.departureDate)
+        ? (() => {
+            const departureDateObj = new Date(settings.departureDate + 'T00:00:00');
+            const returnDateObj = new Date(settings.returnDate + 'T00:00:00');
+            const totalTripDays = Math.max(1, Math.round((returnDateObj.getTime() - departureDateObj.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+            const outboundDrivingDays = days.length;
+            const returnDrivingDays = outboundDrivingDays;
+            return Math.max(0, totalTripDays - outboundDrivingDays - returnDrivingDays);
+          })()
+        : 0;
 
       if (freeDaysCount > 0) {
         // Destination is the last stop of the outbound leg

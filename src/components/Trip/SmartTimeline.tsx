@@ -11,7 +11,7 @@
  * 💚 My Experience Engine
  */
 import { useMemo, useState, useEffect } from 'react';
-import { Clock, Zap, Utensils, Fuel, Coffee, Moon, MapPin, ChevronRight } from 'lucide-react';
+import { Clock, Zap, Utensils, Fuel, Coffee, Moon, MapPin, ChevronRight, Timer } from 'lucide-react';
 import type { TripSummary, TripSettings, Vehicle } from '../../types';
 import type { POISuggestion } from '../../types';
 import { generateSmartStops, createStopConfig } from '../../lib/stop-suggestions';
@@ -29,24 +29,26 @@ interface SmartTimelineProps {
 // ─── Icon helpers ─────────────────────────────────────────────────────────────
 
 const EVENT_ICON: Record<string, React.ReactNode> = {
-  departure:  <Zap className="h-3.5 w-3.5" />,
-  arrival:    <MapPin className="h-3.5 w-3.5" />,
-  fuel:       <Fuel className="h-3.5 w-3.5" />,
-  meal:       <Utensils className="h-3.5 w-3.5" />,
-  rest:       <Coffee className="h-3.5 w-3.5" />,
-  overnight:  <Moon className="h-3.5 w-3.5" />,
-  combo:      null, // rendered separately
+  departure:   <Zap className="h-3.5 w-3.5" />,
+  arrival:     <MapPin className="h-3.5 w-3.5" />,
+  fuel:        <Fuel className="h-3.5 w-3.5" />,
+  meal:        <Utensils className="h-3.5 w-3.5" />,
+  rest:        <Coffee className="h-3.5 w-3.5" />,
+  overnight:   <Moon className="h-3.5 w-3.5" />,
+  destination: <Timer className="h-3.5 w-3.5" />,
+  combo:       null, // rendered separately
 };
 
 const EVENT_COLOR: Record<string, string> = {
-  departure:  '#22C55E',
-  arrival:    '#22C55E',
-  fuel:       '#F59E0B',
-  meal:       '#3B82F6',
-  rest:       '#8B5CF6',
-  overnight:  '#EC4899',
-  combo:      '#F59E0B',
-  drive:      'rgba(255,255,255,0.2)',
+  departure:   '#22C55E',
+  arrival:     '#22C55E',
+  fuel:        '#F59E0B',
+  meal:        '#3B82F6',
+  rest:        '#8B5CF6',
+  overnight:   '#EC4899',
+  destination: '#06B6D4', // teal — distinct from all other stop types
+  combo:       '#F59E0B',
+  drive:       'rgba(255,255,255,0.2)',
 };
 
 // ─── POI enrichment ───────────────────────────────────────────────────────────
@@ -251,6 +253,7 @@ function StopCard({
       })()
     : event.type === 'rest' ? 'Break'
     : event.type === 'overnight' ? 'Overnight Stop'
+    : event.type === 'destination' ? `Time at ${event.locationHint}`
     : 'Stop';
 
   return (
@@ -265,10 +268,13 @@ function StopCard({
       {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="text-xs font-bold leading-tight" style={{ color }}>{label}</div>
-        <div className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
-          <MapPin className="h-2.5 w-2.5 shrink-0" />
-          <span>{event.locationHint}</span>
-        </div>
+        {/* Location hint — hidden for 'destination' since the name is already in the label */}
+        {event.type !== 'destination' && (
+          <div className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
+            <MapPin className="h-2.5 w-2.5 shrink-0" />
+            <span>{event.locationHint}</span>
+          </div>
+        )}
         {/* Arrive · duration · Depart row */}
         <div className="flex items-center gap-1 mt-1 text-[11px] font-mono tabular-nums">
           <span className="text-muted-foreground/60">Arrive</span>
@@ -299,7 +305,13 @@ export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [] 
       ? generateSmartStops(summary.segments, createStopConfig(vehicle, settings), summary.days)
       : [];
 
-    const raw = buildTimedTimeline(summary.segments, allSuggestions, settings);
+    const raw = buildTimedTimeline(
+      summary.segments,
+      allSuggestions,
+      settings,
+      summary.roundTripMidpoint,
+      (settings.dayTripDurationHours ?? 0) * 60,
+    );
     return applyComboOptimization(raw);
   }, [summary, settings, vehicle]);
 

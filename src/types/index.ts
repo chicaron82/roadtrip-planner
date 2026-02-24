@@ -116,6 +116,9 @@ export interface TripSettings {
   /** Hour of the day (0-23) drivers aim to arrive by on transit days. Default 21 = 9 PM.
    *  Budget logic works backwards: depart = max(5, min(10, targetArrivalHour - maxDriveHours)). */
   targetArrivalHour: number;
+  /** Hours spent at the destination before heading home on a round-trip day trip.
+   *  0 = drive through with no scheduled stop. Shown in Smart Timeline as "Time at [Destination]". */
+  dayTripDurationHours: number;
 }
 
 export interface WeatherData {
@@ -280,6 +283,9 @@ export interface TripSummary {
   costBreakdown?: CostBreakdown;
   budgetStatus?: 'under' | 'at' | 'over';
   budgetRemaining?: number;
+  /** Segment index where the return leg begins (round trips only). Used by SmartTimeline
+   *  to inject the destination dwell time stop at the correct position. */
+  roundTripMidpoint?: number;
 }
 
 export interface RouteStrategy {

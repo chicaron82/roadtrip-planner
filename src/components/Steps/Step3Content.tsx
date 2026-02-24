@@ -166,7 +166,7 @@ export function Step3Content({
               </Button>
             )}
             {summary && (
-              <Button size="sm" variant="outline" className="gap-1" onClick={() => printTrip({ summary, settings })}>
+              <Button size="sm" variant="outline" className="gap-1" onClick={() => printTrip({ summary, settings, vehicle })}>
                 <Printer className="h-3 w-3" /> Print
               </Button>
             )}
