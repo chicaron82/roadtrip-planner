@@ -38,16 +38,15 @@ function createInitialState(config: StopSuggestionConfig, segments: RouteSegment
  * Generate smart stop suggestions based on route, vehicle, and settings.
  *
  * @param segments - Route segments from OSRM
- * @param config - Vehicle and preference configuration
+ * @param config - Vehicle and preference configuration (includes fullGeometry for hub-aware placement)
  * @param days - Optional trip day structure for multi-day trips
- * @param fullGeometry - Optional route polyline for hub-aware stop placement
  */
 export function generateSmartStops(
   segments: RouteSegment[],
   config: StopSuggestionConfig,
   days?: TripDay[],
-  fullGeometry?: number[][],
 ): SuggestedStop[] {
+  const { fullGeometry } = config;
   const stopFrequency = config.stopFrequency || 'balanced';
 
   const actualBuffer = TRIP_CONSTANTS.stops.buffers[stopFrequency];
@@ -163,7 +162,7 @@ export function generateSmartStops(
     const segmentStartTime = new Date(state.currentTime);
 
     // Meal stop check — skip on final segment of round trip (arriving home)
-    const isArrivingHome = isFinalSegment && isRoundTrip;
+    const isArrivingHome = !!(isFinalSegment && isRoundTrip);
     const mealSug = checkMealStop(state, segment, index, segmentStartTime, isArrivingHome);
     if (mealSug) suggestions.push(mealSug);
 

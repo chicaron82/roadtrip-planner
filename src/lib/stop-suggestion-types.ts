@@ -41,4 +41,5 @@ export interface StopSuggestionConfig {
   departureTime: Date;
   gasPrice: number;
   stopFrequency?: StopFrequency; // How often to suggest stops (default 'balanced')
+  fullGeometry?: number[][];     // Route polyline for hub-aware stop placement
 }

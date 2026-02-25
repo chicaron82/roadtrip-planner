@@ -58,9 +58,9 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
   // Base suggestions — pure computation, regenerates whenever the trip/vehicle/settings change.
   const baseSuggestions = useMemo(() => {
     if (!vehicle) return [];
-    const config = createStopConfig(vehicle, settings);
-    return generateSmartStops(summary.segments, config, days, summary.fullGeometry);
-  }, [summary.segments, vehicle, settings, days]);
+    const config = createStopConfig(vehicle, settings, summary.fullGeometry);
+    return generateSmartStops(summary.segments, config, days);
+  }, [summary.segments, summary.fullGeometry, vehicle, settings, days]);
 
   // Per-stop user overrides — kept separate so baseSuggestions can regenerate without wiping
   // decisions the user already made (accept, dismiss, custom duration).

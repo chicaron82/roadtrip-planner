@@ -47,7 +47,8 @@ export function getStopColors(type: SuggestionStopType): { bg: string; border: s
  */
 export function createStopConfig(
   vehicle: Vehicle,
-  settings: TripSettings
+  settings: TripSettings,
+  fullGeometry?: number[][],
 ): StopSuggestionConfig {
   const tankSizeLitres = getTankSizeLitres(vehicle, settings.units);
   const fuelEconomyL100km = getWeightedFuelEconomyL100km(vehicle, settings.units);
@@ -59,5 +60,6 @@ export function createStopConfig(
     numDrivers: settings.numDrivers,
     departureTime: new Date(`${settings.departureDate}T${settings.departureTime}`),
     gasPrice: settings.gasPrice,
+    fullGeometry,
   };
 }

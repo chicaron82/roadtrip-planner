@@ -70,9 +70,8 @@ export function printTrip(props: TripPrintViewProps): void {
   if (vehicle) {
     const allSuggestions = generateSmartStops(
       summary.segments,
-      createStopConfig(vehicle, settings),
+      createStopConfig(vehicle, settings, summary.fullGeometry),
       summary.days,
-      summary.fullGeometry,
     );
     const raw = buildTimedTimeline(
       summary.segments,

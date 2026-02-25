@@ -302,7 +302,7 @@ export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [] 
     if (!summary?.segments?.length) return [];
 
     const allSuggestions = vehicle
-      ? generateSmartStops(summary.segments, createStopConfig(vehicle, settings), summary.days, summary.fullGeometry)
+      ? generateSmartStops(summary.segments, createStopConfig(vehicle, settings, summary.fullGeometry), summary.days)
       : [];
 
     const raw = buildTimedTimeline(
