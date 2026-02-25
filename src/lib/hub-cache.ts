@@ -343,7 +343,9 @@ export function getHubCacheStats(): {
 
 /**
  * Clear the hub cache (for testing/reset).
+ * Resets both localStorage and in-memory singleton.
  */
 export function clearHubCache(): void {
+  memoryCache = null;
   localStorage.removeItem(CACHE_KEY);
 }
