@@ -18,6 +18,7 @@ import { haversineDistance } from './poi-ranking';
 import type { TimedEvent } from './trip-timeline';
 import type { POISuggestion } from '../types';
 import { resolveHubName } from './hub-cache';
+import { NOMINATIM_BASE_URL } from './constants';
 
 // ─── Rate limiting ────────────────────────────────────────────────────────────
 
@@ -84,7 +85,7 @@ export async function reverseGeocodeTown(
 ): Promise<string | null> {
   try {
     const url =
-      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}` +
+      `${NOMINATIM_BASE_URL}/reverse?lat=${lat}&lon=${lng}` +
       `&format=json&zoom=10&addressdetails=1`;
 
     const response = await fetch(url, {

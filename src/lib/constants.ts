@@ -20,3 +20,11 @@ export const CITY_FUEL_WEIGHT = 0.2;
 
 /** Fraction of tank considered usable before triggering a fuel stop */
 export const USABLE_TANK_FRACTION = 0.75;
+
+/**
+ * Nominatim reverse geocoding base URL.
+ * Routes through a Cloudflare Worker proxy to add CORS headers,
+ * since Nominatim blocks direct browser requests from non-localhost origins.
+ * Proxy: https://github.com/chicaron82/roadtrip-planner (workers/nominatim-proxy)
+ */
+export const NOMINATIM_BASE_URL = 'https://nominatim-proxy.aaronsauddin.workers.dev';

@@ -2,6 +2,7 @@ import { useMemo, useCallback } from 'react';
 import type { Location, TripSummary, TripSettings, POI, RouteSegment } from '../types';
 import { analyzeFeasibility, type FeasibilityStatus } from '../lib/feasibility';
 import { showToast } from '../lib/toast';
+import { NOMINATIM_BASE_URL } from '../lib/constants';
 
 interface UseMapInteractionsOptions {
   locations: Location[];
@@ -56,7 +57,7 @@ export function useMapInteractions({
   const handleMapClick = useCallback(async (lat: number, lng: number) => {
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
+        `${NOMINATIM_BASE_URL}/reverse?format=json&lat=${lat}&lon=${lng}`
       );
       const data = await response.json();
       const name = data.display_name || `Location at ${lat.toFixed(4)}, ${lng.toFixed(4)}`;

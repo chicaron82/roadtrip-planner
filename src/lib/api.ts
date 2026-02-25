@@ -1,5 +1,6 @@
 import type { Location, RouteSegment } from '../types';
 import { detectBorderCrossing, getGuardWaypoints, insertGuardWaypoints } from './border-avoidance';
+import { NOMINATIM_BASE_URL } from './constants';
 
 // ==================== GEOCODING ====================
 // Primary: Photon (komoot) — fuzzy/typo-tolerant, built on Nominatim data, no key needed.
@@ -87,8 +88,8 @@ export async function searchLocations(query: string): Promise<Partial<Location>[
   // ── Nominatim fallback (exact) ──────────────────────────────────────────
   try {
     const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1`,
-      { headers: { 'User-Agent': 'RoadTripPlanner/1.0' } }
+      `${NOMINATIM_BASE_URL}/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1`,
+      { headers: { 'User-Agent': 'MyExperienceEngine/1.0' } }
     );
     const data: NominatimResult[] = await response.json();
     return data.map(item => ({

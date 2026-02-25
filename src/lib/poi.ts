@@ -1,4 +1,5 @@
 import type { POI, POICategory } from '../types';
+import { NOMINATIM_BASE_URL } from './constants';
 
 interface NominatimResult {
     place_id: number;
@@ -116,7 +117,7 @@ export async function searchNearbyPOIs(lat: number, lng: number, category: POICa
         const viewbox = `${lng-offset},${lat+offset},${lng+offset},${lat-offset}`;
         
         const response = await fetch(
-            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=10&viewbox=${viewbox}&bounded=1&addressdetails=1`,
+            `${NOMINATIM_BASE_URL}/search?q=${encodeURIComponent(query)}&format=json&limit=10&viewbox=${viewbox}&bounded=1&addressdetails=1`,
             {
                 headers: {
                     'User-Agent': 'RoadTripPlanner/1.0',
