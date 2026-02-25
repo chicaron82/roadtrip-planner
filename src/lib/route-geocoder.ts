@@ -64,9 +64,10 @@ export function interpolateRoutePosition(
     accumulated += segLen;
   }
 
-  // Past the end of the route — return last point
-  const last = geometry[geometry.length - 1];
-  return { lat: last[0], lng: last[1] };
+  // Target km exceeds the total route length — return null.
+  // Do NOT fall through to the last point; callers must handle null to
+  // avoid resolving out-of-bounds positions to the route's endpoint.
+  return null;
 }
 
 // ─── Reverse geocoding ───────────────────────────────────────────────────────

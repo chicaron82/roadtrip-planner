@@ -345,7 +345,7 @@ export function getEnRouteFuelStops(
       id: `fuel-enroute-${index}-${stopIndex}`,
       type: 'fuel',
       reason: `En-route refuel needed ${locationDesc}. Your tank cannot cover the full distance without stopping.`,
-      afterSegmentIndex: index - 1,
+      afterSegmentIndex: index - 1 + stopIndex * 0.01, // unique per sub-stop to avoid false consolidation
       estimatedTime: new Date(segmentStartTime.getTime() + minutesMark * 60 * 1000),
       duration: 15,
       priority: 'required',
