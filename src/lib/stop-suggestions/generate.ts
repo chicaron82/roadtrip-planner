@@ -166,8 +166,8 @@ export function generateSmartStops(
     const mealSug = checkMealStop(state, segment, index, segmentStartTime, isArrivingHome);
     if (mealSug) suggestions.push(mealSug);
 
-    // En-route fuel stops (for very long legs)
-    suggestions.push(...getEnRouteFuelStops(state, segment, index, config, safeRangeKm, segmentStartTime));
+    // En-route fuel stops (for very long legs) — pass hub name for city-aware labels
+    suggestions.push(...getEnRouteFuelStops(state, segment, index, config, safeRangeKm, segmentStartTime, hubName));
 
     // Drive the segment
     const arrivalTime = driveSegment(state, segment, segmentStartTime, config);

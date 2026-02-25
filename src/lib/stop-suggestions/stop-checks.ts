@@ -274,18 +274,22 @@ export function checkMealStop(
 
   const mealType = crossesLunch ? 'Lunch' : 'Dinner';
   const mealTime = crossesLunch ? '12:00 PM' : '6:00 PM';
-  const segmentHours = segment.durationMinutes / 60;
-  const totalHoursOnRoad = (state.hoursOnRoad + segmentHours).toFixed(1);
+  const mealTs = crossesLunch ? lunchTs : dinnerTs;
+
+  // Hours driven up to the meal timestamp, not the full segment duration.
+  // e.g. departing at 7:00 AM hitting noon = 5h, not 13.5h
+  const hoursUntilMeal = (mealTs.getTime() - segmentStartTime.getTime()) / (1000 * 60 * 60);
+  const hoursOnRoadAtMeal = (state.hoursOnRoad + hoursUntilMeal).toFixed(1);
 
   return {
     id: `meal-${mealType.toLowerCase()}-${index}`,
     type: 'meal',
-    reason: `${mealType} break around ${mealTime}. You'll have driven ${totalHoursOnRoad} hours. Refuel yourself and your vehicle with a proper meal.`,
+    reason: `${mealType} break around ${mealTime}. You'll have driven ${hoursOnRoadAtMeal} hours. Refuel yourself and your vehicle with a proper meal.`,
     afterSegmentIndex: index,
     estimatedTime: crossesLunch ? new Date(lunchTs) : new Date(dinnerTs),
     duration: 45,
     priority: 'optional',
-    details: { hoursOnRoad: state.hoursOnRoad + segmentHours },
+    details: { hoursOnRoad: state.hoursOnRoad + hoursUntilMeal },
     dayNumber: state.currentDayNumber,
   };
 }
@@ -293,6 +297,9 @@ export function checkMealStop(
 /**
  * Generate en-route fuel stops for segments longer than the safe range.
  * Advisory only (no accepted: true) — user decides in the suggestions panel.
+ *
+ * @param hubName - Optional hub city name near the stop location (e.g. "Fargo, ND").
+ *                  When provided, the reason string uses the city name instead of a raw km marker.
  */
 export function getEnRouteFuelStops(
   state: SimState,
@@ -301,6 +308,7 @@ export function getEnRouteFuelStops(
   config: StopSuggestionConfig,
   safeRangeKm: number,
   segmentStartTime: Date,
+  hubName?: string,
 ): SuggestedStop[] {
   const enRouteFuelCount = Math.max(0, Math.ceil(segment.distanceKm / safeRangeKm) - 1);
   const stops: SuggestedStop[] = [];
@@ -308,10 +316,16 @@ export function getEnRouteFuelStops(
   for (let s = 1; s <= enRouteFuelCount; s++) {
     const kmMark = Math.round(safeRangeKm * s);
     const minutesMark = (safeRangeKm * s / segment.distanceKm) * segment.durationMinutes;
+
+    // Prefer a hub city name; fall back to a km-mark description
+    const locationDesc = hubName
+      ? `near ${hubName}`
+      : `around km ${kmMark} into this ${segment.distanceKm.toFixed(0)} km leg (~${(minutesMark / 60).toFixed(1)}h after departing)`;
+
     stops.push({
       id: `fuel-enroute-${index}-${s}`,
       type: 'fuel',
-      reason: `En-route refuel needed around km ${kmMark} into this ${segment.distanceKm.toFixed(0)} km leg (~${(minutesMark / 60).toFixed(1)}h after departing). Your tank cannot cover the full distance without stopping.`,
+      reason: `En-route refuel needed ${locationDesc}. Your tank cannot cover the full distance without stopping.`,
       afterSegmentIndex: index - 1,
       estimatedTime: new Date(segmentStartTime.getTime() + minutesMark * 60 * 1000),
       duration: 15,
@@ -319,7 +333,7 @@ export function getEnRouteFuelStops(
       details: {
         fuelNeeded: config.tankSizeLitres * 0.9,
         fuelCost: config.tankSizeLitres * 0.9 * config.gasPrice,
-        fillType: 'full', // always topping up for maximum range on a long leg
+        fillType: 'full',
       },
       dayNumber: state.currentDayNumber,
     });
