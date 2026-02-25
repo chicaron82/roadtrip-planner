@@ -133,8 +133,15 @@ export async function calculateRoute(locations: Location[], options?: { avoidTol
   if (options?.scenicMode) parts.push('motorway');
   const excludeParam = parts.length > 0 ? `&exclude=${parts.join(',')}` : '';
 
-  // First pass: calculate the normal route
-  const result = await fetchOSRMRoute(locations, excludeParam);
+  // First pass: calculate the route with requested exclusions.
+  // If OSRM rejects the exclusion params (e.g. exclude=motorway returns 400 for some
+  // cross-country routes on the public demo server), retry without any exclude param
+  // so the app never hard-fails just because scenic/toll-avoidance isn't supported.
+  let result = await fetchOSRMRoute(locations, excludeParam);
+  if (!result && excludeParam) {
+    console.warn(`[api] OSRM rejected route with "${excludeParam}" — retrying without exclusions`);
+    result = await fetchOSRMRoute(locations, '');
+  }
   if (!result) return null;
 
   // If avoidBorders is enabled, check for border crossings and reroute
@@ -232,6 +239,7 @@ async function fetchOSRMRoute(
     const response = await fetch(
       `https://router.project-osrm.org/route/v1/driving/${waypoints}?overview=full&geometries=geojson&steps=false${excludeParam}`
     );
+    if (!response.ok) return null;
     const data = await response.json();
 
     if (data.code !== 'Ok' || !data.routes?.length) return null;
