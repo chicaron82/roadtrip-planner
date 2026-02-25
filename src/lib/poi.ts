@@ -1,5 +1,6 @@
 import type { POI, POICategory } from '../types';
 import { NOMINATIM_BASE_URL } from './constants';
+import { executeOverpassQuery } from './poi-service/overpass';
 
 interface NominatimResult {
     place_id: number;
@@ -19,14 +20,11 @@ const CATEGORY_QUERIES: Record<POICategory, string> = {
 /**
  * OSM tag queries for route-corridor search via Overpass
  */
-const OVERPASS_CATEGORY_TAGS: Record<POICategory, string> = {
+const OVERPASS_CATEGORY_TAGS: Record<Exclude<POICategory, 'attraction'>, string> = {
     gas: '["amenity"="fuel"]',
     food: '["amenity"~"restaurant|fast_food|cafe"]',
     hotel: '["tourism"~"hotel|motel|guest_house"]',
-    attraction: '["tourism"~"attraction|viewpoint|museum"]["historic"~"memorial|monument|castle|ruins"]',
 };
-
-const OVERPASS_API = 'https://overpass-api.de/api/interpreter';
 
 /**
  * Search for POIs along a route corridor using Overpass API.
@@ -72,18 +70,7 @@ ${lines}
             out center 40;
         `.trim();
 
-        const response = await fetch(OVERPASS_API, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `data=${encodeURIComponent(query)}`,
-        });
-
-        if (!response.ok) {
-            throw new Error(`Overpass API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        const elements = data.elements || [];
+        const elements = await executeOverpassQuery(query);
 
         return elements
             .map((el: { type: string; id: number; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> }) => {
