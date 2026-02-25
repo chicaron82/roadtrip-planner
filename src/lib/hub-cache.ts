@@ -1,14 +1,48 @@
 /**
  * hub-cache.ts — Self-Learning Highway Hub Cache
  *
- * Discovers major hubs by analyzing POI density (gas stations, hotels).
- * Caches discoveries in localStorage for instant lookups on future trips.
+ * THE PROBLEM:
+ * Fuel stops often land in sparse highway areas. Without city context,
+ * they display as "515 km from Winnipeg" — useless for trip planning.
+ * Nominatim can resolve coordinates to city names, but it's slow (300-500ms)
+ * and rate-limited. On a 2000km route with 10+ fuel checks, that's 3-5 seconds
+ * of blocking API calls.
  *
- * Flow:
- *   1. Check cache first (instant)
- *   2. If miss, analyze nearby POI density
- *   3. If hub detected, cache it + return name
- *   4. If sparse, return null (caller falls back to Nominatim)
+ * THE SOLUTION — 3-Tier Resolution:
+ * ┌────────────────────────────────────────────────────────────────────────────┐
+ * │  Tier 1: CACHE HIT (instant, <1ms)                                         │
+ * │    • Check if coordinates fall within any known hub's radius               │
+ * │    • Pre-seeded with 70+ major highway corridor cities                     │
+ * │    • Grows over time via runtime discovery                                 │
+ * ├────────────────────────────────────────────────────────────────────────────┤
+ * │  Tier 2: POI ANALYSIS (fast, uses already-fetched data)                    │
+ * │    • If cache misses, analyze POI density within 30km                      │
+ * │    • Hub detected if 5+ gas stations/hotels nearby                         │
+ * │    • Extract city name from POI addr:city tags                             │
+ * │    • Cache the discovery for future trips                                  │
+ * ├────────────────────────────────────────────────────────────────────────────┤
+ * │  Tier 3: NOMINATIM FALLBACK (slow, 300-500ms)                              │
+ * │    • Only reached for truly sparse areas                                   │
+ * │    • Called by the consumer, not this module                               │
+ * └────────────────────────────────────────────────────────────────────────────┘
+ *
+ * SELF-LEARNING ALGORITHM:
+ * 1. User plans a trip through new corridor (e.g., I-94 through Montana)
+ * 2. Fuel stops trigger resolveHubName() calls
+ * 3. Cache misses → POI analysis runs → discovers "Billings, MT" has 12 POIs
+ * 4. Hub cached with 40km radius (medium city tier)
+ * 5. Next trip through Billings: instant cache hit
+ *
+ * RADIUS SCALING (by POI count):
+ *   • 20+ POIs → 60km radius (major metro: Chicago, Toronto)
+ *   • 10+ POIs → 40km radius (medium city: Minneapolis, Calgary)
+ *   • 5+ POIs  → 25km radius (small hub: Fargo, Brandon)
+ *
+ * CACHE MANAGEMENT:
+ *   • In-memory singleton avoids repeated JSON.parse per lookup
+ *   • LRU eviction keeps cache under 500 entries
+ *   • Async localStorage writes don't block UI
+ *   • 20km deduplication prevents near-duplicate entries
  *
  * 💚 My Experience Engine
  */

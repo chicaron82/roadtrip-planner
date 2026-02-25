@@ -19,25 +19,75 @@ import { recordTrip } from './lib/user-profile';
 import { getHistory, getLastOrigin } from './lib/storage';
 import type { TripSummary, TripMode, POICategory } from './types';
 
+/**
+ * App.tsx — Orchestrator Pattern
+ *
+ * This file coordinates 11 hooks + TripContext. It does NOT contain business logic.
+ * Logic lives in hooks (behavior) and lib/ (pure functions). This file only wires them together.
+ *
+ * HOOK DEPENDENCY FLOW:
+ * ┌─────────────────────────────────────────────────────────────────────────────┐
+ * │  TripContext (locations, vehicle, settings, summary)                        │
+ * │       ↓ consumed by all hooks                                               │
+ * ├─────────────────────────────────────────────────────────────────────────────┤
+ * │  LAYER 1: Independent hooks (no cross-hook deps)                            │
+ * │    • useTripMode        — plan/adventure/estimate mode state                │
+ * │    • useStylePreset     — travel style presets (Road Warrior, etc.)         │
+ * │    • usePOI             — POI discovery + category toggles                  │
+ * │    • useEagerRoute      — dashed preview line before calculation            │
+ * │    • useAddedStops      — map-click waypoints + round-trip mirroring        │
+ * ├─────────────────────────────────────────────────────────────────────────────┤
+ * │  LAYER 2: Hooks that depend on Layer 1 outputs                              │
+ * │    • useTripCalculation — route calc, fuel stops, strategies                │
+ * │         ↳ uses: locations, vehicle, settings                                │
+ * │         ↳ outputs: summary, isCalculating, strategicFuelStops               │
+ * │    • useWizard          — step navigation (1→2→3)                           │
+ * │         ↳ uses: locations, vehicle                                          │
+ * │         ↳ triggers: calculateAndDiscover on step 2→3 transition             │
+ * ├─────────────────────────────────────────────────────────────────────────────┤
+ * │  LAYER 3: Hooks that depend on Layer 2 outputs                              │
+ * │    • useTripLoader      — template/challenge loading → sets locations       │
+ * │         ↳ uses: wizard step controls (forceStep, markStepComplete)          │
+ * │    • useJournal         — journal sessions (needs summary)                  │
+ * │    • useMapInteractions — geometry + click handlers (needs summary)         │
+ * │    • useURLHydration    — URL state restore (needs all setters)             │
+ * └─────────────────────────────────────────────────────────────────────────────┘
+ *
+ * REF PATTERN (breaking circular deps):
+ * - onCalcCompleteRef: Lets useTripCalculation call wizard.forceStep(3) without
+ *   importing useWizard directly. Updated in useLayoutEffect every render.
+ * - settingsRef: Provides current settings to recordTrip() callback without
+ *   adding settings to calculateAndDiscover's dependency array.
+ *
+ * ⚠️ RECURRING CONCERN: This file has been refactored twice (676→403 lines).
+ * Route new state through TripContext or new hooks, NOT more props here.
+ *
+ * 💚 My Experience Engine
+ */
+
 // ==================== APP CONTENT (uses hooks) ====================
 
 function AppContent() {
-  // Context
+  // ─── TripContext (global state) ─────────────────────────────────────────────
   const { locations, setLocations, vehicle, setVehicle, settings, setSettings, summary, setSummary } = useTripContext();
+
+  // ─── Layer 1: Independent Hooks ─────────────────────────────────────────────
+  // These have no cross-hook dependencies. Order doesn't matter.
 
   // Eager route preview (dashed line before full calculation)
   const previewGeometry = useEagerRoute(locations);
 
-  // Stable refs — break circular dep between hooks, avoid stale closure in recordTrip
+  // ─── Refs (cross-hook coordination) ──────────────────────────────────────────
+  // These refs break circular dependencies between hooks. See module docstring.
   const onCalcCompleteRef = useRef<() => void>(() => {});
   const settingsRef = useRef(settings);
   const sidebarScrollRef = useRef<HTMLDivElement>(null);
 
-  // Local state
+  // ─── Local UI State ─────────────────────────────────────────────────────────
   const [tripConfirmed, setTripConfirmed] = useState(false);
   const [history] = useState<TripSummary[]>(() => getHistory());
 
-  // Mode management
+  // Mode management (plan/adventure/estimate)
   const {
     tripMode, setTripMode,
     showAdventureMode, setShowAdventureMode,
@@ -63,6 +113,9 @@ function AppContent() {
   // Map-click added stops + return-leg mirroring
   const { addedStops, addedPOIIds, addStop, clearStops, asSuggestedStops, mirroredReturnStops } =
     useAddedStops(summary, settings.isRoundTrip);
+
+  // ─── Layer 2: Calculation & Navigation ───────────────────────────────────────
+  // These depend on Layer 1 outputs and TripContext.
 
   // POI add — marks suggestion as added AND inserts it as a route waypoint
   const handleAddPOI = useCallback((poiId: string) => {
@@ -119,13 +172,16 @@ function AppContent() {
     markStepComplete, resetWizard,
   } = useWizard({ locations, vehicle, onCalculate: calculateAndDiscover });
 
-  // Keep both refs current every render (no dep array = runs after every render)
+  // Keep refs current (runs after every render — no dep array)
   useLayoutEffect(() => {
     settingsRef.current = settings;
     onCalcCompleteRef.current = () => {
       markStepComplete(1); markStepComplete(2); markStepComplete(3); forceStep(3);
     };
   });
+
+  // ─── Layer 3: Dependent on Calculation Results ──────────────────────────────
+  // These need summary or wizard controls from Layer 2.
 
   // Trip loader (templates, challenges, adventure mode)
   const {
