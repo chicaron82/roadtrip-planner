@@ -49,6 +49,12 @@ export function generateSmartStops(
   const state = createInitialState(config, segments);
   const suggestions: SuggestedStop[] = [];
 
+  // Calculate total route distance for destination grace period.
+  // Suppress fuel stops within GRACE_ZONE_KM of the final destination.
+  const GRACE_ZONE_KM = 50;
+  const totalRouteDistanceKm = segments.reduce((sum, seg) => sum + seg.distanceKm, 0);
+  let cumulativeDistanceKm = 0;
+
   // Build map: first-segment-index → TripDay, for non-first driving days only.
   // Used to reset simulation state at multi-day boundaries (e.g., after a free day).
   const drivingDayStartMap = new Map<number, TripDay>();
@@ -105,10 +111,16 @@ export function generateSmartStops(
     // Accumulate distance/hours for fuel check
     state.distanceSinceLastFill += segment.distanceKm;
     state.hoursSinceLastFill += segment.durationMinutes / 60;
+    cumulativeDistanceKm += segment.distanceKm;
 
-    // Fuel stop check (with destination grace period on final segment)
-    const isFinalSegment = index === segments.length - 1;
-    const { suggestion: fuelSug, stopTimeAddedMs } = checkFuelStop(state, segment, index, config, safeRangeKm, isFinalSegment);
+    // Destination grace period: suppress fuel stops within 50km of final destination.
+    // This prevents the "destination panic" duplicate-fill bug caused by multiple
+    // short segments near the destination each triggering their own fuel check.
+    const remainingDistanceKm = totalRouteDistanceKm - cumulativeDistanceKm;
+    const inDestinationGraceZone = remainingDistanceKm < GRACE_ZONE_KM;
+
+    // Fuel stop check
+    const { suggestion: fuelSug, stopTimeAddedMs } = checkFuelStop(state, segment, index, config, safeRangeKm, inDestinationGraceZone);
     if (fuelSug) suggestions.push(fuelSug);
 
     // Rest break check
@@ -128,7 +140,8 @@ export function generateSmartStops(
     // Drive the segment
     const arrivalTime = driveSegment(state, segment, segmentStartTime, config);
 
-    // Overnight stop check
+    // Overnight stop check (uses strict "final segment" check, not grace zone)
+    const isFinalSegment = index === segments.length - 1;
     const overnightSug = checkOvernightStop(
       state, index, config, daysWithHotel, arrivalTime, isFinalSegment
     );
