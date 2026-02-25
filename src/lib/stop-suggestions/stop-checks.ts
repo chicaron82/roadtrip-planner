@@ -138,6 +138,13 @@ export function checkFuelStop(
     return { suggestion: null, stopTimeAddedMs: 0 };
   }
 
+  // Full-tank guard: if the tank was just reset (e.g. after checkArrivalWindow overnight
+  // reset), there is nothing to refill. Any mid-segment needs for long legs are handled
+  // independently by getEnRouteFuelStops — don't double-suggest here.
+  if (state.currentFuel >= config.tankSizeLitres * 0.98) {
+    return { suggestion: null, stopTimeAddedMs: 0 };
+  }
+
   if (!exceededSafeRange && !wouldRunCriticallyLow && !comfortRefuelDue && !tankLow) {
     return { suggestion: null, stopTimeAddedMs: 0 };
   }
@@ -300,6 +307,7 @@ export function getEnRouteFuelStops(
       details: {
         fuelNeeded: config.tankSizeLitres * 0.9,
         fuelCost: config.tankSizeLitres * 0.9 * config.gasPrice,
+        fillType: 'full', // always topping up for maximum range on a long leg
       },
       dayNumber: state.currentDayNumber,
     });

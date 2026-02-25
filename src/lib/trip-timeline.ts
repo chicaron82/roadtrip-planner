@@ -113,9 +113,14 @@ export function buildTimedTimeline(
   const emittedIds = new Set<string>();
 
   const originName = segments[0].from.name;
+  const destName = segments[segments.length - 1].to.name;
+  const totalRouteKm = segments.reduce((sum, s) => sum + s.distanceKm, 0);
 
   const makeLocationHint = (km: number, nearestWpName?: string): string => {
     if (km < 20) return nearestWpName ?? originName;
+    // Within 30 km of the final destination — use the real destination name rather
+    // than a distance string so overnight/fuel stops at journey's end show correctly.
+    if (km >= totalRouteKm - 30) return destName;
     const rounded = Math.round(km / 5) * 5;
     return `~${rounded} km from ${originName}`;
   };
