@@ -34,7 +34,13 @@ export function consolidateStops(stops: SuggestedStop[]): SuggestedStop[] {
     const next = stops[i];
     const timeDeltaMs = Math.abs(next.estimatedTime.getTime() - acc.estimatedTime.getTime());
 
-    if (timeDeltaMs <= MERGE_WINDOW_MS) {
+    // Location-aware merge: catch duplicate fuel stops at the destination that drift
+    // apart in estimated time but are still at the same segment (same afterSegmentIndex).
+    // Only applies to fuel+fuel duplicates to avoid over-merging unrelated stop types.
+    const duplicateFuelAtSameLocation =
+      acc.type === 'fuel' && next.type === 'fuel' && acc.afterSegmentIndex === next.afterSegmentIndex;
+
+    if (timeDeltaMs <= MERGE_WINDOW_MS || duplicateFuelAtSameLocation) {
       // Merge next into accumulator
       const accPri  = STOP_MERGE_PRIORITY[acc.type] ?? 0;
       const nextPri = STOP_MERGE_PRIORITY[next.type] ?? 0;

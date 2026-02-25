@@ -107,6 +107,10 @@ export function checkArrivalWindow(
 /**
  * Check if a fuel stop is needed before this segment.
  * Returns the suggestion and how much time was added to the sim clock.
+ *
+ * @param isFinalSegment — If true, applies "Destination Grace Period": only trigger
+ *   on critically low fuel (≤15% tank), suppressing comfort/range-based refuels.
+ *   Prevents duplicate fuel stops at the destination.
  */
 export function checkFuelStop(
   state: SimState,
@@ -114,6 +118,7 @@ export function checkFuelStop(
   index: number,
   config: StopSuggestionConfig,
   safeRangeKm: number,
+  isFinalSegment = false,
 ): { suggestion: SuggestedStop | null; stopTimeAddedMs: number } {
   const fuelNeeded = segment.fuelNeededLitres ?? (segment.distanceKm / 100) * config.fuelEconomyL100km;
 
@@ -126,6 +131,12 @@ export function checkFuelStop(
   const exceededSafeRange = state.distanceSinceLastFill >= safeRangeKm;
   const comfortRefuelDue = state.hoursSinceLastFill >= state.comfortRefuelHours && index > 0;
   const tankLow = state.currentFuel <= (config.tankSizeLitres * 0.35) && index > 0;
+
+  // Destination Grace Period: at the final segment, only suggest fuel if critically low.
+  // This prevents the "destination panic" double-fill bug.
+  if (isFinalSegment && !wouldRunCriticallyLow) {
+    return { suggestion: null, stopTimeAddedMs: 0 };
+  }
 
   if (!exceededSafeRange && !wouldRunCriticallyLow && !comfortRefuelDue && !tankLow) {
     return { suggestion: null, stopTimeAddedMs: 0 };

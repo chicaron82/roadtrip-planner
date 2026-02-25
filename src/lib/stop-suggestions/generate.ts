@@ -106,8 +106,9 @@ export function generateSmartStops(
     state.distanceSinceLastFill += segment.distanceKm;
     state.hoursSinceLastFill += segment.durationMinutes / 60;
 
-    // Fuel stop check
-    const { suggestion: fuelSug, stopTimeAddedMs } = checkFuelStop(state, segment, index, config, safeRangeKm);
+    // Fuel stop check (with destination grace period on final segment)
+    const isFinalSegment = index === segments.length - 1;
+    const { suggestion: fuelSug, stopTimeAddedMs } = checkFuelStop(state, segment, index, config, safeRangeKm, isFinalSegment);
     if (fuelSug) suggestions.push(fuelSug);
 
     // Rest break check
@@ -129,7 +130,7 @@ export function generateSmartStops(
 
     // Overnight stop check
     const overnightSug = checkOvernightStop(
-      state, index, config, daysWithHotel, arrivalTime, index === segments.length - 1
+      state, index, config, daysWithHotel, arrivalTime, isFinalSegment
     );
     if (overnightSug) suggestions.push(overnightSug);
 
