@@ -58,7 +58,7 @@ function loadCache(): DiscoveredHub[] {
   // Otherwise, hit disk ONCE per session
   try {
     const cached = localStorage.getItem(CACHE_KEY);
-    memoryCache = cached ? JSON.parse(cached) : [];
+    memoryCache = cached ? (JSON.parse(cached) as DiscoveredHub[]) : [];
     return memoryCache;
   } catch {
     memoryCache = [];
@@ -90,6 +90,14 @@ function saveCache(hubs: DiscoveredHub[]): void {
  * Find a known hub near the given coordinates.
  * Returns hub name if found, null otherwise.
  * Updates lastUsed timestamp on hit.
+ *
+ * **When to use:** Point-in-radius lookup. Use when you have exact coordinates
+ * and want to check if they fall within any known hub's coverage area.
+ * Example: Checking if an overnight stop location is in a city.
+ *
+ * @param lat - Target latitude
+ * @param lng - Target longitude
+ * @returns Hub name (e.g., "Fargo, ND") or null if not in any hub
  */
 export function findKnownHub(lat: number, lng: number): string | null {
   const hubs = loadCache();
@@ -110,6 +118,9 @@ export function findKnownHub(lat: number, lng: number): string | null {
 /**
  * Add a newly discovered hub to the cache.
  * Deduplicates by proximity (won't add if within 20km of existing hub).
+ *
+ * **When to use:** Internal. Called automatically by `resolveHubName` when
+ * POI analysis discovers a new hub. Exported for testing.
  */
 export function cacheDiscoveredHub(hub: Omit<DiscoveredHub, 'lastUsed'>): void {
   const hubs = loadCache();
@@ -131,6 +142,10 @@ export function cacheDiscoveredHub(hub: Omit<DiscoveredHub, 'lastUsed'>): void {
 /**
  * Seed the cache with initial hub data.
  * Only adds hubs that don't already exist (by proximity).
+ *
+ * **When to use:** App initialization. Called once on startup via
+ * `initializeHubCache()` in hub-seed-data.ts. Pre-populates the cache
+ * with 70+ major highway corridor cities.
  */
 export function seedHubCache(seedHubs: Omit<DiscoveredHub, 'lastUsed'>[]): void {
   const hubs = loadCache();
@@ -214,9 +229,14 @@ function extractCityFromPOIs(pois: POISuggestion[]): string | null {
  * Analyze POI density near a location to detect hubs.
  * Returns hub info if detected, null if area is sparse.
  *
+ * **When to use:** Internal. Called by `resolveHubName` when cache misses.
+ * Detects hubs by counting gas stations and hotels within 30km.
+ * Exported for testing.
+ *
  * @param lat - Target latitude
  * @param lng - Target longitude
  * @param pois - Available POI suggestions to analyze
+ * @returns Discovered hub info, or null if area has <5 POIs
  */
 export function analyzeForHub(
   lat: number,
@@ -252,6 +272,7 @@ export function analyzeForHub(
     radius: calculateHubRadius(nearbyPOIs.length),
     poiCount: nearbyPOIs.length,
     discoveredAt: new Date().toISOString(),
+    lastUsed: new Date().toISOString(),
     source: 'discovered',
   };
 }
@@ -260,9 +281,16 @@ export function analyzeForHub(
  * Main resolution function: cache-first, then POI analysis.
  * Returns hub name if found/discovered, null for Nominatim fallback.
  *
+ * **When to use:** Primary entry point for town name resolution.
+ * Use this when you have a location and want the best available name.
+ * Handles the full tiered resolution: cache → POI analysis → (caller falls back to Nominatim).
+ *
+ * Example: Labeling fuel stops in the Smart Timeline.
+ *
  * @param lat - Target latitude
  * @param lng - Target longitude
- * @param pois - Available POI suggestions (optional, for discovery)
+ * @param pois - Available POI suggestions (optional, enables discovery)
+ * @returns Hub name (e.g., "Fargo, ND") or null (caller should try Nominatim)
  */
 export function resolveHubName(
   lat: number,
@@ -292,15 +320,19 @@ export function resolveHubName(
 // ─── Stop Placement Support ───────────────────────────────────────────────────
 
 /**
- * Find a known hub within a distance window ahead of the current position.
+ * Find the nearest known hub within a distance window of the current position.
  *
- * Used by the stop placement engine to snap fuel stops to real cities
- * instead of arbitrary km markers.
+ * **When to use:** Stop placement. Use when you need to snap a stop location
+ * to the nearest city. Unlike `findKnownHub` (point-in-radius), this searches
+ * outward and returns the closest hub within the window.
+ *
+ * Example: Snapping fuel stops to "Fargo, ND" instead of "~515 km from Winnipeg".
+ * Example: Snapping overnight splits to "Thunder Bay, ON" instead of "transit".
  *
  * @param currentLat - Current position latitude
  * @param currentLng - Current position longitude
- * @param windowKm - How far ahead to search (default 80km)
- * @returns Nearest hub within window, or null if none found
+ * @param windowKm - Search radius in km (default 80km)
+ * @returns Nearest hub within window (full DiscoveredHub), or null if none found
  */
 export function findHubInWindow(
   currentLat: number,
@@ -327,6 +359,9 @@ export function findHubInWindow(
 
 /**
  * Get cache statistics (for debugging).
+ *
+ * **When to use:** Debugging and analytics. Shows total hub count and
+ * breakdown of seed vs discovered hubs.
  */
 export function getHubCacheStats(): {
   totalHubs: number;
@@ -344,6 +379,9 @@ export function getHubCacheStats(): {
 /**
  * Clear the hub cache (for testing/reset).
  * Resets both localStorage and in-memory singleton.
+ *
+ * **When to use:** Testing only. Resets the cache to empty state.
+ * In production, prefer letting the LRU eviction manage cache size.
  */
 export function clearHubCache(): void {
   memoryCache = null;
