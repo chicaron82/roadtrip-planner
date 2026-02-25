@@ -113,16 +113,55 @@ export function buildTimedTimeline(
   const emittedIds = new Set<string>();
 
   const originName = segments[0].from.name;
-  const destName = segments[segments.length - 1].to.name;
-  const totalRouteKm = segments.reduce((sum, s) => sum + s.distanceKm, 0);
 
-  const makeLocationHint = (km: number, nearestWpName?: string): string => {
-    if (km < 20) return nearestWpName ?? originName;
-    // Within 30 km of the final destination — use the real destination name rather
-    // than a distance string so overnight/fuel stops at journey's end show correctly.
-    if (km >= totalRouteKm - 30) return destName;
+  // Pre-compute cumulative km at the END of each segment (index-aligned).
+  // Used to detect when a stop falls at/near a map waypoint so we can display
+  // "Chicago, Illinois" instead of "~1395 km from Winnipeg, Manitoba".
+  const segEndKm: number[] = [];
+  {
+    let acc = 0;
+    for (const s of segments) {
+      acc += s.distanceKm;
+      segEndKm.push(acc);
+    }
+  }
+
+  /**
+   * Build a human-readable location hint for a stop.
+   * @param km        Cumulative km from origin at this stop.
+   * @param wpName    Explicit waypoint name (segment endpoint) when the stop falls
+   *                  at or very close to a known waypoint.
+   */
+  const makeLocationHint = (km: number, wpName?: string): string => {
+    if (km < 20) return wpName ?? originName;
+    if (wpName) return wpName; // named waypoint always wins over a distance string
     const rounded = Math.round(km / 5) * 5;
     return `~${rounded} km from ${originName}`;
+  };
+
+  /**
+   * Resolve the nearest named waypoint for a SuggestedStop.
+   * Two passes:
+   *  1. afterSegmentIndex match — stop explicitly tagged to a segment endpoint.
+   *  2. Proximity scan — any segment endpoint within 20 km of the current km
+   *     (catches en-route stops with afterSegmentIndex=-1 that land near a city).
+   */
+  const resolveWaypointName = (stop: SuggestedStop, currentKm: number): string | undefined => {
+    // Pass 1: stops explicitly tagged to a segment boundary
+    const idx = stop.afterSegmentIndex;
+    if (idx >= 0 && idx < segments.length) {
+      const endKm = segEndKm[idx];
+      if (endKm !== undefined && Math.abs(currentKm - endKm) <= 30) {
+        return segments[idx].to.name;
+      }
+    }
+    // Pass 2: proximity scan over all segment endpoints
+    for (let i = 0; i < segments.length; i++) {
+      if (Math.abs(currentKm - segEndKm[i]) <= 20) {
+        return segments[i].to.name;
+      }
+    }
+    return undefined;
   };
 
   // ── Departure ──────────────────────────────────────────────────────────────
@@ -144,6 +183,7 @@ export function buildTimedTimeline(
 
     const arr = new Date(currentTime);
     const dep = new Date(arr.getTime() + stop.duration * 60 * 1000);
+    const wpName = resolveWaypointName(stop, cumulativeKm);
     events.push({
       id: `event-${stop.id}`,
       type: stopTypeToEventType(stop.type),
@@ -151,7 +191,7 @@ export function buildTimedTimeline(
       departureTime: dep,
       durationMinutes: stop.duration,
       distanceFromOriginKm: cumulativeKm,
-      locationHint: makeLocationHint(cumulativeKm),
+      locationHint: makeLocationHint(cumulativeKm, wpName),
       stops: [stop],
     });
 
