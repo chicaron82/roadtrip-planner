@@ -222,7 +222,10 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
         }
         return;
       }
-      const ownerDay = days.find(d => d.segmentIndices.includes(stop.afterSegmentIndex));
+      // Use Math.floor to handle fractional afterSegmentIndex values from getEnRouteFuelStops
+      // (e.g., 49.01, 49.02 for multiple en-route stops on the same segment)
+      const segIdx = Math.floor(stop.afterSegmentIndex);
+      const ownerDay = days.find(d => d.segmentIndices.includes(segIdx));
       if (ownerDay) {
         const existing = map.get(ownerDay.dayNumber) ?? [];
         map.set(ownerDay.dayNumber, [...existing, stop]);
