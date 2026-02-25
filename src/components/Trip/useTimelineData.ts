@@ -172,12 +172,14 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
       items.push({ type: 'stop', segment, arrivalTime: new Date(currentTime), index: i });
 
       // Jump currentTime across free-day gaps before rendering post-arrival stops.
+      // Also reset fuel — the driver refuels overnight at the hotel.
       const nextDay = nextDrivingDayAfterGap(i);
       if (nextDay) {
         const [dh, dm] = settings.departureTime.split(':').map(Number);
         const dayStart = new Date(nextDay.date + 'T00:00:00');
         dayStart.setHours(dh, dm, 0, 0);
         if (dayStart > currentTime) currentTime = dayStart;
+        currentFuel = VIRTUAL_TANK_CAPACITY;
       }
 
       // Accepted stops after this segment
@@ -200,6 +202,18 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
     const map = new Map<number, SuggestedStop[]>();
     if (!days) return map;
     pendingSuggestions.forEach(stop => {
+      // Prefer the stop's explicit dayNumber when set. En-route fuel stops
+      // use afterSegmentIndex = index - 1 (by convention), which maps to the
+      // PREVIOUS segment's day — wrong for return-leg stops. dayNumber is
+      // set correctly by the generator and avoids this mismatch.
+      if (stop.dayNumber) {
+        const targetDay = days.find(d => d.dayNumber === stop.dayNumber);
+        if (targetDay) {
+          const existing = map.get(targetDay.dayNumber) ?? [];
+          map.set(targetDay.dayNumber, [...existing, stop]);
+          return;
+        }
+      }
       if (stop.afterSegmentIndex === -1) {
         const firstDrivingDay = days.find(d => d.segmentIndices.length > 0);
         if (firstDrivingDay) {
