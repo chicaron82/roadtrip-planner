@@ -52,7 +52,7 @@ export function useMapInteractions({
       label: `Day ${day.dayNumber} — ${day.route}`,
       segmentIndex: day.segmentIndices[day.segmentIndices.length - 1] ?? 0,
     }));
-  }, [summary?.days]);
+  }, [summary]);
 
   const handleMapClick = useCallback(async (lat: number, lng: number) => {
     try {
