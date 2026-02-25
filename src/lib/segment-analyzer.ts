@@ -1,14 +1,16 @@
 import type { RouteSegment, SegmentWarning, TripSettings } from '../types';
 
 /**
- * Analyzes route segments and adds intelligent warnings
+ * Analyzes route segments and adds intelligent warnings.
+ * Each segment is compared against the previous one for timezone detection.
  */
 export function analyzeSegments(
   segments: RouteSegment[]
 ): RouteSegment[] {
-  return segments.map((segment) => {
+  return segments.map((segment, idx) => {
     const warnings: SegmentWarning[] = [];
     const durationHours = segment.durationMinutes / 60;
+    const prevSegment = idx > 0 ? segments[idx - 1] : undefined;
 
     // Long drive warnings
     if (durationHours > 6) {
@@ -41,8 +43,9 @@ export function analyzeSegments(
       });
     }
 
-    // Detect timezone crossings (basic heuristic based on distance and direction)
-    const timezoneCrossing = detectTimezoneCrossing(segment);
+    // Detect timezone crossings — prefer real weather API abbreviations,
+    // fall back to longitude heuristic only when weather data is absent.
+    const timezoneCrossing = detectTimezoneCrossing(segment, prevSegment);
 
     if (timezoneCrossing.crosses) {
       warnings.push({
@@ -79,27 +82,52 @@ function detectBorderCrossing(fromName: string, toName: string): boolean {
 }
 
 /**
- * Detects timezone crossings (simplified heuristic)
+ * Detects timezone crossings.
+ *
+ * Strategy (matches split-by-days.ts for consistency):
+ *   1. If both segments have weather.timezoneAbbr, compare them directly.
+ *      This correctly handles Saskatchewan (always CST, no change) and other
+ *      cases where longitude alone is misleading.
+ *   2. Fall back to a longitude heuristic (~15° ≈ 1h) when weather data
+ *      is absent — e.g., for routes without weather API coverage.
  */
-function detectTimezoneCrossing(segment: RouteSegment): {
+function detectTimezoneCrossing(
+  segment: RouteSegment,
+  prevSegment?: RouteSegment,
+): {
   crosses: boolean;
   timezone?: string;
   message?: string;
 } {
+  // ── Strategy 1: real weather timezone abbreviations ──────────────────────
+  const toAbbr = segment.weather?.timezoneAbbr;
+  const fromAbbr = prevSegment?.weather?.timezoneAbbr;
+
+  if (toAbbr && fromAbbr) {
+    if (toAbbr === fromAbbr) return { crosses: false };
+
+    // Derive a human-readable timezone name from the abbreviation
+    const tzName = getTimezoneName(toAbbr);
+    return {
+      crosses: true,
+      timezone: toAbbr,
+      message: `Entering ${tzName} (${toAbbr})`,
+    };
+  }
+
+  // ── Strategy 2: longitude heuristic (no weather data available) ──────────
   const { from, to } = segment;
   const lngDiff = Math.abs(to.lng - from.lng);
 
-  // Rough heuristic: ~15 degrees longitude = 1 hour timezone change
   if (lngDiff > 10) {
     const direction = to.lng > from.lng ? 'East' : 'West';
     const hoursChange = Math.round(lngDiff / 15);
 
-    // Detect which timezone based on longitude (very rough)
-    let timezone = 'America/Toronto'; // Default
-    if (to.lng < -120) timezone = 'America/Los_Angeles'; // Pacific
-    else if (to.lng < -105) timezone = 'America/Denver'; // Mountain
-    else if (to.lng < -90) timezone = 'America/Chicago'; // Central
-    else if (to.lng < -75) timezone = 'America/New_York'; // Eastern
+    let timezone = 'America/Toronto';
+    if (to.lng < -120) timezone = 'America/Los_Angeles';
+    else if (to.lng < -105) timezone = 'America/Denver';
+    else if (to.lng < -90) timezone = 'America/Chicago';
+    else if (to.lng < -75) timezone = 'America/New_York';
 
     return {
       crosses: true,
@@ -110,6 +138,23 @@ function detectTimezoneCrossing(segment: RouteSegment): {
 
   return { crosses: false };
 }
+
+/**
+ * Map a timezone abbreviation to its display name.
+ * Mirrors the mapping in split-by-days.ts.
+ */
+function getTimezoneName(abbr: string): string {
+  const names: Record<string, string> = {
+    PST: 'Pacific Standard Time', PDT: 'Pacific Daylight Time',
+    MST: 'Mountain Standard Time', MDT: 'Mountain Daylight Time',
+    CST: 'Central Standard Time',  CDT: 'Central Daylight Time',
+    EST: 'Eastern Standard Time',  EDT: 'Eastern Daylight Time',
+    AKST: 'Alaska Standard Time',  AKDT: 'Alaska Daylight Time',
+    HST: 'Hawaii Standard Time',
+  };
+  return names[abbr] ?? abbr;
+}
+
 
 /**
  * Generates smart pacing suggestions based on trip duration.

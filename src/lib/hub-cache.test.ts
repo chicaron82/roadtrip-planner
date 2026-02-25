@@ -67,6 +67,15 @@ function makePOI(category: 'gas' | 'hotel', lat: number, lng: number, city?: str
     distance: 0,
     address: city ? `123 Main St, ${city}, ON` : undefined,
     tags: city ? { 'addr:city': city } : undefined,
+    // Required fields not used by analyzeForHub — stub with zero-values
+    bucket: 'along-way',
+    distanceFromRoute: 0,
+    detourTimeMinutes: 0,
+    rankingScore: 0,
+    categoryMatchScore: 0,
+    popularityScore: 0,
+    timingFitScore: 0,
+    actionState: 'suggested',
   } as POISuggestion;
 }
 
