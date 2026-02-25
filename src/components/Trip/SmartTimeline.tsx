@@ -24,6 +24,8 @@ interface SmartTimelineProps {
   settings: TripSettings;
   vehicle?: Vehicle;
   poiSuggestions?: POISuggestion[];
+  /** Unranked gas/hotel/restaurant/cafe corpus for Tier-2 hub discovery. */
+  poiInference?: POISuggestion[];
 }
 
 // ─── Icon helpers ─────────────────────────────────────────────────────────────
@@ -296,7 +298,7 @@ function StopCard({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [] }: SmartTimelineProps) {
+export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [], poiInference }: SmartTimelineProps) {
   // ── Step 1: Build raw timeline (synchronous — renders immediately) ────────
   const rawEvents = useMemo(() => {
     if (!summary?.segments?.length) return [];
@@ -325,8 +327,11 @@ export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [] 
 
     const controller = new AbortController();
 
-    // Pass POI data for hub discovery (gas stations + hotels indicate major hubs)
-    resolveStopTowns(rawEvents, summary.fullGeometry, controller.signal, poiSuggestions)
+    // Prefer the inference corpus (gas/hotel) for hub detection — it contains
+    // the utility POIs that Tier-2 analyzeForHub needs regardless of whether
+    // the user enabled those map categories. Fall back to curated suggestions.
+    const hubPOIs = poiInference ?? poiSuggestions;
+    resolveStopTowns(rawEvents, summary.fullGeometry, controller.signal, hubPOIs)
       .then(resolved => {
         if (!controller.signal.aborted && resolved.size > 0) {
           setTownMap(resolved);
@@ -335,7 +340,7 @@ export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [] 
       .catch(() => { /* network error — keep generic hints */ });
 
     return () => controller.abort();
-  }, [rawEvents, summary?.fullGeometry, poiSuggestions]);
+  }, [rawEvents, summary?.fullGeometry, poiInference, poiSuggestions]);
 
   // ── Step 3: Merge town names into events ─────────────────────────────────
   const events = useMemo(

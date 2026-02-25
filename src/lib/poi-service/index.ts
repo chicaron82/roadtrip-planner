@@ -1,4 +1,4 @@
-import type { POISuggestion, POISuggestionGroup, Location, TripPreference } from '../../types';
+import type { POISuggestion, POISuggestionGroup, Location, TripPreference, POISuggestionCategory } from '../../types';
 import type { OverpassElement } from './types';
 import { hashRouteKey, getCachedPOIs, setCachedPOIs, POI_IN_FLIGHT } from './cache';
 import { getRelevantCategories, overpassElementToPOI, deduplicatePOIs } from './poi-converter';
@@ -6,6 +6,19 @@ import { estimateRouteDistanceKm, computeRouteBbox, sampleRouteByKm, haversineDi
 import { buildCorridorQuery, buildParkRelationQuery, buildDestinationQuery } from './query-builder';
 import { executeOverpassQuery, delay } from './overpass';
 import { INTER_QUERY_DELAY, INTRA_FETCH_DELAY, DESTINATION_RADIUS } from './config';
+
+// Categories always fetched in inference mode (for hub/town detection)
+const INFERENCE_CATEGORIES: POISuggestionCategory[] = ['gas', 'hotel', 'restaurant', 'cafe'];
+
+export interface FetchPOIOptions {
+  /**
+   * 'discovery' (default): use preference-driven categories, apply ranking/top-N trimming.
+   * 'inference': always fetch gas/hotel/restaurant/cafe regardless of preferences; used
+   *              by SmartTimeline hub detection (Tier-2) so resolveStopTowns has utility
+   *              POIs even when the user hasn't toggled those map categories.
+   */
+  mode?: 'discovery' | 'inference';
+}
 
 /**
  * Main function: Fetch POI suggestions for a route
@@ -23,24 +36,28 @@ export async function fetchPOISuggestions(
   routeGeometry: [number, number][],
   origin: Location,
   destination: Location,
-  tripPreferences: TripPreference[]
+  tripPreferences: TripPreference[],
+  options: FetchPOIOptions = {}
 ): Promise<POISuggestionGroup> {
+  const mode = options.mode ?? 'discovery';
+
   // ── Cache check — skip Overpass entirely if we've fetched this route recently ──
-  const cacheKey = hashRouteKey(routeGeometry, destination, tripPreferences);
+  const baseKey = hashRouteKey(routeGeometry, destination, tripPreferences);
+  const cacheKey = mode === 'inference' ? `${baseKey}::inference` : baseKey;
   const cached = getCachedPOIs(cacheKey);
   if (cached) {
-    console.info(`POI cache hit — returning ${cached.totalFound} cached results`);
+    console.info(`POI cache hit (${mode}) — returning ${cached.totalFound} cached results`);
     return cached;
   }
 
   // ── In-flight dedup — share a single promise if the same key is already fetching ──
   const inFlight = POI_IN_FLIGHT.get(cacheKey);
   if (inFlight) {
-    console.info('POI fetch already in flight for this route — sharing promise');
+    console.info(`POI fetch already in flight (${mode}) for this route — sharing promise`);
     return inFlight;
   }
 
-  const fetchPromise = _doFetchPOISuggestions(cacheKey, routeGeometry, origin, destination, tripPreferences);
+  const fetchPromise = _doFetchPOISuggestions(cacheKey, routeGeometry, origin, destination, tripPreferences, mode);
   POI_IN_FLIGHT.set(cacheKey, fetchPromise);
   fetchPromise.finally(() => POI_IN_FLIGHT.delete(cacheKey));
   return fetchPromise;
@@ -52,11 +69,14 @@ async function _doFetchPOISuggestions(
   routeGeometry: [number, number][],
   origin: Location,
   destination: Location,
-  tripPreferences: TripPreference[]
+  tripPreferences: TripPreference[],
+  mode: 'discovery' | 'inference'
 ): Promise<POISuggestionGroup> {
   const startTime = performance.now();
 
-  const categories = getRelevantCategories(tripPreferences);
+  const categories = mode === 'inference'
+    ? INFERENCE_CATEGORIES
+    : getRelevantCategories(tripPreferences);
 
   // No categories → no POI preferences set → skip Overpass entirely.
   if (categories.length === 0) {

@@ -49,6 +49,7 @@ export interface TripTimelineViewProps {
 
   // POI
   poiSuggestions: POISuggestion[];
+  poiInference?: POISuggestion[];
   isLoadingPOIs: boolean;
   onAddPOI: (poiId: string) => void;
   onDismissPOI: (poiId: string) => void;
@@ -73,6 +74,7 @@ export function TripTimelineView({
   onUpdateDayType,
   onUpdateOvernight,
   poiSuggestions,
+  poiInference,
   isLoadingPOIs,
   onAddPOI,
   onDismissPOI,
@@ -87,6 +89,7 @@ export function TripTimelineView({
           settings={settings}
           vehicle={vehicle}
           poiSuggestions={poiSuggestions}
+          poiInference={poiInference}
         />
       )}
 

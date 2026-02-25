@@ -193,7 +193,7 @@ function calculateTimingFitScore(
   poi: POISuggestion,
   segments: RouteSegment[]
 ): number {
-  if (!poi.segmentIndex || poi.segmentIndex >= segments.length) {
+  if (poi.segmentIndex == null || poi.segmentIndex >= segments.length) {
     return 50; // Neutral score if no timing context
   }
 

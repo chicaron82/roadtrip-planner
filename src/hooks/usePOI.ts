@@ -17,9 +17,12 @@ interface UsePOIReturn {
   markerCategories: MarkerCategory[];
   loadingCategory: POICategory | null;
 
-  // POI Suggestions (route-based)
+  // POI Suggestions (route-based, ranked/trimmed for discovery UI)
   poiSuggestions: POISuggestion[];
   isLoadingPOIs: boolean;
+
+  // Inference corpus (unranked gas/hotel/restaurant/cafe — for hub detection)
+  poiInference: POISuggestion[];
 
   // Errors
   error: string | null;
@@ -47,6 +50,7 @@ export function usePOI(): UsePOIReturn {
 
   // POI Suggestions state
   const [poiSuggestions, setPoiSuggestions] = useState<POISuggestion[]>([]);
+  const [poiInference, setPoiInference] = useState<POISuggestion[]>([]);
   const [isLoadingPOIs, setIsLoadingPOIs] = useState(false);
 
   // Error state
@@ -136,11 +140,13 @@ export function usePOI(): UsePOIReturn {
 
       setIsLoadingPOIs(true);
       try {
+        // Discovery fetch: preference-driven categories, ranked/trimmed for the UI
         const poiData = await fetchPOISuggestions(
           routeGeometry,
           origin,
           destination,
-          tripPreferences
+          tripPreferences,
+          { mode: 'discovery' }
         );
 
         // Rank and filter along-way POIs (top 15 for discovery)
@@ -161,6 +167,20 @@ export function usePOI(): UsePOIReturn {
         );
 
         setPoiSuggestions([...rankedAlongWay, ...rankedDestination]);
+
+        // Inference fetch: always includes gas/hotel/restaurant/cafe for hub detection.
+        // Uses its own cache key (suffixed ::inference) so it never collides with
+        // the discovery result. No ranking/trimming — raw corridor POIs are needed
+        // so resolveStopTowns / analyzeForHub can find addr:city metadata.
+        const inferenceData = await fetchPOISuggestions(
+          routeGeometry,
+          origin,
+          destination,
+          tripPreferences,
+          { mode: 'inference' }
+        );
+
+        setPoiInference(inferenceData.alongWay);
       } catch (err) {
         console.error('Failed to fetch POI suggestions:', err);
         // Don't fail the whole trip calculation if POIs fail
@@ -178,6 +198,7 @@ export function usePOI(): UsePOIReturn {
   const resetPOIs = useCallback(() => {
     setPois([]);
     setPoiSuggestions([]);
+    setPoiInference([]);
     setMarkerCategories(DEFAULT_MARKER_CATEGORIES);
   }, []);
 
@@ -186,6 +207,7 @@ export function usePOI(): UsePOIReturn {
     markerCategories,
     loadingCategory,
     poiSuggestions,
+    poiInference,
     isLoadingPOIs,
     error,
     toggleCategory,

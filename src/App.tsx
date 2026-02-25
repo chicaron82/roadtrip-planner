@@ -105,7 +105,7 @@ function AppContent() {
 
   // POI system
   const {
-    pois, markerCategories, loadingCategory, poiSuggestions, isLoadingPOIs,
+    pois, markerCategories, loadingCategory, poiSuggestions, poiInference, isLoadingPOIs,
     error: poiError, toggleCategory, addPOI, dismissPOI,
     fetchRoutePOIs, clearError: clearPOIError, resetPOIs,
   } = usePOI();
@@ -304,7 +304,7 @@ function AppContent() {
       history={history} shareUrl={shareUrl}
       showOvernightPrompt={showOvernightPrompt}
       suggestedOvernightStop={suggestedOvernightStop}
-      poiSuggestions={poiSuggestions} isLoadingPOIs={isLoadingPOIs}
+      poiSuggestions={poiSuggestions} poiInference={poiInference} isLoadingPOIs={isLoadingPOIs}
       onDismissOvernight={dismissOvernightPrompt}
       onUpdateStopType={updateStopType}
       onUpdateDayNotes={updateDayNotes}
