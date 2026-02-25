@@ -298,8 +298,11 @@ export function checkMealStop(
  * Generate en-route fuel stops for segments longer than the safe range.
  * Advisory only (no accepted: true) — user decides in the suggestions panel.
  *
- * @param hubName - Optional hub city name near the stop location (e.g. "Fargo, ND").
- *                  When provided, the reason string uses the city name instead of a raw km marker.
+ * @param geometry       - Full route polyline for hub position lookups
+ * @param segmentStartKm - Cumulative km at the start of this segment (for hub interpolation)
+ * @param distanceAlreadyDriven - km already driven since last fill before this segment started.
+ *   Used to place the first stop at the correct offset (e.g. if already 200km into a 550km
+ *   safe range, the first en-route stop fires at 350km into the segment, not 550km).
  */
 export function getEnRouteFuelStops(
   state: SimState,
@@ -308,22 +311,38 @@ export function getEnRouteFuelStops(
   config: StopSuggestionConfig,
   safeRangeKm: number,
   segmentStartTime: Date,
-  hubName?: string,
+  distanceAlreadyDriven = 0,
+  /** Optional resolver: given km-into-segment, returns a hub city name or undefined */
+  hubResolver?: (kmIntoSegment: number) => string | undefined,
 ): SuggestedStop[] {
-  const enRouteFuelCount = Math.max(0, Math.ceil(segment.distanceKm / safeRangeKm) - 1);
   const stops: SuggestedStop[] = [];
 
-  for (let s = 1; s <= enRouteFuelCount; s++) {
-    const kmMark = Math.round(safeRangeKm * s);
-    const minutesMark = (safeRangeKm * s / segment.distanceKm) * segment.durationMinutes;
+  // Distance remaining in current tank interval at the start of this segment.
+  // e.g. safeRange=550, already=200 → first stop should be at 350km into segment.
+  const kmUntilFirstStop = Math.max(0, safeRangeKm - distanceAlreadyDriven);
 
-    // Prefer a hub city name; fall back to a km-mark description
-    const locationDesc = hubName
-      ? `near ${hubName}`
-      : `around km ${kmMark} into this ${segment.distanceKm.toFixed(0)} km leg (~${(minutesMark / 60).toFixed(1)}h after departing)`;
+  // No en-route stop needed if the tank can cover the full segment
+  if (kmUntilFirstStop >= segment.distanceKm) return stops;
+
+  // Generate stops at every safeRangeKm interval after the first stop
+  let kmMark = kmUntilFirstStop;
+  let stopIndex = 1;
+
+  while (kmMark < segment.distanceKm) {
+    const minutesMark = (kmMark / segment.distanceKm) * segment.durationMinutes;
+
+    // Look up the hub at this stop's actual position on the full route geometry
+    let stopHubName: string | undefined;
+    if (hubResolver) {
+      stopHubName = hubResolver(kmMark);
+    }
+
+    const locationDesc = stopHubName
+      ? `near ${stopHubName}`
+      : `around km ${Math.round(kmMark)} into this ${segment.distanceKm.toFixed(0)} km leg (~${(minutesMark / 60).toFixed(1)}h after departing)`;
 
     stops.push({
-      id: `fuel-enroute-${index}-${s}`,
+      id: `fuel-enroute-${index}-${stopIndex}`,
       type: 'fuel',
       reason: `En-route refuel needed ${locationDesc}. Your tank cannot cover the full distance without stopping.`,
       afterSegmentIndex: index - 1,
@@ -337,6 +356,9 @@ export function getEnRouteFuelStops(
       },
       dayNumber: state.currentDayNumber,
     });
+
+    kmMark += safeRangeKm;
+    stopIndex++;
   }
 
   return stops;

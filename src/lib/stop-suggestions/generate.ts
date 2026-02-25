@@ -137,9 +137,14 @@ export function generateSmartStops(
     // When a fuel stop is due, check if a known hub falls within the snap window.
     // If yes: label the stop with the hub name ("Fuel up in Fargo, ND").
     // If no: fall through to standard tank-math behavior.
+    //
+    // NOTE: cumulativeDistanceKm already includes this segment's distance (line 127).
+    // For per-stop hub lookups inside getEnRouteFuelStops, we pass segmentStartKm
+    // so each stop can interpolate its own position on the full route geometry.
+    const segmentStartKm = cumulativeDistanceKm - segment.distanceKm;
     let hubName: string | undefined;
     if (fullGeometry && fullGeometry.length > 1) {
-      const pos = interpolateRoutePosition(fullGeometry, cumulativeDistanceKm);
+      const pos = interpolateRoutePosition(fullGeometry, segmentStartKm + segment.distanceKm * 0.5);
       if (pos) {
         const hub = findHubInWindow(pos.lat, pos.lng);
         if (hub) {
@@ -166,8 +171,21 @@ export function generateSmartStops(
     const mealSug = checkMealStop(state, segment, index, segmentStartTime, isArrivingHome);
     if (mealSug) suggestions.push(mealSug);
 
-    // En-route fuel stops (for very long legs) — pass hub name for city-aware labels
-    suggestions.push(...getEnRouteFuelStops(state, segment, index, config, safeRangeKm, segmentStartTime, hubName));
+    // En-route fuel stops (for very long legs).
+    // Build a resolver so each stop gets its own hub name from its actual route position.
+    const enRouteHubResolver = (fullGeometry && fullGeometry.length > 1)
+      ? (kmIntoSegment: number): string | undefined => {
+          const pos = interpolateRoutePosition(fullGeometry!, segmentStartKm + kmIntoSegment);
+          if (!pos) return undefined;
+          const hub = findHubInWindow(pos.lat, pos.lng);
+          return hub?.name;
+        }
+      : undefined;
+    const distBeforeSegment = (state.distanceSinceLastFill - segment.distanceKm);
+    suggestions.push(...getEnRouteFuelStops(
+      state, segment, index, config, safeRangeKm, segmentStartTime,
+      Math.max(0, distBeforeSegment), enRouteHubResolver
+    ));
 
     // Drive the segment
     const arrivalTime = driveSegment(state, segment, segmentStartTime, config);
