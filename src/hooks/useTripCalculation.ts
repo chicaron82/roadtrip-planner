@@ -221,6 +221,7 @@ export function useTripCalculation({
           tripSummary.segments,
           createStopConfig(vehicle, settings),
           tripDays,
+          tripSummary.fullGeometry,
         );
         // Sum non-overnight stop durations (fuel, meal, rest)
         const totalStopMinutes = smartStops

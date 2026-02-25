@@ -302,7 +302,7 @@ export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [] 
     if (!summary?.segments?.length) return [];
 
     const allSuggestions = vehicle
-      ? generateSmartStops(summary.segments, createStopConfig(vehicle, settings), summary.days)
+      ? generateSmartStops(summary.segments, createStopConfig(vehicle, settings), summary.days, summary.fullGeometry)
       : [];
 
     const raw = buildTimedTimeline(
@@ -317,6 +317,7 @@ export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [] 
   }, [summary, settings, vehicle]);
 
   // ── Step 2: Async town resolution (updates labels after geocoding) ───────
+  // Uses tiered resolution: hub cache → POI analysis → Nominatim
   const [townMap, setTownMap] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
@@ -324,7 +325,8 @@ export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [] 
 
     const controller = new AbortController();
 
-    resolveStopTowns(rawEvents, summary.fullGeometry, controller.signal)
+    // Pass POI data for hub discovery (gas stations + hotels indicate major hubs)
+    resolveStopTowns(rawEvents, summary.fullGeometry, controller.signal, poiSuggestions)
       .then(resolved => {
         if (!controller.signal.aborted && resolved.size > 0) {
           setTownMap(resolved);
@@ -333,7 +335,7 @@ export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [] 
       .catch(() => { /* network error — keep generic hints */ });
 
     return () => controller.abort();
-  }, [rawEvents, summary?.fullGeometry]);
+  }, [rawEvents, summary?.fullGeometry, poiSuggestions]);
 
   // ── Step 3: Merge town names into events ─────────────────────────────────
   const events = useMemo(

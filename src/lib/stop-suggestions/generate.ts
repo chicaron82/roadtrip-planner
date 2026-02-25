@@ -14,6 +14,8 @@ import {
   checkOvernightStop,
   applyTimezoneShift,
 } from './stop-checks';
+import { findHubInWindow } from '../hub-cache';
+import { interpolateRoutePosition } from '../route-geocoder';
 
 function createInitialState(config: StopSuggestionConfig, segments: RouteSegment[]): SimState {
   const stopFrequency = config.stopFrequency || 'balanced';
@@ -33,12 +35,18 @@ function createInitialState(config: StopSuggestionConfig, segments: RouteSegment
 }
 
 /**
- * Generate smart stop suggestions based on route, vehicle, and settings
+ * Generate smart stop suggestions based on route, vehicle, and settings.
+ *
+ * @param segments - Route segments from OSRM
+ * @param config - Vehicle and preference configuration
+ * @param days - Optional trip day structure for multi-day trips
+ * @param fullGeometry - Optional route polyline for hub-aware stop placement
  */
 export function generateSmartStops(
   segments: RouteSegment[],
   config: StopSuggestionConfig,
-  days?: TripDay[]
+  days?: TripDay[],
+  fullGeometry?: number[][],
 ): SuggestedStop[] {
   const stopFrequency = config.stopFrequency || 'balanced';
 
@@ -48,6 +56,11 @@ export function generateSmartStops(
 
   const state = createInitialState(config, segments);
   const suggestions: SuggestedStop[] = [];
+
+  // Detect round trip (origin === final destination) for meal suppression at end
+  const originName = segments[0]?.from.name;
+  const destinationName = segments[segments.length - 1]?.to.name;
+  const isRoundTrip = originName && destinationName && originName === destinationName;
 
   // Calculate total route distance for destination grace period.
   // Suppress fuel stops within GRACE_ZONE_KM of the final destination.
@@ -97,6 +110,7 @@ export function generateSmartStops(
           priority: 'required',
           details: { hoursOnRoad: state.totalDrivingToday },
           dayNumber: prevDrivingDay.dayNumber,
+          accepted: true, // User already filled in hotel data — don't show as pending suggestion
         });
       }
     }
@@ -116,11 +130,29 @@ export function generateSmartStops(
     // Destination grace period: suppress fuel stops within 50km of final destination.
     // This prevents the "destination panic" duplicate-fill bug caused by multiple
     // short segments near the destination each triggering their own fuel check.
+    const isFinalSegment = index === segments.length - 1;
     const remainingDistanceKm = totalRouteDistanceKm - cumulativeDistanceKm;
     const inDestinationGraceZone = remainingDistanceKm < GRACE_ZONE_KM;
 
+    // Hub-aware fuel stop placement:
+    // When a fuel stop is due, check if a known hub falls within the snap window.
+    // If yes: label the stop with the hub name ("Fuel up in Fargo, ND").
+    // If no: fall through to standard tank-math behavior.
+    let hubName: string | undefined;
+    if (fullGeometry && fullGeometry.length > 1) {
+      const pos = interpolateRoutePosition(fullGeometry, cumulativeDistanceKm);
+      if (pos) {
+        const hub = findHubInWindow(pos.lat, pos.lng);
+        if (hub) {
+          hubName = hub.name;
+        }
+      }
+    }
+
     // Fuel stop check
-    const { suggestion: fuelSug, stopTimeAddedMs } = checkFuelStop(state, segment, index, config, safeRangeKm, inDestinationGraceZone);
+    const { suggestion: fuelSug, stopTimeAddedMs } = checkFuelStop(
+      state, segment, index, config, safeRangeKm, inDestinationGraceZone, hubName
+    );
     if (fuelSug) suggestions.push(fuelSug);
 
     // Rest break check
@@ -130,8 +162,9 @@ export function generateSmartStops(
     // Save current time for meal/en-route calculations (after stop delays)
     const segmentStartTime = new Date(state.currentTime);
 
-    // Meal stop check
-    const mealSug = checkMealStop(state, segment, index, segmentStartTime);
+    // Meal stop check — skip on final segment of round trip (arriving home)
+    const isArrivingHome = isFinalSegment && isRoundTrip;
+    const mealSug = checkMealStop(state, segment, index, segmentStartTime, isArrivingHome);
     if (mealSug) suggestions.push(mealSug);
 
     // En-route fuel stops (for very long legs)
@@ -141,7 +174,6 @@ export function generateSmartStops(
     const arrivalTime = driveSegment(state, segment, segmentStartTime, config);
 
     // Overnight stop check (uses strict "final segment" check, not grace zone)
-    const isFinalSegment = index === segments.length - 1;
     const overnightSug = checkOvernightStop(
       state, index, config, daysWithHotel, arrivalTime, isFinalSegment
     );

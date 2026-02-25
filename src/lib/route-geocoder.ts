@@ -2,15 +2,22 @@
  * route-geocoder.ts — Resolve town names from route geometry
  *
  * Given a route polyline and a km mark, interpolate the lat/lng position
- * then reverse geocode via Nominatim to get a human-readable town name.
+ * then resolve to a human-readable town name.
  *
- * Used by SmartTimeline to replace "~250 km from Winnipeg" with "near Dryden, ON".
+ * Resolution priority:
+ *   1. Hub cache (instant) — known major hubs from previous trips
+ *   2. POI analysis (fast) — detect hubs by gas station/hotel density
+ *   3. Nominatim (slow) — reverse geocode for small towns
+ *
+ * Used by SmartTimeline to replace "~250 km from Winnipeg" with "near Fargo, ND".
  *
  * 💚 My Experience Engine
  */
 
 import { haversineDistance } from './poi-ranking';
 import type { TimedEvent } from './trip-timeline';
+import type { POISuggestion } from '../types';
+import { resolveHubName } from './hub-cache';
 
 // ─── Rate limiting ────────────────────────────────────────────────────────────
 
@@ -139,18 +146,24 @@ const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
 /**
  * For each stop event with a generic "~X km" locationHint, resolve the
- * nearest town name via route geometry interpolation + reverse geocoding.
+ * nearest town name using a tiered approach:
+ *
+ *   1. Hub cache (instant) — check for known major hubs
+ *   2. POI analysis (fast) — detect hubs by gas/hotel density
+ *   3. Nominatim (slow) — reverse geocode for small towns
  *
  * Returns a Map<eventId, townName> of successfully resolved towns.
  *
- * - Sequential requests (Nominatim 1 req/sec policy)
- * - Cached by rounded km to avoid duplicate fetches
- * - Respects AbortSignal for cleanup on unmount
+ * @param events - Timeline events to resolve
+ * @param geometry - Route polyline for position interpolation
+ * @param signal - AbortSignal for cleanup on unmount
+ * @param pois - Optional POI data for hub discovery
  */
 export async function resolveStopTowns(
   events: TimedEvent[],
   geometry: number[][],
   signal?: AbortSignal,
+  pois?: POISuggestion[],
 ): Promise<Map<string, string>> {
   const result = new Map<string, string>();
 
@@ -174,22 +187,30 @@ export async function resolveStopTowns(
 
     const key = cacheKey(event.distanceFromOriginKm);
 
-    // Check cache first
+    // Check in-memory cache first
     if (townCache.has(key)) {
       const cached = townCache.get(key);
       if (cached) result.set(event.id, cached);
       continue;
     }
 
-    // Rate limit (skip delay on first request)
-    if (!isFirst) await sleep(NOMINATIM_DELAY_MS);
-    isFirst = false;
-
     // Interpolate position on route
     const pos = interpolateRoutePosition(geometry, event.distanceFromOriginKm);
     if (!pos) continue;
 
-    // Reverse geocode
+    // Tier 1 & 2: Hub cache + POI analysis (instant/fast)
+    const hubName = resolveHubName(pos.lat, pos.lng, pois);
+    if (hubName) {
+      townCache.set(key, hubName);
+      result.set(event.id, hubName);
+      continue;
+    }
+
+    // Tier 3: Nominatim reverse geocode (slow, rate-limited)
+    // Rate limit (skip delay on first request)
+    if (!isFirst) await sleep(NOMINATIM_DELAY_MS);
+    isFirst = false;
+
     const town = await reverseGeocodeTown(pos.lat, pos.lng, signal);
 
     // Cache result (even nulls, to avoid re-fetching)

@@ -1,5 +1,6 @@
 import type { RouteSegment, Location } from '../../types';
 import { interpolateRoutePosition } from '../route-geocoder';
+import { findHubInWindow } from '../hub-cache';
 
 // ---------------------------------------------------------------------------
 // Internal type & helper for long-segment splitting
@@ -106,11 +107,18 @@ export function splitLongSegments(
         lng = seg.from.lng + timeFraction * (seg.to.lng - seg.from.lng);
       }
 
+      // Snap to known hub if within 80km — gives real city names like "Thunder Bay, ON"
+      // instead of generic "Winnipeg → Toronto (transit)" placeholders.
+      const nearbyHub = findHubInWindow(lat, lng);
       const fromCity = seg.from.name.split(',')[0].trim();
       const toCity = seg.to.name.split(',')[0].trim();
+      const locationName = nearbyHub
+        ? nearbyHub.name
+        : `${fromCity} → ${toCity} (transit)`;
+
       splitPoints.push({
         id: `transit-split-${origIdx}-${sp}`,
-        name: `${fromCity} → ${toCity} (transit)`, // replaced by reverse geocoder async
+        name: locationName,
         type: 'waypoint',
         lat,
         lng,

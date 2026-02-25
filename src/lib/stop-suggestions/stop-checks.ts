@@ -111,6 +111,8 @@ export function checkArrivalWindow(
  * @param isFinalSegment — If true, applies "Destination Grace Period": only trigger
  *   on critically low fuel (≤15% tank), suppressing comfort/range-based refuels.
  *   Prevents duplicate fuel stops at the destination.
+ * @param hubName — If provided, use this city name in the reason string instead of
+ *   generic distance-based hints. Enables "Fuel up in Fargo, ND" style messaging.
  */
 export function checkFuelStop(
   state: SimState,
@@ -119,6 +121,7 @@ export function checkFuelStop(
   config: StopSuggestionConfig,
   safeRangeKm: number,
   isFinalSegment = false,
+  hubName?: string,
 ): { suggestion: SuggestedStop | null; stopTimeAddedMs: number } {
   const fuelNeeded = segment.fuelNeededLitres ?? (segment.distanceKm / 100) * config.fuelEconomyL100km;
 
@@ -154,15 +157,18 @@ export function checkFuelStop(
   const tankPercent = Math.round((state.currentFuel / config.tankSizeLitres) * 100);
   const litresRemaining = state.currentFuel.toFixed(1);
 
+  // Hub-aware messaging: prepend city name when available
+  const locationPrefix = hubName ? `Fuel up in ${hubName}. ` : '';
+
   let reason = '';
   if (wouldRunCriticallyLow) {
-    reason = `Tank at ${tankPercent}% (${litresRemaining}L remaining). ~$${refillCost.toFixed(2)} to refill. Critical: refuel before continuing to ${segment.to.name}.`;
+    reason = `${locationPrefix}Tank at ${tankPercent}% (${litresRemaining}L remaining). ~$${refillCost.toFixed(2)} to refill. Critical: refuel before continuing to ${segment.to.name}.`;
   } else if (tankLow && !exceededSafeRange && !comfortRefuelDue) {
-    reason = `Tank is at ${tankPercent}% (${litresRemaining}L remaining) — getting low. ~$${refillCost.toFixed(2)} to top up now before options get sparse.`;
+    reason = `${locationPrefix}Tank is at ${tankPercent}% (${litresRemaining}L remaining) — getting low. ~$${refillCost.toFixed(2)} to top up now before options get sparse.`;
   } else if (comfortRefuelDue && !exceededSafeRange) {
-    reason = `${state.hoursSinceLastFill.toFixed(1)} hours since last fill — good time to top up. Tank at ${tankPercent}% (${litresRemaining}L). ~$${refillCost.toFixed(2)} to refill.`;
+    reason = `${locationPrefix}${state.hoursSinceLastFill.toFixed(1)} hours since last fill — good time to top up. Tank at ${tankPercent}% (${litresRemaining}L). ~$${refillCost.toFixed(2)} to refill.`;
   } else {
-    reason = `Tank at ${tankPercent}% (${litresRemaining}L remaining). ~$${refillCost.toFixed(2)} to refill. You've driven ${state.distanceSinceLastFill.toFixed(0)} km since last fill.`;
+    reason = `${locationPrefix}Tank at ${tankPercent}% (${litresRemaining}L remaining). ~$${refillCost.toFixed(2)} to refill. You've driven ${state.distanceSinceLastFill.toFixed(0)} km since last fill.`;
   }
 
   let sparseWarning: string | undefined;
@@ -239,13 +245,19 @@ export function checkRestBreak(
 /**
  * Check if a meal stop (lunch or dinner) falls within this segment.
  * segmentStartTime is the captured currentTime before driving begins.
+ *
+ * @param isArrivingHome - If true, skip meal suggestion (arriving home on round trip)
  */
 export function checkMealStop(
   state: SimState,
   segment: RouteSegment,
   index: number,
   segmentStartTime: Date,
+  isArrivingHome = false,
 ): SuggestedStop | null {
+  // Skip meal suggestion when arriving home — you'll eat at home
+  if (isArrivingHome) return null;
+
   const segmentEndMs = segmentStartTime.getTime() + segment.durationMinutes * 60 * 1000;
   const mealTimestampForHour = (hour: number): Date => {
     const t = new Date(segmentStartTime);

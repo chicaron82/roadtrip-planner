@@ -59,7 +59,7 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
   const baseSuggestions = useMemo(() => {
     if (!vehicle) return [];
     const config = createStopConfig(vehicle, settings);
-    return generateSmartStops(summary.segments, config, days);
+    return generateSmartStops(summary.segments, config, days, summary.fullGeometry);
   }, [summary.segments, vehicle, settings, days]);
 
   // Per-stop user overrides — kept separate so baseSuggestions can regenerate without wiping

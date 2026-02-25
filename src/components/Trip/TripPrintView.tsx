@@ -72,6 +72,7 @@ export function printTrip(props: TripPrintViewProps): void {
       summary.segments,
       createStopConfig(vehicle, settings),
       summary.days,
+      summary.fullGeometry,
     );
     const raw = buildTimedTimeline(
       summary.segments,
