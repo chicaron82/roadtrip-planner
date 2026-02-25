@@ -484,4 +484,104 @@ describe('buildTimedTimeline', () => {
     const arrival = result[result.length - 1];
     expect(arrival.distanceFromOriginKm).toBeCloseTo(250, 0);
   });
+
+  // ── Round-trip en-route fuel for return leg ─────────────────────────────
+
+  it('return-leg en-route fuel stops appear DURING segment 1 drive, not after segment 0', () => {
+    // Simulates Winnipeg → Chicago → Winnipeg: 2 segments, each ~1400 km.
+    // En-route fuel for the return has afterSegmentIndex: 0 (index-1), which
+    // must NOT be claimed as boundary-after for segment 0.
+    const settings = makeSettings({ departureDate: '2025-08-16', departureTime: '07:00' });
+    const outbound = makeSegment({
+      from: makeLocation('Winnipeg'),
+      to: makeLocation('Chicago'),
+      distanceKm: 1400,
+      durationMinutes: 14 * 60,
+    });
+    const returnLeg = makeSegment({
+      from: makeLocation('Chicago'),
+      to: makeLocation('Winnipeg'),
+      distanceKm: 1400,
+      durationMinutes: 14 * 60,
+    });
+
+    // overnight after outbound leg
+    const overnight = makeStop({
+      id: 'overnight-0',
+      type: 'overnight',
+      afterSegmentIndex: 0,
+      estimatedTime: new Date('2025-08-16T21:00:00'),
+      duration: 480,
+    });
+
+    // En-route fuel for the RETURN leg (afterSegmentIndex = 1-1 = 0)
+    const returnFuel1 = makeStop({
+      id: 'fuel-enroute-1-1',
+      type: 'fuel',
+      afterSegmentIndex: 0,
+      estimatedTime: new Date('2025-08-17T12:00:00'),
+      duration: 15,
+    });
+    const returnFuel2 = makeStop({
+      id: 'fuel-enroute-1-2',
+      type: 'fuel',
+      afterSegmentIndex: 0,
+      estimatedTime: new Date('2025-08-17T17:00:00'),
+      duration: 15,
+    });
+
+    const result = buildTimedTimeline(
+      [outbound, returnLeg],
+      [overnight, returnFuel1, returnFuel2],
+      settings,
+    );
+
+    // Both en-route fuel events should exist
+    const fuelEvents = result.filter(e => e.type === 'fuel');
+    expect(fuelEvents).toHaveLength(2);
+
+    // They should appear AFTER the overnight, not before it
+    const overnightIdx = result.findIndex(e => e.type === 'overnight');
+    const fuel1Idx = result.findIndex(e => e.id === 'event-fuel-enroute-1-1');
+    const fuel2Idx = result.findIndex(e => e.id === 'event-fuel-enroute-1-2');
+    expect(fuel1Idx).toBeGreaterThan(overnightIdx);
+    expect(fuel2Idx).toBeGreaterThan(overnightIdx);
+  });
+
+  it('overnight advances past free days when tripDays is provided', () => {
+    // Day 1: drive, Day 2: free, Day 3: drive
+    const settings = makeSettings({ departureDate: '2025-08-16', departureTime: '08:00' });
+    const outbound = makeSegment({ durationMinutes: 480, distanceKm: 600 });
+    const returnLeg = makeSegment({ durationMinutes: 480, distanceKm: 600 });
+
+    const overnight = makeStop({
+      id: 'overnight-0',
+      type: 'overnight',
+      afterSegmentIndex: 0,
+      estimatedTime: new Date('2025-08-16T20:00:00'),
+      duration: 480,
+    });
+
+    const tripDays = [
+      { dayNumber: 1, date: '2025-08-16', dateFormatted: 'Sat, Aug 16', route: '', segments: [], segmentIndices: [0], timezoneChanges: [], budget: {} as any, totals: { distanceKm: 600, driveTimeMinutes: 480, stopTimeMinutes: 0, departureTime: '2025-08-16T08:00:00', arrivalTime: '2025-08-16T16:00:00' } },
+      { dayNumber: 2, date: '2025-08-17', dateFormatted: 'Sun, Aug 17', route: '', segments: [], segmentIndices: [], timezoneChanges: [], budget: {} as any, totals: { distanceKm: 0, driveTimeMinutes: 0, stopTimeMinutes: 0, departureTime: '', arrivalTime: '' }, dayType: 'free' as const },
+      { dayNumber: 3, date: '2025-08-18', dateFormatted: 'Mon, Aug 18', route: '', segments: [], segmentIndices: [1], timezoneChanges: [], budget: {} as any, totals: { distanceKm: 600, driveTimeMinutes: 480, stopTimeMinutes: 0, departureTime: '2025-08-18T08:00:00', arrivalTime: '2025-08-18T16:00:00' } },
+    ];
+
+    const result = buildTimedTimeline(
+      [outbound, returnLeg],
+      [overnight],
+      settings,
+      undefined,
+      undefined,
+      tripDays,
+    );
+
+    // The drive after overnight should start on Day 3 (Aug 18), not Day 2 (Aug 17)
+    const postOvernightDrive = result.find(
+      (e, idx) => e.type === 'drive' && idx > result.findIndex(ev => ev.type === 'overnight'),
+    );
+    expect(postOvernightDrive).toBeDefined();
+    expect(postOvernightDrive!.arrivalTime.getDate()).toBe(18); // Aug 18, not Aug 17
+  });
 });

@@ -9,7 +9,7 @@
  * 💚 My Experience Engine
  */
 
-import type { RouteSegment, TripSettings } from '../types';
+import type { RouteSegment, TripSettings, TripDay } from '../types';
 import type { SuggestedStop } from './stop-suggestions';
 
 export type TimedEventType =
@@ -104,6 +104,7 @@ export function buildTimedTimeline(
   settings: TripSettings,
   roundTripMidpoint?: number,
   destinationStayMinutes?: number,
+  tripDays?: TripDay[],
 ): TimedEvent[] {
   if (segments.length === 0) return [];
 
@@ -113,6 +114,18 @@ export function buildTimedTimeline(
   const emittedIds = new Set<string>();
 
   const originName = segments[0].from.name;
+
+  // Build an ordered list of driving-day departure dates for overnight advancement.
+  // When a free day sits between two driving days, the overnight handler needs
+  // to skip past it rather than just advancing +1 calendar day.
+  const drivingDayDates: string[] = [];
+  if (tripDays) {
+    for (const d of tripDays) {
+      if (d.segmentIndices.length > 0) {
+        drivingDayDates.push(d.date);
+      }
+    }
+  }
 
   // Pre-compute cumulative km at the END of each segment (index-aligned).
   // Used to detect when a stop falls at/near a map waypoint so we can display
@@ -195,11 +208,28 @@ export function buildTimedTimeline(
       stops: [stop],
     });
 
-    // Overnight: advance to next morning at departure time (not just +8h)
+    // Overnight: advance to next DRIVING morning (skip free days).
+    // A 3-day trip [Drive, Free, Drive] should jump from Day 1 evening
+    // straight to Day 3 morning — not Day 2 morning.
     if (stop.type === 'overnight') {
       const [dH, dM] = settings.departureTime.split(':').map(Number);
       const nextMorning = new Date(arr);
-      nextMorning.setDate(nextMorning.getDate() + 1);
+
+      // How many calendar days to advance?  Default +1.
+      // If we have tripDays info, find the next driving day after the overnight
+      // and jump directly to that date.
+      let daysToAdvance = 1;
+      if (drivingDayDates.length > 0) {
+        const overnightDate = arr.toISOString().slice(0, 10); // "YYYY-MM-DD"
+        const nextDrivingDate = drivingDayDates.find(d => d > overnightDate);
+        if (nextDrivingDate) {
+          const overnightDay = new Date(overnightDate + 'T00:00:00');
+          const nextDay = new Date(nextDrivingDate + 'T00:00:00');
+          daysToAdvance = Math.round((nextDay.getTime() - overnightDay.getTime()) / 86_400_000);
+        }
+      }
+
+      nextMorning.setDate(nextMorning.getDate() + daysToAdvance);
       nextMorning.setHours(dH ?? 9, dM ?? 0, 0, 0);
       currentTime = nextMorning;
     } else {
@@ -306,7 +336,16 @@ export function buildTimedTimeline(
         // "Before this segment" — note: en-route fuel is now handled fully by midDrive above
         boundaryBefore.push(s);
       } else if (s.afterSegmentIndex === i) {
-        boundaryAfter.push(s);
+        // En-route fuel stops for the NEXT segment use afterSegmentIndex = index-1,
+        // which equals `i` here. They belong as midDrive for segment i+1, not as
+        // a boundary-after for segment i. Skip them — the next iteration will
+        // catch them via isMidDriveForThisSegment.
+        const isEnRouteFuel = s.id.includes('enroute');
+        if (isEnRouteFuel && i + 1 < segments.length) {
+          // Deferred to next segment's midDrive classification
+        } else {
+          boundaryAfter.push(s);
+        }
       }
     }
 

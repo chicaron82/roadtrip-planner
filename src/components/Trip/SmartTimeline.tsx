@@ -311,6 +311,7 @@ export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [] 
       settings,
       summary.roundTripMidpoint,
       (settings.dayTripDurationHours ?? 0) * 60,
+      summary.days,
     );
     return applyComboOptimization(raw);
   }, [summary, settings, vehicle]);

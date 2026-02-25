@@ -79,6 +79,7 @@ export function printTrip(props: TripPrintViewProps): void {
       settings,
       summary.roundTripMidpoint,
       (settings.dayTripDurationHours ?? 0) * 60,
+      summary.days,
     );
     timedEvents = applyComboOptimization(raw);
   }
