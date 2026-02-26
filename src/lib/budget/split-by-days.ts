@@ -26,9 +26,11 @@ function computeSmartDepartureHour(settings: TripSettings, actualDriveHours: num
   const maxDeparture = isFullDay
     ? TRIP_CONSTANTS.departure.maxHourFullDay
     : TRIP_CONSTANTS.departure.maxHourShortLeg;
+  // Use Math.floor to ensure we depart early enough to arrive on time.
+  // Math.round could cause 30+ min late arrivals for fractional drive hours.
   return Math.max(
     TRIP_CONSTANTS.departure.minHour,
-    Math.min(maxDeparture, Math.round(targetArrivalHour - actualDriveHours)),
+    Math.min(maxDeparture, Math.floor(targetArrivalHour - actualDriveHours)),
   );
 }
 

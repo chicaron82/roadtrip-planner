@@ -5,6 +5,7 @@ import { generateSmartStops, createStopConfig, type SuggestedStop } from '../../
 import { getTankSizeLitres } from '../../lib/unit-conversions';
 import { assignDrivers, extractFuelStopIndices } from '../../lib/driver-rotation';
 import { findOptimalReturnDeparture } from '../../lib/return-departure-optimizer';
+import { findOptimalOutboundDeparture } from '../../lib/outbound-departure-optimizer';
 
 // ---------------------------------------------------------------------------
 
@@ -60,6 +61,28 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
   const pacingSuggestions = useMemo(() => {
     const base = generatePacingSuggestions(maxDayMinutes, settings, isAlreadySplit);
 
+    // Check if tweaking the outbound departure would create a Fuel + Lunch combo
+    // at a major hub city ~4h out (e.g., depart 8:00 AM → arrive Dryden at noon).
+    if (vehicle && summary.fullGeometry?.length > 1) {
+      const outboundSegments = summary.roundTripMidpoint != null && summary.roundTripMidpoint > 0
+        ? summary.segments.slice(0, summary.roundTripMidpoint)
+        : summary.segments;
+
+      const outboundSuggestion = findOptimalOutboundDeparture(
+        outboundSegments,
+        startTime,
+        summary.fullGeometry as number[][],
+        vehicle,
+        settings,
+      );
+
+      if (outboundSuggestion) {
+        base.push(
+          `⏰ Outbound tip: departing at ${outboundSuggestion.suggestedTime} instead of ${settings.departureTime} would create a Fuel + Lunch combo at ${outboundSuggestion.hubName} around ${outboundSuggestion.arrivalTime}.`
+        );
+      }
+    }
+
     // For round trips with a vehicle, check if tweaking the return departure
     // would create a Fuel + Lunch combo at a real hub city.
     if (
@@ -108,7 +131,7 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
     }
 
     return base;
-  }, [maxDayMinutes, settings, isAlreadySplit, summary, vehicle]);
+  }, [maxDayMinutes, settings, isAlreadySplit, summary, vehicle, startTime]);
 
   // Map pacing suggestions to specific days for inline rendering.
   // Return trip tips → day that starts the return leg; general tips → first driving day.

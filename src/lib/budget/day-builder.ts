@@ -69,9 +69,17 @@ export function finalizeTripDay(
   if (firstSegment?.departureTime && !day.totals.departureTime) {
     day.totals.departureTime = firstSegment.departureTime;
   }
-  if (lastSegment?.arrivalTime) {
-    day.totals.arrivalTime = lastSegment.arrivalTime;
+
+  // Compute arrival time from departure time + drive duration + stop time.
+  // Don't use lastSegment.arrivalTime directly — it may be stale for multi-day
+  // trips where the day's departure time was adjusted (e.g., after free days).
+  const departureSource = day.totals.departureTime || firstSegment?.departureTime;
+  if (departureSource && day.totals.driveTimeMinutes > 0) {
+    const depMs = new Date(departureSource).getTime();
+    const totalMinutes = day.totals.driveTimeMinutes + day.totals.stopTimeMinutes;
+    day.totals.arrivalTime = new Date(depMs + totalMinutes * 60 * 1000).toISOString();
   }
+  // No fallback to stale segment.arrivalTime - if we can't compute, leave undefined
 
   // Calculate budget
   const gasUsed = day.segments.reduce((sum, s) => sum + s.fuelCost, 0);

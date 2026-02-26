@@ -169,7 +169,22 @@ export function generateSmartStops(
     // Meal stop check — skip on final segment of round trip (arriving home)
     const isArrivingHome = !!(isFinalSegment && isRoundTrip);
     const mealSug = checkMealStop(state, segment, index, segmentStartTime, isArrivingHome);
-    if (mealSug) suggestions.push(mealSug);
+
+    // Skip meal suggestion if there's a recent fuel stop within ~2h — user can combo there.
+    // This prevents suggesting a meal in "Unorganized Kenora District" when they just
+    // filled up at Dryden and can eat there instead.
+    if (mealSug) {
+      const mealTime = mealSug.estimatedTime?.getTime() ?? 0;
+      const COMBO_WINDOW_MS = 2 * 60 * 60 * 1000; // 2 hours
+      const hasRecentFuelStop = suggestions.some(s =>
+        s.type === 'fuel' &&
+        s.estimatedTime &&
+        Math.abs(s.estimatedTime.getTime() - mealTime) < COMBO_WINDOW_MS
+      );
+      if (!hasRecentFuelStop) {
+        suggestions.push(mealSug);
+      }
+    }
 
     // En-route fuel stops (for very long legs).
     // Build a resolver so each stop gets its own hub name from its actual route position.
