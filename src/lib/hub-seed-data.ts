@@ -36,18 +36,28 @@ const SEED_DATE = '2026-01-01';
  * that may have produced incorrect discovered-hub entries in localStorage.
  * initializeHubCache will wipe + re-seed if the stored version differs.
  */
-const CACHE_VERSION = '2';
+const CACHE_VERSION = '3';
 const CACHE_VERSION_KEY = 'roadtrip-hub-cache-version';
 
-// ─── I-94 Corridor (Seattle → Detroit) ────────────────────────────────────────
+// ─── I-94 / I-29 Corridor (Winnipeg ↔ Chicago) ────────────────────────────────
 
 const I94_CORRIDOR: SeedHub[] = [
-  { name: 'Fargo, ND', lat: 46.877, lng: -96.789, radius: 30, poiCount: 15, discoveredAt: SEED_DATE, source: 'seed' },
-  { name: 'Bismarck, ND', lat: 46.808, lng: -100.784, radius: 25, poiCount: 10, discoveredAt: SEED_DATE, source: 'seed' },
-  { name: 'Billings, MT', lat: 45.783, lng: -108.500, radius: 30, poiCount: 12, discoveredAt: SEED_DATE, source: 'seed' },
+  // I-29 (Winnipeg → Fargo)
+  { name: 'Moorhead, MN', lat: 46.874, lng: -96.768, radius: 35, poiCount: 12, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Fargo, ND', lat: 46.877, lng: -96.789, radius: 40, poiCount: 15, discoveredAt: SEED_DATE, source: 'seed' },
+  // I-94 (Fargo → Minneapolis)
+  { name: 'Fergus Falls, MN', lat: 46.283, lng: -96.077, radius: 25, poiCount: 8, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Alexandria, MN', lat: 45.885, lng: -95.377, radius: 25, poiCount: 8, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'St. Cloud, MN', lat: 45.560, lng: -94.162, radius: 30, poiCount: 12, discoveredAt: SEED_DATE, source: 'seed' },
   { name: 'Minneapolis, MN', lat: 44.977, lng: -93.265, radius: 50, poiCount: 25, discoveredAt: SEED_DATE, source: 'seed' },
   { name: 'St. Paul, MN', lat: 44.954, lng: -93.090, radius: 40, poiCount: 20, discoveredAt: SEED_DATE, source: 'seed' },
+  // I-94 (Minneapolis → Chicago)
+  { name: 'Eau Claire, WI', lat: 44.812, lng: -91.498, radius: 30, poiCount: 12, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Tomah, WI', lat: 43.975, lng: -90.505, radius: 20, poiCount: 8, discoveredAt: SEED_DATE, source: 'seed' },
   { name: 'Madison, WI', lat: 43.074, lng: -89.384, radius: 35, poiCount: 15, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Janesville, WI', lat: 42.683, lng: -89.019, radius: 25, poiCount: 10, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Bismarck, ND', lat: 46.808, lng: -100.784, radius: 25, poiCount: 10, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Billings, MT', lat: 45.783, lng: -108.500, radius: 30, poiCount: 12, discoveredAt: SEED_DATE, source: 'seed' },
   { name: 'Milwaukee, WI', lat: 43.039, lng: -87.906, radius: 45, poiCount: 22, discoveredAt: SEED_DATE, source: 'seed' },
   { name: 'Chicago, IL', lat: 41.878, lng: -87.630, radius: 60, poiCount: 50, discoveredAt: SEED_DATE, source: 'seed' },
 ];
