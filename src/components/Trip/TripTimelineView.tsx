@@ -1,11 +1,12 @@
 /**
  * TripTimelineView — unified timeline switch for plan / itinerary / journal modes.
  *
- * Extracted from Step3Content to eliminate the duplicated SmartTimeline +
- * journal/itinerary branch that appeared in both the normal render and the
- * isExpanded branch. Drop this wherever you need a summary-backed timeline.
+ * The Smart Itinerary is the primary view (editable, with inline suggestions).
+ * SmartTimeline (simulation view) is available as an optional toggle for power users.
  */
 
+import { useState } from 'react';
+import { Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import type {
   TripSummary,
   TripSettings,
@@ -80,10 +81,26 @@ export function TripTimelineView({
   onDismissPOI,
   externalStops,
 }: TripTimelineViewProps) {
+  // Toggle for SmartTimeline (simulation view) — hidden by default, available for power users
+  const [showSimulation, setShowSimulation] = useState(false);
+
   return (
     <>
-      {/* Smart Timeline — time-first view with combo stop optimisation */}
+      {/* Simulation View Toggle (plan mode only) */}
       {viewMode === 'plan' && (
+        <button
+          type="button"
+          onClick={() => setShowSimulation(!showSimulation)}
+          className="mb-4 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Clock className="h-4 w-4" />
+          <span>{showSimulation ? 'Hide' : 'Show'} Simulation View</span>
+          {showSimulation ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        </button>
+      )}
+
+      {/* Smart Timeline — time-first simulation view (toggleable) */}
+      {viewMode === 'plan' && showSimulation && (
         <SmartTimeline
           summary={summary}
           settings={settings}

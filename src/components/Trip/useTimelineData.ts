@@ -49,7 +49,10 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
   } | null>(null);
 
   // Generate smart suggestions — use per-driving-day duration, not total trip time
-  const drivingDays = days?.filter(d => d.segmentIndices.length > 0) ?? [];
+  const drivingDays = useMemo(
+    () => days?.filter(d => d.segmentIndices.length > 0) ?? [],
+    [days]
+  );
   const isAlreadySplit = drivingDays.length > 1;
   const maxDayMinutes = isAlreadySplit
     ? Math.max(...drivingDays.map(d => d.totals?.driveTimeMinutes ?? 0))
@@ -106,6 +109,39 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
 
     return base;
   }, [maxDayMinutes, settings, isAlreadySplit, summary, vehicle]);
+
+  // Map pacing suggestions to specific days for inline rendering.
+  // Return trip tips → day that starts the return leg; general tips → first driving day.
+  const pacingSuggestionsByDay = useMemo(() => {
+    const map = new Map<number, string[]>();
+    if (!days || pacingSuggestions.length === 0) return map;
+
+    // Find the return leg start day (if round trip)
+    let returnDayNumber: number | null = null;
+    if (summary.roundTripMidpoint != null && summary.roundTripMidpoint > 0) {
+      const returnDay = days.find(d =>
+        d.segmentIndices.includes(summary.roundTripMidpoint!)
+      );
+      if (returnDay) returnDayNumber = returnDay.dayNumber;
+    }
+
+    // First driving day for general suggestions
+    const firstDrivingDay = drivingDays[0];
+
+    pacingSuggestions.forEach(suggestion => {
+      // Return trip tip goes to the return day
+      if (suggestion.includes('Return trip tip') && returnDayNumber) {
+        const existing = map.get(returnDayNumber) ?? [];
+        map.set(returnDayNumber, [...existing, suggestion]);
+      } else if (firstDrivingDay) {
+        // General tips go to first driving day
+        const existing = map.get(firstDrivingDay.dayNumber) ?? [];
+        map.set(firstDrivingDay.dayNumber, [...existing, suggestion]);
+      }
+    });
+
+    return map;
+  }, [days, drivingDays, pacingSuggestions, summary.roundTripMidpoint]);
 
   // Base suggestions — pure computation, regenerates whenever the trip/vehicle/settings change.
   const baseSuggestions = useMemo(() => {
@@ -358,6 +394,7 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
   return {
     startTime,
     pacingSuggestions,
+    pacingSuggestionsByDay,
     activeSuggestions,
     simulationItems,
     pendingSuggestions,
