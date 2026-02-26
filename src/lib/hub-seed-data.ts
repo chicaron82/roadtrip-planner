@@ -10,7 +10,7 @@
  * 💚 My Experience Engine
  */
 
-import { seedHubCache } from './hub-cache';
+import { seedHubCache, clearHubCache } from './hub-cache';
 
 /**
  * Self-contained SeedHub type — mirrors DiscoveredHub minus `lastUsed`
@@ -30,6 +30,14 @@ interface SeedHub {
 
 /** Date these hubs were last curated. Update when adding/removing hubs. */
 const SEED_DATE = '2026-01-01';
+
+/**
+ * Bump this version whenever the hub resolution logic changes in a way
+ * that may have produced incorrect discovered-hub entries in localStorage.
+ * initializeHubCache will wipe + re-seed if the stored version differs.
+ */
+const CACHE_VERSION = '2';
+const CACHE_VERSION_KEY = 'roadtrip-hub-cache-version';
 
 // ─── I-94 Corridor (Seattle → Detroit) ────────────────────────────────────────
 
@@ -172,8 +180,18 @@ export const SEED_HUBS: SeedHub[] = [
 /**
  * Initialize the hub cache with seed data.
  * Called once in main.tsx before React mounts.
- * Synchronous — no circular imports, no race condition.
+ * Clears stale discovered hubs when CACHE_VERSION bumps.
  */
 export function initializeHubCache(): void {
+  try {
+    const storedVersion = localStorage.getItem(CACHE_VERSION_KEY);
+    if (storedVersion !== CACHE_VERSION) {
+      // Resolution logic changed — nuke old discovered hubs and re-seed
+      clearHubCache();
+      localStorage.setItem(CACHE_VERSION_KEY, CACHE_VERSION);
+    }
+  } catch {
+    // localStorage unavailable — proceed anyway
+  }
   seedHubCache(SEED_HUBS);
 }
