@@ -125,6 +125,10 @@ export function splitLongSegments(
       });
     }
 
+    // Track cumulative time so each sub-segment has proper departure/arrival
+    let cumulativeMs = seg.departureTime ? new Date(seg.departureTime).getTime() : 0;
+    const hasValidTime = !!seg.departureTime;
+
     for (let part = 0; part < numParts; part++) {
       const partMinutes =
         part < numParts - 1
@@ -135,6 +139,11 @@ export function splitLongSegments(
       const fromLoc: Location = part === 0 ? seg.from : splitPoints[part - 1];
       const toLoc: Location   = part === numParts - 1 ? seg.to : splitPoints[part];
 
+      // Compute proper departure/arrival for each sub-segment
+      const partDepartureTime = hasValidTime ? new Date(cumulativeMs).toISOString() : undefined;
+      cumulativeMs += Math.round(partMinutes) * 60 * 1000;
+      const partArrivalTime = hasValidTime ? new Date(cumulativeMs).toISOString() : undefined;
+
       result.push({
         ...seg,
         from: fromLoc,
@@ -144,10 +153,8 @@ export function splitLongSegments(
         distanceKm: Math.round(seg.distanceKm * ratio * 10) / 10,
         fuelCost: Math.round(seg.fuelCost * ratio * 100) / 100,
         fuelNeededLitres: Math.round(seg.fuelNeededLitres * ratio * 100) / 100,
-        // Only the first sub-segment inherits the departure time; only the
-        // last inherits the arrival time — intermediates have neither.
-        departureTime: part === 0 ? seg.departureTime : undefined,
-        arrivalTime: part === numParts - 1 ? seg.arrivalTime : undefined,
+        departureTime: partDepartureTime,
+        arrivalTime: partArrivalTime,
         _transitPart: { index: part, total: numParts },
       });
     }

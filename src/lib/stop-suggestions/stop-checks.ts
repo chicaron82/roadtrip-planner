@@ -259,16 +259,32 @@ export function checkMealStop(
   if (isArrivingHome) return null;
 
   const segmentEndMs = segmentStartTime.getTime() + segment.durationMinutes * 60 * 1000;
-  const mealTimestampForHour = (hour: number): Date => {
+
+  // For timezone crossings, check meal windows in both timezones.
+  // If crossing from CST to EST, wall clocks jump forward 1h — a meal might fall
+  // in the window in one timezone but not the other.
+  const tzShift = getTimezoneShiftHours(state.currentTzAbbr, segment.weather?.timezoneAbbr ?? null);
+
+  const mealTimestampForHour = (hour: number, offsetHours = 0): Date => {
     const t = new Date(segmentStartTime);
-    t.setHours(hour, 0, 0, 0);
+    t.setHours(hour + offsetHours, 0, 0, 0);
     return t;
   };
+
+  // Check in current (origin) timezone
   const lunchTs = mealTimestampForHour(MEAL_TIMES.lunch);
   const dinnerTs = mealTimestampForHour(MEAL_TIMES.dinner);
-  // Meal fires if its timestamp falls strictly within (start, end] of this segment
-  const crossesLunch = lunchTs.getTime() > segmentStartTime.getTime() && lunchTs.getTime() <= segmentEndMs;
-  const crossesDinner = dinnerTs.getTime() > segmentStartTime.getTime() && dinnerTs.getTime() <= segmentEndMs;
+
+  // Also check in destination timezone if crossing (offset by -tzShift to convert)
+  const lunchTsDest = tzShift !== 0 ? mealTimestampForHour(MEAL_TIMES.lunch, -tzShift) : lunchTs;
+  const dinnerTsDest = tzShift !== 0 ? mealTimestampForHour(MEAL_TIMES.dinner, -tzShift) : dinnerTs;
+
+  const crossesWindow = (ts: Date) =>
+    ts.getTime() > segmentStartTime.getTime() && ts.getTime() <= segmentEndMs;
+
+  // Meal fires if its timestamp falls within (start, end] in either timezone
+  const crossesLunch = crossesWindow(lunchTs) || crossesWindow(lunchTsDest);
+  const crossesDinner = crossesWindow(dinnerTs) || crossesWindow(dinnerTsDest);
 
   if (!crossesLunch && !crossesDinner) return null;
 
