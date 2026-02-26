@@ -9,6 +9,10 @@ const MEAL_TIMES = { breakfast: 8, lunch: 12, dinner: 18 }; // 24h format
 /**
  * Reset simulation state at a multi-day boundary (e.g., Day 3 after a free Day 2).
  * Ensures fuel/rest calculations start fresh at the correct departure time.
+ *
+ * Note: currentTzAbbr is intentionally NOT reset here. Timezone is preserved from
+ * the last segment processed (destination timezone after outbound leg), which is
+ * correct — you're still at the destination when the return leg starts.
  */
 export function handleDayBoundaryReset(
   state: SimState,
@@ -35,6 +39,7 @@ export function handleDayBoundaryReset(
   state.totalDrivingToday = 0;
   state.lastBreakTime = new Date(dayStart);
   state.hoursOnRoad = 0;
+  // Full tank assumption: you'd fill up before leaving after an overnight or free day
   state.currentFuel = config.tankSizeLitres;
   state.distanceSinceLastFill = 0;
   state.hoursSinceLastFill = 0;
