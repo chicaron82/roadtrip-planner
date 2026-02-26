@@ -72,11 +72,12 @@ describe('interpolateRoutePosition', () => {
     expect(result!.lat).toBeCloseTo(1.5, 1);
   });
 
-  it('returns last point when targetKm exceeds total route length', () => {
+  it('returns null when targetKm exceeds total route length', () => {
+    // Intentionally returns null (not the last point) so that callers
+    // cannot accidentally geocode out-of-bounds km positions to the
+    // route endpoint (e.g. resolving return-leg stops to the origin city).
     const result = interpolateRoutePosition(STRAIGHT_LINE, DEG_KM * 10);
-    expect(result).not.toBeNull();
-    expect(result!.lat).toBeCloseTo(2, 3);
-    expect(result!.lng).toBeCloseTo(0, 3);
+    expect(result).toBeNull();
   });
 
   it('handles a single-hop two-point geometry', () => {

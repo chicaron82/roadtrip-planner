@@ -563,9 +563,9 @@ describe('buildTimedTimeline', () => {
     });
 
     const tripDays = [
-      { dayNumber: 1, date: '2025-08-16', dateFormatted: 'Sat, Aug 16', route: '', segments: [], segmentIndices: [0], timezoneChanges: [], budget: {} as any, totals: { distanceKm: 600, driveTimeMinutes: 480, stopTimeMinutes: 0, departureTime: '2025-08-16T08:00:00', arrivalTime: '2025-08-16T16:00:00' } },
-      { dayNumber: 2, date: '2025-08-17', dateFormatted: 'Sun, Aug 17', route: '', segments: [], segmentIndices: [], timezoneChanges: [], budget: {} as any, totals: { distanceKm: 0, driveTimeMinutes: 0, stopTimeMinutes: 0, departureTime: '', arrivalTime: '' }, dayType: 'free' as const },
-      { dayNumber: 3, date: '2025-08-18', dateFormatted: 'Mon, Aug 18', route: '', segments: [], segmentIndices: [1], timezoneChanges: [], budget: {} as any, totals: { distanceKm: 600, driveTimeMinutes: 480, stopTimeMinutes: 0, departureTime: '2025-08-18T08:00:00', arrivalTime: '2025-08-18T16:00:00' } },
+      { dayNumber: 1, date: '2025-08-16', dateFormatted: 'Sat, Aug 16', route: '', segments: [], segmentIndices: [0], timezoneChanges: [], budget: { gasUsed: 0, hotelCost: 0, foodEstimate: 0, miscCost: 0, dayTotal: 0, gasRemaining: 0, hotelRemaining: 0, foodRemaining: 0 }, totals: { distanceKm: 600, driveTimeMinutes: 480, stopTimeMinutes: 0, departureTime: '2025-08-16T08:00:00', arrivalTime: '2025-08-16T16:00:00' } },
+      { dayNumber: 2, date: '2025-08-17', dateFormatted: 'Sun, Aug 17', route: '', segments: [], segmentIndices: [], timezoneChanges: [], budget: { gasUsed: 0, hotelCost: 0, foodEstimate: 0, miscCost: 0, dayTotal: 0, gasRemaining: 0, hotelRemaining: 0, foodRemaining: 0 }, totals: { distanceKm: 0, driveTimeMinutes: 0, stopTimeMinutes: 0, departureTime: '', arrivalTime: '' }, dayType: 'free' as const },
+      { dayNumber: 3, date: '2025-08-18', dateFormatted: 'Mon, Aug 18', route: '', segments: [], segmentIndices: [1], timezoneChanges: [], budget: { gasUsed: 0, hotelCost: 0, foodEstimate: 0, miscCost: 0, dayTotal: 0, gasRemaining: 0, hotelRemaining: 0, foodRemaining: 0 }, totals: { distanceKm: 600, driveTimeMinutes: 480, stopTimeMinutes: 0, departureTime: '2025-08-18T08:00:00', arrivalTime: '2025-08-18T16:00:00' } },
     ];
 
     const result = buildTimedTimeline(

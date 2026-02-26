@@ -17,9 +17,12 @@ interface UsePOIReturn {
   markerCategories: MarkerCategory[];
   loadingCategory: POICategory | null;
 
-  // POI Suggestions (route-based)
+  // POI Suggestions (route-based, ranked/trimmed for discovery UI)
   poiSuggestions: POISuggestion[];
   isLoadingPOIs: boolean;
+
+  // Inference corpus (unranked gas/hotel/restaurant/cafe — for Tier-2 hub detection)
+  poiInference: POISuggestion[];
 
   // Errors
   error: string | null;
@@ -47,6 +50,7 @@ export function usePOI(): UsePOIReturn {
 
   // POI Suggestions state
   const [poiSuggestions, setPoiSuggestions] = useState<POISuggestion[]>([]);
+  const [poiInference, setPoiInference] = useState<POISuggestion[]>([]);
   const [isLoadingPOIs, setIsLoadingPOIs] = useState(false);
 
   // Error state
@@ -161,6 +165,21 @@ export function usePOI(): UsePOIReturn {
         );
 
         setPoiSuggestions([...rankedAlongWay, ...rankedDestination]);
+
+        // Inference fetch: always fetches gas/hotel/restaurant categories for hub detection,
+        // regardless of user trip preferences. Raw (unranked) corridor POIs are needed so
+        // resolveStopTowns / analyzeForHub can find addr:city metadata for Tier-2 discovery.
+        try {
+          const inferenceData = await fetchPOISuggestions(
+            routeGeometry,
+            origin,
+            destination,
+            ['budget', 'foodie'] as TripPreference[] // budget→gas/viewpoint, foodie→restaurant/cafe; combined gives utility POIs
+          );
+          setPoiInference(inferenceData.alongWay);
+        } catch {
+          // Non-critical — hub detection has other fallbacks
+        }
       } catch (err) {
         console.error('Failed to fetch POI suggestions:', err);
         // Don't fail the whole trip calculation if POIs fail
@@ -178,6 +197,7 @@ export function usePOI(): UsePOIReturn {
   const resetPOIs = useCallback(() => {
     setPois([]);
     setPoiSuggestions([]);
+    setPoiInference([]);
     setMarkerCategories(DEFAULT_MARKER_CATEGORIES);
   }, []);
 
@@ -186,6 +206,7 @@ export function usePOI(): UsePOIReturn {
     markerCategories,
     loadingCategory,
     poiSuggestions,
+    poiInference,
     isLoadingPOIs,
     error,
     toggleCategory,

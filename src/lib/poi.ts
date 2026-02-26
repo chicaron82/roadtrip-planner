@@ -1,5 +1,9 @@
-import type { POI, POICategory } from '../types';
+import type { POI, POICategory, POISuggestionCategory } from '../types';
 import { NOMINATIM_BASE_URL } from './constants';
+import { executeOverpassQuery } from './poi-service/overpass';
+import { computeRouteBbox } from './poi-service/geo';
+import { CATEGORY_TAG_QUERIES } from './poi-service/config';
+import type { OverpassElement } from './poi-service/types';
 
 interface NominatimResult {
     place_id: number;
@@ -17,76 +21,51 @@ const CATEGORY_QUERIES: Record<POICategory, string> = {
 };
 
 /**
- * OSM tag queries for route-corridor search via Overpass
+ * Maps map-marker POI categories to poi-service suggestion categories.
+ * Multiple entries per category are OR'd together in the union query,
+ * fixing the previous AND landmine for attractions.
  */
-const OVERPASS_CATEGORY_TAGS: Record<POICategory, string> = {
-    gas: '["amenity"="fuel"]',
-    food: '["amenity"~"restaurant|fast_food|cafe"]',
-    hotel: '["tourism"~"hotel|motel|guest_house"]',
-    attraction: '["tourism"~"attraction|viewpoint|museum"]["historic"~"memorial|monument|castle|ruins"]',
+const MARKER_CATEGORY_MAPPING: Record<POICategory, POISuggestionCategory[]> = {
+    gas:        ['gas'],
+    food:       ['restaurant', 'cafe'],
+    hotel:      ['hotel'],
+    attraction: ['attraction', 'museum', 'landmark', 'viewpoint'],
 };
-
-const OVERPASS_API = 'https://overpass-api.de/api/interpreter';
 
 /**
  * Search for POIs along a route corridor using Overpass API.
  * Returns map-marker POIs (the simpler POI type) scattered along the route.
+ * Reuses the shared Overpass client (retries + backoff) and tag mappings
+ * from poi-service to avoid duplicated config and rate-limit inconsistencies.
  */
 export async function searchPOIsAlongRoute(
     routeGeometry: [number, number][],
     category: POICategory
 ): Promise<POI[]> {
     try {
-        // Calculate bounding box from route (safe loop, no spread)
-        let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
-        for (const [lat, lng] of routeGeometry) {
-            if (lat < minLat) minLat = lat;
-            if (lat > maxLat) maxLat = lat;
-            if (lng < minLng) minLng = lng;
-            if (lng > maxLng) maxLng = lng;
-        }
+        const bbox = computeRouteBbox(routeGeometry, 15);
+        const categories = MARKER_CATEGORY_MAPPING[category];
 
-        // Buffer: ~15km corridor on each side
-        const buffer = 15 / 111;
-        const bbox = `${minLat - buffer},${minLng - buffer},${maxLat + buffer},${maxLng + buffer}`;
-
-        // For attractions, we want OR logic (tourism OR historic), so split into separate union lines
-        let lines: string;
-        if (category === 'attraction') {
-            lines = [
-                `      node["tourism"~"attraction|viewpoint|museum"](${bbox});`,
-                `      way["tourism"~"attraction|viewpoint|museum"](${bbox});`,
-                `      node["historic"~"memorial|monument|castle|ruins"](${bbox});`,
-                `      way["historic"~"memorial|monument|castle|ruins"](${bbox});`,
-            ].join('\n');
-        } else {
-            const tag = OVERPASS_CATEGORY_TAGS[category];
-            lines = `      node${tag}(${bbox});\n      way${tag}(${bbox});`;
+        const lines: string[] = [];
+        for (const cat of categories) {
+            for (const tag of CATEGORY_TAG_QUERIES[cat]) {
+                lines.push(`      node${tag}(${bbox});`);
+                lines.push(`      way${tag}(${bbox});`);
+            }
         }
 
         const query = `
             [out:json][timeout:25][maxsize:2097152];
             (
-${lines}
+${lines.join('\n')}
             );
             out center 40;
         `.trim();
 
-        const response = await fetch(OVERPASS_API, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `data=${encodeURIComponent(query)}`,
-        });
-
-        if (!response.ok) {
-            throw new Error(`Overpass API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        const elements = data.elements || [];
+        const elements = await executeOverpassQuery(query);
 
         return elements
-            .map((el: { type: string; id: number; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> }) => {
+            .map((el: OverpassElement) => {
                 const lat = el.lat || el.center?.lat;
                 const lng = el.lon || el.center?.lon;
                 if (!lat || !lng) return null;
