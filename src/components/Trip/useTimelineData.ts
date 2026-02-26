@@ -4,6 +4,7 @@ import { generatePacingSuggestions } from '../../lib/segment-analyzer';
 import { generateSmartStops, createStopConfig, type SuggestedStop } from '../../lib/stop-suggestions';
 import { getTankSizeLitres } from '../../lib/unit-conversions';
 import { assignDrivers, extractFuelStopIndices } from '../../lib/driver-rotation';
+import { findOptimalReturnDeparture } from '../../lib/return-departure-optimizer';
 
 // ---------------------------------------------------------------------------
 
@@ -53,7 +54,58 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
   const maxDayMinutes = isAlreadySplit
     ? Math.max(...drivingDays.map(d => d.totals?.driveTimeMinutes ?? 0))
     : summary.totalDurationMinutes;
-  const pacingSuggestions = generatePacingSuggestions(maxDayMinutes, settings, isAlreadySplit);
+  const pacingSuggestions = useMemo(() => {
+    const base = generatePacingSuggestions(maxDayMinutes, settings, isAlreadySplit);
+
+    // For round trips with a vehicle, check if tweaking the return departure
+    // would create a Fuel + Lunch combo at a real hub city.
+    if (
+      summary.roundTripMidpoint != null &&
+      summary.roundTripMidpoint > 0 &&
+      vehicle &&
+      summary.fullGeometry?.length > 1
+    ) {
+      const returnSegments = summary.segments.slice(summary.roundTripMidpoint);
+
+      // Outbound km = sum of outbound segments; return geometry starts there
+      const returnStartKm = summary.segments
+        .slice(0, summary.roundTripMidpoint)
+        .reduce((sum, s) => sum + s.distanceKm, 0);
+
+      // Determine the return leg's current departure time.
+      // Prefer the first return segment's departureTime; fall back to settings.
+      const firstReturnSeg = returnSegments[0];
+      const returnDeparture: Date =
+        firstReturnSeg?.departureTime
+          ? new Date(firstReturnSeg.departureTime)
+          : (() => {
+              const d = new Date(`${settings.departureDate}T${settings.departureTime}`);
+              return d;
+            })();
+
+      const suggestion = findOptimalReturnDeparture(
+        returnSegments,
+        returnDeparture,
+        summary.fullGeometry as number[][],
+        returnStartKm,
+        vehicle,
+        settings,
+      );
+
+      if (suggestion) {
+        const direction = suggestion.minutesDelta < 0 ? 'earlier' : 'later';
+        const absDelta = Math.abs(suggestion.minutesDelta);
+        const deltaStr = absDelta >= 60
+          ? `${Math.floor(absDelta / 60)}h${absDelta % 60 > 0 ? ` ${absDelta % 60}min` : ''}`
+          : `${absDelta} min`;
+        base.push(
+          `⏰ Return trip tip: departing ${deltaStr} ${direction} (${suggestion.suggestedTime}) would create a Fuel + Lunch combo stop near ${suggestion.hubName}, saving ~${suggestion.timeSavedMinutes} min.`
+        );
+      }
+    }
+
+    return base;
+  }, [maxDayMinutes, settings, isAlreadySplit, summary, vehicle]);
 
   // Base suggestions — pure computation, regenerates whenever the trip/vehicle/settings change.
   const baseSuggestions = useMemo(() => {
@@ -192,7 +244,7 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
     }
 
     return items;
-  }, [summary.segments, startTime, settings.gasPrice, settings.departureTime, settings.units, activeSuggestions, vehicle?.tankSize, days]);
+  }, [summary.segments, startTime, settings.gasPrice, settings.departureTime, settings.units, activeSuggestions, vehicle, days]);
 
   // Pending suggestions (not yet accepted or dismissed)
   const pendingSuggestions = activeSuggestions.filter(s => !s.accepted);
