@@ -81,6 +81,10 @@ export function findOptimalReturnDeparture(
   // Track best result: prioritise smallest |delta|, then largest time saved
   let best: ReturnDepartureSuggestion | null = null;
 
+  // Extract origin/destination names to filter out (no value suggesting a combo at your start/end)
+  const returnOriginName = returnSegments[0]?.from?.name?.toLowerCase() ?? '';
+  const returnDestName = returnSegments[returnSegments.length - 1]?.to?.name?.toLowerCase() ?? '';
+
   for (let delta = -SCAN_RANGE_MIN; delta <= SCAN_RANGE_MIN; delta += SCAN_STEP_MIN) {
     const candidateDeparture = new Date(
       currentReturnDeparture.getTime() + delta * 60 * 1000,
@@ -108,9 +112,10 @@ export function findOptimalReturnDeparture(
       const hub = findHubInWindow(pos.lat, pos.lng, HUB_SNAP_KM);
       if (!hub) continue;
 
-      // Skip hubs that are already the origin/destination (no value)
-      if (hub.name.toLowerCase().includes('chicago') ||
-          hub.name.toLowerCase().includes('winnipeg')) continue;
+      // Skip hubs that are already the origin/destination (no value in "combo near Chicago" if that's where you're going)
+      const hubLower = hub.name.toLowerCase();
+      if (returnOriginName && hubLower.includes(returnOriginName.split(',')[0])) continue;
+      if (returnDestName && hubLower.includes(returnDestName.split(',')[0])) continue;
 
       // Prefer deltas that save the most time with the smallest time change
       const timeSaved = 30; // combo saves one separate stop (~15min stop + overhead)
