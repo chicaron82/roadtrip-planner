@@ -61,25 +61,33 @@ export function finalizeTripDay(
   day.totals.driveTimeMinutes = day.segments.reduce((sum, s) => sum + s.durationMinutes, 0);
   day.totals.stopTimeMinutes = day.segments.reduce((sum, s) => sum + (s.stopDuration || 0), 0);
 
-  // Get departure and arrival times from segments
+  // Get departure time - prefer day-level (set by split-by-days), fall back to first segment
   const firstSegment = day.segments[0];
-  const lastSegment = day.segments[day.segments.length - 1];
-
-  // Use segment times only if not already stamped (day-splits stamp intended departure above)
   if (firstSegment?.departureTime && !day.totals.departureTime) {
     day.totals.departureTime = firstSegment.departureTime;
   }
 
-  // Compute arrival time from departure time + drive duration + stop time.
-  // Don't use lastSegment.arrivalTime directly — it may be stale for multi-day
-  // trips where the day's departure time was adjusted (e.g., after free days).
+  // Re-stamp segment times based on the day's actual departure time.
+  // This fixes stale times on multi-day trips where departure was adjusted.
+  if (day.totals.departureTime) {
+    let currentTimeMs = new Date(day.totals.departureTime).getTime();
+    for (const segment of day.segments) {
+      segment.departureTime = new Date(currentTimeMs).toISOString();
+      currentTimeMs += segment.durationMinutes * 60 * 1000;
+      segment.arrivalTime = new Date(currentTimeMs).toISOString();
+      // Add stop duration for next segment's departure
+      const stopMs = (segment.stopDuration ?? 0) * 60 * 1000;
+      currentTimeMs += stopMs;
+    }
+  }
+
+  // Compute day's arrival time from departure + total drive + stop time
   const departureSource = day.totals.departureTime || firstSegment?.departureTime;
   if (departureSource && day.totals.driveTimeMinutes > 0) {
     const depMs = new Date(departureSource).getTime();
     const totalMinutes = day.totals.driveTimeMinutes + day.totals.stopTimeMinutes;
     day.totals.arrivalTime = new Date(depMs + totalMinutes * 60 * 1000).toISOString();
   }
-  // No fallback to stale segment.arrivalTime - if we can't compute, leave undefined
 
   // Calculate budget
   const gasUsed = day.segments.reduce((sum, s) => sum + s.fuelCost, 0);

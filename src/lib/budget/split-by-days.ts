@@ -185,7 +185,13 @@ export function splitTripByDays(
             const returnDateObj = new Date(settings.returnDate + 'T00:00:00');
             const totalTripDays = Math.max(1, Math.round((returnDateObj.getTime() - departureDateObj.getTime()) / (1000 * 60 * 60 * 24)) + 1);
             const outboundDrivingDays = days.length;
-            const returnDrivingDays = outboundDrivingDays;
+
+            // Estimate return driving days from remaining segment durations.
+            // Don't assume return = outbound (timing differences can change day count).
+            const returnSegments = processedSegments.slice(i + 1);
+            const returnTotalMinutes = returnSegments.reduce((sum, s) => sum + s.durationMinutes, 0);
+            const returnDrivingDays = Math.max(1, Math.ceil(returnTotalMinutes / maxDriveMinutes));
+
             return Math.max(0, totalTripDays - outboundDrivingDays - returnDrivingDays);
           })()
         : 0;
