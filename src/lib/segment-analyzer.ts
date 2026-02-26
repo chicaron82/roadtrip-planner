@@ -184,7 +184,7 @@ export function generatePacingSuggestions(
   }
 
   if (settings.numDrivers > 1) {
-    const swapInterval = (dayHours / settings.numDrivers).toFixed(1);
+    const swapInterval = Math.round(dayHours / settings.numDrivers);
     suggestions.push(`👥 With ${settings.numDrivers} drivers, swap every ${swapInterval} hours to stay fresh.`);
   }
 

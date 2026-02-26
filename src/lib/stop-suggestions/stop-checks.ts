@@ -330,15 +330,47 @@ export function getEnRouteFuelStops(
   const HUB_SNAP_WINDOW_KM = 80;
   const HUB_SNAP_STEP_KM = 20;
 
-  let kmMark = kmUntilFirstStop;
+  // ── Proactive hub scan: "been driving a while, there's a major spot" logic ───
+  // Before placing stops purely on tank math, check if there's a hub at a
+  // comfortable driving interval (3.5-4h mark). If so, suggest stopping there
+  // even if it's before the tank-math position. This aligns with natural driver
+  // behavior: "oh there's Dryden, I've been driving 4 hours, let's gas up".
+  const COMFORT_DRIVING_HOURS = 4;
+  const COMFORT_HUB_SCAN_WINDOW_KM = 50;
+  const avgSpeedKmH = segment.distanceKm / (segment.durationMinutes / 60);
+  const comfortKm = COMFORT_DRIVING_HOURS * avgSpeedKmH;
+
+  // If there's a hub at the comfort mark AND it's meaningfully before the tank-math stop,
+  // use it instead (proactive stop at a real city rather than anonymous km mark)
+  let proactiveHubKm: number | undefined;
+  let proactiveHubName: string | undefined;
+
+  if (hubResolver && comfortKm > 50 && comfortKm < kmUntilFirstStop - 80) {
+    // Scan around the 4h mark for a hub
+    for (let offset = 0; offset <= COMFORT_HUB_SCAN_WINDOW_KM; offset += 20) {
+      for (const delta of [0, -offset, offset]) {
+        const candidateKm = comfortKm + delta;
+        if (candidateKm <= 0 || candidateKm >= segment.distanceKm) continue;
+        const hub = hubResolver(candidateKm);
+        if (hub) {
+          proactiveHubKm = candidateKm;
+          proactiveHubName = hub;
+          break;
+        }
+      }
+      if (proactiveHubName) break;
+    }
+  }
+
+  let kmMark = proactiveHubKm ?? kmUntilFirstStop;
   let stopIndex = 1;
 
   while (kmMark < segment.distanceKm) {
     // ── Hub-snap: scan backward from kmMark for the nearest named city ────
     let snappedKm = kmMark;
-    let stopHubName: string | undefined;
+    let stopHubName: string | undefined = (kmMark === proactiveHubKm) ? proactiveHubName : undefined;
 
-    if (hubResolver) {
+    if (hubResolver && !stopHubName) {
       // Check the exact mark first
       stopHubName = hubResolver(kmMark);
 
