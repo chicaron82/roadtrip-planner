@@ -331,10 +331,13 @@ export function resolveHubName(
   lng: number,
   pois?: POISuggestion[]
 ): string | null {
-  // 1. Check cache first (instant)
-  const cached = findKnownHub(lat, lng);
+  // 1. Check cache first (instant) — use findHubInWindow with a generous 80km
+  //    window instead of findKnownHub (which is radius-limited). Fuel stops can
+  //    land 40-50km from a hub center, so the per-hub radius (often 25-30km)
+  //    is too tight and causes misses like "Douglas" instead of "Fargo, ND".
+  const cached = findHubInWindow(lat, lng, 80);
   if (cached) {
-    return cached;
+    return cached.name;
   }
 
   // 2. If POI data available, analyze for hub
