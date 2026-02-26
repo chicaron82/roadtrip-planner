@@ -296,13 +296,13 @@ export function checkMealStop(
 
 /**
  * Generate en-route fuel stops for segments longer than the safe range.
- * Advisory only (no accepted: true) — user decides in the suggestions panel.
  *
- * @param geometry       - Full route polyline for hub position lookups
- * @param segmentStartKm - Cumulative km at the start of this segment (for hub interpolation)
- * @param distanceAlreadyDriven - km already driven since last fill before this segment started.
- *   Used to place the first stop at the correct offset (e.g. if already 200km into a 550km
- *   safe range, the first en-route stop fires at 350km into the segment, not 550km).
+ * Hub-snap: before placing a stop at the exact safe-range km mark, scan
+ * backward (up to HUB_SNAP_WINDOW_KM) for a known city hub. If one exists
+ * at a more natural stopping point, snap to it instead.
+ *
+ * @param distanceAlreadyDriven - km driven since last fill before this segment.
+ *   First stop fires at (safeRangeKm - distanceAlreadyDriven) km into segment.
  */
 export function getEnRouteFuelStops(
   state: SimState,
@@ -324,28 +324,50 @@ export function getEnRouteFuelStops(
   // No en-route stop needed if the tank can cover the full segment
   if (kmUntilFirstStop >= segment.distanceKm) return stops;
 
-  // Generate stops at every safeRangeKm interval after the first stop
+  // How far back from the safe-range limit we'll search for a hub snap point.
+  // 80km ≈ ~50mi — enough to catch cities like Fargo or Minneapolis that fall
+  // just before the tank-math cutoff, without pulling stops uncomfortably early.
+  const HUB_SNAP_WINDOW_KM = 80;
+  const HUB_SNAP_STEP_KM = 20;
+
   let kmMark = kmUntilFirstStop;
   let stopIndex = 1;
 
   while (kmMark < segment.distanceKm) {
-    const minutesMark = (kmMark / segment.distanceKm) * segment.durationMinutes;
-
-    // Look up the hub at this stop's actual position on the full route geometry
+    // ── Hub-snap: scan backward from kmMark for the nearest named city ────
+    let snappedKm = kmMark;
     let stopHubName: string | undefined;
+
     if (hubResolver) {
+      // Check the exact mark first
       stopHubName = hubResolver(kmMark);
+
+      if (!stopHubName) {
+        // Scan backward in steps for a hub that's reachable before the limit
+        for (let lookback = HUB_SNAP_STEP_KM; lookback <= HUB_SNAP_WINDOW_KM; lookback += HUB_SNAP_STEP_KM) {
+          const candidateKm = kmMark - lookback;
+          if (candidateKm <= 0) break;
+          const candidateHub = hubResolver(candidateKm);
+          if (candidateHub) {
+            snappedKm = candidateKm;
+            stopHubName = candidateHub;
+            break; // take the closest hit walking backward
+          }
+        }
+      }
     }
+
+    const minutesMark = (snappedKm / segment.distanceKm) * segment.durationMinutes;
 
     const locationDesc = stopHubName
       ? `near ${stopHubName}`
-      : `around km ${Math.round(kmMark)} into this ${segment.distanceKm.toFixed(0)} km leg (~${(minutesMark / 60).toFixed(1)}h after departing)`;
+      : `around km ${Math.round(snappedKm)} into this ${segment.distanceKm.toFixed(0)} km leg (~${(minutesMark / 60).toFixed(1)}h after departing)`;
 
     stops.push({
       id: `fuel-enroute-${index}-${stopIndex}`,
       type: 'fuel',
       reason: `En-route refuel needed ${locationDesc}. Your tank cannot cover the full distance without stopping.`,
-      afterSegmentIndex: index - 1 + stopIndex * 0.01, // unique per sub-stop to avoid false consolidation
+      afterSegmentIndex: index - 1 + stopIndex * 0.01,
       estimatedTime: new Date(segmentStartTime.getTime() + minutesMark * 60 * 1000),
       duration: 15,
       priority: 'required',
@@ -357,12 +379,14 @@ export function getEnRouteFuelStops(
       dayNumber: state.currentDayNumber,
     });
 
-    kmMark += safeRangeKm;
+    // Advance from the SNAPPED position so next-stop spacing is accurate.
+    kmMark = snappedKm + safeRangeKm;
     stopIndex++;
   }
 
   return stops;
 }
+
 
 /**
  * Drive the segment: consume fuel, advance driving hours.
