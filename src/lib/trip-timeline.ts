@@ -322,20 +322,23 @@ export function buildTimedTimeline(
       // that were generated for this segment, even if their `estimatedTime` drifted slightly
       // due to timezone or stop accumulations.
       // `generateSmartStops` tags them with `afterSegmentIndex: i - 1` when they belong *inside* segment `i`
+      // Note: en-route fuel stops use fractional values (e.g. 0.01, 0.02) to avoid false
+      // consolidation, so we floor before comparing.
       const isMidDriveForThisSegment =
         (s.type === 'fuel' || s.type === 'rest' || s.type === 'meal') && 
-        s.afterSegmentIndex === i - 1;
+        Math.floor(s.afterSegmentIndex) === i - 1;
 
       if (hasMidDriveTime || isMidDriveForThisSegment) {
         midDrive.push(s);
         continue;
       }
 
-      // Boundary classification by afterSegmentIndex
-      if (s.afterSegmentIndex === i - 1) {
+      // Boundary classification by afterSegmentIndex (floor for fractional en-route values)
+      const flooredIdx = Math.floor(s.afterSegmentIndex);
+      if (flooredIdx === i - 1) {
         // "Before this segment" — note: en-route fuel is now handled fully by midDrive above
         boundaryBefore.push(s);
-      } else if (s.afterSegmentIndex === i) {
+      } else if (flooredIdx === i) {
         // En-route fuel stops for the NEXT segment use afterSegmentIndex = index-1,
         // which equals `i` here. They belong as midDrive for segment i+1, not as
         // a boundary-after for segment i. Skip them — the next iteration will
