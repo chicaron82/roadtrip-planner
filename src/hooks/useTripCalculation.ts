@@ -181,6 +181,13 @@ export function useTripCalculation({
           ? tripSummary.totalFuelCost / settings.numTravelers
           : tripSummary.totalFuelCost;
         tripSummary.drivingDays = Math.ceil(tripSummary.totalDurationMinutes / 60 / settings.maxDriveHours);
+        // Extend fullGeometry to cover both legs so resolveStopTowns can
+        // interpolate positions past the midpoint (e.g. ~1855km on a 2786km
+        // round trip). Return leg follows the same road in reverse.
+        const outboundGeo = tripSummary.fullGeometry ?? [];
+        const returnGeo = [...outboundGeo].reverse();
+        // Skip the duplicated midpoint (last point of outbound === first of return)
+        tripSummary.fullGeometry = [...outboundGeo, ...returnGeo.slice(1)] as [number, number][];
       }
 
       tripSummary.segments = segmentsWithTimes;
