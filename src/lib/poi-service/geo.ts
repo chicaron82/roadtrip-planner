@@ -42,8 +42,12 @@ export function computeRouteBbox(routeGeometry: [number, number][], bufferKm: nu
     if (lng < minLng) minLng = lng;
     if (lng > maxLng) maxLng = lng;
   }
-  const buffer = bufferKm / 111; // ~1 degree ≈ 111km
-  return `${minLat - buffer},${minLng - buffer},${maxLat + buffer},${maxLng + buffer}`;
+  const latBuffer = bufferKm / 111; // ~1 degree lat ≈ 111 km (constant)
+  // Longitude degrees shrink toward the poles: 1° lng ≈ 111 * cos(lat) km.
+  // Use the route midpoint latitude for the scaling factor.
+  const midLat = (minLat + maxLat) / 2;
+  const lngBuffer = bufferKm / (111 * Math.cos(midLat * Math.PI / 180));
+  return `${minLat - latBuffer},${minLng - lngBuffer},${maxLat + latBuffer},${maxLng + lngBuffer}`;
 }
 
 /**
