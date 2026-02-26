@@ -94,7 +94,7 @@ export function analyzeDateWindow(
         category: 'date-window',
         severity: 'warning',
         message: 'No free days at destination — entire trip is driving',
-        detail: `All ${totalCalendarDays} days are transit days. You\'ll arrive and immediately turn around.`,
+        detail: `All ${totalCalendarDays} days are transit days. You'll arrive and immediately turn around.`,
         suggestion: buildDateWindowSuggestion(settings, 1),
       });
     }

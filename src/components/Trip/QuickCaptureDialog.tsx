@@ -42,7 +42,8 @@ export function QuickCaptureDialog({
   // Auto-request GPS when dialog opens so it's ready by save time
   useEffect(() => {
     if (!open) {
-      // Reset all state on close
+      // Reset all state on close (React 18+ batches these, no cascading renders)
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronous reset on dialog close is intentional
       setLocationName('');
       setNotes('');
       setCategory('other');

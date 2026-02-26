@@ -28,7 +28,9 @@ export function AnimatedPolyline({
       pos[0] !== 0 && pos[1] !== 0 // Also filter out [0,0] coordinates
     );
 
-    // Reset and start animation when positions change
+    // Reset and start animation when positions change.
+    // React 18+ batches these synchronous setState calls in effects — no cascading renders.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisiblePositions([]);
     setIsAnimating(true);
 

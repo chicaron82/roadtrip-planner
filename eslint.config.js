@@ -19,5 +19,22 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // Allow _prefixed variables/args as intentional "I know it's unused" signal
+      '@typescript-eslint/no-unused-vars': ['error', {
+        varsIgnorePattern: '^_',
+        argsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      }],
+    },
+  },
+  {
+    // App.tsx orchestrator — freeze at current size, goal is <300 lines.
+    // TODO: extract more hooks/controllers until this file hits the 300-line target.
+    // See CLAUDE.md for the architectural rules this enforces.
+    files: ['src/App.tsx'],
+    rules: {
+      'max-lines': ['error', { max: 460, skipBlankLines: true, skipComments: true }],
+    },
   },
 ])

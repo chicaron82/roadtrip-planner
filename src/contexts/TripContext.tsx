@@ -1,3 +1,6 @@
+// Context files intentionally export both the provider component and hooks/constants
+// in the same file. Splitting them would scatter the API across multiple files.
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import type { Location, Vehicle, TripSettings, TripSummary, TripBudget } from '../types';
 import { DEFAULT_BUDGET } from '../lib/budget';
@@ -136,7 +139,6 @@ export function TripProvider({
       lastAutoFuelPrice.current = suggested;
       return { ...prev, gasPrice: suggested };
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [originName, settings.currency]);
 
   // Location Helpers

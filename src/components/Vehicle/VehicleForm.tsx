@@ -41,11 +41,13 @@ export function VehicleForm({ vehicle, setVehicle, units, setUnits }: VehicleFor
   useEffect(() => {
     const defaultVehicle = getDefaultVehicle();
     if (defaultVehicle) {
-      const { id, name, lastUsed, isDefault, ...vehicleData } = defaultVehicle;
+      // Metadata fields not needed in the form state — omit via destructure
+      const { id: _id, name: _name, lastUsed: _lastUsed, isDefault: _isDefault, ...vehicleData } = defaultVehicle;
       setVehicle(vehicleData);
       setIsCustomMake(COMMON_MAKES.indexOf(defaultVehicle.make) === -1);
       setIsCustomModel(!VEHICLE_DB[defaultVehicle.make]?.[defaultVehicle.model]);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- empty dep array is intentional; setVehicle is stable
   }, []); // Only on mount
 
   // Auto-populate stats when Make/Model changes
@@ -56,7 +58,8 @@ export function VehicleForm({ vehicle, setVehicle, units, setUnits }: VehicleFor
     if (makeData) {
       const stats = makeData[vehicle.model];
       if (stats) {
-        let { city, hwy, tank, isEV: vehicleIsEV } = stats;
+        const { isEV: vehicleIsEV } = stats;
+        let { city, hwy, tank } = stats;
 
         // Set EV flag
         setIsEV(!!vehicleIsEV);

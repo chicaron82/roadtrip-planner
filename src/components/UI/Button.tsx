@@ -20,6 +20,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     if (asChild && React.isValidElement(children)) {
       // Merge button styles onto the child element (Slot-like behavior)
       const child = children as React.ReactElement<Record<string, unknown>>;
+      // eslint-disable-next-line react-hooks/refs -- forwardRef intentionally uses ref during render
       return React.cloneElement(child, {
         ...props,
         ref,
@@ -40,4 +41,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 )
 Button.displayName = "Button"
 
-export { Button, buttonVariants }
+// buttonVariants is exported from ./button-variants directly — re-exporting it
+// here causes a react-refresh/only-export-components violation (mixes component
+// and non-component exports in the same file).
+export { Button }

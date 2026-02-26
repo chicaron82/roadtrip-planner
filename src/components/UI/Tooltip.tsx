@@ -27,6 +27,7 @@ const TooltipTrigger = React.forwardRef<HTMLElement, TooltipTriggerProps>(
   ({ asChild, children, ...props }, ref) => {
     if (asChild && React.isValidElement(children)) {
       const child = children as React.ReactElement<Record<string, unknown>>;
+      // eslint-disable-next-line react-hooks/refs -- forwardRef intentionally uses ref during render
       return React.cloneElement(child, {
         ...props,
         ref,

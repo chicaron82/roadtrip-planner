@@ -297,7 +297,7 @@ export const getLastOrigin = (): Location | null => {
     // Sanity-check: must have valid coords and a name
     if (!loc.lat || !loc.lng || loc.lat === 0 || !loc.name) return null;
     return loc;
-  } catch (e) {
+  } catch {
     return null;
   }
 };

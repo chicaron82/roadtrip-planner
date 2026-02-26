@@ -77,6 +77,8 @@ export function findOptimalReturnDeparture(
   const SCAN_STEP_MIN = 15;
   const SCAN_RANGE_MIN = 120;
   const HUB_SNAP_KM = 80;
+  // Minutes saved by merging two stops into a combo (one pit stop instead of two separate ones)
+  const COMBO_TIME_SAVED_MIN = 30;
 
   // Track best result: prioritise smallest |delta|, then largest time saved
   let best: ReturnDepartureSuggestion | null = null;
@@ -118,7 +120,6 @@ export function findOptimalReturnDeparture(
       if (returnDestName && hubLower.includes(returnDestName.split(',')[0])) continue;
 
       // Prefer deltas that save the most time with the smallest time change
-      const timeSaved = 30; // combo saves one separate stop (~15min stop + overhead)
       const absDelta = Math.abs(delta);
 
       if (!best || absDelta < Math.abs(best.minutesDelta)) {
@@ -128,7 +129,7 @@ export function findOptimalReturnDeparture(
           suggestedTime: `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`,
           hubName: hub.name,
           minutesDelta: delta,
-          timeSavedMinutes: timeSaved,
+          timeSavedMinutes: COMBO_TIME_SAVED_MIN,
           comboKm,
         };
       }

@@ -70,7 +70,6 @@ export function VehicleGarage({ vehicle, onSelectVehicle }: VehicleGarageProps) 
     setGarageId(id);
     const saved = garage.find(v => v.id === id);
     if (saved) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id: _id, name: _name, lastUsed: _lastUsed, isDefault: _isDefault, ...vehicleData } = saved;
       onSelectVehicle(vehicleData, saved);
     }

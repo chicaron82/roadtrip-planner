@@ -80,9 +80,9 @@ export function findOptimalOutboundDeparture(
   // Calculate total outbound distance to avoid suggesting combo past destination
   const totalOutboundKm = outboundSegments.reduce((sum, s) => sum + s.distanceKm, 0);
 
-  // Calculate average speed from segments
+  // Calculate average speed (informational — drives future scoring enhancements)
   const totalOutboundMinutes = outboundSegments.reduce((sum, s) => sum + s.durationMinutes, 0);
-  const avgSpeedKmH = (totalOutboundKm / totalOutboundMinutes) * 60;
+  const _avgSpeedKmH = (totalOutboundKm / totalOutboundMinutes) * 60;
 
   // Extract origin/destination to skip
   const originName = outboundSegments[0]?.from?.name?.toLowerCase() ?? '';
@@ -91,7 +91,7 @@ export function findOptimalOutboundDeparture(
   let best: (OutboundDepartureSuggestion & { score: number }) | null = null;
 
   // Scan departure times from 7:00 AM to 10:00 AM
-  for (let depHour = 7; depHour <= 10; depHour += 0.25) {
+  for (let depHour = 7; depHour <= 10; depHour += SCAN_STEP_MIN / 60) {
     const candidateDeparture = new Date(currentDeparture);
     candidateDeparture.setHours(Math.floor(depHour));
     candidateDeparture.setMinutes((depHour % 1) * 60);
