@@ -12,9 +12,9 @@ import { DateRangePicker } from '../UI/DateRangePicker';
 import { ClockPicker } from '../UI/ClockPicker';
 
 const MODE_HEADERS: Record<TripMode, { title: string; subtitle: string }> = {
-  plan: { title: 'Where are you going?', subtitle: 'Add your starting point, destination, and any stops along the way.' },
-  adventure: { title: 'Where are you starting from?', subtitle: 'Set your origin — we\'ll find your adventure.' },
-  estimate: { title: 'What\'s the route?', subtitle: 'Add your stops — we\'ll calculate what it\'ll cost.' },
+  plan: { title: 'Where is your MEE time?', subtitle: 'Add your starting point, destination, and any stops along the way.' },
+  adventure: { title: 'Where does your MEE time begin?', subtitle: 'Set your origin — we\'ll find your adventure.' },
+  estimate: { title: 'Where is your MEE time?', subtitle: 'Add your stops — we\'ll calculate what it\'ll cost.' },
 };
 
 interface Step1ContentProps {
@@ -85,7 +85,7 @@ export function Step1Content({
       <div>
         <h3 className="text-sm font-semibold flex items-center gap-2 mb-3">
           <Calendar className="h-4 w-4 text-primary" />
-          When?
+          When is your MEE time?
         </h3>
 
         {/* Date Range — single calendar range picker */}
