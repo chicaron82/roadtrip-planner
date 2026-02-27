@@ -70,7 +70,7 @@ export function WizardContent({
 
   return (
     <div
-      className="sidebar-dark flex flex-col flex-1 min-h-0"
+      className="sidebar-dark flex flex-col flex-1 min-h-0 bg-background text-foreground"
     >
       {/* POI Category Bar (Step 3 only) */}
       {planningStep === 3 && (
@@ -115,7 +115,7 @@ export function WizardContent({
       </div>
 
       {/* Navigation Footer */}
-      <div className="p-3 border-t border-white/10 shrink-0">
+      <div className="sidebar-nav-footer p-3 shrink-0">
         <div className="flex gap-2">
           {planningStep > 1 && (
             <Button variant="outline" onClick={onBack} className="flex-1">
