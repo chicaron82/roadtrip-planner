@@ -334,7 +334,7 @@ function AppContent() {
       <div className="mee-vignette absolute inset-0 pointer-events-none z-[1]" />
 
       {/* ── Floating glass panel ── */}
-      <div className="sidebar-dark mee-panel absolute left-0 top-0 bottom-0 z-10 w-full md:w-[440px] flex flex-col overflow-hidden">
+      <div className="sidebar-dark mee-panel absolute inset-0 z-10 w-full flex flex-col overflow-hidden md:inset-auto md:left-6 md:top-6 md:bottom-6 md:w-[420px]">
         <StepsBanner
           currentStep={planningStep}
           completedSteps={completedSteps}
