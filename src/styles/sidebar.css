@@ -155,13 +155,39 @@
 /* ── Dark-aware form elements ── */
 .sidebar-dark input[type="date"],
 .sidebar-dark input[type="time"],
-.sidebar-dark input[type="text"],
 .sidebar-dark input[type="number"],
 .sidebar-dark select,
 .sidebar-dark textarea {
   background: hsl(24 8% 11%) !important;   /* warm dark input bg */
   border-color: hsl(24 8% 20%) !important;
   color: hsl(36 25% 88%) !important;
+}
+
+/* Underline inputs — location search fields */
+.sidebar-dark input[type="text"] {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid rgba(245, 240, 232, 0.18) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font-family: 'Cormorant Garamond', serif !important;
+  font-size: 19px !important;
+  font-weight: 300 !important;
+  color: #f5f0e8 !important;
+  padding: 6px 24px 8px 0 !important;
+  height: auto !important;
+}
+
+.sidebar-dark input[type="text"]:focus {
+  border-bottom-color: rgba(249, 115, 22, 0.55) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.sidebar-dark input[type="text"]::placeholder {
+  color: rgba(245, 240, 232, 0.2) !important;
+  font-style: italic !important;
+  font-family: 'Cormorant Garamond', serif !important;
 }
 
 .sidebar-dark input::placeholder,
@@ -723,4 +749,76 @@
 .mee-outline-button:hover {
   border-color: rgba(245, 240, 232, 0.22);
   color: rgba(245, 240, 232, 0.8);
+}
+
+/* ═══════════════════════════════════════════════════════════
+ * MEE DEFERRED — Heartbeat Orb + Road SVG + Picker Polish
+ * ═══════════════════════════════════════════════════════════ */
+
+/* ─── Animated road SVG ─────────────────────────────────── */
+
+.mee-road-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.07;
+  pointer-events: none;
+}
+
+/* ─── Heartbeat orb ─────────────────────────────────────── */
+
+.mee-pulse-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(249, 115, 22, 0.5);
+  animation: meePulseRing 2.5s ease infinite;
+}
+
+.mee-orb-inner {
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background: rgba(249, 115, 22, 0.12);
+  border: 1px solid rgba(249, 115, 22, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mee-orb-inner.beating {
+  animation: meeHeartbeat 3.5s ease infinite 1.5s;
+}
+
+.mee-orb-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #f97316;
+}
+
+@keyframes meePulseRing {
+  0%   { transform: scale(1);   opacity: 0.6; }
+  50%  { transform: scale(1.5); opacity: 0;   }
+  100% { transform: scale(1);   opacity: 0;   }
+}
+
+@keyframes meeHeartbeat {
+  0%, 100% { transform: scale(1);    }
+  25%       { transform: scale(1.1); }
+  50%       { transform: scale(1);   }
+  75%       { transform: scale(1.05);}
+}
+
+/* ─── DateRangePicker / ClockPicker warm polish ──────────── */
+
+/* Prevent glass panel bleed-through on picker trigger buttons */
+.sidebar-dark button[class*="bg-background"] {
+  background-color: hsl(24 8% 10%) !important;
+}
+
+/* Calendar day hover warm tint */
+.sidebar-dark [class*="rounded-2xl"] .hover\:bg-muted:hover {
+  background-color: hsla(24, 8%, 18%, 0.6) !important;
 }

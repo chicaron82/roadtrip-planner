@@ -67,6 +67,8 @@ export function StepsBanner({
   const mode = MODE_CONFIG[tripMode];
 
   const [taglineIndex, setTaglineIndex] = useState(0);
+  const [pulseActive, setPulseActive] = useState(false);
+  const [roadMounted, setRoadMounted] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -75,21 +77,61 @@ export function StepsBanner({
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    const orbId = setTimeout(() => setPulseActive(true), 1200);
+    const roadId = setTimeout(() => setRoadMounted(true), 100);
+    return () => { clearTimeout(orbId); clearTimeout(roadId); };
+  }, []);
+
   const canNavigateTo = (stepNumber: number) =>
     stepNumber <= currentStep || completedSteps.includes(stepNumber - 1);
 
   return (
-    <div className="w-full shrink-0 px-4 pt-4 pb-3 border-b border-white/5">
+    <div className="relative overflow-hidden w-full shrink-0 px-4 pt-4 pb-3 border-b border-white/5">
+
+      {/* ── Animated road SVG background ── */}
+      <svg className="mee-road-svg" viewBox="0 0 440 120" preserveAspectRatio="xMidYMid slice">
+        <path
+          d="M0,75 Q110,55 220,70 Q330,85 440,65"
+          stroke="#f97316" strokeWidth="1.5" fill="none"
+          strokeDasharray="600"
+          strokeDashoffset={roadMounted ? 0 : 600}
+          style={{ transition: 'stroke-dashoffset 2.5s ease' }}
+        />
+        <path
+          d="M0,95 Q150,90 280,100 Q360,106 440,95"
+          stroke="#c4a882" strokeWidth="0.8" fill="none" opacity={0.6}
+          strokeDasharray="600"
+          strokeDashoffset={roadMounted ? 0 : 600}
+          style={{ transition: 'stroke-dashoffset 3s ease 0.4s' }}
+        />
+        {([[80, 70], [220, 70], [370, 67]] as [number, number][]).map(([cx, cy], i) => (
+          <g key={i}>
+            <circle cx={cx} cy={cy} r="2.5" fill="#f97316" opacity={0.7} />
+            <circle cx={cx} cy={cy} r="7" fill="none" stroke="#f97316" strokeWidth="0.5" opacity={0.3} />
+          </g>
+        ))}
+      </svg>
 
       {/* ── Row 1: Brand + Mode Badge ── */}
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="mee-brand-title">My Experience Engine</h1>
-          <p className="mee-brand-sub">Road trips worth remembering</p>
-          <div className="mee-tagline">
-            <span key={taglineIndex} className="mee-tagline-inner">
-              {TAGLINES[taglineIndex]}
-            </span>
+        <div className="flex items-start gap-2.5 min-w-0">
+          {/* Heartbeat orb */}
+          <div style={{ position: 'relative', width: 28, height: 28, flexShrink: 0, marginTop: 2 }}>
+            {pulseActive && <div className="mee-pulse-ring" />}
+            <div className={`mee-orb-inner${pulseActive ? ' beating' : ''}`}>
+              <div className="mee-orb-dot" />
+            </div>
+          </div>
+          {/* Brand text */}
+          <div className="min-w-0">
+            <h1 className="mee-brand-title">My Experience Engine</h1>
+            <p className="mee-brand-sub">Road trips worth remembering</p>
+            <div className="mee-tagline">
+              <span key={taglineIndex} className="mee-tagline-inner">
+                {TAGLINES[taglineIndex]}
+              </span>
+            </div>
           </div>
         </div>
 
