@@ -10,38 +10,38 @@
 
 /* ── Dark sidebar scoping ── */
 .sidebar-dark {
-  /* Core surfaces — deep navy from landing screen */
-  --background: 225 30% 8%;
-  --foreground: 220 20% 92%;
-  --card: 225 28% 11%;
-  --card-foreground: 220 20% 92%;
-  --popover: 225 28% 11%;
-  --popover-foreground: 220 20% 92%;
+  /* Core surfaces — warm dark (Zee palette: #0a0a0b / #1a1208) */
+  --background: 24 8% 6%;       /* #0f0d0b — warm near-black */
+  --foreground: 36 25% 92%;     /* #f0ece4 — warm off-white */
+  --card: 24 8% 9%;             /* slightly lighter warm dark */
+  --card-foreground: 36 25% 92%;
+  --popover: 24 8% 9%;
+  --popover-foreground: 36 25% 92%;
 
-  /* Primary — amber/orange gradient accent (matches branding) */
-  --primary: 36 96% 56%;
-  --primary-foreground: 225 30% 8%;
+  /* Primary — orange accent */
+  --primary: 24 95% 52%;        /* #f97316 */
+  --primary-foreground: 24 8% 6%;
 
-  /* Secondary — subtle panel */
-  --secondary: 225 22% 15%;
-  --secondary-foreground: 220 20% 85%;
+  /* Secondary — subtle warm panel */
+  --secondary: 24 6% 13%;
+  --secondary-foreground: 36 20% 82%;
 
   /* Muted — deemphasized backgrounds */
-  --muted: 225 20% 14%;
-  --muted-foreground: 220 12% 58%;
+  --muted: 24 6% 12%;
+  --muted-foreground: 36 8% 52%;
 
   /* Accent — interactive hover */
-  --accent: 225 22% 17%;
-  --accent-foreground: 220 20% 92%;
+  --accent: 24 6% 15%;
+  --accent-foreground: 36 25% 92%;
 
   /* Destructive */
   --destructive: 0 62% 42%;
   --destructive-foreground: 0 0% 98%;
 
-  /* Borders + inputs — subtle contrast */
-  --border: 225 18% 20%;
-  --input: 225 18% 18%;
-  --ring: 36 96% 56%;
+  /* Borders + inputs — warm subtle contrast */
+  --border: 24 8% 17%;
+  --input: 24 8% 14%;
+  --ring: 24 95% 52%;
 
   color-scheme: dark;
 }
@@ -159,32 +159,32 @@
 .sidebar-dark input[type="number"],
 .sidebar-dark select,
 .sidebar-dark textarea {
-  background: hsl(225 22% 13%) !important;
-  border-color: hsl(225 18% 22%) !important;
-  color: hsl(220 20% 90%) !important;
+  background: hsl(24 8% 11%) !important;   /* warm dark input bg */
+  border-color: hsl(24 8% 20%) !important;
+  color: hsl(36 25% 88%) !important;
 }
 
 .sidebar-dark input::placeholder,
 .sidebar-dark textarea::placeholder {
-  color: hsl(220 12% 42%) !important;
+  color: hsl(36 8% 42%) !important;
 }
 
 .sidebar-dark input:focus,
 .sidebar-dark select:focus,
 .sidebar-dark textarea:focus {
-  border-color: hsl(36 96% 56%) !important;
-  box-shadow: 0 0 0 2px hsla(36, 96%, 56%, 0.15) !important;
+  border-color: hsl(24 95% 52%) !important;
+  box-shadow: 0 0 0 2px hsla(24, 95%, 52%, 0.15) !important;
 }
 
 /* Range slider thumb in dark */
 .sidebar-dark input[type="range"]::-webkit-slider-thumb {
-  background: hsl(36 96% 56%) !important;
-  border-color: hsl(225 30% 8%) !important;
+  background: hsl(24 95% 52%) !important;
+  border-color: hsl(24 8% 6%) !important;
 }
 
 .sidebar-dark input[type="range"]::-moz-range-thumb {
-  background: hsl(36 96% 56%) !important;
-  border-color: hsl(225 30% 8%) !important;
+  background: hsl(24 95% 52%) !important;
+  border-color: hsl(24 8% 6%) !important;
 }
 
 /* ── Info banners in dark ── */
@@ -318,15 +318,15 @@
 /* ── Ensure text readability ── */
 .sidebar-dark h2,
 .sidebar-dark h3 {
-  font-family: "Sora", system-ui, sans-serif;
-  color: hsl(220 20% 92%);
+  font-family: "DM Sans", system-ui, sans-serif;
+  color: hsl(36 25% 92%);
 }
 
 .sidebar-dark p,
 .sidebar-dark span,
 .sidebar-dark label,
 .sidebar-dark div {
-  font-family: "Sora", system-ui, sans-serif;
+  font-family: "DM Sans", system-ui, sans-serif;
 }
 
 /* ── Reduce motion ── */
@@ -346,16 +346,16 @@
 .sidebar-dark .bg-white,
 .sidebar-dark .bg-gray-50,
 .sidebar-dark .bg-gray-100 {
-  background-color: hsl(225 22% 14%) !important;
+  background-color: hsl(24 8% 11%) !important;
 }
 
 .sidebar-dark .bg-gray-200 {
-  background-color: hsl(225 18% 20%) !important;
+  background-color: hsl(24 8% 17%) !important;
 }
 
 .sidebar-dark .bg-white\/70,
 .sidebar-dark .bg-white\/80 {
-  background-color: hsla(225, 22%, 14%, 0.7) !important;
+  background-color: hsla(24, 8%, 11%, 0.7) !important;
 }
 
 /* ── Colored -50 backgrounds → translucent dark tints ── */
@@ -407,7 +407,7 @@
 .sidebar-dark .bg-yellow-100,
 .sidebar-dark .bg-red-100,
 .sidebar-dark .bg-indigo-100 {
-  background-color: hsla(225, 22%, 18%, 0.6) !important;
+  background-color: hsla(24, 8%, 16%, 0.6) !important;
 }
 
 /* ── Gradient stops ── */
@@ -416,7 +416,7 @@
 .sidebar-dark [class*="from-green-50"],
 .sidebar-dark [class*="from-amber-50"],
 .sidebar-dark [class*="from-orange-50"] {
-  --tw-gradient-from: hsla(225, 22%, 15%, 0.5) !important;
+  --tw-gradient-from: hsla(24, 8%, 12%, 0.5) !important;
 }
 
 .sidebar-dark [class*="to-blue-50"],
@@ -425,11 +425,11 @@
 .sidebar-dark [class*="to-indigo-50"],
 .sidebar-dark [class*="to-pink-50"],
 .sidebar-dark [class*="to-orange-50"] {
-  --tw-gradient-to: hsla(225, 22%, 12%, 0.5) !important;
+  --tw-gradient-to: hsla(24, 8%, 9%, 0.5) !important;
 }
 
 .sidebar-dark [class*="via-white"] {
-  --tw-gradient-via: hsla(225, 22%, 14%, 0.4) !important;
+  --tw-gradient-via: hsla(24, 8%, 11%, 0.4) !important;
 }
 
 /* ── Borders: *-200 → dark border ── */
@@ -475,7 +475,7 @@
 
 /* ── Dark text on light bg → light text ── */
 .sidebar-dark .text-gray-900 {
-  color: hsl(220 20% 92%) !important;
+  color: hsl(36 25% 92%) !important;
 }
 
 .sidebar-dark .text-blue-900 {
@@ -535,11 +535,11 @@
 .sidebar-dark .hover\:bg-yellow-50:hover,
 .sidebar-dark .hover\:bg-slate-50:hover,
 .sidebar-dark .hover\:bg-gray-100:hover {
-  background-color: hsla(225, 22%, 18%, 0.5) !important;
+  background-color: hsla(24, 8%, 16%, 0.5) !important;
 }
 
 .sidebar-dark .hover\:border-gray-300:hover {
-  border-color: hsl(225 18% 25%) !important;
+  border-color: hsl(24 8% 22%) !important;
 }
 
 .sidebar-dark .hover\:border-blue-200:hover {
@@ -547,7 +547,7 @@
 }
 
 .sidebar-dark .hover\:bg-white\/50:hover {
-  background-color: hsla(225, 22%, 16%, 0.5) !important;
+  background-color: hsla(24, 8%, 14%, 0.5) !important;
 }
 
 /* ── Red error banner ── */
@@ -559,7 +559,7 @@
 
 /* ── Toggle switch track ── */
 .sidebar-dark .bg-gray-300 {
-  background-color: hsl(225 18% 25%) !important;
+  background-color: hsl(24 8% 22%) !important;
 }
 
 /* ═══════════════════════════════════════════════════════════
