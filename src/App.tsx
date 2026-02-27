@@ -1,12 +1,11 @@
-import { useRef, useState, useCallback, useLayoutEffect, useEffect } from 'react';
-import { Map } from './components/Map/Map';
+import { useRef, useState, useCallback, useLayoutEffect } from 'react';
+import { CompactMap } from './components/CompactMap';
+import { StepsBanner } from './components/StepsBanner';
+import { WizardContent } from './components/WizardContent';
 import { TripSummaryCard } from './components/Trip/TripSummary';
 import { RouteStrategyPicker } from './components/Trip/RouteStrategyPicker';
 import { AdventureMode } from './components/Trip/AdventureMode';
 import { LandingScreen } from './components/Landing/LandingScreen';
-import { MobileBottomSheet } from './components/Trip/MobileBottomSheet';
-import { MobileStepSheet } from './components/Trip/MobileStepSheet';
-import { Sidebar } from './components/Sidebar/Sidebar';
 import { PlanningStepContent } from './components/Steps/PlanningStepContent';
 import './styles/sidebar.css';
 import { TripProvider, useTripContext, DEFAULT_LOCATIONS } from './contexts';
@@ -20,10 +19,10 @@ import { getHistory, getLastOrigin } from './lib/storage';
 import type { TripSummary, TripMode, POICategory } from './types';
 
 /**
- * App.tsx — Orchestrator Pattern
+ * App.tsx — Unified Stacked Layout (Portrait Glow Up)
  *
- * This file coordinates 11 hooks + TripContext. It does NOT contain business logic.
- * Logic lives in hooks (behavior) and lib/ (pure functions). This file only wires them together.
+ * Layout: StepsBanner → CompactMap → WizardContent
+ * Works identically on portrait (mobile) and landscape (desktop).
  *
  * HOOK DEPENDENCY FLOW:
  * ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -39,28 +38,14 @@ import type { TripSummary, TripMode, POICategory } from './types';
  * ├─────────────────────────────────────────────────────────────────────────────┤
  * │  LAYER 2: Hooks that depend on Layer 1 outputs                              │
  * │    • useTripCalculation — route calc, fuel stops, strategies                │
- * │         ↳ uses: locations, vehicle, settings                                │
- * │         ↳ outputs: summary, isCalculating, strategicFuelStops               │
  * │    • useWizard          — step navigation (1→2→3)                           │
- * │         ↳ uses: locations, vehicle                                          │
- * │         ↳ triggers: calculateAndDiscover on step 2→3 transition             │
  * ├─────────────────────────────────────────────────────────────────────────────┤
  * │  LAYER 3: Hooks that depend on Layer 2 outputs                              │
- * │    • useTripLoader      — template/challenge loading → sets locations       │
- * │         ↳ uses: wizard step controls (forceStep, markStepComplete)          │
- * │    • useJournal         — journal sessions (needs summary)                  │
- * │    • useMapInteractions — geometry + click handlers (needs summary)         │
- * │    • useURLHydration    — URL state restore (needs all setters)             │
+ * │    • useTripLoader      — template/challenge loading                        │
+ * │    • useJournal         — journal sessions                                  │
+ * │    • useMapInteractions — geometry + click handlers                         │
+ * │    • useURLHydration    — URL state restore                                 │
  * └─────────────────────────────────────────────────────────────────────────────┘
- *
- * REF PATTERN (breaking circular deps):
- * - onCalcCompleteRef: Lets useTripCalculation call wizard.forceStep(3) without
- *   importing useWizard directly. Updated in useLayoutEffect every render.
- * - settingsRef: Provides current settings to recordTrip() callback without
- *   adding settings to calculateAndDiscover's dependency array.
- *
- * ⚠️ RECURRING CONCERN: This file has been refactored twice (676→403 lines).
- * Route new state through TripContext or new hooks, NOT more props here.
  *
  * 💚 My Experience Engine
  */
@@ -72,27 +57,21 @@ function AppContent() {
   const { locations, setLocations, vehicle, setVehicle, settings, setSettings, summary, setSummary } = useTripContext();
 
   // ─── Layer 1: Independent Hooks ─────────────────────────────────────────────
-  // These have no cross-hook dependencies. Order doesn't matter.
-
-  // Eager route preview (dashed line before full calculation)
   const previewGeometry = useEagerRoute(locations);
 
   // ─── Refs (cross-hook coordination) ──────────────────────────────────────────
-  // These refs break circular dependencies between hooks. See module docstring.
   const onCalcCompleteRef = useRef<() => void>(() => {});
   const settingsRef = useRef(settings);
-  const sidebarScrollRef = useRef<HTMLDivElement>(null);
 
   // ─── Local UI State ─────────────────────────────────────────────────────────
   const [tripConfirmed, setTripConfirmed] = useState(false);
   const [history] = useState<TripSummary[]>(() => getHistory());
+  const [isMapExpanded, setIsMapExpanded] = useState(false);
 
   // Mode management (plan/adventure/estimate)
   const {
     tripMode, setTripMode,
     showAdventureMode, setShowAdventureMode,
-    showModeSwitcher, setShowModeSwitcher,
-    modeSwitcherRef,
     tripActive, setTripActive,
   } = useTripMode();
 
@@ -115,7 +94,6 @@ function AppContent() {
     useAddedStops(summary, settings.isRoundTrip);
 
   // ─── Layer 2: Calculation & Navigation ───────────────────────────────────────
-  // These depend on Layer 1 outputs and TripContext.
 
   // POI add — marks suggestion as added AND inserts it as a route waypoint
   const handleAddPOI = useCallback((poiId: string) => {
@@ -172,7 +150,7 @@ function AppContent() {
     markStepComplete, resetWizard,
   } = useWizard({ locations, vehicle, onCalculate: calculateAndDiscover });
 
-  // Keep refs current (runs after every render — no dep array)
+  // Keep refs current
   useLayoutEffect(() => {
     settingsRef.current = settings;
     onCalcCompleteRef.current = () => {
@@ -181,7 +159,6 @@ function AppContent() {
   });
 
   // ─── Layer 3: Dependent on Calculation Results ──────────────────────────────
-  // These need summary or wizard controls from Layer 2.
 
   // Trip loader (templates, challenges, adventure mode)
   const {
@@ -213,17 +190,10 @@ function AppContent() {
     setAdaptiveDefaults,
   });
 
-  // Scroll sidebar to top on step change
-  useEffect(() => {
-    sidebarScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
-  }, [planningStep]);
-
   // ==================== DERIVED / LOCAL CALLBACKS ====================
 
   const error = poiError || calcError;
-
   const clearError = useCallback(() => { clearPOIError(); clearCalcError(); }, [clearPOIError, clearCalcError]);
-  // Bind shareUrl into copyShareLink so PlanningStepContent gets () => void
   const copyShareLink = useCallback(() => triggerCopyShareLink(shareUrl), [triggerCopyShareLink, shareUrl]);
 
   const handleToggleCategory = useCallback((id: POICategory) => {
@@ -237,15 +207,11 @@ function AppContent() {
 
   const handleStepClick = useCallback((step: PlanningStep) => goToStep(step), [goToStep]);
 
-  const handleSwitchMode = useCallback((mode: TripMode) => {
-    if (mode === 'adventure') { setTripMode('adventure'); setShowAdventureMode(true); }
-    else setTripMode(mode);
-  }, [setTripMode, setShowAdventureMode]);
-
   const resetTrip = useCallback(() => {
     setLocations(DEFAULT_LOCATIONS); setSummary(null);
     resetPOIs(); resetWizard(); clearStops(); clearTripCalculation();
     setActiveChallenge(null); setTripOrigin(null); setTripConfirmed(false);
+    setIsMapExpanded(false);
   }, [setLocations, setSummary, resetWizard, resetPOIs, clearStops, clearTripCalculation, setActiveChallenge, setTripOrigin]);
 
   const handleSelectMode = useCallback((mode: TripMode) => {
@@ -253,7 +219,6 @@ function AppContent() {
     window.history.replaceState({}, '', window.location.pathname);
     resetWizard(); setTripMode(mode);
     if (mode === 'adventure') setShowAdventureMode(true);
-    // Re-apply saved origin after reset so the field pre-fills on Step 1
     const lastOrigin = getLastOrigin();
     if (lastOrigin) {
       setLocations(prev =>
@@ -266,6 +231,10 @@ function AppContent() {
     setTripMode('plan');
     if (planningStep === 3 && locations.length >= 2) calculateAndDiscover();
   }, [setTripMode, planningStep, locations.length, calculateAndDiscover]);
+
+  const handleToggleMapExpand = useCallback(() => {
+    setIsMapExpanded(prev => !prev);
+  }, []);
 
   // ==================== RENDER ====================
 
@@ -323,50 +292,55 @@ function AppContent() {
     />
   );
 
-  return (
-    <div className="flex flex-col md:flex-row h-screen w-full overflow-hidden bg-background text-foreground">
-      {/* Desktop sidebar */}
-      <Sidebar
-        planningStep={planningStep} completedSteps={completedSteps}
-        canProceedFromStep1={canProceedFromStep1} canProceedFromStep2={canProceedFromStep2}
-        isCalculating={isCalculating}
-        onStepClick={handleStepClick} onNext={goToNextStep} onBack={goToPrevStep} onReset={resetTrip}
-        tripMode={tripMode}
-        showModeSwitcher={showModeSwitcher} setShowModeSwitcher={setShowModeSwitcher}
-        modeSwitcherRef={modeSwitcherRef} onSwitchMode={handleSwitchMode}
-        markerCategories={markerCategories} loadingCategory={loadingCategory}
-        onToggleCategory={handleToggleCategory}
-        error={error} onClearError={clearError}
-        sidebarScrollRef={sidebarScrollRef}
-      >
-        {stepContent}
-      </Sidebar>
+  const canProceed = planningStep === 1 ? canProceedFromStep1 : canProceedFromStep2;
 
-      {/* Map area */}
-      <div className="flex-1 relative h-full md:h-full order-1 md:order-2">
-        <Map
-          locations={locations} routeGeometry={validRouteGeometry}
-          feasibilityStatus={routeFeasibilityStatus} pois={pois}
-          markerCategories={markerCategories} tripActive={tripActive}
-          strategicFuelStops={strategicFuelStops} addedPOIIds={addedPOIIds}
-          dayOptions={mapDayOptions} onMapClick={handleMapClick}
-          onAddPOI={summary ? handleAddPOIFromMap : undefined}
-          previewGeometry={validRouteGeometry ? null : previewGeometry}
+  return (
+    <div className="flex flex-col h-screen w-full overflow-hidden bg-background text-foreground">
+      {/* Steps Banner (always visible unless map expanded) */}
+      {!isMapExpanded && (
+        <StepsBanner
+          currentStep={planningStep}
+          completedSteps={completedSteps}
           tripMode={tripMode}
-          alternateGeometries={routeStrategies
-            .filter((_, i) => i !== activeStrategyIndex)
-            .map((s) => ({
-              geometry: s.geometry,
-              label: s.label,
-              emoji: s.emoji,
-              onSelect: () => selectStrategy(routeStrategies.indexOf(s)),
-            }))
-          }
-          tripDays={summary?.days}
-          routeSegments={summary?.segments}
+          isCalculating={isCalculating}
+          onStepClick={handleStepClick}
         />
-        {summary && planningStep === 3 && (
-          <div className="hidden md:block relative">
+      )}
+
+      {/* Compact Map (expands on click) */}
+      <CompactMap
+        isExpanded={isMapExpanded}
+        onToggleExpand={handleToggleMapExpand}
+        locations={locations}
+        routeGeometry={validRouteGeometry}
+        feasibilityStatus={routeFeasibilityStatus}
+        pois={pois}
+        markerCategories={markerCategories}
+        tripActive={tripActive}
+        strategicFuelStops={strategicFuelStops}
+        addedPOIIds={addedPOIIds}
+        dayOptions={mapDayOptions}
+        onMapClick={handleMapClick}
+        onAddPOI={summary ? handleAddPOIFromMap : undefined}
+        previewGeometry={validRouteGeometry ? null : previewGeometry}
+        tripMode={tripMode}
+        alternateGeometries={routeStrategies
+          .filter((_, i) => i !== activeStrategyIndex)
+          .map((s) => ({
+            geometry: s.geometry,
+            label: s.label,
+            emoji: s.emoji,
+            onSelect: () => selectStrategy(routeStrategies.indexOf(s)),
+          }))
+        }
+        tripDays={summary?.days}
+        routeSegments={summary?.segments}
+      />
+
+      {/* Map expanded overlays (route picker + trip summary) */}
+      {isMapExpanded && summary && planningStep === 3 && (
+        <div className="fixed bottom-4 left-4 right-4 z-[1002] flex flex-col gap-2 pointer-events-none">
+          <div className="pointer-events-auto">
             <RouteStrategyPicker
               strategies={routeStrategies}
               activeIndex={activeStrategyIndex}
@@ -374,61 +348,37 @@ function AppContent() {
               units={settings.units}
               isRoundTrip={settings.isRoundTrip}
             />
+          </div>
+          <div className="pointer-events-auto">
             <TripSummaryCard
-              summary={summary} settings={settings} tripActive={tripActive}
-              onStop={() => setTripActive(false)} onOpenVehicleTab={() => goToStep(2)}
+              summary={summary}
+              settings={settings}
+              tripActive={tripActive}
+              onStop={() => setTripActive(false)}
+              onOpenVehicleTab={() => { setIsMapExpanded(false); goToStep(2); }}
             />
           </div>
-        )}
-      </div>
-
-      {/* Mobile: steps 1 & 2 sheet */}
-      {planningStep < 3 && (
-        <div className="md:hidden">
-          <MobileStepSheet
-            stepNumber={planningStep as 1 | 2}
-            stepTitle={planningStep === 1 ? 'Where are you going?' : 'Trip settings'}
-            tripMode={tripMode}
-            canProceed={planningStep === 1 ? canProceedFromStep1 : canProceedFromStep2}
-            isLoading={isCalculating}
-            onNext={goToNextStep}
-            nextLabel={
-              isCalculating ? 'Calculating…' :
-              planningStep === 2 ? (tripMode === 'estimate' ? 'Price My MEE Time' : tripMode === 'adventure' ? 'Find My MEE Time' : 'Design My MEE Time') :
-              'Next'
-            }
-            onBack={planningStep > 1 ? goToPrevStep : undefined}
-            hasPreview={!!previewGeometry}
-          >
-            {stepContent}
-          </MobileStepSheet>
         </div>
       )}
 
-      {/* Mobile: step 3 bottom sheet */}
-      {planningStep === 3 && (
-        <div className="md:hidden">
-          <MobileBottomSheet
-            summary={summary} settings={settings}
-            onReset={resetTrip} onGoBack={goToPrevStep} viewMode={viewMode}
-            poiBar={
-              <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
-                {markerCategories.map(cat => (
-                  <button
-                    key={cat.id}
-                    onClick={() => !loadingCategory && handleToggleCategory(cat.id)}
-                    disabled={!!loadingCategory}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all whitespace-nowrap ${cat.visible ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-background text-muted-foreground border-border hover:bg-muted'} ${loadingCategory && loadingCategory !== cat.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    <span>{cat.emoji}</span><span>{cat.label}</span>
-                  </button>
-                ))}
-              </div>
-            }
-          >
-            {stepContent}
-          </MobileBottomSheet>
-        </div>
+      {/* Wizard Content (form below map, hidden when map expanded) */}
+      {!isMapExpanded && (
+        <WizardContent
+          planningStep={planningStep}
+          canProceed={canProceed}
+          isCalculating={isCalculating}
+          onNext={goToNextStep}
+          onBack={goToPrevStep}
+          onReset={resetTrip}
+          tripMode={tripMode}
+          markerCategories={markerCategories}
+          loadingCategory={loadingCategory}
+          onToggleCategory={handleToggleCategory}
+          error={error}
+          onClearError={clearError}
+        >
+          {stepContent}
+        </WizardContent>
       )}
 
       {/* Adventure mode modal */}

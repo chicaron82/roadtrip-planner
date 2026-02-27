@@ -80,10 +80,6 @@ export function findOptimalOutboundDeparture(
   // Calculate total outbound distance to avoid suggesting combo past destination
   const totalOutboundKm = outboundSegments.reduce((sum, s) => sum + s.distanceKm, 0);
 
-  // Calculate average speed (informational — drives future scoring enhancements)
-  const totalOutboundMinutes = outboundSegments.reduce((sum, s) => sum + s.durationMinutes, 0);
-  const _avgSpeedKmH = (totalOutboundKm / totalOutboundMinutes) * 60;
-
   // Extract origin/destination to skip
   const originName = outboundSegments[0]?.from?.name?.toLowerCase() ?? '';
   const destName = outboundSegments[outboundSegments.length - 1]?.to?.name?.toLowerCase() ?? '';
