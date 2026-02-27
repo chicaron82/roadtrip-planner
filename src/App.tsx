@@ -2,6 +2,7 @@ import { useRef, useState, useCallback, useLayoutEffect } from 'react';
 import { CompactMap } from './components/CompactMap';
 import { StepsBanner } from './components/StepsBanner';
 import { WizardContent } from './components/WizardContent';
+import { Map } from './components/Map/Map';
 import { TripSummaryCard } from './components/Trip/TripSummary';
 import { RouteStrategyPicker } from './components/Trip/RouteStrategyPicker';
 import { AdventureMode } from './components/Trip/AdventureMode';
@@ -72,6 +73,8 @@ function AppContent() {
   const {
     tripMode, setTripMode,
     showAdventureMode, setShowAdventureMode,
+    showModeSwitcher, setShowModeSwitcher,
+    modeSwitcherRef,
     tripActive, setTripActive,
   } = useTripMode();
 
@@ -207,6 +210,11 @@ function AppContent() {
 
   const handleStepClick = useCallback((step: PlanningStep) => goToStep(step), [goToStep]);
 
+  const handleSwitchMode = useCallback((mode: TripMode) => {
+    if (mode === 'adventure') { setTripMode('adventure'); setShowAdventureMode(true); }
+    else setTripMode(mode);
+  }, [setTripMode, setShowAdventureMode]);
+
   const resetTrip = useCallback(() => {
     setLocations(DEFAULT_LOCATIONS); setSummary(null);
     resetPOIs(); resetWizard(); clearStops(); clearTripCalculation();
@@ -294,92 +302,132 @@ function AppContent() {
 
   const canProceed = planningStep === 1 ? canProceedFromStep1 : canProceedFromStep2;
 
+  // Shared map props — used by both CompactMap (mobile) and Map (desktop)
+  const mapProps = {
+    locations,
+    routeGeometry: validRouteGeometry,
+    feasibilityStatus: routeFeasibilityStatus,
+    pois,
+    markerCategories,
+    tripActive,
+    strategicFuelStops,
+    addedPOIIds,
+    dayOptions: mapDayOptions,
+    onMapClick: handleMapClick,
+    onAddPOI: summary ? handleAddPOIFromMap : undefined,
+    previewGeometry: validRouteGeometry ? null : previewGeometry,
+    tripMode,
+    alternateGeometries: routeStrategies
+      .filter((_, i) => i !== activeStrategyIndex)
+      .map((s) => ({
+        geometry: s.geometry,
+        label: s.label,
+        emoji: s.emoji,
+        onSelect: () => selectStrategy(routeStrategies.indexOf(s)),
+      })),
+    tripDays: summary?.days,
+    routeSegments: summary?.segments,
+  } as const;
+
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden bg-background text-foreground">
-      {/* Steps Banner (always visible unless map expanded) */}
-      {!isMapExpanded && (
-        <StepsBanner
-          currentStep={planningStep}
-          completedSteps={completedSteps}
-          tripMode={tripMode}
-          isCalculating={isCalculating}
-          onStepClick={handleStepClick}
-        />
-      )}
 
-      {/* Compact Map (expands on click) */}
-      <CompactMap
-        isExpanded={isMapExpanded}
-        onToggleExpand={handleToggleMapExpand}
-        locations={locations}
-        routeGeometry={validRouteGeometry}
-        feasibilityStatus={routeFeasibilityStatus}
-        pois={pois}
-        markerCategories={markerCategories}
-        tripActive={tripActive}
-        strategicFuelStops={strategicFuelStops}
-        addedPOIIds={addedPOIIds}
-        dayOptions={mapDayOptions}
-        onMapClick={handleMapClick}
-        onAddPOI={summary ? handleAddPOIFromMap : undefined}
-        previewGeometry={validRouteGeometry ? null : previewGeometry}
+      {/* ── Shared header (branding + mode badge + steps) ── */}
+      <StepsBanner
+        currentStep={planningStep}
+        completedSteps={completedSteps}
         tripMode={tripMode}
-        alternateGeometries={routeStrategies
-          .filter((_, i) => i !== activeStrategyIndex)
-          .map((s) => ({
-            geometry: s.geometry,
-            label: s.label,
-            emoji: s.emoji,
-            onSelect: () => selectStrategy(routeStrategies.indexOf(s)),
-          }))
-        }
-        tripDays={summary?.days}
-        routeSegments={summary?.segments}
+        isCalculating={isCalculating}
+        onStepClick={handleStepClick}
+        showModeSwitcher={showModeSwitcher}
+        setShowModeSwitcher={setShowModeSwitcher}
+        modeSwitcherRef={modeSwitcherRef}
+        onSwitchMode={handleSwitchMode}
       />
 
-      {/* Map expanded overlays (route picker + trip summary) */}
-      {isMapExpanded && summary && planningStep === 3 && (
-        <div className="fixed bottom-4 left-4 right-4 z-[1002] flex flex-col gap-2 pointer-events-none">
-          <div className="pointer-events-auto">
-            <RouteStrategyPicker
-              strategies={routeStrategies}
-              activeIndex={activeStrategyIndex}
-              onSelect={selectStrategy}
-              units={settings.units}
-              isRoundTrip={settings.isRoundTrip}
-            />
-          </div>
-          <div className="pointer-events-auto">
-            <TripSummaryCard
-              summary={summary}
-              settings={settings}
-              tripActive={tripActive}
-              onStop={() => setTripActive(false)}
-              onOpenVehicleTab={() => { setIsMapExpanded(false); goToStep(2); }}
-            />
-          </div>
-        </div>
-      )}
+      {/* ── Body: portrait = column, desktop = row ── */}
+      <div className="flex-1 flex flex-col md:flex-row min-h-0">
 
-      {/* Wizard Content (form below map, hidden when map expanded) */}
-      {!isMapExpanded && (
-        <WizardContent
-          planningStep={planningStep}
-          canProceed={canProceed}
-          isCalculating={isCalculating}
-          onNext={goToNextStep}
-          onBack={goToPrevStep}
-          onReset={resetTrip}
-          tripMode={tripMode}
-          markerCategories={markerCategories}
-          loadingCategory={loadingCategory}
-          onToggleCategory={handleToggleCategory}
-          error={error}
-          onClearError={clearError}
-        >
-          {stepContent}
-        </WizardContent>
-      )}
+        {/* Portrait map (between header and form, hidden on desktop) */}
+        <div className="md:hidden shrink-0">
+          <CompactMap
+            isExpanded={isMapExpanded}
+            onToggleExpand={handleToggleMapExpand}
+            {...mapProps}
+          />
+        </div>
+
+        {/* Form — portrait: below map | desktop: left sidebar */}
+        <div className={`md:w-[420px] md:h-full md:flex-shrink-0 flex flex-col min-h-0 ${isMapExpanded ? 'hidden' : ''}`}>
+          <WizardContent
+            planningStep={planningStep}
+            canProceed={canProceed}
+            isCalculating={isCalculating}
+            onNext={goToNextStep}
+            onBack={goToPrevStep}
+            onReset={resetTrip}
+            tripMode={tripMode}
+            markerCategories={markerCategories}
+            loadingCategory={loadingCategory}
+            onToggleCategory={handleToggleCategory}
+            error={error}
+            onClearError={clearError}
+          >
+            {stepContent}
+          </WizardContent>
+        </div>
+
+        {/* Desktop map (right side, hidden on portrait) */}
+        <div className="hidden md:flex flex-1 relative">
+          <Map {...mapProps} />
+          {summary && planningStep === 3 && (
+            <div className="absolute bottom-4 left-4 right-4 flex flex-col gap-2 pointer-events-none">
+              <div className="pointer-events-auto">
+                <RouteStrategyPicker
+                  strategies={routeStrategies}
+                  activeIndex={activeStrategyIndex}
+                  onSelect={selectStrategy}
+                  units={settings.units}
+                  isRoundTrip={settings.isRoundTrip}
+                />
+              </div>
+              <div className="pointer-events-auto">
+                <TripSummaryCard
+                  summary={summary}
+                  settings={settings}
+                  tripActive={tripActive}
+                  onStop={() => setTripActive(false)}
+                  onOpenVehicleTab={() => goToStep(2)}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Portrait map-expanded overlays */}
+        {isMapExpanded && summary && planningStep === 3 && (
+          <div className="md:hidden fixed bottom-4 left-4 right-4 z-[1002] flex flex-col gap-2 pointer-events-none">
+            <div className="pointer-events-auto">
+              <RouteStrategyPicker
+                strategies={routeStrategies}
+                activeIndex={activeStrategyIndex}
+                onSelect={selectStrategy}
+                units={settings.units}
+                isRoundTrip={settings.isRoundTrip}
+              />
+            </div>
+            <div className="pointer-events-auto">
+              <TripSummaryCard
+                summary={summary}
+                settings={settings}
+                tripActive={tripActive}
+                onStop={() => setTripActive(false)}
+                onOpenVehicleTab={() => { setIsMapExpanded(false); goToStep(2); }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Adventure mode modal */}
       {showAdventureMode && (
