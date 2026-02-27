@@ -10,7 +10,6 @@
 
 import { useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-import { Button } from './UI/Button';
 import { Spinner } from './UI/Spinner';
 import type { TripMode, MarkerCategory, POICategory } from '../types';
 import type { PlanningStep } from '../hooks/useWizard';
@@ -118,29 +117,29 @@ export function WizardContent({
       <div className="sidebar-nav-footer p-3 shrink-0">
         <div className="flex gap-2">
           {planningStep > 1 && (
-            <Button variant="outline" onClick={onBack} className="flex-1">
-              <ChevronLeft className="h-4 w-4 mr-1" /> Back
-            </Button>
+            <button className="mee-outline-button flex-1" onClick={onBack}>
+              <ChevronLeft size={14} /> Back
+            </button>
           )}
           {planningStep < 3 && (
-            <Button
+            <button
+              className="mee-cta-button flex-1"
               onClick={onNext}
               disabled={!canProceed || isCalculating}
-              className="flex-1"
             >
               {isCalculating ? (
-                <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Calculating...</>
+                <><Loader2 size={14} className="animate-spin" /> Calculating…</>
               ) : planningStep === 2 ? (
-                <>{MODE_LABELS[tripMode]} <ChevronRight className="h-4 w-4 ml-1" /></>
+                <>{MODE_LABELS[tripMode]} <ChevronRight size={14} /></>
               ) : (
-                <>Next <ChevronRight className="h-4 w-4 ml-1" /></>
+                <>Next <ChevronRight size={14} /></>
               )}
-            </Button>
+            </button>
           )}
           {planningStep === 3 && (
-            <Button onClick={onReset} variant="outline" className="flex-1">
+            <button className="mee-outline-button flex-1" onClick={onReset}>
               Plan New Trip
-            </Button>
+            </button>
           )}
         </div>
       </div>
