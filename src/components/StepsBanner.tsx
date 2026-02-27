@@ -63,8 +63,7 @@ export function StepsBanner({
 
   return (
     <div
-      className="w-full shrink-0 sidebar-header"
-      style={{ background: 'hsl(225 30% 8%)' }}
+      className="sidebar-dark w-full shrink-0 sidebar-header"
     >
       {/* ── Row 1: Branding + Mode Badge ── */}
       <div className="px-4 pt-3 pb-2 flex items-center gap-2.5">

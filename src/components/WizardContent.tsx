@@ -70,8 +70,7 @@ export function WizardContent({
 
   return (
     <div
-      className="flex flex-col flex-1 min-h-0"
-      style={{ background: 'hsl(225 30% 8%)' }}
+      className="sidebar-dark flex flex-col flex-1 min-h-0"
     >
       {/* POI Category Bar (Step 3 only) */}
       {planningStep === 3 && (
