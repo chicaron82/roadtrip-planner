@@ -1,5 +1,4 @@
 import { useRef, useState, useCallback, useLayoutEffect } from 'react';
-import { CompactMap } from './components/CompactMap';
 import { StepsBanner } from './components/StepsBanner';
 import { WizardContent } from './components/WizardContent';
 import { Map } from './components/Map/Map';
@@ -20,10 +19,10 @@ import { getHistory, getLastOrigin } from './lib/storage';
 import type { TripSummary, TripMode, POICategory } from './types';
 
 /**
- * App.tsx — Unified Stacked Layout (Portrait Glow Up)
+ * App.tsx — Immersive Map Layout (MEE Redesign)
  *
- * Layout: StepsBanner → CompactMap → WizardContent
- * Works identically on portrait (mobile) and landscape (desktop).
+ * Layout: full-bleed Map behind floating glass panel (portrait + desktop)
+ * Panel: StepsBanner → WizardContent scrollable form
  *
  * HOOK DEPENDENCY FLOW:
  * ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -67,7 +66,6 @@ function AppContent() {
   // ─── Local UI State ─────────────────────────────────────────────────────────
   const [tripConfirmed, setTripConfirmed] = useState(false);
   const [history] = useState<TripSummary[]>(() => getHistory());
-  const [isMapExpanded, setIsMapExpanded] = useState(false);
 
   // Mode management (plan/adventure/estimate)
   const {
@@ -219,7 +217,6 @@ function AppContent() {
     setLocations(DEFAULT_LOCATIONS); setSummary(null);
     resetPOIs(); resetWizard(); clearStops(); clearTripCalculation();
     setActiveChallenge(null); setTripOrigin(null); setTripConfirmed(false);
-    setIsMapExpanded(false);
   }, [setLocations, setSummary, resetWizard, resetPOIs, clearStops, clearTripCalculation, setActiveChallenge, setTripOrigin]);
 
   const handleSelectMode = useCallback((mode: TripMode) => {
@@ -239,10 +236,6 @@ function AppContent() {
     setTripMode('plan');
     if (planningStep === 3 && locations.length >= 2) calculateAndDiscover();
   }, [setTripMode, planningStep, locations.length, calculateAndDiscover]);
-
-  const handleToggleMapExpand = useCallback(() => {
-    setIsMapExpanded(prev => !prev);
-  }, []);
 
   // ==================== RENDER ====================
 
@@ -330,106 +323,72 @@ function AppContent() {
   } as const;
 
   return (
-    <div className="flex flex-col h-screen w-full overflow-hidden bg-background text-foreground">
+    <div className="relative h-screen w-full overflow-hidden">
 
-      {/* ── Shared header (branding + mode badge + steps) ── */}
-      <StepsBanner
-        currentStep={planningStep}
-        completedSteps={completedSteps}
-        tripMode={tripMode}
-        isCalculating={isCalculating}
-        onStepClick={handleStepClick}
-        showModeSwitcher={showModeSwitcher}
-        setShowModeSwitcher={setShowModeSwitcher}
-        modeSwitcherRef={modeSwitcherRef}
-        onSwitchMode={handleSwitchMode}
-      />
-
-      {/* ── Body: portrait = column, desktop = row ── */}
-      <div className="flex-1 flex flex-col md:flex-row min-h-0">
-
-        {/* Portrait map (between header and form, hidden on desktop) */}
-        <div className="md:hidden shrink-0">
-          <CompactMap
-            isExpanded={isMapExpanded}
-            onToggleExpand={handleToggleMapExpand}
-            {...mapProps}
-          />
-        </div>
-
-        {/* Form — portrait: below map | desktop: left sidebar */}
-        <div className={`md:w-[420px] md:h-full md:flex-shrink-0 flex flex-col min-h-0 ${isMapExpanded ? 'hidden' : ''}`}>
-          <WizardContent
-            planningStep={planningStep}
-            canProceed={canProceed}
-            isCalculating={isCalculating}
-            onNext={goToNextStep}
-            onBack={goToPrevStep}
-            onReset={resetTrip}
-            tripMode={tripMode}
-            markerCategories={markerCategories}
-            loadingCategory={loadingCategory}
-            onToggleCategory={handleToggleCategory}
-            error={error}
-            onClearError={clearError}
-          >
-            {stepContent}
-          </WizardContent>
-        </div>
-
-        {/* Desktop map (right side, hidden on portrait) */}
-        <div className="hidden md:flex flex-1 relative">
-          <Map {...mapProps} />
-          {summary && planningStep === 3 && (
-            <div className="absolute bottom-4 left-4 right-4 flex flex-col gap-2 pointer-events-none">
-              <div className="pointer-events-auto">
-                <RouteStrategyPicker
-                  strategies={routeStrategies}
-                  activeIndex={activeStrategyIndex}
-                  onSelect={selectStrategy}
-                  units={settings.units}
-                  isRoundTrip={settings.isRoundTrip}
-                />
-              </div>
-              <div className="pointer-events-auto">
-                <TripSummaryCard
-                  summary={summary}
-                  settings={settings}
-                  tripActive={tripActive}
-                  onStop={() => setTripActive(false)}
-                  onOpenVehicleTab={() => goToStep(2)}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Portrait map-expanded overlays */}
-        {isMapExpanded && summary && planningStep === 3 && (
-          <div className="md:hidden fixed bottom-4 left-4 right-4 z-[1002] flex flex-col gap-2 pointer-events-none">
-            <div className="pointer-events-auto">
-              <RouteStrategyPicker
-                strategies={routeStrategies}
-                activeIndex={activeStrategyIndex}
-                onSelect={selectStrategy}
-                units={settings.units}
-                isRoundTrip={settings.isRoundTrip}
-              />
-            </div>
-            <div className="pointer-events-auto">
-              <TripSummaryCard
-                summary={summary}
-                settings={settings}
-                tripActive={tripActive}
-                onStop={() => setTripActive(false)}
-                onOpenVehicleTab={() => { setIsMapExpanded(false); goToStep(2); }}
-              />
-            </div>
-          </div>
-        )}
+      {/* ── Full-bleed map — always visible behind panel ── */}
+      <div className="absolute inset-0">
+        <Map {...mapProps} />
       </div>
 
-      {/* Adventure mode modal */}
+      {/* ── Vignette overlay (left opaque → right transparent) ── */}
+      <div className="mee-vignette absolute inset-0 pointer-events-none z-[1]" />
+
+      {/* ── Floating glass panel ── */}
+      <div className="sidebar-dark mee-panel absolute left-0 top-0 bottom-0 z-10 w-full md:w-[440px] flex flex-col overflow-hidden">
+        <StepsBanner
+          currentStep={planningStep}
+          completedSteps={completedSteps}
+          tripMode={tripMode}
+          isCalculating={isCalculating}
+          onStepClick={handleStepClick}
+          showModeSwitcher={showModeSwitcher}
+          setShowModeSwitcher={setShowModeSwitcher}
+          modeSwitcherRef={modeSwitcherRef}
+          onSwitchMode={handleSwitchMode}
+        />
+        <WizardContent
+          planningStep={planningStep}
+          canProceed={canProceed}
+          isCalculating={isCalculating}
+          onNext={goToNextStep}
+          onBack={goToPrevStep}
+          onReset={resetTrip}
+          tripMode={tripMode}
+          markerCategories={markerCategories}
+          loadingCategory={loadingCategory}
+          onToggleCategory={handleToggleCategory}
+          error={error}
+          onClearError={clearError}
+        >
+          {stepContent}
+        </WizardContent>
+      </div>
+
+      {/* ── Desktop overlays (route strategy + trip summary) ── */}
+      {summary && planningStep === 3 && (
+        <div className="hidden md:flex absolute bottom-6 right-6 z-20 flex-col gap-3 pointer-events-none">
+          <div className="pointer-events-auto">
+            <RouteStrategyPicker
+              strategies={routeStrategies}
+              activeIndex={activeStrategyIndex}
+              onSelect={selectStrategy}
+              units={settings.units}
+              isRoundTrip={settings.isRoundTrip}
+            />
+          </div>
+          <div className="pointer-events-auto">
+            <TripSummaryCard
+              summary={summary}
+              settings={settings}
+              tripActive={tripActive}
+              onStop={() => setTripActive(false)}
+              onOpenVehicleTab={() => goToStep(2)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── Adventure mode modal ── */}
       {showAdventureMode && (
         <AdventureMode
           origin={locations.find(l => l.type === 'origin') || null}

@@ -561,3 +561,26 @@
 .sidebar-dark .bg-gray-300 {
   background-color: hsl(225 18% 25%) !important;
 }
+
+/* ═══════════════════════════════════════════════════════════
+ * MEE REDESIGN — Immersive Map Layout
+ * Glass panel + vignette overlay system
+ * ═══════════════════════════════════════════════════════════ */
+
+/* Floating glass panel over the full-bleed map */
+.mee-panel {
+  background: rgba(14, 11, 7, 0.82);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border-right: 1px solid rgba(245, 240, 232, 0.07);
+}
+
+/* Left-to-right vignette: panel side opaque, map side open */
+.mee-vignette {
+  background: linear-gradient(
+    to right,
+    rgba(10, 10, 11, 0.55) 0%,
+    rgba(10, 10, 11, 0.2) 45%,
+    rgba(10, 10, 11, 0) 100%
+  );
+}
