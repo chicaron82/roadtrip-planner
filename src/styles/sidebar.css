@@ -584,3 +584,143 @@
     rgba(10, 10, 11, 0) 100%
   );
 }
+
+/* ─── Brand ─────────────────────────────────────────────── */
+
+.mee-brand-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 20px;
+  font-weight: 400;
+  color: #f5f0e8;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.mee-brand-sub {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #f97316;
+  opacity: 0.85;
+  margin-top: 4px;
+}
+
+/* ─── Rotating tagline ───────────────────────────────────── */
+
+.mee-tagline {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  color: rgba(245, 240, 232, 0.35);
+  letter-spacing: 0.03em;
+  margin-top: 6px;
+  height: 16px;
+  overflow: hidden;
+}
+
+.mee-tagline-inner {
+  animation: meeTaglineSwap 4s ease infinite;
+  line-height: 16px;
+}
+
+@keyframes meeTaglineSwap {
+  0%   { opacity: 0; transform: translateY(6px); }
+  12%  { opacity: 1; transform: translateY(0); }
+  88%  { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-6px); }
+}
+
+/* ─── Step pill dots ─────────────────────────────────────── */
+
+.mee-step-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(245, 240, 232, 0.18);
+  transition: all 0.4s ease;
+  flex-shrink: 0;
+}
+
+.mee-step-dot.active {
+  width: 20px;
+  border-radius: 3px;
+  background: #f97316;
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.55);
+}
+
+.mee-step-dot.done {
+  background: rgba(249, 115, 22, 0.4);
+  width: 10px;
+  border-radius: 50%;
+}
+
+.mee-step-label {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(245, 240, 232, 0.35);
+  transition: color 0.3s ease;
+}
+
+.mee-step-dot.active ~ .mee-step-label,
+.mee-step-label.active {
+  color: rgba(249, 115, 22, 0.85);
+}
+
+/* ─── CTA + outline buttons ──────────────────────────────── */
+
+.mee-cta-button {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  border: none;
+  border-radius: 100px;
+  color: #0a0a0b;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  padding: 11px 20px;
+  text-transform: uppercase;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.mee-cta-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 28px rgba(249, 115, 22, 0.38);
+}
+
+.mee-cta-button:disabled {
+  background: rgba(249, 115, 22, 0.18);
+  color: rgba(245, 240, 232, 0.28);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.mee-outline-button {
+  background: rgba(245, 240, 232, 0.05);
+  border: 1px solid rgba(245, 240, 232, 0.12);
+  border-radius: 100px;
+  color: rgba(245, 240, 232, 0.55);
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  padding: 11px 18px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.mee-outline-button:hover {
+  border-color: rgba(245, 240, 232, 0.22);
+  color: rgba(245, 240, 232, 0.8);
+}

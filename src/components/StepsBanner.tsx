@@ -1,26 +1,35 @@
 /**
- * StepsBanner — Full app header with branding, mode badge, and step indicator.
+ * StepsBanner — Panel header with branding, mode badge, rotating tagline,
+ * and pill-style step indicators.
  *
  * Two rows:
- *   1. "My Experience Engine" title + clickable mode badge (with switcher dropdown)
- *   2. Route → Vehicle → Results step indicators (clickable)
- *
- * Spans full page width on both portrait and desktop.
+ *   1. "My Experience Engine" (Cormorant Garamond) + rotating tagline
+ *      + mode badge dropdown
+ *   2. Pill dot step indicators (Route · Vehicle · Results)
  */
 
-import { Check, MapPin, Car, Map, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import type { TripMode } from '../types';
 import type { PlanningStep } from '../hooks/useWizard';
 
-// ── Step config ────────────────────────────────────────────────────────────────
+// ── Taglines ────────────────────────────────────────────────────────────────
 
-const STEP_CONFIG = [
-  { number: 1 as const, title: 'Route',   description: 'Where & When', icon: MapPin },
-  { number: 2 as const, title: 'Vehicle', description: 'Who & How',    icon: Car   },
-  { number: 3 as const, title: 'Results', description: 'Your Trip',    icon: Map   },
+const TAGLINES = [
+  'Your MEE time is out there.',
+  'Every road leads somewhere worth going.',
+  'The drive is part of the story.',
+  'Some trips change you.',
 ];
 
-// ── Mode config (mirrors old Sidebar) ─────────────────────────────────────────
+// ── Step config ────────────────────────────────────────────────────────────
+
+const STEP_CONFIG = [
+  { number: 1 as const, title: 'Route'   },
+  { number: 2 as const, title: 'Vehicle' },
+  { number: 3 as const, title: 'Results' },
+];
+
+// ── Mode config ────────────────────────────────────────────────────────────
 
 const MODE_CONFIG = {
   plan:      { icon: '📋', label: 'Plan',      desc: 'Design My MEE Time', color: '#22C55E', bg: 'rgba(34,197,94,0.15)',   border: 'rgba(34,197,94,0.3)'   },
@@ -28,7 +37,7 @@ const MODE_CONFIG = {
   adventure: { icon: '🧭', label: 'Adventure', desc: 'Find My MEE Time',   color: '#FDE68A', bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.3)' },
 } as const;
 
-// ── Props ──────────────────────────────────────────────────────────────────────
+// ── Props ──────────────────────────────────────────────────────────────────
 
 interface StepsBannerProps {
   currentStep: PlanningStep;
@@ -36,14 +45,13 @@ interface StepsBannerProps {
   tripMode: TripMode;
   isCalculating?: boolean;
   onStepClick: (step: PlanningStep) => void;
-  // Mode switcher
   showModeSwitcher: boolean;
   setShowModeSwitcher: React.Dispatch<React.SetStateAction<boolean>>;
   modeSwitcherRef: React.RefObject<HTMLDivElement | null>;
   onSwitchMode: (mode: TripMode) => void;
 }
 
-// ── Component ──────────────────────────────────────────────────────────────────
+// ── Component ──────────────────────────────────────────────────────────────
 
 export function StepsBanner({
   currentStep,
@@ -58,19 +66,35 @@ export function StepsBanner({
 }: StepsBannerProps) {
   const mode = MODE_CONFIG[tripMode];
 
+  const [taglineIndex, setTaglineIndex] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setTaglineIndex(prev => (prev + 1) % TAGLINES.length);
+    }, 4000);
+    return () => clearInterval(id);
+  }, []);
+
   const canNavigateTo = (stepNumber: number) =>
     stepNumber <= currentStep || completedSteps.includes(stepNumber - 1);
 
   return (
-    <div
-      className="w-full shrink-0"
-    >
-      {/* ── Row 1: Branding + Mode Badge ── */}
-      <div className="px-4 pt-3 pb-2 flex items-center gap-2.5">
-        <h1 className="sidebar-brand-title">My Experience Engine</h1>
+    <div className="w-full shrink-0 px-4 pt-4 pb-3 border-b border-white/5">
 
-        {/* Mode badge — click to open switcher */}
-        <div className="relative" ref={modeSwitcherRef}>
+      {/* ── Row 1: Brand + Mode Badge ── */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="mee-brand-title">My Experience Engine</h1>
+          <p className="mee-brand-sub">Road trips worth remembering</p>
+          <div className="mee-tagline">
+            <span key={taglineIndex} className="mee-tagline-inner">
+              {TAGLINES[taglineIndex]}
+            </span>
+          </div>
+        </div>
+
+        {/* Mode badge */}
+        <div className="relative flex-shrink-0" ref={modeSwitcherRef}>
           <button
             onClick={() => setShowModeSwitcher(prev => !prev)}
             className="mode-badge text-[9px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full whitespace-nowrap cursor-pointer transition-all hover:brightness-125"
@@ -119,71 +143,44 @@ export function StepsBanner({
         </div>
       </div>
 
-      <p className="sidebar-brand-sub px-4 pb-2">Road trips worth remembering</p>
+      {/* ── Row 2: Pill Step Dots ── */}
+      <div className="flex items-center gap-2 mt-4">
+        {STEP_CONFIG.map((step, index) => {
+          const isActive    = step.number === currentStep;
+          const isCompleted = completedSteps.includes(step.number);
+          const isClickable = canNavigateTo(step.number) && !isCalculating;
 
-      {/* ── Row 2: Step Indicator ── */}
-      <div className="px-4 pb-3">
-        <div className="flex items-center justify-between w-full">
-          {STEP_CONFIG.map((step, index) => {
-            const Icon = step.icon;
-            const isActive    = step.number === currentStep;
-            const isCompleted = completedSteps.includes(step.number);
-            const isClickable = canNavigateTo(step.number) && !isCalculating;
-            const isLoading   = isCalculating && step.number === 3 && currentStep === 2;
+          const dotClass = [
+            'mee-step-dot',
+            isActive ? 'active' : '',
+            isCompleted && !isActive ? 'done' : '',
+          ].filter(Boolean).join(' ');
 
-            return (
-              <div key={step.number} className="flex items-center flex-1">
-                <button
-                  onClick={() => isClickable && onStepClick(step.number)}
-                  disabled={!isClickable}
-                  className={`flex items-center gap-2 group transition-all ${
-                    isClickable ? 'cursor-pointer' : 'cursor-default'
-                  }`}
-                >
-                  {/* Circle */}
-                  <div
-                    className={`step-circle relative flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-300 ${
-                      isCompleted ? 'is-completed' : isActive ? 'is-active' : ''
-                    } ${isClickable && !isActive ? 'group-hover:border-primary group-hover:text-primary' : ''}`}
-                  >
-                    {isLoading ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : isCompleted ? (
-                      <Check className="h-5 w-5" />
-                    ) : (
-                      <Icon className="h-4 w-4" />
-                    )}
-                    {isActive && (
-                      <span
-                        className="absolute inset-0 rounded-full animate-ping opacity-20"
-                        style={{ background: 'hsl(36 96% 56%)' }}
-                      />
-                    )}
-                  </div>
+          return (
+            <div key={step.number} className="flex items-center gap-2">
+              <button
+                onClick={() => isClickable && onStepClick(step.number)}
+                disabled={!isClickable}
+                className="flex items-center gap-1.5"
+                style={{ cursor: isClickable ? 'pointer' : 'default' }}
+              >
+                <div className={dotClass} />
+                <span className={`mee-step-label ${isActive ? 'active' : ''}`}>
+                  {step.title}
+                </span>
+              </button>
 
-                  {/* Text */}
-                  <div className="hidden sm:block text-left">
-                    <div className={`step-title text-sm font-semibold transition-colors ${
-                      isActive ? 'is-active' : isCompleted ? 'is-completed' : ''
-                    }`}>
-                      {step.title}
-                    </div>
-                    <div className="step-desc">{step.description}</div>
-                  </div>
-                </button>
-
-                {/* Connector */}
-                {index < STEP_CONFIG.length - 1 && (
-                  <div className="flex-1 mx-2 sm:mx-4">
-                    <div className={`step-connector h-0.5 rounded-full transition-all duration-500 ${
-                      isCompleted ? 'is-completed' : isActive ? 'is-active' : ''
-                    }`} />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+              {index < STEP_CONFIG.length - 1 && (
+                <div style={{
+                  width: 20,
+                  height: 1,
+                  background: 'rgba(245,240,232,0.1)',
+                  flexShrink: 0,
+                }} />
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
