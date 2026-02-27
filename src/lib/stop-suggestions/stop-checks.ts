@@ -185,7 +185,21 @@ export function checkFuelStop(
   state.currentFuel = config.tankSizeLitres;
   state.distanceSinceLastFill = 0;
   state.hoursSinceLastFill = 0;
-  const stopTimeAddedMs = 15 * 60 * 1000;
+
+  // Combo meal: if stopping for fuel during a meal window, extend the stop.
+  // "I'm already here, may as well grab a bite."
+  const hour = state.currentTime.getHours();
+  const isLunchWindow = hour >= 11 && hour < 13;
+  const isDinnerWindow = hour >= 17 && hour < 19;
+  const comboMeal = isLunchWindow || isDinnerWindow;
+  const stopDuration = comboMeal ? 45 : 15;
+
+  if (comboMeal) {
+    const mealLabel = isLunchWindow ? 'lunch' : 'dinner';
+    reason += ` Good time to grab ${mealLabel} too — you're already stopped.`;
+  }
+
+  const stopTimeAddedMs = stopDuration * 60 * 1000;
   state.currentTime = new Date(state.currentTime.getTime() + stopTimeAddedMs);
 
   return {
@@ -195,12 +209,13 @@ export function checkFuelStop(
       reason,
       afterSegmentIndex: index - 1,
       estimatedTime: new Date(state.currentTime.getTime() - stopTimeAddedMs),
-      duration: 15,
+      duration: stopDuration,
       priority: wouldRunCriticallyLow ? 'required' : 'recommended',
       details: {
         fuelNeeded: refillAmount,
         fuelCost: refillCost,
         fillType: (wouldRunCriticallyLow || exceededSafeRange) ? 'full' : 'topup',
+        comboMeal,
       },
       warning: sparseWarning,
       dayNumber: state.currentDayNumber,

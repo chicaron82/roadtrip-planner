@@ -1,4 +1,5 @@
 import type { TripDay, TripBudget, CostBreakdown } from '../../types';
+import { ceilToNearest } from './day-builder';
 
 /**
  * Calculate overall cost breakdown for the trip.
@@ -13,13 +14,19 @@ export function calculateCostBreakdown(
   const misc = days.reduce((sum, d) => sum + d.budget.miscCost, 0);
   const total = fuel + accommodation + meals + misc;
 
+  const roundedFuel = ceilToNearest(fuel, 5);
+  const roundedAccommodation = ceilToNearest(accommodation, 5);
+  const roundedMeals = ceilToNearest(meals, 5);
+  const roundedMisc = ceilToNearest(misc, 5);
+  const roundedTotal = ceilToNearest(roundedFuel + roundedAccommodation + roundedMeals + roundedMisc, 10);
+
   return {
-    fuel: Math.round(fuel * 100) / 100,
-    accommodation: Math.round(accommodation * 100) / 100,
-    meals: Math.round(meals * 100) / 100,
-    misc: Math.round(misc * 100) / 100,
-    total: Math.round(total * 100) / 100,
-    perPerson: numTravelers > 0 ? Math.round((total / numTravelers) * 100) / 100 : Math.round(total * 100) / 100,
+    fuel: roundedFuel,
+    accommodation: roundedAccommodation,
+    meals: roundedMeals,
+    misc: roundedMisc,
+    total: roundedTotal,
+    perPerson: numTravelers > 0 ? ceilToNearest(roundedTotal / numTravelers, 5) : roundedTotal,
   };
 }
 

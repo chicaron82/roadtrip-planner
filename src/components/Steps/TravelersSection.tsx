@@ -8,6 +8,13 @@ interface TravelersSectionProps {
   setSettings: React.Dispatch<React.SetStateAction<TripSettings>>;
 }
 
+/** Default max drive hours per day based on driver count. */
+function getDefaultDriveHours(numDrivers: number): number {
+  if (numDrivers >= 3) return 16;
+  if (numDrivers === 2) return 12;
+  return 8;
+}
+
 export function TravelersSection({ settings, setSettings }: TravelersSectionProps) {
   return (
     <div className="border-t pt-4">
@@ -29,11 +36,19 @@ export function TravelersSection({ settings, setSettings }: TravelersSectionProp
               size="icon"
               className="h-9 w-9 transition-transform active:scale-95"
               onClick={() =>
-                setSettings((prev) => ({
-                  ...prev,
-                  numTravelers: Math.max(1, prev.numTravelers - 1),
-                  numDrivers: Math.min(prev.numDrivers, Math.max(1, prev.numTravelers - 1)),
-                }))
+                setSettings((prev) => {
+                  const newTravelers = Math.max(1, prev.numTravelers - 1);
+                  const newDrivers = Math.min(prev.numDrivers, newTravelers);
+                  const prevDefault = getDefaultDriveHours(prev.numDrivers);
+                  const newDefault = getDefaultDriveHours(newDrivers);
+                  return {
+                    ...prev,
+                    numTravelers: newTravelers,
+                    numDrivers: newDrivers,
+                    maxDriveHours: newDrivers !== prev.numDrivers && prev.maxDriveHours === prevDefault
+                      ? newDefault : prev.maxDriveHours,
+                  };
+                })
               }
             >
               -
@@ -69,10 +84,16 @@ export function TravelersSection({ settings, setSettings }: TravelersSectionProp
               size="icon"
               className="h-9 w-9 transition-transform active:scale-95"
               onClick={() =>
-                setSettings((prev) => ({
-                  ...prev,
-                  numDrivers: Math.max(1, prev.numDrivers - 1),
-                }))
+                setSettings((prev) => {
+                  const newDrivers = Math.max(1, prev.numDrivers - 1);
+                  const prevDefault = getDefaultDriveHours(prev.numDrivers);
+                  const newDefault = getDefaultDriveHours(newDrivers);
+                  return {
+                    ...prev,
+                    numDrivers: newDrivers,
+                    maxDriveHours: prev.maxDriveHours === prevDefault ? newDefault : prev.maxDriveHours,
+                  };
+                })
               }
             >
               -
@@ -85,10 +106,16 @@ export function TravelersSection({ settings, setSettings }: TravelersSectionProp
               size="icon"
               className="h-9 w-9 transition-transform active:scale-95"
               onClick={() =>
-                setSettings((prev) => ({
-                  ...prev,
-                  numDrivers: Math.min(prev.numTravelers, prev.numDrivers + 1),
-                }))
+                setSettings((prev) => {
+                  const newDrivers = Math.min(prev.numTravelers, prev.numDrivers + 1);
+                  const prevDefault = getDefaultDriveHours(prev.numDrivers);
+                  const newDefault = getDefaultDriveHours(newDrivers);
+                  return {
+                    ...prev,
+                    numDrivers: newDrivers,
+                    maxDriveHours: prev.maxDriveHours === prevDefault ? newDefault : prev.maxDriveHours,
+                  };
+                })
               }
             >
               +

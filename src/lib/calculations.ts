@@ -67,6 +67,42 @@ export function calculateTripCosts(
   };
 }
 
+/**
+ * Human fuel cost model: every fuel stop = full tank cost.
+ * Last stop before destination = partial fill based on distance since last fill.
+ * More conservative (higher estimate) than per-segment math — "rather have
+ * more money at the end than come up short during."
+ */
+export function calculateHumanFuelCosts(
+  fuelStopCount: number,
+  tankSizeLitres: number,
+  gasPrice: number,
+  lastLegDistanceKm: number,
+  fuelEconomyL100km: number,
+): { totalFuelCost: number; perStopCost: number; lastStopCost: number } {
+  const fullTankCost = tankSizeLitres * gasPrice;
+
+  if (fuelStopCount === 0) {
+    // No stops — just the distance-based cost for the whole trip
+    const tripCost = (lastLegDistanceKm / 100) * fuelEconomyL100km * gasPrice;
+    return { totalFuelCost: tripCost, perStopCost: 0, lastStopCost: tripCost };
+  }
+
+  if (fuelStopCount === 1) {
+    // Single stop = fill the tank
+    return { totalFuelCost: fullTankCost, perStopCost: fullTankCost, lastStopCost: fullTankCost };
+  }
+
+  // Multiple stops: all except last = full tank. Last = partial top-off.
+  const lastStopCost = Math.min(
+    (lastLegDistanceKm / 100) * fuelEconomyL100km * gasPrice,
+    fullTankCost,
+  );
+  const totalFuelCost = (fuelStopCount - 1) * fullTankCost + lastStopCost;
+
+  return { totalFuelCost, perStopCost: fullTankCost, lastStopCost };
+}
+
 export function formatDistance(km: number, units: 'metric' | 'imperial'): string {
   if (units === 'imperial') {
     return `${(km * KM_TO_MILES).toFixed(1)} mi`;

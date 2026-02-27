@@ -1,9 +1,10 @@
 import type { RouteSegment, TripDay, TripSettings } from '../../types';
 import { splitLongSegments, type ProcessedSegment } from './segment-processor';
-import { createEmptyDay, finalizeTripDay } from './day-builder';
+import { createEmptyDay, finalizeTripDay, ceilToNearest } from './day-builder';
 import { getTimezoneOffset, getTimezoneName } from './timezone';
 import { TRIP_CONSTANTS } from '../trip-constants';
 import { getHotelMultiplier } from '../regional-costs';
+import { findHubInWindow } from '../hub-cache';
 
 // ---------------------------------------------------------------------------
 
@@ -220,12 +221,14 @@ export function splitTripByDays(
           hotelRemaining -= hotelCost;
           foodRemaining -= foodCost;
 
+          const roundedHotel = ceilToNearest(hotelCost, 5);
+          const roundedFood = ceilToNearest(foodCost, 5);
           freeDay.budget = {
             gasUsed: 0,
-            hotelCost,
-            foodEstimate: Math.round(foodCost * 100) / 100,
+            hotelCost: roundedHotel,
+            foodEstimate: roundedFood,
             miscCost: 0,
-            dayTotal: Math.round((hotelCost + foodCost) * 100) / 100,
+            dayTotal: ceilToNearest(roundedHotel + roundedFood, 10),
             gasRemaining: Math.round(gasRemaining * 100) / 100,
             hotelRemaining: Math.round(hotelRemaining * 100) / 100,
             foodRemaining: Math.round(foodRemaining * 100) / 100,
@@ -235,7 +238,7 @@ export function splitTripByDays(
             freeDay.overnight = {
               location: destination,
               accommodationType: 'hotel',
-              cost: hotelCost,
+              cost: roundedHotel,
               roomsNeeded,
             };
           }
@@ -271,7 +274,22 @@ export function splitTripByDays(
     // However, if the CURRENT segment is an overnight stop, we add it to THIS day, and then force a new day AFTER.
     // The overnight belongs to the day you drove — you check in at end of Day 1, so Day 1 pays for it.
     // Beast mode bypasses the drive-time cap entirely — the user accepts the fatigue risk.
+    //
+    // Hub-snap: before splitting, check if extending the day by one segment would
+    // land at a real city (hub). Humans prefer to push an extra hour to reach
+    // Thunder Bay rather than stop at an anonymous highway km marker.
+    let hubSnapExtend = false;
     if (wouldExceedMaxDrive && currentDay.segments.length > 0 && !isOvernightStop && !settings.beastMode) {
+      const lastSeg = currentDay.segments[currentDay.segments.length - 1];
+      const currentEndNearHub = findHubInWindow(lastSeg.to.lat, lastSeg.to.lng, 60);
+      if (!currentEndNearHub && segmentDriveMinutes <= 90) {
+        const nextEndHub = findHubInWindow(segment.to.lat, segment.to.lng, 60);
+        if (nextEndHub) {
+          hubSnapExtend = true; // Include this segment, split on the NEXT iteration
+        }
+      }
+    }
+    if (wouldExceedMaxDrive && currentDay.segments.length > 0 && !isOvernightStop && !settings.beastMode && !hubSnapExtend) {
       // Assign overnight — driver stops at end of this driving day.
       if (!currentDay.overnight) {
         const lastSeg = currentDay.segments[currentDay.segments.length - 1];
@@ -450,12 +468,14 @@ export function splitTripByDays(
         hotelRemaining -= hotelCost;
         foodRemaining -= foodCost;
 
+        const roundedHotel2 = ceilToNearest(hotelCost, 5);
+        const roundedFood2 = ceilToNearest(foodCost, 5);
         freeDay.budget = {
           gasUsed: 0,
-          hotelCost,
-          foodEstimate: Math.round(foodCost * 100) / 100,
+          hotelCost: roundedHotel2,
+          foodEstimate: roundedFood2,
           miscCost: 0,
-          dayTotal: Math.round((hotelCost + foodCost) * 100) / 100,
+          dayTotal: ceilToNearest(roundedHotel2 + roundedFood2, 10),
           gasRemaining: Math.round(gasRemaining * 100) / 100,
           hotelRemaining: Math.round(hotelRemaining * 100) / 100,
           foodRemaining: Math.round(foodRemaining * 100) / 100,
@@ -465,7 +485,7 @@ export function splitTripByDays(
           freeDay.overnight = {
             location: destination,
             accommodationType: 'hotel',
-            cost: hotelCost,
+            cost: roundedHotel2,
             roomsNeeded,
           };
         }

@@ -1,6 +1,17 @@
 import type { TripDay, TripSettings } from '../../types';
 
 /**
+ * Round a value UP to the nearest increment.
+ * Humans budget in round numbers — $65.14 becomes $70.
+ * ceilToNearest(65.14, 5) → 70
+ * ceilToNearest(0, 5) → 0  (zero stays zero)
+ */
+export function ceilToNearest(value: number, increment: number): number {
+  if (value === 0) return 0;
+  return Math.ceil(value / increment) * increment;
+}
+
+/**
  * Create an empty day structure.
  */
 export function createEmptyDay(dayNumber: number, date: Date): TripDay {
@@ -95,12 +106,16 @@ export function finalizeTripDay(
   const mealsToday = estimateMealsForDay(day, settings);
   const foodEstimate = mealsToday * settings.mealPricePerDay / 3; // Per meal
 
+  const roundedGas = ceilToNearest(gasUsed, 5);
+  const roundedHotel = ceilToNearest(hotelCost, 5);
+  const roundedFood = ceilToNearest(foodEstimate, 5);
+
   day.budget = {
-    gasUsed: Math.round(gasUsed * 100) / 100,
-    hotelCost,
-    foodEstimate: Math.round(foodEstimate * 100) / 100,
+    gasUsed: roundedGas,
+    hotelCost: roundedHotel,
+    foodEstimate: roundedFood,
     miscCost: 0,
-    dayTotal: Math.round((gasUsed + hotelCost + foodEstimate) * 100) / 100,
+    dayTotal: ceilToNearest(roundedGas + roundedHotel + roundedFood, 10),
     gasRemaining: Math.round((gasRemaining - gasUsed) * 100) / 100,
     hotelRemaining: Math.round((hotelRemaining - hotelCost) * 100) / 100,
     foodRemaining: Math.round((foodRemaining - foodEstimate) * 100) / 100,

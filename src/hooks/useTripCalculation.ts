@@ -3,11 +3,12 @@ import type { Location, Vehicle, TripSettings, TripSummary, RouteStrategy } from
 import { calculateRoute, fetchAllRouteStrategies } from '../lib/api';
 import {
   calculateTripCosts,
+  calculateHumanFuelCosts,
   calculateStrategicFuelStops,
   calculateArrivalTimes,
   type StrategicFuelStop,
 } from '../lib/calculations';
-import { getTankSizeLitres, estimateGasStops } from '../lib/unit-conversions';
+import { getTankSizeLitres, getWeightedFuelEconomyL100km, estimateGasStops } from '../lib/unit-conversions';
 import { snapFuelStopsToStations } from '../lib/fuel-stop-snapper';
 import { snapOvernightsToTowns } from '../lib/overnight-snapper';
 import {
@@ -172,11 +173,22 @@ export function useTripCalculation({
           (sum, s) => sum + s.fuelNeededLitres,
           0
         );
-        tripSummary.totalFuelCost = segmentsWithTimes.reduce((sum, s) => sum + s.fuelCost, 0);
+        const segmentFuelCost = segmentsWithTimes.reduce((sum, s) => sum + s.fuelCost, 0);
 
         // Recalculate derived values that were computed from one-way costs
         const tankSizeLitres = getTankSizeLitres(vehicle, settings.units);
         tripSummary.gasStops = estimateGasStops(tripSummary.totalFuelLitres, tankSizeLitres);
+
+        // Human fuel model: every stop = full tank, last stop = partial top-off.
+        // Use the higher (more conservative) of per-segment math vs full-tank model.
+        const fuelEconomy = getWeightedFuelEconomyL100km(vehicle, settings.units);
+        const lastSeg = segmentsWithTimes[segmentsWithTimes.length - 1];
+        const humanFuel = calculateHumanFuelCosts(
+          tripSummary.gasStops, tankSizeLitres, settings.gasPrice,
+          lastSeg?.distanceKm ?? 0, fuelEconomy,
+        );
+        tripSummary.totalFuelCost = Math.max(segmentFuelCost, humanFuel.totalFuelCost);
+
         tripSummary.costPerPerson = settings.numTravelers > 0
           ? tripSummary.totalFuelCost / settings.numTravelers
           : tripSummary.totalFuelCost;
@@ -432,9 +444,19 @@ export function useTripCalculation({
         newSummary.totalDistanceKm = allSegments.reduce((s, seg) => s + seg.distanceKm, 0);
         newSummary.totalDurationMinutes = allSegments.reduce((s, seg) => s + seg.durationMinutes, 0);
         newSummary.totalFuelLitres = allSegments.reduce((s, seg) => s + seg.fuelNeededLitres, 0);
-        newSummary.totalFuelCost = allSegments.reduce((s, seg) => s + seg.fuelCost, 0);
+        const stratSegFuelCost = allSegments.reduce((s, seg) => s + seg.fuelCost, 0);
         const tankSizeLitres = getTankSizeLitres(vehicle, settings.units);
         newSummary.gasStops = estimateGasStops(newSummary.totalFuelLitres, tankSizeLitres);
+
+        // Human fuel model (full-tank per stop)
+        const stratEconomy = getWeightedFuelEconomyL100km(vehicle, settings.units);
+        const stratLastSeg = allSegments[allSegments.length - 1];
+        const stratHuman = calculateHumanFuelCosts(
+          newSummary.gasStops, tankSizeLitres, settings.gasPrice,
+          stratLastSeg?.distanceKm ?? 0, stratEconomy,
+        );
+        newSummary.totalFuelCost = Math.max(stratSegFuelCost, stratHuman.totalFuelCost);
+
         newSummary.costPerPerson = settings.numTravelers > 0
           ? newSummary.totalFuelCost / settings.numTravelers
           : newSummary.totalFuelCost;

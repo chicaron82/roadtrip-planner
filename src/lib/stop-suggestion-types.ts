@@ -24,6 +24,8 @@ export interface SuggestedStop {
      *  'topup' = comfort/precautionary stop (topped from ~25-50% to full). */
     fillType?: 'full' | 'topup';
     hoursOnRoad?: number; // hours driven before this stop
+    /** true when fuel stop doubles as a meal (stopped during lunch/dinner window) */
+    comboMeal?: boolean;
   };
   warning?: string; // Sparse stretch warning
   dayNumber?: number; // Which numeric day of the trip this occurs on
