@@ -153,6 +153,28 @@ describe('splitTripByDays — beast mode round trip', () => {
     expect(drivingDays[0].overnight).toBeUndefined();
   });
 
+  it('stops at destination for long round trips even in beast mode', () => {
+    // Winnipeg → Toronto → Winnipeg: ~1400 min each way = 2800 min total (46h+)
+    // Beast mode removes per-day limits but should NOT skip the destination
+    // when the trip exceeds 24h total — you still want to explore Toronto!
+    const outbound = makeSegment({ from: WINNIPEG, to: TORONTO, distanceKm: 2200, durationMinutes: 1400 });
+    const returnSeg = makeSegment({ from: TORONTO, to: WINNIPEG, distanceKm: 2200, durationMinutes: 1400 });
+    const allSegments = [outbound, returnSeg];
+
+    const settings = makeSettings({
+      maxDriveHours: 8,
+      beastMode: true,
+      isRoundTrip: true,
+      departureDate: '2025-08-16',
+      returnDate: '2025-08-20',
+    });
+    const days = splitTripByDays(allSegments, settings, '2025-08-16', '09:00', 1);
+
+    // Should have multiple driving days — beast mode doesn't collapse a 46h drive into one day
+    const drivingDays = days.filter(d => d.segments.length > 0);
+    expect(drivingDays.length).toBeGreaterThanOrEqual(2);
+  });
+
   it('still forces overnight for long round trip without beast mode', () => {
     const outbound = makeSegment({ from: WINNIPEG, to: THUNDER, distanceKm: 700, durationMinutes: 480 });
     const returnSeg = makeSegment({ from: THUNDER, to: WINNIPEG, distanceKm: 700, durationMinutes: 480 });
