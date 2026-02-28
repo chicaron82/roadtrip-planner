@@ -92,6 +92,9 @@ export function splitTripByDays(
   // In 'manual' / 'plan-to-budget' mode the explicit per-category values are used.
   const { budget } = settings;
   const hasExplicitCategoryBudgets = budget.gas > 0 || budget.hotel > 0 || budget.food > 0;
+  // If we have explicit category budgets, use them directly
+  // Otherwise, if we have a total budget AND weights are defined, derive categories from the total
+  // (Note: flexible mode might have total=0, in which case categories stay 0 until tracked dynamically)
   const gasRemaining0 = hasExplicitCategoryBudgets
     ? budget.gas
     : budget.total > 0 ? budget.total * budget.weights.gas / 100 : 0;

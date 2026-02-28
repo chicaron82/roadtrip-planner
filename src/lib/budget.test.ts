@@ -141,32 +141,39 @@ describe('calculateCostBreakdown', () => {
 
   it('sums fuel costs across days', () => {
     const result = calculateCostBreakdown(mockDays, 2);
-    expect(result.fuel).toBe(95.25); // 50.25 + 45.00
+    // 50.25 + 45.00 = 95.25 -> ceilToNearest(95.25, 5) -> 100
+    expect(result.fuel).toBe(100); 
   });
 
   it('sums accommodation costs across days', () => {
     const result = calculateCostBreakdown(mockDays, 2);
-    expect(result.accommodation).toBe(150); // 150 + 0
+    // 150 + 0 = 150 -> ceilToNearest(150, 5) -> 150
+    expect(result.accommodation).toBe(150);
   });
 
   it('sums meal costs across days', () => {
     const result = calculateCostBreakdown(mockDays, 2);
-    expect(result.meals).toBe(125.50); // 75.50 + 50.00
+    // 75.50 + 50.00 = 125.50 -> ceilToNearest(125.50, 5) -> 130
+    expect(result.meals).toBe(130);
   });
 
   it('sums misc costs across days', () => {
     const result = calculateCostBreakdown(mockDays, 2);
-    expect(result.misc).toBe(30); // 10 + 20
+    // 10 + 20 = 30 -> ceilToNearest(30, 5) -> 30
+    expect(result.misc).toBe(30); 
   });
 
   it('calculates total correctly', () => {
     const result = calculateCostBreakdown(mockDays, 2);
-    expect(result.total).toBe(400.75); // 95.25 + 150 + 125.50 + 30
+    // 100 (fuel) + 150 (acc) + 130 (meals) + 30 (misc) = 410
+    // ceilToNearest(410, 10) -> 410
+    expect(result.total).toBe(410); 
   });
 
   it('calculates per person cost', () => {
     const result = calculateCostBreakdown(mockDays, 2);
-    expect(result.perPerson).toBeCloseTo(200.38, 2); // 400.75 / 2
+    // 410 / 2 = 205 -> ceilToNearest(205, 5) -> 205
+    expect(result.perPerson).toBe(205); 
   });
 
   it('handles empty days array', () => {

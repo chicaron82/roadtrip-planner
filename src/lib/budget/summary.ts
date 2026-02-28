@@ -12,7 +12,6 @@ export function calculateCostBreakdown(
   const accommodation = days.reduce((sum, d) => sum + d.budget.hotelCost, 0);
   const meals = days.reduce((sum, d) => sum + d.budget.foodEstimate, 0);
   const misc = days.reduce((sum, d) => sum + d.budget.miscCost, 0);
-  const total = fuel + accommodation + meals + misc;
 
   const roundedFuel = ceilToNearest(fuel, 5);
   const roundedAccommodation = ceilToNearest(accommodation, 5);

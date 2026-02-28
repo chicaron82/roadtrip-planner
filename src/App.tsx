@@ -254,8 +254,8 @@ function AppContent() {
     dayOptions: mapDayOptions,
     onMapClick: handleMapClick,
     onAddPOI: summary ? handleAddPOIFromMap : undefined,
-    previewGeometry: validRouteGeometry ? null : previewGeometry,
-    tripMode,
+    previewGeometry: validRouteGeometry ? undefined : previewGeometry,
+    tripMode: tripMode || undefined,
     alternateGeometries: routeStrategies
       .filter((_, i) => i !== activeStrategyIndex)
       .map((s) => ({

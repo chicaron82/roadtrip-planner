@@ -423,8 +423,10 @@ export function useTripCalculation({
       // builds — without this, summary.segments is one-way and any code that iterates
       // segments (stop-type editor, print views) only sees half the trip.
       let allSegments = newSummary.segments;
+      let outboundLength: number | undefined;
       if (settings.isRoundTrip) {
         const outbound = newSummary.segments;
+        outboundLength = outbound.length;
         const returnLegs = [...outbound].reverse().map(seg => ({
           ...seg,
           from: seg.to,
@@ -438,7 +440,7 @@ export function useTripCalculation({
           [...outbound, ...returnLegs],
           settings.departureDate,
           settings.departureTime,
-          outbound.length, // roundTripMidpoint
+          outboundLength, // roundTripMidpoint
         );
         // Recalculate totals from the full round trip
         newSummary.totalDistanceKm = allSegments.reduce((s, seg) => s + seg.distanceKm, 0);
@@ -462,6 +464,26 @@ export function useTripCalculation({
           : newSummary.totalFuelCost;
       }
 
+      // Split the new route into days, using the same flow as calculateTrip
+      const updatedDays = splitTripByDays(
+        allSegments,
+        settings,
+        settings.departureDate,
+        settings.departureTime,
+        outboundLength,
+        strategy.geometry as [number, number][],
+      );
+
+      let updatedCostBreakdown = localSummary.costBreakdown;
+      let updatedBudgetStatus = localSummary.budgetStatus;
+      let updatedBudgetRemaining = localSummary.budgetRemaining;
+
+      if (updatedDays.length > 0) {
+        updatedCostBreakdown = calculateCostBreakdown(updatedDays, settings.numTravelers);
+        updatedBudgetStatus = getBudgetStatus(settings.budget, updatedCostBreakdown);
+        updatedBudgetRemaining = settings.budget.total - updatedCostBreakdown.total;
+      }
+
       const updatedSummary: TripSummary = {
         ...localSummary,
         totalDistanceKm: newSummary.totalDistanceKm,
@@ -472,6 +494,10 @@ export function useTripCalculation({
         gasStops: newSummary.gasStops,
         fullGeometry: strategy.geometry,
         segments: allSegments,
+        days: updatedDays,
+        costBreakdown: updatedCostBreakdown,
+        budgetStatus: updatedBudgetStatus,
+        budgetRemaining: updatedBudgetRemaining,
       };
 
       setLocalSummary(updatedSummary);
