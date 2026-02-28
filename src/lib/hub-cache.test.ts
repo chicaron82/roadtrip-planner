@@ -363,6 +363,7 @@ describe('getHubCacheStats', () => {
     expect(stats.totalHubs).toBe(0);
     expect(stats.seedHubs).toBe(0);
     expect(stats.discoveredHubs).toBe(0);
+    expect(stats.promotedHubs).toBe(0);
   });
 
   it('correctly counts seed vs discovered hubs', () => {
@@ -381,5 +382,241 @@ describe('getHubCacheStats', () => {
     expect(stats.totalHubs).toBe(3);
     expect(stats.seedHubs).toBe(2);
     expect(stats.discoveredHubs).toBe(1);
+    expect(stats.promotedHubs).toBe(0);
+  });
+});
+
+// ─── TTL Expiry (90-day) ──────────────────────────────────────────────────────
+
+describe('TTL expiry (90-day)', () => {
+  it('prunes discovered hubs older than 90 days on save', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+
+    cacheDiscoveredHub({
+      name: 'Old Hub',
+      lat: 45.0, lng: -75.0,
+      radius: 25, poiCount: 8,
+      discoveredAt: '2026-01-01',
+      source: 'discovered',
+    });
+    await vi.runAllTimersAsync();
+
+    // Advance 91 days
+    vi.setSystemTime(new Date('2026-04-02T00:00:00Z'));
+
+    // Trigger a save by adding another hub
+    cacheDiscoveredHub({
+      name: 'New Hub',
+      lat: 40.0, lng: -80.0,
+      radius: 25, poiCount: 8,
+      discoveredAt: '2026-04-02',
+      source: 'discovered',
+    });
+
+    const stats = getHubCacheStats();
+    expect(stats.discoveredHubs).toBe(1); // Old Hub pruned
+    expect(stats.totalHubs).toBe(1);
+  });
+
+  it('does NOT prune seed hubs regardless of age', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+    seedHubCache([FARGO]);
+    await vi.runAllTimersAsync();
+
+    vi.setSystemTime(new Date('2027-01-01T00:00:00Z')); // 365 days later
+
+    // Trigger a save
+    cacheDiscoveredHub({
+      name: 'Trigger Hub',
+      lat: 40.0, lng: -80.0,
+      radius: 25, poiCount: 8,
+      discoveredAt: '2027-01-01',
+      source: 'discovered',
+    });
+
+    const stats = getHubCacheStats();
+    expect(stats.seedHubs).toBe(1); // Fargo still there
+  });
+
+  it('does NOT prune promoted hubs regardless of age', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+
+    cacheDiscoveredHub({
+      name: 'Promoted City',
+      lat: 45.0, lng: -75.0,
+      radius: 25, poiCount: 8,
+      discoveredAt: '2026-01-01',
+      source: 'discovered',
+    });
+    // Use it 3 times to promote
+    findKnownHub(45.0, -75.0);
+    findKnownHub(45.0, -75.0);
+    findKnownHub(45.0, -75.0);
+    await vi.runAllTimersAsync();
+
+    expect(getHubCacheStats().promotedHubs).toBe(1);
+
+    // Advance 91 days
+    vi.setSystemTime(new Date('2026-04-02T00:00:00Z'));
+
+    // Trigger save
+    cacheDiscoveredHub({
+      name: 'Trigger',
+      lat: 40.0, lng: -80.0,
+      radius: 25, poiCount: 8,
+      discoveredAt: '2026-04-02',
+      source: 'discovered',
+    });
+
+    const stats = getHubCacheStats();
+    expect(stats.promotedHubs).toBe(1); // Still there
+  });
+
+  it('keeps discovered hubs that were used within 90 days', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+
+    cacheDiscoveredHub({
+      name: 'Active Hub',
+      lat: 45.0, lng: -75.0,
+      radius: 25, poiCount: 8,
+      discoveredAt: '2026-01-01',
+      source: 'discovered',
+    });
+    await vi.runAllTimersAsync();
+
+    // Use it at day 80
+    vi.setSystemTime(new Date('2026-03-22T00:00:00Z'));
+    findKnownHub(45.0, -75.0);
+    await vi.runAllTimersAsync();
+
+    // Check at day 91 from original (but only 11 from last use)
+    vi.setSystemTime(new Date('2026-04-02T00:00:00Z'));
+    cacheDiscoveredHub({
+      name: 'Trigger',
+      lat: 40.0, lng: -80.0,
+      radius: 25, poiCount: 8,
+      discoveredAt: '2026-04-02',
+      source: 'discovered',
+    });
+
+    const stats = getHubCacheStats();
+    expect(stats.discoveredHubs).toBe(2); // Both survive
+  });
+});
+
+// ─── Hub Promotion ──────────────────────────────────────────────────────────
+
+describe('hub promotion', () => {
+  it('promotes discovered hub to promoted after 3 uses via findKnownHub', () => {
+    cacheDiscoveredHub({
+      name: 'Growing Hub',
+      lat: 45.0, lng: -75.0,
+      radius: 25, poiCount: 8,
+      discoveredAt: '2026-01-01',
+      source: 'discovered',
+    });
+
+    expect(getHubCacheStats().discoveredHubs).toBe(1);
+    expect(getHubCacheStats().promotedHubs).toBe(0);
+
+    findKnownHub(45.0, -75.0); // use 1
+    findKnownHub(45.0, -75.0); // use 2
+    findKnownHub(45.0, -75.0); // use 3 — should promote
+
+    expect(getHubCacheStats().discoveredHubs).toBe(0);
+    expect(getHubCacheStats().promotedHubs).toBe(1);
+  });
+
+  it('promotes discovered hub via findHubInWindow', () => {
+    cacheDiscoveredHub({
+      name: 'Window Hub',
+      lat: 45.0, lng: -75.0,
+      radius: 25, poiCount: 8,
+      discoveredAt: '2026-01-01',
+      source: 'discovered',
+    });
+
+    findHubInWindow(45.0, -75.0); // use 1
+    findHubInWindow(45.0, -75.0); // use 2
+    findHubInWindow(45.0, -75.0); // use 3
+
+    expect(getHubCacheStats().promotedHubs).toBe(1);
+  });
+
+  it('does not promote seed hubs (already permanent)', () => {
+    seedHubCache([FARGO]);
+
+    findKnownHub(46.877, -96.789);
+    findKnownHub(46.877, -96.789);
+    findKnownHub(46.877, -96.789);
+
+    expect(getHubCacheStats().seedHubs).toBe(1);
+    expect(getHubCacheStats().promotedHubs).toBe(0);
+  });
+
+  it('handles legacy hubs without useCount field', () => {
+    // Simulate legacy hub data (no useCount)
+    const legacyHub = {
+      name: 'Legacy Hub',
+      lat: 45.0, lng: -75.0,
+      radius: 25, poiCount: 8,
+      discoveredAt: '2026-01-01',
+      lastUsed: '2026-01-01',
+      source: 'discovered',
+      // intentionally no useCount
+    };
+
+    // clearHubCache resets memoryCache to null so next loadCache reads from localStorage
+    clearHubCache();
+    localStorage.setItem('roadtrip-discovered-hubs', JSON.stringify([legacyHub]));
+
+    findKnownHub(45.0, -75.0); // use 1
+    findKnownHub(45.0, -75.0); // use 2
+    findKnownHub(45.0, -75.0); // use 3
+
+    expect(getHubCacheStats().promotedHubs).toBe(1);
+  });
+});
+
+// ─── findHubInWindow lastUsed Updates ───────────────────────────────────────
+
+describe('findHubInWindow lastUsed updates', () => {
+  it('updates lastUsed timestamp on cache hit', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-02-01T10:00:00Z'));
+
+    seedHubCache([FARGO]);
+    await vi.runAllTimersAsync();
+    localStorageMock.setItem.mockClear();
+
+    vi.setSystemTime(new Date('2026-02-15T10:00:00Z'));
+    findHubInWindow(46.9, -96.8); // ~3km from Fargo
+
+    await vi.runAllTimersAsync();
+    expect(localStorageMock.setItem).toHaveBeenCalled();
+  });
+});
+
+// ─── saveCache Debounce ─────────────────────────────────────────────────────
+
+describe('saveCache debounce', () => {
+  it('coalesces rapid findHubInWindow calls into fewer localStorage writes', async () => {
+    vi.useFakeTimers();
+    seedHubCache([FARGO, THUNDER_BAY, DRYDEN]);
+    await vi.runAllTimersAsync();
+    localStorageMock.setItem.mockClear();
+
+    // Rapid-fire lookups (simulating route calculation)
+    findHubInWindow(46.9, -96.8);   // hits Fargo
+    findHubInWindow(48.4, -89.3);   // hits Thunder Bay
+    findHubInWindow(49.8, -92.8);   // hits Dryden
+
+    // Only one write should happen (the last debounced timer)
+    await vi.runAllTimersAsync();
+    expect(localStorageMock.setItem).toHaveBeenCalledTimes(1);
   });
 });

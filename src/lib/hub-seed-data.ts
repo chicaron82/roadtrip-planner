@@ -1,11 +1,12 @@
 /**
  * hub-seed-data.ts — Initial Highway Hub Seed Data
  *
- * Pre-seeds the hub cache with major highway corridor cities.
+ * Pre-seeds the hub cache with 130+ major highway corridor cities.
  * These are well-known stops that travelers would recognize.
  *
  * Organized by corridor for easy maintenance.
  * Coordinates are approximate city centers.
+ * ~430 lines of pure declarative data — justified exception to 300-line guideline.
  *
  * 💚 My Experience Engine
  */
@@ -25,7 +26,7 @@ interface SeedHub {
   poiCount: number;
   /** Date this hub was added to seed data (not runtime discovery date). */
   discoveredAt: string;
-  source: 'seed' | 'discovered';
+  source: 'seed' | 'discovered' | 'promoted';
 }
 
 /** Date these hubs were last curated. Update when adding/removing hubs. */
@@ -36,7 +37,7 @@ const SEED_DATE = '2026-01-01';
  * that may have produced incorrect discovered-hub entries in localStorage.
  * initializeHubCache will wipe + re-seed if the stored version differs.
  */
-const CACHE_VERSION = '3';
+const CACHE_VERSION = '4';
 const CACHE_VERSION_KEY = 'roadtrip-hub-cache-version';
 
 // ─── I-94 / I-29 Corridor (Winnipeg ↔ Chicago) ────────────────────────────────
@@ -172,6 +173,125 @@ const TEXAS: SeedHub[] = [
   { name: 'El Paso, TX', lat: 31.761, lng: -106.485, radius: 40, poiCount: 20, discoveredAt: SEED_DATE, source: 'seed' },
 ];
 
+// ─── I-10 Corridor (Jacksonville → Houston → LA) ────────────────────────────
+
+const I10_CORRIDOR: SeedHub[] = [
+  // Jacksonville already in I95_CORRIDOR
+  { name: 'Tallahassee, FL',     lat: 30.438, lng: -84.281,  radius: 35, poiCount: 18, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Pensacola, FL',       lat: 30.443, lng: -87.197,  radius: 35, poiCount: 18, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Mobile, AL',          lat: 30.695, lng: -88.040,  radius: 35, poiCount: 18, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Biloxi, MS',          lat: 30.396, lng: -88.885,  radius: 25, poiCount: 10, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'New Orleans, LA',     lat: 29.951, lng: -90.072,  radius: 50, poiCount: 35, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Baton Rouge, LA',     lat: 30.451, lng: -91.187,  radius: 40, poiCount: 20, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Lafayette, LA',       lat: 30.224, lng: -92.020,  radius: 30, poiCount: 12, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Beaumont, TX',        lat: 30.080, lng: -94.102,  radius: 30, poiCount: 12, discoveredAt: SEED_DATE, source: 'seed' },
+  // Houston already in TEXAS
+  { name: 'Tucson, AZ',          lat: 32.222, lng: -110.975, radius: 45, poiCount: 25, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Palm Springs, CA',    lat: 33.830, lng: -116.545, radius: 30, poiCount: 12, discoveredAt: SEED_DATE, source: 'seed' },
+];
+
+// ─── I-80 Corridor (SF → Reno → SLC → Omaha → Chicago area) ─────────────────
+
+const I80_CORRIDOR: SeedHub[] = [
+  // SF already in WESTERN_US
+  { name: 'Sacramento, CA',      lat: 38.582, lng: -121.494, radius: 45, poiCount: 30, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Reno, NV',            lat: 39.530, lng: -119.814, radius: 35, poiCount: 18, discoveredAt: SEED_DATE, source: 'seed' },
+  // SLC already in WESTERN_US
+  { name: 'Rock Springs, WY',    lat: 41.587, lng: -109.221, radius: 20, poiCount: 6,  discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Rawlins, WY',         lat: 41.791, lng: -107.239, radius: 20, poiCount: 6,  discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Cheyenne, WY',        lat: 41.140, lng: -104.820, radius: 30, poiCount: 12, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'North Platte, NE',    lat: 41.124, lng: -100.765, radius: 25, poiCount: 8,  discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Grand Island, NE',    lat: 40.925, lng: -98.342,  radius: 25, poiCount: 10, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Lincoln, NE',         lat: 40.813, lng: -96.702,  radius: 35, poiCount: 18, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Omaha, NE',           lat: 41.257, lng: -95.995,  radius: 45, poiCount: 25, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Des Moines, IA',      lat: 41.586, lng: -93.625,  radius: 40, poiCount: 20, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Iowa City, IA',       lat: 41.661, lng: -91.530,  radius: 25, poiCount: 10, discoveredAt: SEED_DATE, source: 'seed' },
+];
+
+// ─── I-70 Corridor (Denver → Kansas City → St. Louis → Indianapolis) ─────────
+
+const I70_CORRIDOR: SeedHub[] = [
+  // Denver already in WESTERN_US
+  { name: 'Hays, KS',            lat: 38.879, lng: -99.327,  radius: 20, poiCount: 6,  discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Salina, KS',          lat: 38.840, lng: -97.611,  radius: 25, poiCount: 8,  discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Topeka, KS',          lat: 39.049, lng: -95.678,  radius: 35, poiCount: 15, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Kansas City, MO',     lat: 39.100, lng: -94.579,  radius: 50, poiCount: 35, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Columbia, MO',        lat: 38.952, lng: -92.334,  radius: 30, poiCount: 12, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'St. Louis, MO',       lat: 38.627, lng: -90.199,  radius: 50, poiCount: 35, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Terre Haute, IN',     lat: 39.467, lng: -87.414,  radius: 25, poiCount: 10, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Indianapolis, IN',    lat: 39.768, lng: -86.158,  radius: 50, poiCount: 35, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Dayton, OH',          lat: 39.758, lng: -84.192,  radius: 35, poiCount: 18, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Columbus, OH',        lat: 39.962, lng: -82.999,  radius: 45, poiCount: 25, discoveredAt: SEED_DATE, source: 'seed' },
+];
+
+// ─── I-40 Corridor (Albuquerque → OKC → Memphis → Nashville) ─────────────────
+
+const I40_CORRIDOR: SeedHub[] = [
+  { name: 'Albuquerque, NM',     lat: 35.085, lng: -106.651, radius: 45, poiCount: 25, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Santa Rosa, NM',      lat: 34.938, lng: -104.682, radius: 15, poiCount: 5,  discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Amarillo, TX',        lat: 35.222, lng: -101.831, radius: 35, poiCount: 18, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Oklahoma City, OK',   lat: 35.468, lng: -97.517,  radius: 50, poiCount: 35, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Fort Smith, AR',      lat: 35.386, lng: -94.399,  radius: 30, poiCount: 12, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Little Rock, AR',     lat: 34.746, lng: -92.290,  radius: 40, poiCount: 20, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Memphis, TN',         lat: 35.150, lng: -90.049,  radius: 45, poiCount: 30, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Nashville, TN',       lat: 36.163, lng: -86.782,  radius: 50, poiCount: 35, discoveredAt: SEED_DATE, source: 'seed' },
+];
+
+// ─── I-65 Corridor (Chicago → Nashville → Birmingham → Mobile) ──────────────
+
+const I65_CORRIDOR: SeedHub[] = [
+  // Chicago already in I94_CORRIDOR, Indianapolis in I70, Nashville in I40
+  { name: 'Bowling Green, KY',   lat: 36.990, lng: -86.444,  radius: 25, poiCount: 10, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Birmingham, AL',      lat: 33.521, lng: -86.802,  radius: 45, poiCount: 25, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Montgomery, AL',      lat: 32.377, lng: -86.300,  radius: 35, poiCount: 18, discoveredAt: SEED_DATE, source: 'seed' },
+  // Mobile already in I10_CORRIDOR
+];
+
+// ─── I-35 Corridor (Minneapolis → Kansas City → Dallas) ──────────────────────
+
+const I35_CORRIDOR: SeedHub[] = [
+  // Minneapolis in I94, Des Moines in I80, Kansas City in I70, OKC in I40, Dallas in TEXAS
+  { name: 'Wichita, KS',         lat: 37.688, lng: -97.336,  radius: 40, poiCount: 20, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Waco, TX',            lat: 31.549, lng: -97.147,  radius: 30, poiCount: 15, discoveredAt: SEED_DATE, source: 'seed' },
+];
+
+// ─── Maritime Canada ─────────────────────────────────────────────────────────
+
+const MARITIME_CANADA: SeedHub[] = [
+  { name: 'Quebec City, QC',     lat: 46.814, lng: -71.208,  radius: 45, poiCount: 25, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Riviere-du-Loup, QC', lat: 47.827, lng: -69.541,  radius: 20, poiCount: 6,  discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Fredericton, NB',     lat: 45.963, lng: -66.643,  radius: 25, poiCount: 10, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Saint John, NB',      lat: 45.273, lng: -66.063,  radius: 25, poiCount: 10, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Moncton, NB',         lat: 46.089, lng: -64.773,  radius: 30, poiCount: 12, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Halifax, NS',         lat: 44.649, lng: -63.575,  radius: 40, poiCount: 20, discoveredAt: SEED_DATE, source: 'seed' },
+];
+
+// ─── Mountain West Fills ─────────────────────────────────────────────────────
+
+const MOUNTAIN_WEST_FILLS: SeedHub[] = [
+  { name: 'Spokane, WA',         lat: 47.659, lng: -117.426, radius: 40, poiCount: 20, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Missoula, MT',        lat: 46.872, lng: -113.994, radius: 30, poiCount: 12, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Helena, MT',          lat: 46.589, lng: -112.039, radius: 20, poiCount: 8,  discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Butte, MT',           lat: 46.004, lng: -112.534, radius: 20, poiCount: 6,  discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Great Falls, MT',     lat: 47.507, lng: -111.299, radius: 25, poiCount: 10, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Bozeman, MT',         lat: 45.680, lng: -111.044, radius: 25, poiCount: 10, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Idaho Falls, ID',     lat: 43.467, lng: -112.034, radius: 25, poiCount: 10, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Twin Falls, ID',      lat: 42.563, lng: -114.460, radius: 25, poiCount: 8,  discoveredAt: SEED_DATE, source: 'seed' },
+];
+
+// ─── Southeast Fills ─────────────────────────────────────────────────────────
+
+const SOUTHEAST_FILLS: SeedHub[] = [
+  { name: 'Charlotte, NC',       lat: 35.227, lng: -80.843,  radius: 50, poiCount: 35, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Raleigh, NC',         lat: 35.780, lng: -78.639,  radius: 45, poiCount: 25, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Greenville, SC',      lat: 34.852, lng: -82.394,  radius: 30, poiCount: 15, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Columbia, SC',        lat: 34.000, lng: -81.035,  radius: 35, poiCount: 15, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Charleston, SC',      lat: 32.776, lng: -79.931,  radius: 35, poiCount: 18, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Savannah, GA',        lat: 32.081, lng: -81.091,  radius: 35, poiCount: 18, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Chattanooga, TN',     lat: 35.046, lng: -85.310,  radius: 30, poiCount: 15, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Orlando, FL',         lat: 28.538, lng: -81.379,  radius: 50, poiCount: 40, discoveredAt: SEED_DATE, source: 'seed' },
+];
+
 // ─── Combined Export ──────────────────────────────────────────────────────────
 
 export const SEED_HUBS: SeedHub[] = [
@@ -185,6 +305,16 @@ export const SEED_HUBS: SeedHub[] = [
   ...I95_CORRIDOR,
   ...WESTERN_US,
   ...TEXAS,
+  // v4 corridors
+  ...I10_CORRIDOR,
+  ...I80_CORRIDOR,
+  ...I70_CORRIDOR,
+  ...I40_CORRIDOR,
+  ...I65_CORRIDOR,
+  ...I35_CORRIDOR,
+  ...MARITIME_CANADA,
+  ...MOUNTAIN_WEST_FILLS,
+  ...SOUTHEAST_FILLS,
 ];
 
 /**

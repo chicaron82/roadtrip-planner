@@ -241,19 +241,36 @@ function AppContent() {
 
   const hasActiveSession = locations.some(loc => loc.name && loc.name.trim() !== '');
 
-  if (!tripMode) {
-    return (
-      <LandingScreen
-        onSelectMode={handleSelectMode}
-        hasSavedTrip={history.length > 0}
-        onContinueSavedTrip={() => setTripMode('plan')}
-        hasActiveSession={hasActiveSession}
-        onResumeSession={handleResumeSession}
-      />
-    );
-  }
+  // Shared map props — assembled always (safe with empty state when !tripMode)
+  const mapProps = {
+    locations,
+    routeGeometry: validRouteGeometry,
+    feasibilityStatus: routeFeasibilityStatus,
+    pois,
+    markerCategories,
+    tripActive,
+    strategicFuelStops,
+    addedPOIIds,
+    dayOptions: mapDayOptions,
+    onMapClick: handleMapClick,
+    onAddPOI: summary ? handleAddPOIFromMap : undefined,
+    previewGeometry: validRouteGeometry ? null : previewGeometry,
+    tripMode,
+    alternateGeometries: routeStrategies
+      .filter((_, i) => i !== activeStrategyIndex)
+      .map((s) => ({
+        geometry: s.geometry,
+        label: s.label,
+        emoji: s.emoji,
+        onSelect: () => selectStrategy(routeStrategies.indexOf(s)),
+      })),
+    tripDays: summary?.days,
+    routeSegments: summary?.segments,
+  } as const;
 
-  const stepContent = (
+  const canProceed = planningStep === 1 ? canProceedFromStep1 : canProceedFromStep2;
+
+  const stepContent = tripMode ? (
     <PlanningStepContent
       planningStep={planningStep}
       locations={locations} setLocations={setLocations}
@@ -291,113 +308,100 @@ function AppContent() {
       onUnconfirmTrip={() => { setTripConfirmed(false); setViewMode('plan'); }}
       onLoadHistoryTrip={setSummary}
     />
-  );
-
-  const canProceed = planningStep === 1 ? canProceedFromStep1 : canProceedFromStep2;
-
-  // Shared map props — used by both CompactMap (mobile) and Map (desktop)
-  const mapProps = {
-    locations,
-    routeGeometry: validRouteGeometry,
-    feasibilityStatus: routeFeasibilityStatus,
-    pois,
-    markerCategories,
-    tripActive,
-    strategicFuelStops,
-    addedPOIIds,
-    dayOptions: mapDayOptions,
-    onMapClick: handleMapClick,
-    onAddPOI: summary ? handleAddPOIFromMap : undefined,
-    previewGeometry: validRouteGeometry ? null : previewGeometry,
-    tripMode,
-    alternateGeometries: routeStrategies
-      .filter((_, i) => i !== activeStrategyIndex)
-      .map((s) => ({
-        geometry: s.geometry,
-        label: s.label,
-        emoji: s.emoji,
-        onSelect: () => selectStrategy(routeStrategies.indexOf(s)),
-      })),
-    tripDays: summary?.days,
-    routeSegments: summary?.segments,
-  } as const;
+  ) : null;
 
   return (
     <div className="relative h-screen w-full overflow-hidden">
 
-      {/* ── Full-bleed map — always visible behind panel ── */}
+      {/* ── Full-bleed map — always mounted (landing floats above it) ── */}
       <div className="absolute inset-0">
         <Map {...mapProps} />
       </div>
 
-      {/* ── Vignette overlay (left opaque → right transparent) ── */}
-      <div className="mee-vignette absolute inset-0 pointer-events-none z-[1]" />
-
-      {/* ── Floating glass panel ── */}
-      <div className="sidebar-dark mee-panel absolute inset-0 z-10 w-full flex flex-col overflow-hidden md:inset-auto md:left-6 md:top-6 md:bottom-6 md:w-[420px]">
-        <StepsBanner
-          currentStep={planningStep}
-          completedSteps={completedSteps}
-          tripMode={tripMode}
-          isCalculating={isCalculating}
-          onStepClick={handleStepClick}
-          showModeSwitcher={showModeSwitcher}
-          setShowModeSwitcher={setShowModeSwitcher}
-          modeSwitcherRef={modeSwitcherRef}
-          onSwitchMode={handleSwitchMode}
+      {/* ── Landing overlay — floats over map when no trip mode selected ── */}
+      {!tripMode && (
+        <LandingScreen
+          onSelectMode={handleSelectMode}
+          hasSavedTrip={history.length > 0}
+          onContinueSavedTrip={() => setTripMode('plan')}
+          hasActiveSession={hasActiveSession}
+          onResumeSession={handleResumeSession}
         />
-        <WizardContent
-          planningStep={planningStep}
-          canProceed={canProceed}
-          isCalculating={isCalculating}
-          onNext={goToNextStep}
-          onBack={goToPrevStep}
-          onReset={resetTrip}
-          tripMode={tripMode}
-          markerCategories={markerCategories}
-          loadingCategory={loadingCategory}
-          onToggleCategory={handleToggleCategory}
-          error={error}
-          onClearError={clearError}
-        >
-          {stepContent}
-        </WizardContent>
-      </div>
-
-      {/* ── Desktop overlays (route strategy + trip summary) ── */}
-      {summary && planningStep === 3 && (
-        <div className="hidden md:flex absolute bottom-6 right-6 z-20 flex-col gap-3 pointer-events-none">
-          <div className="pointer-events-auto">
-            <RouteStrategyPicker
-              strategies={routeStrategies}
-              activeIndex={activeStrategyIndex}
-              onSelect={selectStrategy}
-              units={settings.units}
-              isRoundTrip={settings.isRoundTrip}
-            />
-          </div>
-          <div className="pointer-events-auto">
-            <TripSummaryCard
-              summary={summary}
-              settings={settings}
-              tripActive={tripActive}
-              onStop={() => setTripActive(false)}
-              onOpenVehicleTab={() => goToStep(2)}
-            />
-          </div>
-        </div>
       )}
 
-      {/* ── Adventure mode modal ── */}
-      {showAdventureMode && (
-        <AdventureMode
-          origin={locations.find(l => l.type === 'origin') || null}
-          onOriginChange={(newOrigin) => {
-            setLocations(prev => prev.map(loc => loc.type === 'origin' ? { ...loc, ...newOrigin } : loc));
-          }}
-          onSelectDestination={handleAdventureSelect}
-          onClose={() => setShowAdventureMode(false)}
-        />
+      {/* ── Planner UI — only when a trip mode is active ── */}
+      {tripMode && (
+        <>
+          {/* Vignette overlay (left opaque → right transparent) */}
+          <div className="mee-vignette absolute inset-0 pointer-events-none z-[1]" />
+
+          {/* Floating glass panel */}
+          <div className="sidebar-dark mee-panel absolute inset-0 z-10 w-full flex flex-col overflow-hidden md:inset-auto md:left-6 md:top-6 md:bottom-6 md:w-[420px]">
+            <StepsBanner
+              currentStep={planningStep}
+              completedSteps={completedSteps}
+              tripMode={tripMode}
+              isCalculating={isCalculating}
+              onStepClick={handleStepClick}
+              showModeSwitcher={showModeSwitcher}
+              setShowModeSwitcher={setShowModeSwitcher}
+              modeSwitcherRef={modeSwitcherRef}
+              onSwitchMode={handleSwitchMode}
+            />
+            <WizardContent
+              planningStep={planningStep}
+              canProceed={canProceed}
+              isCalculating={isCalculating}
+              onNext={goToNextStep}
+              onBack={goToPrevStep}
+              onReset={resetTrip}
+              tripMode={tripMode}
+              markerCategories={markerCategories}
+              loadingCategory={loadingCategory}
+              onToggleCategory={handleToggleCategory}
+              error={error}
+              onClearError={clearError}
+            >
+              {stepContent}
+            </WizardContent>
+          </div>
+
+          {/* Desktop overlays (route strategy + trip summary) */}
+          {summary && planningStep === 3 && (
+            <div className="hidden md:flex absolute bottom-6 right-6 z-20 flex-col gap-3 pointer-events-none">
+              <div className="pointer-events-auto">
+                <RouteStrategyPicker
+                  strategies={routeStrategies}
+                  activeIndex={activeStrategyIndex}
+                  onSelect={selectStrategy}
+                  units={settings.units}
+                  isRoundTrip={settings.isRoundTrip}
+                />
+              </div>
+              <div className="pointer-events-auto">
+                <TripSummaryCard
+                  summary={summary}
+                  settings={settings}
+                  tripActive={tripActive}
+                  onStop={() => setTripActive(false)}
+                  onOpenVehicleTab={() => goToStep(2)}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Adventure mode modal */}
+          {showAdventureMode && (
+            <AdventureMode
+              origin={locations.find(l => l.type === 'origin') || null}
+              onOriginChange={(newOrigin) => {
+                setLocations(prev => prev.map(loc => loc.type === 'origin' ? { ...loc, ...newOrigin } : loc));
+              }}
+              onSelectDestination={handleAdventureSelect}
+              onClose={() => setShowAdventureMode(false)}
+            />
+          )}
+        </>
       )}
     </div>
   );

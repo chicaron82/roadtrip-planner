@@ -1,31 +1,28 @@
 /**
  * ═══════════════════════════════════════════════════════════
  * MY EXPERIENCE ENGINE — LANDING SCREEN STYLES
- * Keyframes, card hover effects, starfield, aurora
+ * Warm glass design system — matches the floating planner panel
  *
- * Separated from component for maintainability
+ * Key palette: rgb(14,11,7) dark · #f97316 orange · blur glass
  * ═══════════════════════════════════════════════════════════
  */
 
-/* ── Font imports ── */
-/* Fonts loaded via <link> in index.html for render performance */
-
 /* ── Base landing container ── */
 .landing-screen {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  background: #0A0E1A url('/landing_concept.png') center/cover no-repeat;
+  background: transparent;   /* Map always shows through from beneath */
   overflow: hidden;
   font-family: 'Sora', 'DM Sans', system-ui, sans-serif;
   transition: opacity 0.6s ease, transform 0.6s ease;
   z-index: 50;
 }
 
-/* ── Cinematic image overlay — preserves neon glow, protects text ── */
+/* ── Warm dark overlay — rgba(14,11,7) family matches the planner panel ── */
 .landing-bg-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(10, 14, 26, 0.65);
+  background: rgba(14, 11, 7, 0.82);
   pointer-events: none;
 }
 
@@ -33,23 +30,7 @@
   box-sizing: border-box;
 }
 
-/* ── Starfield background ── */
-.landing-starfield {
-  position: absolute;
-  inset: 0;
-  background-image:
-    radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.4) 0%, transparent 100%),
-    radial-gradient(1px 1px at 60% 70%, rgba(255,255,255,0.3) 0%, transparent 100%),
-    radial-gradient(1px 1px at 80% 20%, rgba(255,255,255,0.5) 0%, transparent 100%),
-    radial-gradient(1px 1px at 40% 80%, rgba(255,255,255,0.2) 0%, transparent 100%),
-    radial-gradient(1.5px 1.5px at 10% 60%, rgba(255,255,255,0.3) 0%, transparent 100%),
-    radial-gradient(1px 1px at 90% 50%, rgba(255,255,255,0.4) 0%, transparent 100%),
-    radial-gradient(1px 1px at 55% 15%, rgba(255,255,255,0.2) 0%, transparent 100%),
-    radial-gradient(1px 1px at 30% 90%, rgba(255,255,255,0.3) 0%, transparent 100%);
-  pointer-events: none;
-}
-
-/* ── Aurora gradient ── */
+/* ── Warm aurora — orange tint instead of cold green/blue/amber ── */
 @keyframes landing-aurora {
   0%, 100% { transform: translateX(-5%) translateY(-5%) scale(1.1); }
   50% { transform: translateX(5%) translateY(5%) scale(1); }
@@ -60,30 +41,11 @@
   inset: -20%;
   background: radial-gradient(
     ellipse 80% 50% at 50% 50%,
-    rgba(34, 197, 94, 0.02) 0%,
-    rgba(59, 130, 246, 0.02) 40%,
-    rgba(245, 158, 11, 0.015) 70%,
+    rgba(249, 115, 22, 0.04) 0%,
+    rgba(251, 146, 60, 0.025) 40%,
+    rgba(251, 191, 36, 0.015) 70%,
     transparent 100%
   );
-  pointer-events: none;
-}
-
-/* ── Road texture gradient ── */
-.landing-road-texture {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 180px;
-  background: linear-gradient(to top, rgba(15, 20, 35, 0.95) 0%, transparent 100%);
-  pointer-events: none;
-}
-
-/* ── Route map SVG ── */
-.landing-route-map {
-  position: absolute;
-  inset: 0;
-  opacity: 0.08;
   pointer-events: none;
 }
 
@@ -93,16 +55,17 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Mode cards ── */
+/* ── Mode cards — warm glass matching planner panel ── */
 .landing-mode-card {
   position: relative;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(14, 11, 7, 0.60);
+  border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 20px;
   padding: clamp(20px, 2.5vh, 32px) clamp(18px, 2vw, 28px);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   overflow: hidden;
   opacity: 0;
   animation: landing-card-entrance 0.6s ease forwards;
@@ -121,7 +84,9 @@
 .landing-mode-card:hover {
   transform: translateY(-6px) scale(1.02);
   border-color: var(--card-border, rgba(255,255,255,0.2));
-  box-shadow: 0 20px 60px var(--card-shadow, rgba(0,0,0,0.4));
+  box-shadow:
+    0 20px 60px var(--card-shadow, rgba(0,0,0,0.4)),
+    0 0 0 1px var(--card-border, rgba(255,255,255,0.15));
 }
 
 .landing-mode-card:hover::before {
@@ -192,11 +157,11 @@
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: var(--stat-color, #666);
+  background: var(--stat-color, #f97316);
   flex-shrink: 0;
 }
 
-/* ── CTA button ── */
+/* ── CTA button — unified orange across all modes ── */
 .landing-mode-cta {
   width: 100%;
   padding: 13px 20px;
@@ -208,8 +173,8 @@
   letter-spacing: 0.04em;
   cursor: pointer;
   transition: all 0.2s ease;
-  background: var(--cta-bg, rgba(255,255,255,0.1));
-  color: var(--cta-color, white);
+  background: var(--cta-bg, rgba(249, 115, 22, 0.15));
+  color: var(--cta-color, #FDBA74);
   position: relative;
   overflow: hidden;
 }
@@ -219,7 +184,7 @@
 }
 
 .landing-mode-card:hover .landing-mode-cta {
-  background: var(--cta-hover-bg, rgba(255,255,255,0.15));
+  background: var(--cta-hover-bg, rgba(249, 115, 22, 0.25));
 }
 
 /* ── Hero text entrance ── */
@@ -254,11 +219,11 @@
   animation: landing-footer-entrance 0.8s ease 0.8s forwards;
 }
 
-/* ── Divider ── */
+/* ── Divider — orange warmth ── */
 .landing-divider {
   width: 40px;
   height: 2px;
-  background: linear-gradient(to right, rgba(255,255,255,0.4), transparent);
+  background: linear-gradient(to right, rgba(249, 115, 22, 0.7), transparent);
   margin: 0 auto 8px;
   border-radius: 2px;
 }

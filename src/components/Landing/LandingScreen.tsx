@@ -3,8 +3,9 @@
  * MY EXPERIENCE ENGINE — LANDING SCREEN
  * "The open road is calling. How are you answering?"
  *
- * First impression. Experience over utility.
- * Three modes. One invitation.
+ * Floats above the always-present map. Same warm glass system
+ * as the planner panel — rgba(14,11,7) dark, orange accent,
+ * Cormorant Garamond editorial type.
  *
  * 💚 Built by Aaron "Chicharon" — 18 years on the road
  * ═══════════════════════════════════════════════════════════
@@ -27,10 +28,17 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip,
   const [isExiting, setIsExiting] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [activeDot, setActiveDot] = useState(0);
+  const [pulseActive, setPulseActive] = useState(false);
 
   // Staggered entrance
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 50);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Heartbeat orb
+  useEffect(() => {
+    const t = setTimeout(() => setPulseActive(true), 800);
     return () => clearTimeout(t);
   }, []);
 
@@ -55,52 +63,16 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip,
         transform: isExiting ? 'scale(1.03)' : 'scale(1)',
       }}
     >
-      {/* Background layers */}
-      <div className="landing-starfield" />
+      {/* Warm dark overlay — lets map breathe through */}
       <div className="landing-bg-overlay" />
+
+      {/* Warm orange aurora */}
       <div
         className="landing-aurora"
         style={{ animation: 'landing-aurora 12s ease-in-out infinite' }}
       />
 
-      {/* Route map SVG background */}
-      <svg className="landing-route-map" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
-        <path
-          d="M 5,55 Q 12,42 22,52 Q 32,58 38,44 Q 48,36 58,46 Q 65,52 70,52 Q 77,50 83,44"
-          stroke="rgba(255,255,255,0.8)"
-          strokeWidth="0.3"
-          fill="none"
-          strokeDasharray="1,2"
-        />
-        <path
-          d="M 5,55 Q 8,48 12,42 Q 16,36 18,30 Q 20,24 25,20"
-          stroke="rgba(255,255,255,0.5)"
-          strokeWidth="0.2"
-          fill="none"
-          strokeDasharray="0.5,2"
-        />
-        <path
-          d="M 83,44 Q 88,40 92,38 Q 96,36 98,30"
-          stroke="rgba(255,255,255,0.4)"
-          strokeWidth="0.2"
-          fill="none"
-          strokeDasharray="0.5,2"
-        />
-        {ROUTE_DOTS.map((dot, i) => (
-          <circle
-            key={dot.label}
-            cx={dot.x}
-            cy={dot.y}
-            r={i === activeDot ? 1.2 : 0.6}
-            fill={i === activeDot ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)'}
-            style={{ transition: 'all 0.4s ease' }}
-          />
-        ))}
-      </svg>
-
-      <div className="landing-road-texture" />
-
-      {/* Main content — scrollable when content exceeds viewport */}
+      {/* Main content */}
       <div
         style={{
           position: 'relative',
@@ -118,45 +90,72 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip,
       >
         {/* Hero section */}
         <div style={{ textAlign: 'center', maxWidth: '600px' }}>
-          <p
+
+          {/* Eyebrow with heartbeat orb */}
+          <div
             className="landing-hero-eyebrow"
             style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              marginBottom: '4px',
+            }}
+          >
+            <div style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: '#f97316',
+              flexShrink: 0,
+              boxShadow: pulseActive
+                ? '0 0 0 5px rgba(249,115,22,0.15), 0 0 0 10px rgba(249,115,22,0.06)'
+                : '0 0 0 0px rgba(249,115,22,0)',
+              transition: 'box-shadow 1.2s ease',
+            }} />
+            <p style={{
               fontFamily: "'DM Mono', monospace",
               fontSize: '11px',
               fontWeight: 500,
               letterSpacing: '0.2em',
               color: 'rgba(255,255,255,0.35)',
               textTransform: 'uppercase',
-              marginBottom: '4px',
-            }}
-          >
-            My Experience Engine™ (MEE)
-          </p>
+              margin: 0,
+            }}>
+              My Experience Engine™ (MEE)
+            </p>
+          </div>
+
           <p
             style={{
               fontFamily: "'DM Mono', monospace",
               fontSize: '10px',
               color: 'rgba(255,255,255,0.2)',
               letterSpacing: '0.05em',
-              marginBottom: '10px',
+              marginBottom: '14px',
               fontStyle: 'italic',
             }}
           >
-            /pronounced “me”/
+            /pronounced "me"/
           </p>
 
+          {/* Hero title — Cormorant Garamond */}
           <h1 className="landing-hero-title" style={{
-            fontSize: 'clamp(28px, 4.5vw, 52px)',
-            fontWeight: 800,
+            fontFamily: "'Cormorant Garamond', Georgia, serif",
+            fontSize: 'clamp(36px, 5.5vw, 68px)',
+            fontWeight: 300,
+            fontStyle: 'italic',
             color: '#F8FAFF',
-            lineHeight: 1.05,
-            letterSpacing: '-0.03em',
-            margin: '0 0 10px',
+            lineHeight: 1.0,
+            letterSpacing: '-0.01em',
+            margin: '0 0 14px',
           }}>
             The Open Road
             <br />
             <span style={{
-              background: 'linear-gradient(135deg, #22C55E 0%, #3B82F6 50%, #F59E0B 100%)',
+              fontStyle: 'normal',
+              fontWeight: 600,
+              background: 'linear-gradient(135deg, #f97316 0%, #fb923c 60%, #fbbf24 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
@@ -181,7 +180,7 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip,
               <p style={{
                 fontFamily: "'DM Mono', monospace",
                 fontSize: '11px',
-                color: '#22C55E',
+                color: '#fb923c',
                 letterSpacing: '0.05em',
                 marginBottom: '8px',
               }}>
@@ -194,9 +193,9 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip,
                   setTimeout(() => onContinueSavedTrip(), 600);
                 }}
                 style={{
-                  background: 'rgba(34, 197, 94, 0.12)',
-                  border: '1px solid rgba(34, 197, 94, 0.35)',
-                  color: '#86EFAC',
+                  background: 'rgba(249, 115, 22, 0.12)',
+                  border: '1px solid rgba(249, 115, 22, 0.35)',
+                  color: '#FDBA74',
                   padding: '10px 24px',
                   borderRadius: '100px',
                   fontFamily: "'DM Mono', monospace",
@@ -205,15 +204,15 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip,
                   letterSpacing: '0.05em',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
-                  boxShadow: '0 0 20px rgba(34, 197, 94, 0.08)',
+                  boxShadow: '0 0 20px rgba(249, 115, 22, 0.08)',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(34, 197, 94, 0.22)';
-                  e.currentTarget.style.boxShadow = '0 0 30px rgba(34, 197, 94, 0.18)';
+                  e.currentTarget.style.background = 'rgba(249, 115, 22, 0.22)';
+                  e.currentTarget.style.boxShadow = '0 0 30px rgba(249, 115, 22, 0.18)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(34, 197, 94, 0.12)';
-                  e.currentTarget.style.boxShadow = '0 0 20px rgba(34, 197, 94, 0.08)';
+                  e.currentTarget.style.background = 'rgba(249, 115, 22, 0.12)';
+                  e.currentTarget.style.boxShadow = '0 0 20px rgba(249, 115, 22, 0.08)';
                 }}
               >
                 Continue where you left off →
@@ -221,13 +220,13 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip,
             </div>
           )}
 
-          {/* Active Session Resume Button - Only show if a session was rehydrated */}
+          {/* Active Session Resume */}
           {hasActiveSession && onResumeSession && (
             <div style={{ marginBottom: '24px' }}>
               <p style={{
                 fontFamily: "'DM Mono', monospace",
                 fontSize: '11px',
-                color: '#F59E0B',
+                color: '#fb923c',
                 letterSpacing: '0.05em',
                 marginBottom: '8px',
               }}>
@@ -241,9 +240,9 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip,
                 }}
                 className="resume-session-btn"
                 style={{
-                  background: 'rgba(245, 158, 11, 0.15)',
-                  border: '1px solid rgba(245, 158, 11, 0.4)',
-                  color: '#FDE68A',
+                  background: 'rgba(249, 115, 22, 0.15)',
+                  border: '1px solid rgba(249, 115, 22, 0.4)',
+                  color: '#FDBA74',
                   padding: '10px 24px',
                   borderRadius: '100px',
                   fontFamily: "'DM Mono', monospace",
@@ -252,15 +251,15 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip,
                   letterSpacing: '0.05em',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
-                  boxShadow: '0 0 20px rgba(245, 158, 11, 0.1)',
+                  boxShadow: '0 0 20px rgba(249, 115, 22, 0.1)',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(245, 158, 11, 0.25)';
-                  e.currentTarget.style.boxShadow = '0 0 30px rgba(245, 158, 11, 0.2)';
+                  e.currentTarget.style.background = 'rgba(249, 115, 22, 0.25)';
+                  e.currentTarget.style.boxShadow = '0 0 30px rgba(249, 115, 22, 0.2)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(245, 158, 11, 0.15)';
-                  e.currentTarget.style.boxShadow = '0 0 20px rgba(245, 158, 11, 0.1)';
+                  e.currentTarget.style.background = 'rgba(249, 115, 22, 0.15)';
+                  e.currentTarget.style.boxShadow = '0 0 20px rgba(249, 115, 22, 0.1)';
                 }}
               >
                 Resume where you left off →
@@ -287,8 +286,8 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip,
             ))}
             <span style={{ opacity: 0.3 }}>→</span>
             <span style={{
-              color: '#22C55E',
-              textShadow: '0 0 8px rgba(34, 197, 94, 0.6)',
+              color: '#f97316',
+              textShadow: '0 0 8px rgba(249, 115, 22, 0.5)',
             }}>
               COMMIT
             </span>
@@ -318,7 +317,7 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip,
                   '--card-shadow': config.glowColor,
                   '--stat-color': config.accentColor,
                   '--cta-bg': `${config.accentColor}22`,
-                  '--cta-color': config.accentColor,
+                  '--cta-color': config.tagColor,
                   '--cta-hover-bg': `${config.accentColor}33`,
                 } as React.CSSProperties}
                 onMouseEnter={() => setHoveredMode(mode)}
@@ -416,7 +415,7 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip,
             </a>.
           </p>
 
-          {/* Live route dots */}
+          {/* Live route dots — orange accent */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
             {ROUTE_DOTS.map((dot, i) => (
               <div
@@ -426,7 +425,7 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip,
                   width: i === activeDot ? '20px' : '4px',
                   height: '4px',
                   borderRadius: '100px',
-                  background: i === activeDot ? '#22C55E' : 'rgba(255,255,255,0.15)',
+                  background: i === activeDot ? '#f97316' : 'rgba(255,255,255,0.15)',
                   transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
                 }}
               />

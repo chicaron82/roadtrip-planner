@@ -12,7 +12,7 @@
  * ┌────────────────────────────────────────────────────────────────────────────┐
  * │  Tier 1: CACHE HIT (instant, <1ms)                                         │
  * │    • Check if coordinates fall within any known hub's radius               │
- * │    • Pre-seeded with 70+ major highway corridor cities                     │
+ * │    • Pre-seeded with 130+ major highway corridor cities                    │
  * │    • Grows over time via runtime discovery                                 │
  * ├────────────────────────────────────────────────────────────────────────────┤
  * │  Tier 2: POI ANALYSIS (fast, uses already-fetched data)                    │
@@ -38,10 +38,16 @@
  *   • 10+ POIs → 40km radius (medium city: Minneapolis, Calgary)
  *   • 5+ POIs  → 25km radius (small hub: Fargo, Brandon)
  *
+ * HUB LIFECYCLE:
+ *   seed (permanent) → discovered (90-day TTL) → promoted (permanent, earned)
+ *   • Discovered hubs expire after 90 days of no use
+ *   • Hubs used 3+ times auto-promote to permanent status
+ *   • Seeds and promoted hubs only evicted by LRU (500-entry cap)
+ *
  * CACHE MANAGEMENT:
  *   • In-memory singleton avoids repeated JSON.parse per lookup
  *   • LRU eviction keeps cache under 500 entries
- *   • Async localStorage writes don't block UI
+ *   • Debounced async localStorage writes don't block UI
  *   • 20km deduplication prevents near-duplicate entries
  *
  * 💚 My Experience Engine
@@ -60,13 +66,19 @@ export interface DiscoveredHub {
   poiCount: number;       // Confidence indicator
   discoveredAt: string;   // ISO date
   lastUsed: string;       // ISO date (for LRU eviction)
-  source: 'seed' | 'discovered';
+  source: 'seed' | 'discovered' | 'promoted';
+  useCount?: number;      // Times this hub resolved a lookup (optional for backcompat)
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const CACHE_KEY = 'roadtrip-discovered-hubs';
 const MAX_CACHE_SIZE = 500;
+
+// TTL and promotion
+const EXPIRY_DAYS = 90;
+const EXPIRY_MS = EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+const PROMOTION_THRESHOLD = 3;  // Uses before a discovered hub becomes promoted
 
 // POI density thresholds for hub detection
 const MIN_POIS_FOR_HUB = 5;
@@ -84,6 +96,7 @@ const RADIUS_TIERS = [
 // In-memory singleton — avoids repeated localStorage reads + JSON.parse per lookup.
 // On a 2000km route with 10+ fuel checks, this saves ~100ms of main thread blocking.
 let memoryCache: DiscoveredHub[] | null = null;
+let pendingSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
 function loadCache(): DiscoveredHub[] {
   // Return memory if already loaded (fast path)
@@ -102,8 +115,16 @@ function loadCache(): DiscoveredHub[] {
 
 function saveCache(hubs: DiscoveredHub[]): void {
   try {
+    // Prune expired discovered hubs (90-day TTL)
+    const now = Date.now();
+    const alive = hubs.filter(h => {
+      if (h.source === 'seed' || h.source === 'promoted') return true;
+      const lastUsedTime = new Date(h.lastUsed).getTime();
+      return (now - lastUsedTime) < EXPIRY_MS;
+    });
+
     // LRU eviction: sort by lastUsed, keep most recent
-    const sorted = [...hubs].sort(
+    const sorted = [...alive].sort(
       (a, b) => new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime()
     );
     const trimmed = sorted.slice(0, MAX_CACHE_SIZE);
@@ -111,13 +132,32 @@ function saveCache(hubs: DiscoveredHub[]): void {
     // Update memory instantly (keeps lookups fast)
     memoryCache = trimmed;
 
-    // Async dump to disk so UI doesn't freeze
-    setTimeout(() => {
+    // Debounced async dump to disk — during route calculation findHubInWindow
+    // fires 10+ times; this coalesces into a single localStorage write.
+    if (pendingSaveTimer !== null) clearTimeout(pendingSaveTimer);
+    pendingSaveTimer = setTimeout(() => {
+      pendingSaveTimer = null;
       localStorage.setItem(CACHE_KEY, JSON.stringify(trimmed));
     }, 0);
   } catch {
     // localStorage full or unavailable — silent fail
   }
+}
+
+/**
+ * Record a "use" of a hub — updates lastUsed, increments useCount,
+ * and auto-promotes discovered hubs that reach the threshold.
+ */
+function recordHubUse(hub: DiscoveredHub, hubs: DiscoveredHub[]): void {
+  hub.lastUsed = new Date().toISOString();
+  hub.useCount = (hub.useCount ?? 0) + 1;
+
+  // Auto-promote discovered hubs that earn permanence
+  if (hub.source === 'discovered' && hub.useCount >= PROMOTION_THRESHOLD) {
+    hub.source = 'promoted';
+  }
+
+  saveCache(hubs);
 }
 
 /**
@@ -139,9 +179,7 @@ export function findKnownHub(lat: number, lng: number): string | null {
   for (const hub of hubs) {
     const dist = haversineDistance(lat, lng, hub.lat, hub.lng);
     if (dist <= hub.radius) {
-      // Update lastUsed timestamp
-      hub.lastUsed = new Date().toISOString();
-      saveCache(hubs);
+      recordHubUse(hub, hubs);
       return hub.name;
     }
   }
@@ -156,7 +194,7 @@ export function findKnownHub(lat: number, lng: number): string | null {
  * **When to use:** Internal. Called automatically by `resolveHubName` when
  * POI analysis discovers a new hub. Exported for testing.
  */
-export function cacheDiscoveredHub(hub: Omit<DiscoveredHub, 'lastUsed'>): void {
+export function cacheDiscoveredHub(hub: Omit<DiscoveredHub, 'lastUsed' | 'useCount'>): void {
   const hubs = loadCache();
 
   // Check for duplicates by proximity
@@ -168,6 +206,7 @@ export function cacheDiscoveredHub(hub: Omit<DiscoveredHub, 'lastUsed'>): void {
     hubs.push({
       ...hub,
       lastUsed: new Date().toISOString(),
+      useCount: 0,
     });
     saveCache(hubs);
   }
@@ -308,6 +347,7 @@ export function analyzeForHub(
     discoveredAt: new Date().toISOString(),
     lastUsed: new Date().toISOString(),
     source: 'discovered',
+    useCount: 0,
   };
 }
 
@@ -389,6 +429,11 @@ export function findHubInWindow(
     }
   }
 
+  // Record usage — keeps lastUsed fresh and drives promotion
+  if (bestHub) {
+    recordHubUse(bestHub, hubs);
+  }
+
   return bestHub;
 }
 
@@ -404,12 +449,14 @@ export function getHubCacheStats(): {
   totalHubs: number;
   seedHubs: number;
   discoveredHubs: number;
+  promotedHubs: number;
 } {
   const hubs = loadCache();
   return {
     totalHubs: hubs.length,
     seedHubs: hubs.filter(h => h.source === 'seed').length,
     discoveredHubs: hubs.filter(h => h.source === 'discovered').length,
+    promotedHubs: hubs.filter(h => h.source === 'promoted').length,
   };
 }
 
