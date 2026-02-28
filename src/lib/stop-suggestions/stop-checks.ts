@@ -217,6 +217,7 @@ export function checkFuelStop(
         fillType: (wouldRunCriticallyLow || exceededSafeRange) ? 'full' : 'topup',
         comboMeal,
       },
+      hubName,
       warning: sparseWarning,
       dayNumber: state.currentDayNumber,
       accepted: true,
@@ -350,15 +351,16 @@ export function getEnRouteFuelStops(
   distanceAlreadyDriven = 0,
   /** Optional resolver: given km-into-segment, returns a hub city name or undefined */
   hubResolver?: (kmIntoSegment: number) => string | undefined,
-): SuggestedStop[] {
+): { stops: SuggestedStop[]; lastFillKm: number } {
   const stops: SuggestedStop[] = [];
+  let lastFillKm = 0; // km-into-segment of the last fuel fill (0 = none)
 
   // Distance remaining in current tank interval at the start of this segment.
   // e.g. safeRange=550, already=200 → first stop should be at 350km into segment.
   const kmUntilFirstStop = Math.max(0, safeRangeKm - distanceAlreadyDriven);
 
   // No en-route stop needed if the tank can cover the full segment
-  if (kmUntilFirstStop >= segment.distanceKm) return stops;
+  if (kmUntilFirstStop >= segment.distanceKm) return { stops, lastFillKm };
 
   // How far back from the safe-range limit we'll search for a hub snap point.
   // 80km ≈ ~50mi — enough to catch cities like Fargo or Minneapolis that fall
@@ -444,15 +446,19 @@ export function getEnRouteFuelStops(
         fuelCost: config.tankSizeLitres * 0.9 * config.gasPrice,
         fillType: 'full',
       },
+      hubName: stopHubName,
       dayNumber: state.currentDayNumber,
     });
+
+    // Track the km position of this fill so callers can sync sim state.
+    lastFillKm = snappedKm;
 
     // Advance from the SNAPPED position so next-stop spacing is accurate.
     kmMark = snappedKm + safeRangeKm;
     stopIndex++;
   }
 
-  return stops;
+  return { stops, lastFillKm };
 }
 
 

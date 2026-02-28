@@ -27,6 +27,10 @@ export interface SuggestedStop {
     /** true when fuel stop doubles as a meal (stopped during lunch/dinner window) */
     comboMeal?: boolean;
   };
+  /** Hub city name resolved at generation time (e.g. "Fargo, ND").
+   *  When set, buildTimedTimeline uses this as the locationHint instead of
+   *  the generic "~420 km from Winnipeg" distance marker. */
+  hubName?: string;
   warning?: string; // Sparse stretch warning
   dayNumber?: number; // Which numeric day of the trip this occurs on
   dismissed?: boolean;

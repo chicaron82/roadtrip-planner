@@ -144,10 +144,14 @@ export function buildTimedTimeline(
    * @param km        Cumulative km from origin at this stop.
    * @param wpName    Explicit waypoint name (segment endpoint) when the stop falls
    *                  at or very close to a known waypoint.
+   * @param hubName   Hub city resolved at generation time (e.g. "Fargo, ND").
+   *                  Takes precedence over a distance string but yields to a
+   *                  named waypoint (which is the actual stop city).
    */
-  const makeLocationHint = (km: number, wpName?: string): string => {
+  const makeLocationHint = (km: number, wpName?: string, hubName?: string): string => {
     if (km < 20) return wpName ?? originName;
-    if (wpName) return wpName; // named waypoint always wins over a distance string
+    if (wpName) return wpName;  // named waypoint always wins
+    if (hubName) return `near ${hubName}`;
     const rounded = Math.round(km / 5) * 5;
     return `~${rounded} km from ${originName}`;
   };
@@ -204,7 +208,7 @@ export function buildTimedTimeline(
       departureTime: dep,
       durationMinutes: stop.duration,
       distanceFromOriginKm: cumulativeKm,
-      locationHint: makeLocationHint(cumulativeKm, wpName),
+      locationHint: makeLocationHint(cumulativeKm, wpName, stop.hubName),
       stops: [stop],
     });
 

@@ -197,13 +197,28 @@ export function generateSmartStops(
         }
       : undefined;
     const distBeforeSegment = (state.distanceSinceLastFill - segment.distanceKm);
-    suggestions.push(...getEnRouteFuelStops(
+    const { stops: enRouteStops, lastFillKm } = getEnRouteFuelStops(
       state, segment, index, config, safeRangeKm, segmentStartTime,
       Math.max(0, distBeforeSegment), enRouteHubResolver
-    ));
+    );
+    suggestions.push(...enRouteStops);
 
     // Drive the segment
     const arrivalTime = driveSegment(state, segment, segmentStartTime, config);
+
+    // Sync simulation state for mid-segment en-route fills.
+    // driveSegment consumes fuel for the full segment, but the tank was refilled
+    // at lastFillKm — correct distanceSinceLastFill, hoursSinceLastFill, and
+    // currentFuel to reflect only the distance driven AFTER the last en-route fill.
+    // This prevents checkFuelStop from firing spuriously at the next segment boundary.
+    if (lastFillKm > 0) {
+      const remainingKm  = segment.distanceKm - lastFillKm;
+      const remainingMin = (remainingKm / segment.distanceKm) * segment.durationMinutes;
+      const remainingFuel = (remainingKm / 100) * config.fuelEconomyL100km;
+      state.currentFuel          = config.tankSizeLitres - remainingFuel;
+      state.distanceSinceLastFill = remainingKm;
+      state.hoursSinceLastFill    = remainingMin / 60;
+    }
 
     // Overnight stop check (uses strict "final segment" check, not grace zone)
     const overnightSug = checkOvernightStop(
