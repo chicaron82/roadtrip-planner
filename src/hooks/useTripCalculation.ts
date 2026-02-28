@@ -10,7 +10,7 @@ import {
 } from '../lib/calculations';
 import { getTankSizeLitres, getWeightedFuelEconomyL100km, estimateGasStops } from '../lib/unit-conversions';
 import { snapFuelStopsToStations } from '../lib/fuel-stop-snapper';
-import { snapOvernightsToTowns } from '../lib/overnight-snapper';
+import { buildRoundTripSegments, checkAndSetOvernightPrompt, fireAndForgetOvernightSnap } from '../lib/trip-calculation-helpers';
 import {
   splitTripByDays,
   calculateCostBreakdown,
@@ -133,73 +133,13 @@ export function useTripCalculation({
         settings.departureTime
       );
 
-      // For round trips, duplicate segments in reverse for return journey
+      // For round trips, duplicate and reverse segments, then recalculate
       let roundTripMidpoint: number | undefined;
       if (settings.isRoundTrip) {
-        const outboundSegments = segmentsWithTimes;
-        roundTripMidpoint = outboundSegments.length; // Index where return leg begins
+        const rt = buildRoundTripSegments(segmentsWithTimes, tripSummary, settings, vehicle);
+        segmentsWithTimes = rt.segments;
+        roundTripMidpoint = rt.roundTripMidpoint;
         roundTripMidpointRef.current = roundTripMidpoint;
-        const returnSegments = [...outboundSegments].reverse().map((seg) => ({
-          ...seg,
-          from: seg.to,
-          to: seg.from,
-          departureTime: undefined,
-          arrivalTime: undefined,
-          stopDuration: undefined,
-          stopType: 'drive' as const,
-        }));
-
-        // Combine outbound + return and recalculate times.
-        // For day trips (total drive ≤ maxDriveHours), pass the dwell time so the
-        // return leg departs the same day instead of jumping to next morning.
-        const fullRoundTripSegments = [...outboundSegments, ...returnSegments];
-        const totalRTMinutes = fullRoundTripSegments.reduce((sum, s) => sum + s.durationMinutes, 0);
-        const isRTDayTrip = totalRTMinutes <= settings.maxDriveHours * 60;
-        segmentsWithTimes = calculateArrivalTimes(
-          fullRoundTripSegments,
-          settings.departureDate,
-          settings.departureTime,
-          roundTripMidpoint,
-          isRTDayTrip ? (settings.dayTripDurationHours ?? 0) * 60 : undefined,
-        );
-
-        // Recalculate totals from duplicated segments
-        tripSummary.totalDistanceKm = segmentsWithTimes.reduce((sum, s) => sum + s.distanceKm, 0);
-        tripSummary.totalDurationMinutes = segmentsWithTimes.reduce(
-          (sum, s) => sum + s.durationMinutes,
-          0
-        );
-        tripSummary.totalFuelLitres = segmentsWithTimes.reduce(
-          (sum, s) => sum + s.fuelNeededLitres,
-          0
-        );
-        const segmentFuelCost = segmentsWithTimes.reduce((sum, s) => sum + s.fuelCost, 0);
-
-        // Recalculate derived values that were computed from one-way costs
-        const tankSizeLitres = getTankSizeLitres(vehicle, settings.units);
-        tripSummary.gasStops = estimateGasStops(tripSummary.totalFuelLitres, tankSizeLitres);
-
-        // Human fuel model: every stop = full tank, last stop = partial top-off.
-        // Use the higher (more conservative) of per-segment math vs full-tank model.
-        const fuelEconomy = getWeightedFuelEconomyL100km(vehicle, settings.units);
-        const lastSeg = segmentsWithTimes[segmentsWithTimes.length - 1];
-        const humanFuel = calculateHumanFuelCosts(
-          tripSummary.gasStops, tankSizeLitres, settings.gasPrice,
-          lastSeg?.distanceKm ?? 0, fuelEconomy,
-        );
-        tripSummary.totalFuelCost = Math.max(segmentFuelCost, humanFuel.totalFuelCost);
-
-        tripSummary.costPerPerson = settings.numTravelers > 0
-          ? tripSummary.totalFuelCost / settings.numTravelers
-          : tripSummary.totalFuelCost;
-        tripSummary.drivingDays = Math.ceil(tripSummary.totalDurationMinutes / 60 / settings.maxDriveHours);
-        // Extend fullGeometry to cover both legs so resolveStopTowns can
-        // interpolate positions past the midpoint (e.g. ~1855km on a 2786km
-        // round trip). Return leg follows the same road in reverse.
-        const outboundGeo = tripSummary.fullGeometry ?? [];
-        const returnGeo = [...outboundGeo].reverse();
-        // Skip the duplicated midpoint (last point of outbound === first of return)
-        tripSummary.fullGeometry = [...outboundGeo, ...returnGeo.slice(1)] as [number, number][];
       }
 
       tripSummary.segments = segmentsWithTimes;
@@ -261,32 +201,10 @@ export function useTripCalculation({
         // Silently keep geometry-interpolated positions if Overpass is unavailable
       });
 
-      // Check if overnight stop is recommended
-      // Skip if trip is already split into multiple days — day splitter handled it
-      const totalHours = tripSummary.totalDurationMinutes / 60;
-      const exceedsMaxHours = totalHours > settings.maxDriveHours;
-
-      if (exceedsMaxHours && tripDays.length <= 1) {
-        // Calculate midpoint for overnight stop
-        const targetDistance = tripSummary.totalDistanceKm * 0.5;
-        let currentDist = 0;
-        let overnightLocation: Location | null = null;
-
-        for (const segment of tripSummary.segments) {
-          currentDist += segment.distanceKm;
-          if (currentDist >= targetDistance) {
-            overnightLocation = segment.to;
-            break;
-          }
-        }
-
-        if (overnightLocation) {
-          setSuggestedOvernightStop(overnightLocation);
-          setShowOvernightPrompt(true);
-        }
-      } else {
-        setShowOvernightPrompt(false);
-      }
+      checkAndSetOvernightPrompt(
+        tripSummary, tripDays, settings,
+        setSuggestedOvernightStop, setShowOvernightPrompt,
+      );
 
       // Add to history
       addToHistory(tripSummary);
@@ -312,89 +230,8 @@ export function useTripCalculation({
       });
       // ─────────────────────────────────────────────────────────────────
 
-      // ── Async overnight-stop snapping (fire-and-forget) ──────────────
-      // Transit-split overnight locations have id='transit-split-N-M' and
-      // geometry-interpolated lat/lng — they land on the road, not in a town.
-      // snapOvernightsToTowns fires one Overpass query and returns the nearest
-      // real settlement for each, updating both coordinates AND name.
-      snapOvernightsToTowns(tripDays, geocodeController.signal)
-        .then(snapped => {
-          if (geocodeController.signal.aborted || snapped.length === 0) return;
-
-          const enriched = tripDays.map(d => ({ ...d }));
-          let changed = false;
-
-          for (const snap of snapped) {
-            const idx = enriched.findIndex(d => d.dayNumber === snap.dayNumber);
-            if (idx < 0) continue;
-
-            const day = enriched[idx];
-            const firstFrom = day.segments[0]?.from.name ?? '';
-            const clonedSegments = [...day.segments];
-
-            if (clonedSegments.length > 0) {
-              const lastSegIdx = clonedSegments.length - 1;
-              clonedSegments[lastSegIdx] = {
-                ...clonedSegments[lastSegIdx],
-                to: {
-                  ...clonedSegments[lastSegIdx].to,
-                  lat: snap.lat,
-                  lng: snap.lng,
-                  name: snap.name,
-                },
-              };
-            }
-
-            enriched[idx] = {
-              ...day,
-              route: `${firstFrom} \u2192 ${snap.name}`,
-              segments: clonedSegments,
-              overnight: {
-                ...day.overnight!,
-                location: {
-                  ...day.overnight!.location,
-                  lat: snap.lat,
-                  lng: snap.lng,
-                  name: snap.name,
-                },
-              },
-            };
-
-            // Propagate to next day's departure point
-            if (idx + 1 < enriched.length) {
-              const nextDay = enriched[idx + 1];
-              const nextCloned = [...nextDay.segments];
-              if (nextCloned.length > 0 && nextCloned[0].from.name === 'Overnight Stop') {
-                nextCloned[0] = {
-                  ...nextCloned[0],
-                  from: {
-                    ...nextCloned[0].from,
-                    lat: snap.lat,
-                    lng: snap.lng,
-                    name: snap.name,
-                  },
-                };
-                const nextLastTo = nextCloned[nextCloned.length - 1]?.to.name ?? 'Destination';
-                enriched[idx + 1] = {
-                  ...nextDay,
-                  route: `${snap.name} \u2192 ${nextLastTo}`,
-                  segments: nextCloned,
-                };
-              }
-            }
-
-            changed = true;
-          }
-
-          if (changed) {
-            const updatedSummary = { ...tripSummary, days: enriched };
-            setLocalSummary(updatedSummary);
-            onSummaryChange(updatedSummary);
-          }
-        })
-        .catch(() => {
-          // Silently keep interpolated positions if Overpass is unavailable
-        });
+      // Fire-and-forget: snap overnight stop markers to nearest real town.
+      fireAndForgetOvernightSnap(tripDays, tripSummary, geocodeController, setLocalSummary, onSummaryChange);
       // ─────────────────────────────────────────────────────────────────
 
       return tripSummary;
@@ -453,8 +290,12 @@ export function useTripCalculation({
         // Human fuel model (full-tank per stop)
         const stratEconomy = getWeightedFuelEconomyL100km(vehicle, settings.units);
         const stratLastSeg = allSegments[allSegments.length - 1];
+        const stratAverageGasPrice = newSummary.totalFuelLitres > 0
+          ? stratSegFuelCost / newSummary.totalFuelLitres
+          : settings.gasPrice;
+          
         const stratHuman = calculateHumanFuelCosts(
-          newSummary.gasStops, tankSizeLitres, settings.gasPrice,
+          newSummary.gasStops, tankSizeLitres, stratAverageGasPrice,
           stratLastSeg?.distanceKm ?? 0, stratEconomy,
         );
         newSummary.totalFuelCost = Math.max(stratSegFuelCost, stratHuman.totalFuelCost);

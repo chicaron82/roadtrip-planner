@@ -165,15 +165,13 @@ export function getHotelMultiplier(locationName: string): number {
 }
 
 /**
- * Return a regional fuel price per litre for the origin location.
+ * Return a regional fuel price per litre for a given location.
  *
  * - Canadian province → CAD/L price (always, regardless of currency setting)
  * - US state + currency 'USD' → USD/L price
  * - Mismatch (US state with CAD currency, or unknown region) → null (caller keeps default)
- *
- * The caller should only apply this if the user hasn't manually overridden gasPrice.
  */
-export function getFuelPriceDefault(locationName: string, currency: 'CAD' | 'USD'): number | null {
+export function getRegionalFuelPrice(locationName: string, currency: 'CAD' | 'USD'): number | null {
   const code = extractRegionCode(locationName);
   if (!code) return null;
 
@@ -185,3 +183,6 @@ export function getFuelPriceDefault(locationName: string, currency: 'CAD' | 'USD
   }
   return null;
 }
+
+/** Legacy alias for origin-based default logic */
+export const getFuelPriceDefault = getRegionalFuelPrice;

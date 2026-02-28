@@ -8,62 +8,28 @@ import { AdventureMode } from './components/Trip/AdventureMode';
 import { LandingScreen } from './components/Landing/LandingScreen';
 import { PlanningStepContent } from './components/Steps/PlanningStepContent';
 import './styles/sidebar.css';
-import { TripProvider, useTripContext, DEFAULT_LOCATIONS } from './contexts';
+import { TripProvider, useTripContext } from './contexts';
 import {
   useWizard, useTripCalculation, useJournal, usePOI, useEagerRoute, useAddedStops,
   useStylePreset, useTripMode, useTripLoader, useMapInteractions, useURLHydration,
+  usePlanningStepProps, useAppReset, useCalculateAndDiscover, useMapProps,
   type PlanningStep,
 } from './hooks';
-import { recordTrip } from './lib/user-profile';
-import { getHistory, getLastOrigin } from './lib/storage';
-import type { TripSummary, TripMode, POICategory } from './types';
+import { getHistory } from './lib/storage';
+import type { TripSummary, TripMode } from './types';
 
 /**
- * App.tsx — Immersive Map Layout (MEE Redesign)
- *
- * Layout: full-bleed Map behind floating glass panel (portrait + desktop)
- * Panel: StepsBanner → WizardContent scrollable form
- *
- * HOOK DEPENDENCY FLOW:
- * ┌─────────────────────────────────────────────────────────────────────────────┐
- * │  TripContext (locations, vehicle, settings, summary)                        │
- * │       ↓ consumed by all hooks                                               │
- * ├─────────────────────────────────────────────────────────────────────────────┤
- * │  LAYER 1: Independent hooks (no cross-hook deps)                            │
- * │    • useTripMode        — plan/adventure/estimate mode state                │
- * │    • useStylePreset     — travel style presets (Road Warrior, etc.)         │
- * │    • usePOI             — POI discovery + category toggles                  │
- * │    • useEagerRoute      — dashed preview line before calculation            │
- * │    • useAddedStops      — map-click waypoints + round-trip mirroring        │
- * ├─────────────────────────────────────────────────────────────────────────────┤
- * │  LAYER 2: Hooks that depend on Layer 1 outputs                              │
- * │    • useTripCalculation — route calc, fuel stops, strategies                │
- * │    • useWizard          — step navigation (1→2→3)                           │
- * ├─────────────────────────────────────────────────────────────────────────────┤
- * │  LAYER 3: Hooks that depend on Layer 2 outputs                              │
- * │    • useTripLoader      — template/challenge loading                        │
- * │    • useJournal         — journal sessions                                  │
- * │    • useMapInteractions — geometry + click handlers                         │
- * │    • useURLHydration    — URL state restore                                 │
- * └─────────────────────────────────────────────────────────────────────────────┘
- *
+ * App.tsx — Root orchestrator (MEE Redesign)
+ * Full-bleed map + floating glass panel. Hook layers:
+ * L1 (independent) → L2 (calc, wizard) → L3 (loader, journal, map, URL)
  * 💚 My Experience Engine
  */
 
-// ==================== APP CONTENT (uses hooks) ====================
-
 function AppContent() {
-  // ─── TripContext (global state) ─────────────────────────────────────────────
   const { locations, setLocations, vehicle, setVehicle, settings, setSettings, summary, setSummary } = useTripContext();
 
-  // ─── Layer 1: Independent Hooks ─────────────────────────────────────────────
   const previewGeometry = useEagerRoute(locations);
-
-  // ─── Refs (cross-hook coordination) ──────────────────────────────────────────
   const onCalcCompleteRef = useRef<() => void>(() => {});
-  const settingsRef = useRef(settings);
-
-  // ─── Local UI State ─────────────────────────────────────────────────────────
   const [tripConfirmed, setTripConfirmed] = useState(false);
   const [history] = useState<TripSummary[]>(() => getHistory());
 
@@ -96,21 +62,6 @@ function AppContent() {
 
   // ─── Layer 2: Calculation & Navigation ───────────────────────────────────────
 
-  // POI add — marks suggestion as added AND inserts it as a route waypoint
-  const handleAddPOI = useCallback((poiId: string) => {
-    addPOI(poiId);
-    const poi = poiSuggestions.find(p => p.id === poiId);
-    if (poi) {
-      const categoryMap: Partial<Record<string, POICategory>> = {
-        gas: 'gas', food: 'food', restaurant: 'food', cafe: 'food', hotel: 'hotel', attraction: 'attraction',
-      };
-      addStop(
-        { id: poi.id, name: poi.name, lat: poi.lat, lng: poi.lng, address: poi.address, category: categoryMap[poi.category] ?? 'attraction' },
-        summary?.segments ?? []
-      );
-    }
-  }, [addPOI, poiSuggestions, addStop, summary]);
-
   // Trip calculation
   const {
     isCalculating, error: calcError, shareUrl,
@@ -125,24 +76,10 @@ function AppContent() {
     onCalculationComplete: () => onCalcCompleteRef.current(),
   });
 
-  // Calculate trip + fetch POIs together
-  const calculateAndDiscover = useCallback(async () => {
-    setTripConfirmed(false);
-    const tripResult = await calculateTrip();
-    if (!tripResult) return;
-    recordTrip(settingsRef.current);
-    setAdaptiveDefaults(refreshAdaptiveDefaults());
-    const origin = locations.find(l => l.type === 'origin');
-    const destination = locations.find(l => l.type === 'destination');
-    if (origin && destination && tripResult.fullGeometry) {
-      fetchRoutePOIs(
-        tripResult.fullGeometry as [number, number][],
-        origin, destination,
-        settings.tripPreferences,
-        tripResult.segments,
-      );
-    }
-  }, [calculateTrip, locations, settings.tripPreferences, fetchRoutePOIs, refreshAdaptiveDefaults, setAdaptiveDefaults]);
+  const { calculateAndDiscover } = useCalculateAndDiscover({
+    calculateTrip, locations, settings, setTripConfirmed,
+    fetchRoutePOIs, refreshAdaptiveDefaults, setAdaptiveDefaults,
+  });
 
   // Wizard (step navigation)
   const {
@@ -151,9 +88,7 @@ function AppContent() {
     markStepComplete, resetWizard,
   } = useWizard({ locations, vehicle, onCalculate: calculateAndDiscover });
 
-  // Keep refs current
   useLayoutEffect(() => {
-    settingsRef.current = settings;
     onCalcCompleteRef.current = () => {
       markStepComplete(1); markStepComplete(2); markStepComplete(3); forceStep(3);
     };
@@ -213,24 +148,10 @@ function AppContent() {
     else setTripMode(mode);
   }, [setTripMode, setShowAdventureMode]);
 
-  const resetTrip = useCallback(() => {
-    setLocations(DEFAULT_LOCATIONS); setSummary(null);
-    resetPOIs(); resetWizard(); clearStops(); clearTripCalculation();
-    setActiveChallenge(null); setTripOrigin(null); setTripConfirmed(false);
-  }, [setLocations, setSummary, resetWizard, resetPOIs, clearStops, clearTripCalculation, setActiveChallenge, setTripOrigin]);
-
-  const handleSelectMode = useCallback((mode: TripMode) => {
-    resetTrip();
-    window.history.replaceState({}, '', window.location.pathname);
-    resetWizard(); setTripMode(mode);
-    if (mode === 'adventure') setShowAdventureMode(true);
-    const lastOrigin = getLastOrigin();
-    if (lastOrigin) {
-      setLocations(prev =>
-        prev.map((loc, i) => i === 0 ? { ...lastOrigin, id: loc.id, type: 'origin' } : loc)
-      );
-    }
-  }, [resetTrip, resetWizard, setTripMode, setShowAdventureMode, setLocations]);
+  const { resetTrip, handleSelectMode } = useAppReset({
+    setLocations, setSummary, resetPOIs, resetWizard, clearStops, clearTripCalculation,
+    setActiveChallenge, setTripOrigin, setTripConfirmed, setTripMode, setShowAdventureMode,
+  });
 
   const handleResumeSession = useCallback(() => {
     setTripMode('plan');
@@ -241,74 +162,31 @@ function AppContent() {
 
   const hasActiveSession = locations.some(loc => loc.name && loc.name.trim() !== '');
 
-  // Shared map props — assembled always (safe with empty state when !tripMode)
-  const mapProps = {
-    locations,
-    routeGeometry: validRouteGeometry,
-    feasibilityStatus: routeFeasibilityStatus,
-    pois,
-    markerCategories,
-    tripActive,
-    strategicFuelStops,
-    addedPOIIds,
-    dayOptions: mapDayOptions,
-    onMapClick: handleMapClick,
-    onAddPOI: summary ? handleAddPOIFromMap : undefined,
-    previewGeometry: validRouteGeometry ? undefined : previewGeometry,
-    tripMode: tripMode || undefined,
-    alternateGeometries: routeStrategies
-      .filter((_, i) => i !== activeStrategyIndex)
-      .map((s) => ({
-        geometry: s.geometry,
-        label: s.label,
-        emoji: s.emoji,
-        onSelect: () => selectStrategy(routeStrategies.indexOf(s)),
-      })),
-    tripDays: summary?.days,
-    routeSegments: summary?.segments,
-  } as const;
+  const mapProps = useMapProps({
+    locations, validRouteGeometry, routeFeasibilityStatus,
+    pois, markerCategories, tripActive, strategicFuelStops, addedPOIIds,
+    mapDayOptions, handleMapClick, summary, handleAddPOIFromMap,
+    previewGeometry, tripMode, routeStrategies, activeStrategyIndex, selectStrategy,
+  });
 
   const canProceed = planningStep === 1 ? canProceedFromStep1 : canProceedFromStep2;
 
-  const stepContent = tripMode ? (
-    <PlanningStepContent
-      planningStep={planningStep}
-      locations={locations} setLocations={setLocations}
-      vehicle={vehicle} setVehicle={setVehicle}
-      settings={settings} setSettings={setSettings}
-      summary={summary} tripMode={tripMode}
-      onShowAdventure={() => setShowAdventureMode(true)}
-      onImportTemplate={handleImportTemplate}
-      onSelectChallenge={handleSelectChallenge}
-      activePreset={activePreset} presetOptions={presetOptions}
-      onPresetChange={handlePresetChange}
-      onSharePreset={handleSharePreset}
-      shareJustCopied={shareJustCopied}
-      viewMode={viewMode} setViewMode={setViewMode}
-      activeJournal={activeJournal} activeChallenge={activeChallenge}
-      tripConfirmed={tripConfirmed} addedStopCount={addedStops.length}
-      externalStops={[...asSuggestedStops, ...mirroredReturnStops]}
-      history={history} shareUrl={shareUrl}
-      showOvernightPrompt={showOvernightPrompt}
-      suggestedOvernightStop={suggestedOvernightStop}
-      poiSuggestions={poiSuggestions} isLoadingPOIs={isLoadingPOIs}
-      onDismissOvernight={dismissOvernightPrompt}
-      onUpdateStopType={updateStopType}
-      onUpdateDayNotes={updateDayNotes}
-      onUpdateDayTitle={updateDayTitle}
-      onUpdateDayType={updateDayType}
-      onUpdateOvernight={updateDayOvernight}
-      onAddPOI={handleAddPOI} onDismissPOI={dismissPOI}
-      onOpenGoogleMaps={openInGoogleMaps}
-      onCopyShareLink={copyShareLink}
-      onStartJournal={startJournal}
-      onUpdateJournal={updateActiveJournal}
-      onGoToStep={goToStep}
-      onConfirmTrip={() => setTripConfirmed(true)}
-      onUnconfirmTrip={() => { setTripConfirmed(false); setViewMode('plan'); }}
-      onLoadHistoryTrip={setSummary}
-    />
-  ) : null;
+  const stepProps = usePlanningStepProps({
+    planningStep, goToStep,
+    locations, setLocations, vehicle, setVehicle, settings, setSettings,
+    summary, setSummary, tripMode: tripMode ?? 'plan',
+    setShowAdventureMode,
+    handleImportTemplate, handleSelectChallenge, activeChallenge,
+    activePreset, presetOptions, handlePresetChange, handleSharePreset, shareJustCopied,
+    viewMode, setViewMode, activeJournal, startJournal, updateActiveJournal,
+    tripConfirmed, setTripConfirmed, history,
+    addedStopCount: addedStops.length,
+    externalStops: [...asSuggestedStops, ...mirroredReturnStops],
+    shareUrl, showOvernightPrompt, suggestedOvernightStop, dismissOvernightPrompt,
+    updateStopType, updateDayNotes, updateDayTitle, updateDayType, updateDayOvernight,
+    poiSuggestions, isLoadingPOIs, addPOI, addStop, dismissPOI,
+    openInGoogleMaps, copyShareLink,
+  });
 
   return (
     <div className="relative h-screen w-full overflow-hidden">
@@ -362,7 +240,7 @@ function AppContent() {
               error={error}
               onClearError={clearError}
             >
-              {stepContent}
+              {tripMode && <PlanningStepContent {...stepProps} />}
             </WizardContent>
           </div>
 

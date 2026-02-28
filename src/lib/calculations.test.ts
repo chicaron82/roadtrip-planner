@@ -237,8 +237,8 @@ describe('calculateTripCosts', () => {
   it('calculates gas stops based on tank capacity', () => {
     const longSegments: RouteSegment[] = [
       {
-        from: { id: 'origin', name: 'Winnipeg', lat: 49.8951, lng: -97.1384, type: 'origin' },
-        to: { id: 'dest', name: 'Toronto', lat: 43.6532, lng: -79.3832, type: 'destination' },
+        from: { id: 'origin', name: 'Winnipeg, MB', lat: 49.8951, lng: -97.1384, type: 'origin' },
+        to: { id: 'dest', name: 'Toronto, ON', lat: 43.6532, lng: -79.3832, type: 'destination' },
         distanceKm: 2200,
         durationMinutes: 1200,
         fuelNeededLitres: 0,
@@ -250,6 +250,24 @@ describe('calculateTripCosts', () => {
     // 2200km trip needs ~2-3 stops
     expect(result.gasStops).toBeGreaterThanOrEqual(2);
     expect(result.gasStops).toBeLessThanOrEqual(4);
+  });
+
+  it('calculates dynamic regional fuel costs', () => {
+    const multiRegionSegments: RouteSegment[] = [
+      {
+        from: { id: 'origin', name: 'Winnipeg, MB', lat: 49.8951, lng: -97.1384, type: 'origin' },
+        to: { id: 'mid', name: 'Kenora, ON', lat: 49.767, lng: -94.489, type: 'destination' },
+        distanceKm: 210,
+        durationMinutes: 140,
+        fuelNeededLitres: 0,
+        fuelCost: 0,
+      }
+    ];
+    // Manitoba ($1.55 baseline), but destination is ON ($1.62 expected regional average)
+    // 210km at 6.7 L/100km = 14.07 Litres.
+    // 14.07 L * $1.62 (ON regional price) = $22.79
+    const result = calculateTripCosts(multiRegionSegments, mockVehicle, mockSettings);
+    expect(result.totalFuelCost).toBeCloseTo(22.79, 1);
   });
 
   it('handles imperial units', () => {

@@ -17,6 +17,8 @@ export {
   convertGallonsToLitres,
 } from './unit-conversions';
 
+import { getRegionalFuelPrice } from './regional-costs';
+
 export function calculateTripCosts(
   uniqueSegments: RouteSegment[],
   vehicle: Vehicle,
@@ -27,11 +29,25 @@ export function calculateTripCosts(
 
   const weightedFuelEconomy = getWeightedFuelEconomyL100km(vehicle, settings.units);
 
-  const totalFuelLitres = (totalDistanceKm / 100) * weightedFuelEconomy;
-  const totalFuelCost = totalFuelLitres * settings.gasPrice;
+  // Calculate per-segment costs using regional fuel prices
+  const segmentsWithCost = uniqueSegments.map((segment) => {
+    // Attempt to get the regional fuel price; fallback to the user's default gas price
+    const regionalPrice = getRegionalFuelPrice(segment.to.name, settings.currency) ?? settings.gasPrice;
+    
+    const fuelNeededLitres = (segment.distanceKm / 100) * weightedFuelEconomy;
+    const fuelCost = fuelNeededLitres * regionalPrice;
+
+    return {
+      ...segment,
+      fuelNeededLitres,
+      fuelCost,
+    };
+  });
+
+  const totalFuelLitres = segmentsWithCost.reduce((acc, seg) => acc + seg.fuelNeededLitres, 0);
+  const totalFuelCost = segmentsWithCost.reduce((acc, seg) => acc + seg.fuelCost, 0);
 
   const tankSizeLitres = getTankSizeLitres(vehicle, settings.units);
-
   const gasStops = estimateGasStops(totalFuelLitres, tankSizeLitres);
 
   const costPerPerson =
@@ -40,13 +56,6 @@ export function calculateTripCosts(
   const drivingDays = Math.ceil(
     totalDurationMinutes / 60 / settings.maxDriveHours
   );
-  
-  // Calculate per-segment costs
-  const segmentsWithCost = uniqueSegments.map(segment => ({
-      ...segment,
-      fuelNeededLitres: (segment.distanceKm / 100) * weightedFuelEconomy,
-      fuelCost: ((segment.distanceKm / 100) * weightedFuelEconomy) * settings.gasPrice
-  }));
 
   // Analyze segments for warnings, timezone crossings, etc.
   const analyzedSegments = analyzeSegments(segmentsWithCost);

@@ -34,7 +34,7 @@ export default defineConfig([
     // See CLAUDE.md for the architectural rules this enforces.
     files: ['src/App.tsx'],
     rules: {
-      'max-lines': ['error', { max: 460, skipBlankLines: true, skipComments: true }],
+      'max-lines': ['error', { max: 320, skipBlankLines: true, skipComments: true }],
     },
   },
 ])
