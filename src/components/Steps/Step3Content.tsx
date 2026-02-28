@@ -28,6 +28,7 @@ interface Step3ContentProps {
   suggestedOvernightStop: Location | null;
   poiSuggestions: POISuggestion[];
   isLoadingPOIs: boolean;
+  poiPartialResults?: boolean;
   history: TripSummary[];
   shareUrl: string | null;
   onOpenGoogleMaps: () => void;
@@ -40,7 +41,7 @@ interface Step3ContentProps {
   onUpdateDayType?: (dayNumber: number, dayType: DayType) => void;
   onUpdateOvernight?: (dayNumber: number, overnight: OvernightStop) => void;
   onDismissOvernight: () => void;
-  onAddPOI: (poiId: string) => void;
+  onAddPOI: (poiId: string, segmentIndex?: number) => void;
   onDismissPOI: (poiId: string) => void;
   onGoToStep: (step: PlanningStep) => void;
   externalStops?: SuggestedStop[];
@@ -64,6 +65,7 @@ export function Step3Content({
   suggestedOvernightStop,
   poiSuggestions,
   isLoadingPOIs,
+  poiPartialResults,
   history,
   shareUrl,
   onOpenGoogleMaps,
@@ -132,6 +134,7 @@ export function Step3Content({
           onUpdateOvernight={onUpdateOvernight}
           poiSuggestions={poiSuggestions}
           isLoadingPOIs={isLoadingPOIs}
+          poiPartialResults={poiPartialResults}
           onAddPOI={onAddPOI}
           onDismissPOI={onDismissPOI}
           externalStops={externalStops}
@@ -236,6 +239,7 @@ export function Step3Content({
             onUpdateOvernight={onUpdateOvernight}
             poiSuggestions={poiSuggestions}
             isLoadingPOIs={isLoadingPOIs}
+            poiPartialResults={poiPartialResults}
             onAddPOI={onAddPOI}
             onDismissPOI={onDismissPOI}
             externalStops={externalStops}

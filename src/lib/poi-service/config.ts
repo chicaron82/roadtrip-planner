@@ -43,6 +43,15 @@ export const CATEGORY_TAG_QUERIES: Record<POISuggestionCategory, string[]> = {
 };
 
 /**
+ * Categories always fetched in the corridor query regardless of user preferences.
+ * Gas stations, restaurants, and cafes carry addr:city metadata used by the
+ * hub-detection / stop-town resolver. Including them here means usePOI can
+ * pull an inference corpus from poiData.alongWay instead of firing a second
+ * Overpass fetch with different preference overrides.
+ */
+export const INFERENCE_CATEGORIES: POISuggestionCategory[] = ['gas', 'restaurant', 'cafe'];
+
+/**
  * Map trip preferences to POI categories
  */
 export const PREFERENCE_CATEGORY_MAP: Record<TripPreference, POISuggestionCategory[]> = {

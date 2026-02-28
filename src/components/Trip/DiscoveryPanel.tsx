@@ -40,9 +40,14 @@ interface DiscoveryPanelProps {
   title?: string;
   suggestions: POISuggestion[];
   isLoading: boolean;
-  onAdd: (poiId: string) => void;
+  onAdd: (poiId: string, segmentIndex?: number) => void;
   onDismiss: (poiId: string) => void;
   onAddMultiple?: (poiIds: string[]) => void;
+  /** When true, shows a warning that some corridor data failed to load. */
+  partialResults?: boolean;
+  /** Index where the return leg begins (from summary.roundTripMidpoint).
+   *  Enables the outbound/return leg picker on mirrored POIs. */
+  roundTripMidpoint?: number;
   className?: string;
 }
 
@@ -66,6 +71,8 @@ export function DiscoveryPanel({
   onAdd,
   onDismiss,
   onAddMultiple,
+  partialResults,
+  roundTripMidpoint,
   className,
 }: DiscoveryPanelProps) {
   const [timeBudget, setTimeBudget] = useState(60); // default 1h
@@ -178,6 +185,14 @@ export function DiscoveryPanel({
             </p>
           </div>
 
+          {/* Partial results warning */}
+          {partialResults && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              <span className="flex-shrink-0 mt-0.5">⚠️</span>
+              <span>Some corridor data couldn’t load — results may not cover the full route. Recalculate to retry.</span>
+            </div>
+          )}
+
           {/* Add All No-Brainers */}
           {nobrainers.filter(p => p.actionState !== 'added').length > 0 && (
             <Button
@@ -192,7 +207,7 @@ export function DiscoveryPanel({
 
           {/* Tier Groups */}
           {grouped.map(({ tier, pois }) => (
-            <TierSection key={tier} tier={tier} pois={pois} onAdd={onAdd} onDismiss={onDismiss} />
+            <TierSection key={tier} tier={tier} pois={pois} onAdd={onAdd} onDismiss={onDismiss} roundTripMidpoint={roundTripMidpoint} />
           ))}
         </div>
       )}
@@ -207,11 +222,13 @@ function TierSection({
   pois,
   onAdd,
   onDismiss,
+  roundTripMidpoint,
 }: {
   tier: DiscoveryTier;
   pois: DiscoveredPOI[];
-  onAdd: (id: string) => void;
+  onAdd: (id: string, segmentIndex?: number) => void;
   onDismiss: (id: string) => void;
+  roundTripMidpoint?: number;
 }) {
   const meta = TIER_META[tier];
 
@@ -224,7 +241,7 @@ function TierSection({
       </h4>
       <div className="space-y-2">
         {pois.map(poi => (
-          <DiscoveryCard key={poi.id} poi={poi} onAdd={onAdd} onDismiss={onDismiss} />
+          <DiscoveryCard key={poi.id} poi={poi} onAdd={onAdd} onDismiss={onDismiss} roundTripMidpoint={roundTripMidpoint} />
         ))}
       </div>
     </div>
@@ -237,10 +254,12 @@ function DiscoveryCard({
   poi,
   onAdd,
   onDismiss,
+  roundTripMidpoint,
 }: {
   poi: DiscoveredPOI;
-  onAdd: (id: string) => void;
+  onAdd: (id: string, segmentIndex?: number) => void;
   onDismiss: (id: string) => void;
+  roundTripMidpoint?: number;
 }) {
   const meta = TIER_META[poi.tier];
   const isAdded = poi.actionState === 'added';
@@ -319,6 +338,28 @@ function DiscoveryCard({
               <span className="inline-flex items-center gap-1 text-xs text-green-700 font-semibold">
                 <Check className="h-3 w-3" /> Added
               </span>
+            ) : roundTripMidpoint !== undefined && poi.mirrorSegmentIndex !== undefined ? (
+              /* Leg picker: same place appears on outbound + return */
+              <div className="flex gap-1 flex-wrap justify-end">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-[11px] hover:bg-green-100 hover:text-green-700 gap-1"
+                  onClick={() => onAdd(poi.id, poi.segmentIndex)}
+                  title="Add on the outbound leg"
+                >
+                  <Check className="h-3 w-3" /> Outbound
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-[11px] hover:bg-blue-100 hover:text-blue-700 gap-1"
+                  onClick={() => onAdd(poi.id, poi.mirrorSegmentIndex)}
+                  title="Add on the return leg"
+                >
+                  <Check className="h-3 w-3" /> Return
+                </Button>
+              </div>
             ) : (
               <div className="flex gap-1">
                 <Button

@@ -379,6 +379,12 @@ export interface POISuggestion {
   actionState: POIActionState;
   userNotes?: string; // Optional notes when saved to journal
 
+  // Round-trip: same physical place appears on outbound + return leg
+  /** Segment index of the mirror occurrence on the return leg. Populated only
+   *  when this POI is on the outbound leg and a corresponding return-leg POI
+   *  was found within 2 km. UI should offer a leg picker when this is set. */
+  mirrorSegmentIndex?: number;
+
   // OSM metadata
   osmType?: 'node' | 'way' | 'relation';
   osmId?: string;
@@ -391,6 +397,9 @@ export interface POISuggestionGroup {
   atDestination: POISuggestion[]; // 3-5 top picks at destination area
   totalFound: number; // Total POIs found before ranking/filtering
   queryDurationMs?: number; // Performance metric
+  /** True when one or more corridor Overpass queries failed (429/timeout)
+   *  and results cover only part of the route. UI should show a soft warning. */
+  partialResults?: boolean;
 }
 
 // ==================== JOURNAL SYSTEM ====================

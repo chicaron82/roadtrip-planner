@@ -13,7 +13,8 @@ interface UseCalculateAndDiscoverOptions {
     origin: Location,
     destination: Location,
     preferences: TripPreference[],
-    segments: RouteSegment[]
+    segments: RouteSegment[],
+    roundTripMidpoint?: number
   ) => Promise<void>;
   refreshAdaptiveDefaults: () => AdaptiveDefaults | null;
   setAdaptiveDefaults: (defaults: AdaptiveDefaults | null) => void;
@@ -44,6 +45,7 @@ export function useCalculateAndDiscover({
         origin, destination,
         settings.tripPreferences,
         tripResult.segments,
+        tripResult.roundTripMidpoint,
       );
     }
   }, [calculateTrip, locations, settings.tripPreferences, fetchRoutePOIs,

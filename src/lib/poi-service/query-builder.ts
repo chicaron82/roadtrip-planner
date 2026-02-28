@@ -49,6 +49,41 @@ ${lines.join('\n')}
 }
 
 /**
+ * Build a corridor query using targeted around: circles at sample points.
+ *
+ * Replaces the single bbox approach: a bbox over Toronto→Thunder Bay fills the
+ * 5 MB Overpass cap with dense city OSM data instead of actual route-corridor
+ * content. Using around: at regularly-spaced sample points restricts results to
+ * within `radiusM` of the actual road.
+ *
+ * Queries node + way only (relations are handled by buildParkRelationQuery).
+ * All sample points are packed into ONE Overpass query to minimise round-trips.
+ */
+export function buildBucketAroundQuery(
+  samplePoints: [number, number][],
+  radiusM: number,
+  categories: POISuggestionCategory[]
+): string {
+  const lines: string[] = [];
+  for (const [lat, lng] of samplePoints) {
+    for (const cat of categories) {
+      for (const tag of CATEGORY_TAG_QUERIES[cat]) {
+        lines.push(`      node${tag}(around:${radiusM},${lat},${lng});`);
+        lines.push(`      way${tag}(around:${radiusM},${lat},${lng});`);
+      }
+    }
+  }
+
+  return `
+    [out:json][timeout:60][maxsize:5242880];
+    (
+${lines.join('\n')}
+    );
+    out center;
+  `.trim();
+}
+
+/**
  * Build Overpass QL query for destination area search.
  * Queries node + way + relation for each tag filter — relations catch
  * provincial/national parks near the destination (e.g. Sleeping Giant PP

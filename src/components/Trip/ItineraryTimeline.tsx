@@ -73,7 +73,8 @@ interface ItineraryTimelineProps {
   // Destination discovery
   poiSuggestions?: POISuggestion[];
   isLoadingPOIs?: boolean;
-  onAddPOI?: (poiId: string) => void;
+  poiPartialResults?: boolean;
+  onAddPOI?: (poiId: string, segmentIndex?: number) => void;
   onDismissPOI?: (poiId: string) => void;
   // Map-added stops (pre-accepted SuggestedStops from useAddedStops)
   externalStops?: SuggestedStop[];
@@ -95,6 +96,7 @@ export function ItineraryTimeline({
   onUpdateOvernight,
   poiSuggestions,
   isLoadingPOIs,
+  poiPartialResults,
   onAddPOI,
   onDismissPOI,
   externalStops,
@@ -337,22 +339,44 @@ export function ItineraryTimeline({
         const segs = summary.segments;
         const originName = segs[0]?.from.name;
         const lastSegTo = segs[segs.length - 1]?.to.name;
-        const isRoundTrip = originName && lastSegTo && originName === lastSegTo;
+        const isRoundTrip = !!(originName && lastSegTo && originName === lastSegTo);
+        const roundTripMidpoint = summary.roundTripMidpoint;
         const destinationName = isRoundTrip
           ? segs[Math.ceil(segs.length / 2) - 1]?.to.name || 'Destination'
           : lastSegTo || 'Destination';
+
+        const alongWaySuggestions = (poiSuggestions || []).filter(
+          p => p.bucket === 'along-way'
+        );
         const destinationSuggestions = (poiSuggestions || []).filter(
           p => p.bucket === 'destination' && p.category !== 'gas'
         );
         return (
-          <DiscoveryPanel
-            title={`Things to Do in ${destinationName}`}
-            suggestions={destinationSuggestions}
-            isLoading={!!isLoadingPOIs}
-            onAdd={onAddPOI}
-            onDismiss={onDismissPOI}
-            className="mt-4"
-          />
+          <>
+            {(alongWaySuggestions.length > 0 || isLoadingPOIs) && (
+              <DiscoveryPanel
+                title="Cool Stops Along the Way"
+                suggestions={alongWaySuggestions}
+                isLoading={!!isLoadingPOIs}
+                onAdd={onAddPOI}
+                onDismiss={onDismissPOI}
+                partialResults={poiPartialResults}
+                roundTripMidpoint={roundTripMidpoint}
+                className="mt-4"
+              />
+            )}
+            {(destinationSuggestions.length > 0 || isLoadingPOIs) && (
+              <DiscoveryPanel
+                title={`Things to Do in ${destinationName}`}
+                suggestions={destinationSuggestions}
+                isLoading={!!isLoadingPOIs}
+                onAdd={onAddPOI}
+                onDismiss={onDismissPOI}
+                partialResults={poiPartialResults}
+                className="mt-4"
+              />
+            )}
+          </>
         );
       })()}
 

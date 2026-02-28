@@ -56,7 +56,8 @@ interface PlanningStepContentProps {
   // Step 3 — POI
   poiSuggestions: POISuggestion[];
   isLoadingPOIs: boolean;
-  onAddPOI: (poiId: string) => void;
+  poiPartialResults: boolean;
+  onAddPOI: (poiId: string, segmentIndex?: number) => void;
   onDismissPOI: (poiId: string) => void;
   // Step 3 — actions
   onOpenGoogleMaps: () => void;
@@ -103,6 +104,7 @@ export function PlanningStepContent(p: PlanningStepContentProps) {
       showOvernightPrompt={p.showOvernightPrompt}
       suggestedOvernightStop={p.suggestedOvernightStop}
       poiSuggestions={p.poiSuggestions} isLoadingPOIs={p.isLoadingPOIs}
+      poiPartialResults={p.poiPartialResults}
       history={p.history} shareUrl={p.shareUrl}
       onOpenGoogleMaps={p.onOpenGoogleMaps}
       onCopyShareLink={p.onCopyShareLink}

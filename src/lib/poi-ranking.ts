@@ -40,7 +40,8 @@ function toRad(degrees: number): number {
 }
 
 /**
- * Calculate minimum distance from POI to route polyline
+ * Calculate minimum distance from POI to route polyline using true
+ * perpendicular point-to-segment projection (flat-earth approximation).
  * Returns { distanceKm, nearestSegmentIndex, nearestPoint }
  */
 function distanceToRoute(
@@ -55,18 +56,32 @@ function distanceToRoute(
     const [lat1, lng1] = routeGeometry[i];
     const [lat2, lng2] = routeGeometry[i + 1];
 
-    // Distance to segment endpoints
-    const distToStart = haversineDistance(poi.lat, poi.lng, lat1, lng1);
-    const distToEnd = haversineDistance(poi.lat, poi.lng, lat2, lng2);
+    const dx = lat2 - lat1;
+    const dy = lng2 - lng1;
+    const lenSq = dx * dx + dy * dy;
 
-    // Simple approximation: check distance to both endpoints
-    // (Full point-to-line-segment distance would require projection)
-    const minSegmentDist = Math.min(distToStart, distToEnd);
+    let nearLat: number;
+    let nearLng: number;
 
-    if (minSegmentDist < minDistance) {
-      minDistance = minSegmentDist;
+    if (lenSq === 0) {
+      // Degenerate segment (zero-length) — use the endpoint
+      nearLat = lat1;
+      nearLng = lng1;
+    } else {
+      // Perpendicular projection: t = ((P-P1)·(P2-P1)) / |P2-P1|²
+      const t = Math.max(0, Math.min(1,
+        ((poi.lat - lat1) * dx + (poi.lng - lng1) * dy) / lenSq
+      ));
+      nearLat = lat1 + t * dx;
+      nearLng = lng1 + t * dy;
+    }
+
+    const dist = haversineDistance(poi.lat, poi.lng, nearLat, nearLng);
+
+    if (dist < minDistance) {
+      minDistance = dist;
       nearestSegmentIndex = i;
-      nearestPoint = distToStart < distToEnd ? [lat1, lng1] : [lat2, lng2];
+      nearestPoint = [nearLat, nearLng];
     }
   }
 
@@ -244,7 +259,7 @@ function rankPOI(
   const popularityScore = poi.popularityScore; // Already calculated from OSM tags
 
   // Weighted composite score
-  const rankingScore =
+  let rankingScore =
     categoryMatchScore * WEIGHTS.categoryMatch +
     popularityScore * WEIGHTS.popularity +
     detourCostScore * WEIGHTS.detourCost +
@@ -254,6 +269,17 @@ function rankPOI(
   let estimatedArrivalTime: Date | undefined;
   if (nearestSegmentIndex < segments.length && segments[nearestSegmentIndex].arrivalTime) {
     estimatedArrivalTime = new Date(segments[nearestSegmentIndex].arrivalTime!);
+  }
+
+  // Time-of-day demotion: places visited before 07:00 or after 19:30 are less
+  // useful (closed or after dark). Apply a -25pt penalty to discourage them.
+  if (estimatedArrivalTime) {
+    const h = estimatedArrivalTime.getHours();
+    const m = estimatedArrivalTime.getMinutes();
+    const tod = h + m / 60;
+    if (tod < 7 || tod > 19.5) {
+      rankingScore = Math.max(0, rankingScore - 25);
+    }
   }
 
   // Check if fits in break window (if detour is quick)

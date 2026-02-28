@@ -52,6 +52,7 @@ function AppContent() {
   // POI system
   const {
     pois, markerCategories, loadingCategory, poiSuggestions, isLoadingPOIs,
+    poiPartialResults,
     error: poiError, toggleCategory, addPOI, dismissPOI,
     fetchRoutePOIs, clearError: clearPOIError, resetPOIs,
   } = usePOI();
@@ -184,7 +185,7 @@ function AppContent() {
     externalStops: [...asSuggestedStops, ...mirroredReturnStops],
     shareUrl, showOvernightPrompt, suggestedOvernightStop, dismissOvernightPrompt,
     updateStopType, updateDayNotes, updateDayTitle, updateDayType, updateDayOvernight,
-    poiSuggestions, isLoadingPOIs, addPOI, addStop, dismissPOI,
+    poiSuggestions, isLoadingPOIs, poiPartialResults, addPOI, addStop, dismissPOI,
     openInGoogleMaps, copyShareLink,
   });
 

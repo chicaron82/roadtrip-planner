@@ -67,8 +67,9 @@ interface UsePlanningStepPropsOptions {
   // POI
   poiSuggestions: POISuggestion[];
   isLoadingPOIs: boolean;
+  poiPartialResults: boolean;
   addPOI: (id: string) => void;
-  addStop: (poi: POI, segments: RouteSegment[]) => void;
+  addStop: (poi: POI, segments: RouteSegment[], explicitSegmentIndex?: number) => void;
   dismissPOI: (id: string) => void;
   // Actions
   openInGoogleMaps: () => void;
@@ -90,13 +91,14 @@ export function usePlanningStepProps(o: UsePlanningStepPropsOptions): PlanningSt
     setViewMode('plan');
   }, [setTripConfirmed, setViewMode]);
 
-  const handleAddPOI = useCallback((poiId: string) => {
+  const handleAddPOI = useCallback((poiId: string, segmentIndex?: number) => {
     addPOI(poiId);
     const poi = poiSuggestions.find(p => p.id === poiId);
     if (poi) {
       addStop(
         { id: poi.id, name: poi.name, lat: poi.lat, lng: poi.lng, address: poi.address, category: (POI_CATEGORY_MAP[poi.category] ?? 'attraction') as POICategory },
-        summary?.segments ?? []
+        summary?.segments ?? [],
+        segmentIndex  // undefined = auto-detect nearest; set for leg-picker override
       );
     }
   }, [addPOI, poiSuggestions, addStop, summary]);
@@ -138,6 +140,7 @@ export function usePlanningStepProps(o: UsePlanningStepPropsOptions): PlanningSt
     onUpdateOvernight: o.updateDayOvernight,
     poiSuggestions: o.poiSuggestions,
     isLoadingPOIs: o.isLoadingPOIs,
+    poiPartialResults: o.poiPartialResults,
     onAddPOI: handleAddPOI,
     onDismissPOI: o.dismissPOI,
     onOpenGoogleMaps: o.openInGoogleMaps,
