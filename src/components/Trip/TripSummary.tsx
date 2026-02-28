@@ -63,13 +63,13 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
           </div>
 
           {/* Stat Tiles */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3 border border-blue-100 dark:border-blue-800">
-              <div className="flex items-center gap-2 mb-1">
-                <Car className="w-4 h-4 text-blue-600" />
-                <div className="text-[10px] uppercase tracking-wider text-blue-600 font-semibold">Distance</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2 border border-blue-100 dark:border-blue-800">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <Car className="w-3.5 h-3.5 text-blue-600" />
+                <div className="text-[9px] uppercase tracking-wider text-blue-600 font-semibold">Distance</div>
               </div>
-              <div className="text-lg font-bold text-blue-700 dark:text-blue-400">
+              <div className="text-base font-bold text-blue-700 dark:text-blue-400">
                 {formatDistance(summary.totalDistanceKm, settings.units)}
                 {settings.isRoundTrip && <span className="text-xs ml-1 font-normal opacity-70">(x2)</span>}
               </div>
@@ -81,32 +81,32 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
               )}
             </div>
 
-            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 border border-amber-100 dark:border-amber-800">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">⏱ Drive Time</div>
+            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-2 border border-amber-100 dark:border-amber-800">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <div className="text-[9px] uppercase tracking-wider text-amber-600 font-semibold">⏱ Drive Time</div>
               </div>
-              <div className="text-lg font-bold text-amber-700 dark:text-amber-400">
+              <div className="text-base font-bold text-amber-700 dark:text-amber-400">
                 {formatDuration(summary.totalDurationMinutes)}
               </div>
               <div className="text-[9px] text-amber-500/70 mt-0.5">excl. stops</div>
             </div>
 
-            <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-3 border border-green-100 dark:border-green-800">
-              <div className="flex items-center gap-2 mb-1">
-                <Fuel className="w-4 h-4 text-green-600" />
-                <div className="text-[10px] uppercase tracking-wider text-green-600 font-semibold">Fuel Cost</div>
+            <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-2 border border-green-100 dark:border-green-800">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <Fuel className="w-3.5 h-3.5 text-green-600" />
+                <div className="text-[9px] uppercase tracking-wider text-green-600 font-semibold">Fuel Cost</div>
               </div>
-              <div className="text-lg font-bold text-green-700 dark:text-green-400">
+              <div className="text-base font-bold text-green-700 dark:text-green-400">
                 {formatCurrency(summary.totalFuelCost, settings.currency)}
               </div>
             </div>
 
-            <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-3 border border-purple-100 dark:border-purple-800">
-              <div className="flex items-center gap-2 mb-1">
-                <Users className="w-4 h-4 text-purple-600" />
-                <div className="text-[10px] uppercase tracking-wider text-purple-600 font-semibold">Per Person</div>
+            <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-2 border border-purple-100 dark:border-purple-800">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <Users className="w-3.5 h-3.5 text-purple-600" />
+                <div className="text-[9px] uppercase tracking-wider text-purple-600 font-semibold">Per Person</div>
               </div>
-              <div className="text-lg font-bold text-purple-700 dark:text-purple-400">
+              <div className="text-base font-bold text-purple-700 dark:text-purple-400">
                 {formatCurrency(summary.costPerPerson, settings.currency)}
               </div>
             </div>

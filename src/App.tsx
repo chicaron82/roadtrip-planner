@@ -245,19 +245,23 @@ function AppContent() {
             </WizardContent>
           </div>
 
-          {/* Desktop overlays (route strategy + trip summary) */}
+          {/* Route strategy pills — fixed at top-center of map */}
           {summary && planningStep === 3 && (
-            <div className="hidden md:flex absolute bottom-6 right-6 z-20 flex-col gap-3 pointer-events-none w-[380px]">
-              <div className="pointer-events-auto">
-                <RouteStrategyPicker
-                  strategies={routeStrategies}
-                  activeIndex={activeStrategyIndex}
-                  onSelect={selectStrategy}
-                  units={settings.units}
-                  isRoundTrip={settings.isRoundTrip}
-                />
-              </div>
-              <div className="pointer-events-auto">
+            <div className="hidden md:flex absolute top-4 left-0 right-0 z-20 justify-center pointer-events-none px-4">
+              <RouteStrategyPicker
+                strategies={routeStrategies}
+                activeIndex={activeStrategyIndex}
+                onSelect={selectStrategy}
+                units={settings.units}
+                isRoundTrip={settings.isRoundTrip}
+              />
+            </div>
+          )}
+
+          {/* Trip summary card — bottom-right of map */}
+          {summary && planningStep === 3 && (
+            <div className="hidden md:flex absolute bottom-6 right-6 z-20 pointer-events-none w-[380px]">
+              <div className="pointer-events-auto w-full">
                 <TripSummaryCard
                   summary={summary}
                   settings={settings}

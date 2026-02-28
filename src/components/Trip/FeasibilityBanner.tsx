@@ -115,16 +115,26 @@ export function FeasibilityBanner({
   const criticalCount = result.warnings.filter(w => w.severity === 'critical').length;
   const isMultiPerson = numTravelers > 1;
 
+  const needsAttention = !expanded && warningCount > 0 && result.status !== 'on-track';
+
   return (
     <div
       className={cn(
-        'rounded-xl border-2 transition-all duration-300',
+        'rounded-xl border-2 transition-all duration-300 relative',
         config.containerClass,
         className,
       )}
       role="status"
       aria-label={`Trip feasibility: ${config.label}`}
     >
+      {/* Pulsing attention ring — signals "expand me" when collapsed with warnings */}
+      {needsAttention && (
+        <div className={cn(
+          'absolute inset-[-2px] rounded-xl ring-2 animate-pulse pointer-events-none z-10',
+          result.status === 'over' ? 'ring-red-400/70' : 'ring-amber-400/70',
+        )} />
+      )}
+
       {/* Header — always visible */}
       <button
         className="w-full flex items-center justify-between p-3 gap-3 cursor-pointer"
@@ -141,6 +151,7 @@ export function FeasibilityBanner({
             <span className={cn(
               'text-xs px-2 py-0.5 rounded-full font-medium',
               criticalCount > 0 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700',
+              !expanded && 'animate-pulse',
             )}>
               {warningCount} {warningCount === 1 ? 'note' : 'notes'}
             </span>

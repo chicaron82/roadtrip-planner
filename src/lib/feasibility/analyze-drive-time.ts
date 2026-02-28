@@ -31,10 +31,27 @@ export function analyzeDriveTime(
       const suggestedH = Math.floor(suggestedDep);
       const suggestedMin = Math.round((suggestedDep - suggestedH) * 60);
       const suggestedLabel = `${suggestedH}:${String(suggestedMin).padStart(2, '0')}`;
-      const arrivalH = Math.floor(estimatedArrivalHour);
-      const arrivalMin = Math.round((estimatedArrivalHour - arrivalH) * 60);
-      const arrivalLabel = `${arrivalH}:${String(arrivalMin).padStart(2, '0')}`;
-      const overByHours = Math.round((estimatedArrivalHour - targetArrivalHour) * 10) / 10;
+      // Normalize arrival label — handles post-midnight arrivals (24:30 → "0:30, next day")
+      const arrivalNorm   = estimatedArrivalHour >= 24 ? estimatedArrivalHour - 24 : estimatedArrivalHour;
+      const arrivalH      = Math.floor(arrivalNorm);
+      const arrivalMin    = Math.round((arrivalNorm - arrivalH) * 60);
+      const arrivalSuffix = estimatedArrivalHour >= 24 ? ', next day' : '';
+      const arrivalLabel  = `${arrivalH}:${String(arrivalMin).padStart(2, '0')}${arrivalSuffix}`;
+      const overByHours   = Math.round((estimatedArrivalHour - targetArrivalHour) * 10) / 10;
+
+      // Multi-driver "reduce hours" hint — when rotating drivers push the daily
+      // limit high enough to cause late-night arrivals, surface a comfortable
+      // ceiling so MEE time stays enjoyable and check-in stays sane.
+      let driverHint = '';
+      if (settings.numDrivers >= 2 && settings.maxDriveHours > 10) {
+        const comfortMax = settings.numDrivers >= 4 ? 12
+          : settings.numDrivers === 3 ? 11
+          : 10; // 2 drivers
+        if (settings.maxDriveHours > comfortMax) {
+          const perShift = Math.round((comfortMax / settings.numDrivers) * 10) / 10;
+          driverHint = ` With ${settings.numDrivers} rotating drivers, try ${comfortMax}h max — shifts drop to ~${perShift}h each and you'll check in before midnight.`;
+        }
+      }
 
       warnings.push({
         category: 'drive-time',
@@ -42,7 +59,7 @@ export function analyzeDriveTime(
         message: `Day 1: departing at ${settings.departureTime} means arriving around ${arrivalLabel}`,
         detail: `With ${formatDuration(day1.totals.driveTimeMinutes)} of driving, you'll arrive ~${overByHours}h past your ${targetArrivalHour}:00 target. ${availableHours < actualDriveHours ? 'The drive is longer than the day allows.' : ''}`,
         dayNumber: 1,
-        suggestion: `Depart by ${suggestedLabel} to arrive near your ${targetArrivalHour}:00 target, or add a planned overnight stop to split the drive.`,
+        suggestion: `Depart by ${suggestedLabel} to arrive near your ${targetArrivalHour}:00 target, or add a planned overnight stop to split the drive.${driverHint}`,
       });
     }
   }

@@ -119,9 +119,15 @@ function buildDateWindowSuggestion(
   const parts: string[] = [];
 
   // Can they drive more hours per day?
-  if (settings.numDrivers >= 2 && settings.maxDriveHours < 12) {
+  // Scale the suggested ceiling to driver count — more rotating drivers can
+  // safely push further before fatigue becomes a concern.
+  const safeMax = settings.numDrivers >= 4 ? 16
+    : settings.numDrivers === 3 ? 14
+    : settings.numDrivers >= 2 ? 12
+    : 8; // solo driver
+  if (settings.numDrivers >= 2 && settings.maxDriveHours < safeMax) {
     parts.push(
-      `Increase max drive hours (you have ${settings.numDrivers} drivers — up to 12h is safe)`,
+      `Increase max drive hours (you have ${settings.numDrivers} drivers — up to ${safeMax}h with rotation is manageable)`,
     );
   } else if (settings.numDrivers === 1 && settings.maxDriveHours < 8) {
     parts.push('Increase max drive hours to 8h');

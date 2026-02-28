@@ -354,6 +354,73 @@ describe('compareRefinements', () => {
   });
 });
 
+// ==================== MULTI-DRIVER REDUCE-HOURS HINT ====================
+
+describe('multi-driver late-arrival hint', () => {
+  it('adds reduce-hours hint when 4 drivers push past midnight', () => {
+    // Day 1: 15h30m drive — depart 9 AM, arrive 12:30 AM next day
+    const day1 = makeDay({
+      dayNumber: 1,
+      totals: {
+        distanceKm: 1380,
+        driveTimeMinutes: 930,
+        stopTimeMinutes: 0,
+        departureTime: '2026-03-01T09:00:00',
+        arrivalTime: '2026-03-02T00:30:00',
+      },
+    });
+    const summary = makeSummary([day1]);
+    const settings = makeSettings({
+      maxDriveHours: 16,
+      numDrivers: 4,
+      departureTime: '09:00',
+      targetArrivalHour: 21,
+    });
+
+    const result = analyzeFeasibility(summary, settings);
+    const hint = result.warnings.find(
+      w => w.category === 'drive-time' && w.severity === 'info' && w.dayNumber === 1,
+    );
+    expect(hint).toBeDefined();
+    // Should mention the reduce-hours suggestion for 4 drivers
+    expect(hint?.suggestion).toMatch(/4 rotating drivers/);
+    expect(hint?.suggestion).toMatch(/12h max/);
+    // Arrival label should normalize past midnight — not "24:30"
+    expect(hint?.message).not.toMatch(/24:/);
+    expect(hint?.message).toMatch(/next day/);
+  });
+
+  it('does NOT add reduce-hours hint when already at or below comfort max', () => {
+    // 4 drivers at 12h max — already at the comfort ceiling, no hint needed
+    const day1 = makeDay({
+      dayNumber: 1,
+      totals: {
+        distanceKm: 900,
+        driveTimeMinutes: 720,
+        stopTimeMinutes: 0,
+        departureTime: '2026-03-01T09:00:00',
+        arrivalTime: '2026-03-01T21:30:00',
+      },
+    });
+    const summary = makeSummary([day1]);
+    const settings = makeSettings({
+      maxDriveHours: 12,
+      numDrivers: 4,
+      departureTime: '09:00',
+      targetArrivalHour: 21,
+    });
+
+    const result = analyzeFeasibility(summary, settings);
+    const hint = result.warnings.find(
+      w => w.category === 'drive-time' && w.severity === 'info' && w.dayNumber === 1,
+    );
+    // May or may not fire depending on arrival time — but if it does, no driver hint
+    if (hint) {
+      expect(hint.suggestion).not.toMatch(/rotating drivers/);
+    }
+  });
+});
+
 // ==================== REAL SCENARIO: WINNIPEG→TORONTO TRIP ====================
 
 describe('real scenario: Winnipeg→Toronto trip changes', () => {

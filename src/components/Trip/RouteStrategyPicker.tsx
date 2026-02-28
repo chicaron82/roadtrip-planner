@@ -21,7 +21,7 @@ export function RouteStrategyPicker({
   const fastest = strategies.find(s => s.id === 'fastest');
 
   return (
-    <div className="absolute bottom-[calc(var(--summary-card-h,320px)+12px)] left-4 right-4 z-[1001] flex gap-2 justify-center flex-wrap pointer-events-none">
+    <div className="flex gap-2 justify-center flex-wrap pointer-events-none">
       {strategies.map((s, i) => {
         const isActive = i === activeIndex;
         const distKm = isRoundTrip ? s.distanceKm * 2 : s.distanceKm;
