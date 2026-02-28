@@ -7,6 +7,7 @@ import { RouteStrategyPicker } from './components/Trip/RouteStrategyPicker';
 import { AdventureMode } from './components/Trip/AdventureMode';
 import { LandingScreen } from './components/Landing/LandingScreen';
 import { PlanningStepContent } from './components/Steps/PlanningStepContent';
+import { SwipeableWizard } from './components/UI/SwipeableWizard';
 import './styles/sidebar.css';
 import { TripProvider, useTripContext } from './contexts';
 import {
@@ -214,35 +215,39 @@ function AppContent() {
           {/* Vignette overlay (left opaque → right transparent) */}
           <div className="mee-vignette absolute inset-0 pointer-events-none z-[1]" />
 
-          {/* Floating glass panel */}
-          <div className="sidebar-dark mee-panel absolute inset-0 z-10 w-full flex flex-col overflow-hidden md:inset-auto md:left-6 md:top-6 md:bottom-6 md:w-[420px]">
-            <StepsBanner
-              currentStep={planningStep}
-              completedSteps={completedSteps}
-              tripMode={tripMode}
-              isCalculating={isCalculating}
-              onStepClick={handleStepClick}
-              showModeSwitcher={showModeSwitcher}
-              setShowModeSwitcher={setShowModeSwitcher}
-              modeSwitcherRef={modeSwitcherRef}
-              onSwitchMode={handleSwitchMode}
-            />
-            <WizardContent
-              planningStep={planningStep}
-              canProceed={canProceed}
-              isCalculating={isCalculating}
-              onNext={goToNextStep}
-              onBack={goToPrevStep}
-              onReset={resetTrip}
-              tripMode={tripMode}
-              markerCategories={markerCategories}
-              loadingCategory={loadingCategory}
-              onToggleCategory={handleToggleCategory}
-              error={error}
-              onClearError={clearError}
-            >
-              {tripMode && <PlanningStepContent {...stepProps} />}
-            </WizardContent>
+          <div className="absolute inset-0 z-20 md:inset-auto md:left-6 md:top-6 md:bottom-6 md:w-[420px] pointer-events-none">
+            {/* Floating glass panel via SwipeableWizard */}
+            <SwipeableWizard tripMode={tripMode}>
+              <div className="sidebar-dark mee-panel w-full h-full flex flex-col pointer-events-auto md:rounded-[20px]">
+              <StepsBanner
+                currentStep={planningStep}
+                completedSteps={completedSteps}
+                tripMode={tripMode}
+                isCalculating={isCalculating}
+                onStepClick={handleStepClick}
+                showModeSwitcher={showModeSwitcher}
+                setShowModeSwitcher={setShowModeSwitcher}
+                modeSwitcherRef={modeSwitcherRef}
+                onSwitchMode={handleSwitchMode}
+              />
+              <WizardContent
+                planningStep={planningStep}
+                canProceed={canProceed}
+                isCalculating={isCalculating}
+                onNext={goToNextStep}
+                onBack={goToPrevStep}
+                onReset={resetTrip}
+                tripMode={tripMode}
+                markerCategories={markerCategories}
+                loadingCategory={loadingCategory}
+                onToggleCategory={handleToggleCategory}
+                error={error}
+                onClearError={clearError}
+              >
+                {tripMode && <PlanningStepContent {...stepProps} />}
+              </WizardContent>
+              </div>
+            </SwipeableWizard>
           </div>
 
           {/* Route strategy pills — fixed at top-center of map */}

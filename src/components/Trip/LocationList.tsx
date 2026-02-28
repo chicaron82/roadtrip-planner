@@ -249,25 +249,23 @@ export function LocationList({ locations, setLocations, onCalculate, isCalculati
     <div className="space-y-4">
       {/* Favorites Quick Bar */}
       {favorites.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+          <div 
+            className="flex gap-2 overflow-x-auto pb-2 no-scrollbar touch-pan-x"
+            data-no-drag="true"
+            onPointerDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+          >
               {favorites.map((fav, i) => (
                   <button
                     key={i}
                     onClick={() => {
-                        // Logic to determine where to put it? 
-                        // For now, let's just say if Origin is empty, put it there. Else put it in Dest?
-                        // Actually, simpler: Drag and drop? No.
-                        // Click to fill the *first empty slot*?
+                        // Click to fill the *first empty slot*
                         const emptyIndex = locations.findIndex(l => !l.name);
                         if (emptyIndex !== -1) {
                             loadFavorite(emptyIndex, fav);
-                        } else {
-                            // Append as waypoint if full?
-                            // Or just alert?
-                            // Let's just try to fill the 'Destination' if it's empty, or 'Origin'
                         }
                     }}
-                    className="flex items-center gap-1 px-2 py-1 bg-yellow-50 text-yellow-700 text-xs rounded border border-yellow-200 whitespace-nowrap hover:bg-yellow-100"
+                    className="flex items-center gap-1 px-2 py-1 bg-yellow-50 text-yellow-700 text-xs rounded border border-yellow-200 whitespace-nowrap hover:bg-yellow-100 dark:bg-yellow-500/10 dark:border-yellow-500/20 dark:text-yellow-500 hover:dark:bg-yellow-500/20"
                     title="Click to fill first empty slot"
                   >
                       <Star className="h-3 w-3 fill-current" />
