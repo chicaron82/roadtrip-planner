@@ -265,6 +265,7 @@ export interface TripDay {
   options?: DayOption[];          // Alternative plans for flexible days
   selectedOption?: number;        // Index of currently selected option
   notes?: string;                 // "Depends on weather" or "No plans yet"
+  plannedActivities?: Activity[]; // Standalone activities
 }
 
 // Cost breakdown by category

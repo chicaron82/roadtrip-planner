@@ -14,6 +14,7 @@ import { printTrip } from '../Trip/TripPrintView';
 import { generateEstimate } from '../../lib/estimate-service';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
 import type { PlanningStep } from '../../hooks';
+import { useTripContext } from '../../contexts/TripContext';
 
 interface Step3ContentProps {
   summary: TripSummary | null;
@@ -90,6 +91,7 @@ export function Step3Content({
 }: Step3ContentProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isJournalFullscreen, setIsJournalFullscreen] = useState(false);
+  const { addDayActivity, updateDayActivity, removeDayActivity } = useTripContext();
 
   const feasibility = useMemo(
     () => summary ? analyzeFeasibility(summary, settings) : null,
@@ -131,6 +133,9 @@ export function Step3Content({
           onUpdateDayNotes={onUpdateDayNotes}
           onUpdateDayTitle={onUpdateDayTitle}
           onUpdateDayType={onUpdateDayType}
+          onAddDayActivity={addDayActivity}
+          onUpdateDayActivity={updateDayActivity}
+          onRemoveDayActivity={removeDayActivity}
           onUpdateOvernight={onUpdateOvernight}
           poiSuggestions={poiSuggestions}
           isLoadingPOIs={isLoadingPOIs}
@@ -236,6 +241,9 @@ export function Step3Content({
             onUpdateDayNotes={onUpdateDayNotes}
             onUpdateDayTitle={onUpdateDayTitle}
             onUpdateDayType={onUpdateDayType}
+            onAddDayActivity={addDayActivity}
+            onUpdateDayActivity={updateDayActivity}
+            onRemoveDayActivity={removeDayActivity}
             onUpdateOvernight={onUpdateOvernight}
             poiSuggestions={poiSuggestions}
             isLoadingPOIs={isLoadingPOIs}

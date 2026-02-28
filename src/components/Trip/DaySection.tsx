@@ -22,6 +22,8 @@ interface DaySectionProps {
   onEditOvernight?: (dayNumber: number) => void;
   // Number of nights at the overnight stop (derived from next driving day's date)
   overnightNights?: number;
+  // Add an activity directly to this day (for Free Days)
+  onAddDayActivity?: (dayNumber: number) => void;
 }
 
 // ==================== COMPONENT ====================
@@ -39,6 +41,7 @@ export function DaySection({
   onSelectDayOption,
   onEditOvernight,
   overnightNights,
+  onAddDayActivity,
 }: DaySectionProps) {
   const dayType = day.dayType || 'planned';
 
@@ -80,6 +83,19 @@ export function DaySection({
           onRemoveOption={(idx) => onRemoveDayOption(day.dayNumber, idx)}
           onNotesChange={(notes) => onNotesChange(day.dayNumber, notes)}
         />
+      )}
+
+      {/* Add Activity Button for Free/Flexible Days */}
+      {(dayType === 'free' || dayType === 'flexible') && onAddDayActivity && (
+        <div className="mb-4 flex justify-center">
+          <button
+            type="button"
+            onClick={() => onAddDayActivity(day.dayNumber)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 transition-colors"
+          >
+            <span>➕</span> Add Activity
+          </button>
+        </div>
       )}
 
       {/* Daily Budget */}

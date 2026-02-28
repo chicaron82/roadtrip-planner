@@ -18,6 +18,7 @@ import type {
   POISuggestion,
   TripChallenge,
   TripMode,
+  Activity,
 } from '../../types';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
 import type { ViewMode } from './JournalModeToggle';
@@ -46,6 +47,9 @@ export interface TripTimelineViewProps {
   onUpdateDayNotes?: (dayNumber: number, notes: string) => void;
   onUpdateDayTitle?: (dayNumber: number, title: string) => void;
   onUpdateDayType?: (dayNumber: number, dayType: DayType) => void;
+  onAddDayActivity?: (dayNumber: number, activity: Activity) => void;
+  onUpdateDayActivity?: (dayNumber: number, activityIndex: number, activity: Activity) => void;
+  onRemoveDayActivity?: (dayNumber: number, activityIndex: number) => void;
   onUpdateOvernight?: (dayNumber: number, overnight: OvernightStop) => void;
 
   // POI
@@ -74,6 +78,9 @@ export function TripTimelineView({
   onUpdateDayNotes,
   onUpdateDayTitle,
   onUpdateDayType,
+  onAddDayActivity,
+  onUpdateDayActivity,
+  onRemoveDayActivity,
   onUpdateOvernight,
   poiSuggestions,
   poiInference,
@@ -138,6 +145,9 @@ export function TripTimelineView({
           onUpdateDayNotes={onUpdateDayNotes}
           onUpdateDayTitle={onUpdateDayTitle}
           onUpdateDayType={onUpdateDayType}
+          onAddDayActivity={onAddDayActivity}
+          onUpdateDayActivity={onUpdateDayActivity}
+          onRemoveDayActivity={onRemoveDayActivity}
           onUpdateOvernight={onUpdateOvernight}
           poiSuggestions={poiSuggestions}
           isLoadingPOIs={isLoadingPOIs}

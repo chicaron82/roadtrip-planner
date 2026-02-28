@@ -4,7 +4,7 @@ import type { TripSummary, TripSettings, Vehicle, StopType, TripDay, DayType, Ac
 import { SmartSuggestions } from './SmartSuggestions';
 import { SuggestedStopCard } from './SuggestedStopCard';
 import { DiscoveryPanel } from './DiscoveryPanel';
-import { ActivityEditor } from './ActivityEditor';
+import { ActivityEditor, ActivityBadge } from './ActivityEditor';
 import { StartNode, GasStopNode, SuggestedStopNode, WaypointNode } from './TimelineNode';
 import { DaySection } from './DaySection';
 import { DriverStatsPanel } from './DriverStatsPanel';
@@ -64,6 +64,9 @@ interface ItineraryTimelineProps {
   onUpdateStopType?: (segmentIndex: number, newStopType: StopType) => void;
   onUpdateActivity?: (segmentIndex: number, activity: Activity | undefined) => void;
   onUpdateDayType?: (dayNumber: number, dayType: DayType) => void;
+  onAddDayActivity?: (dayNumber: number, activity: Activity) => void;
+  onUpdateDayActivity?: (dayNumber: number, activityIndex: number, activity: Activity) => void;
+  onRemoveDayActivity?: (dayNumber: number, activityIndex: number) => void;
   onUpdateDayNotes?: (dayNumber: number, notes: string) => void;
   onUpdateDayTitle?: (dayNumber: number, title: string) => void;
   onAddDayOption?: (dayNumber: number, option: DayOption) => void;
@@ -88,6 +91,9 @@ export function ItineraryTimeline({
   onUpdateStopType,
   onUpdateActivity,
   onUpdateDayType,
+  onAddDayActivity,
+  onUpdateDayActivity,
+  onRemoveDayActivity,
   onUpdateDayNotes,
   onUpdateDayTitle,
   onAddDayOption,
@@ -139,6 +145,13 @@ export function ItineraryTimeline({
   const drivingDays = days?.filter(d => d.segmentIndices.length > 0).length ?? 1;
   const freeDays = days?.filter(d => d.segmentIndices.length === 0).length ?? 0;
   const totalDays = drivingDays + freeDays;
+
+  // Track the standalone activity currently being edited on a Free Day
+  const [editingDayActivity, setEditingDayActivity] = useState<{
+    dayNumber: number;
+    activityIndex: number;
+    activity?: Activity;
+  } | null>(null);
 
   return (
     <div className="space-y-6">
@@ -230,6 +243,14 @@ export function ItineraryTimeline({
                         editable={!!onUpdateDayType}
                         budgetMode={settings.budgetMode}
                         onDayTypeChange={onUpdateDayType}
+                        onAddDayActivity={
+                          onAddDayActivity ? () => {
+                            setEditingDayActivity({
+                              dayNumber: entryDay.dayNumber,
+                              activityIndex: -1, // -1 means new activity
+                            });
+                          } : undefined
+                        }
                         onTitleChange={onUpdateDayTitle}
                         onNotesChange={onUpdateDayNotes}
                         onAddDayOption={onAddDayOption}
@@ -263,6 +284,26 @@ export function ItineraryTimeline({
                             </>
                           )}
                         </button>
+                      )}
+
+                      {/* Standalone Activities for this day */}
+                      {entryDay.plannedActivities && entryDay.plannedActivities.length > 0 && (
+                        <div className="ml-10 mt-4 flex flex-col gap-2">
+                          {entryDay.plannedActivities.map((act, idx) => (
+                            <ActivityBadge
+                              key={`standalone-act-${entryDay.dayNumber}-${idx}`}
+                              activity={act}
+                              onClick={onUpdateDayActivity ? () => {
+                                setEditingDayActivity({
+                                  dayNumber: entryDay.dayNumber,
+                                  activityIndex: idx,
+                                  activity: act,
+                                });
+                              } : undefined}
+                              className={onUpdateDayActivity ? 'cursor-pointer' : 'cursor-default'}
+                            />
+                          ))}
+                        </div>
                       )}
 
                       {/* Collapsible content */}
@@ -313,6 +354,14 @@ export function ItineraryTimeline({
                       editable={!!onUpdateDayType}
                       budgetMode={settings.budgetMode}
                       onDayTypeChange={onUpdateDayType}
+                      onAddDayActivity={
+                        onAddDayActivity ? () => {
+                          setEditingDayActivity({
+                            dayNumber: freeDay.dayNumber,
+                            activityIndex: -1, // -1 means new activity
+                          });
+                        } : undefined
+                      }
                       onTitleChange={onUpdateDayTitle}
                       onNotesChange={onUpdateDayNotes}
                       onAddDayOption={onAddDayOption}
@@ -408,6 +457,39 @@ export function ItineraryTimeline({
             onUpdateOvernight(editingOvernight.dayNumber, overnight);
             setEditingOvernight(null);
           }}
+        />
+      )}
+
+      {/* Standalone Activity Editor Dialog (for Free Days) */}
+      {editingDayActivity && onAddDayActivity && onUpdateDayActivity && (
+        <ActivityEditor
+          open={true}
+          onOpenChange={(open) => !open && setEditingDayActivity(null)}
+          activity={editingDayActivity.activity}
+          locationName={`Day ${editingDayActivity.dayNumber} Activity`}
+          isStandalone={true}
+          onSave={(activity) => {
+            if (editingDayActivity.activityIndex === -1) {
+              // -1 means it's a new activity
+              if (onAddDayActivity) {
+                // To support adding, we actually need an onAdd... function that accepts an Activity
+                // Currently onAddDayActivity only accepts a dayNumber.
+                // We'll fix this in the next pass if necessary, but for now we expect a 2nd arg.
+                // Wait, our context *does* expect 2 args: `addDayActivity: (dayNumber: number, activity: Activity) => void`
+                // We need to ensure the prop passed down to ItineraryTimeline allows this.
+                // The current prop signature is `onAddDayActivity?: (dayNumber: number) => void;` which is wrong.
+                // We'll type-cast it for a second until we fix the interface in a subsequent tool call.
+                onAddDayActivity(editingDayActivity.dayNumber, activity);
+              }
+            } else {
+              onUpdateDayActivity(editingDayActivity.dayNumber, editingDayActivity.activityIndex, activity);
+            }
+            setEditingDayActivity(null);
+          }}
+          onRemove={editingDayActivity.activity && onRemoveDayActivity ? () => {
+            onRemoveDayActivity(editingDayActivity.dayNumber, editingDayActivity.activityIndex);
+            setEditingDayActivity(null);
+          } : undefined}
         />
       )}
     </div>

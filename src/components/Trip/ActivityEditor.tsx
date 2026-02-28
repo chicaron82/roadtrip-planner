@@ -23,6 +23,7 @@ interface ActivityEditorProps {
   onOpenChange: (open: boolean) => void;
   activity?: Activity;
   locationName?: string;
+  isStandalone?: boolean; // If true, requires start time and calculates duration
   onSave: (activity: Activity) => void;
   onRemove?: () => void;
 }
@@ -32,6 +33,7 @@ export function ActivityEditor({
   onOpenChange,
   activity,
   locationName,
+  isStandalone,
   onSave,
   onRemove,
 }: ActivityEditorProps) {
@@ -47,6 +49,12 @@ export function ActivityEditor({
 
   const handleSave = () => {
     if (!name.trim()) return;
+    
+    // In standalone mode (Free Days), we need explicit start and end times to place it on the timeline.
+    if (isStandalone && (!startTime || !endTime)) {
+      alert("Please specify a start and end time for standalone activities so they can be placed on the itinerary timeline.");
+      return;
+    }
 
     const durationMinutes = startTime && endTime
       ? calculateDuration(startTime, endTime)
@@ -86,7 +94,7 @@ export function ActivityEditor({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full rounded-xl p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MapPin className="h-5 w-5 text-blue-600" />

@@ -2,7 +2,7 @@
 // in the same file. Splitting them would scatter the API across multiple files.
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
-import type { Location, Vehicle, TripSettings, TripSummary, TripBudget } from '../types';
+import type { Location, Vehicle, TripSettings, TripSummary, TripBudget, Activity, TripDay } from '../types';
 import { DEFAULT_BUDGET } from '../lib/budget';
 import { getDefaultVehicleId, getGarage, loadSettingsDefaults, saveSettingsDefaults } from '../lib/storage';
 import { getFuelPriceDefault } from '../lib/regional-costs';
@@ -75,6 +75,11 @@ interface TripContextType {
 
   // Budget Helpers
   updateBudget: (updates: Partial<TripBudget>) => void;
+
+  // Day Activity Helpers
+  addDayActivity: (dayNumber: number, activity: Activity) => void;
+  updateDayActivity: (dayNumber: number, activityIndex: number, activity: Activity) => void;
+  removeDayActivity: (dayNumber: number, activityIndex: number) => void;
 
   // Reset
   resetTrip: () => void;
@@ -194,6 +199,42 @@ export function TripProvider({
     }));
   }, []);
 
+  // Day Activity Helpers
+  const updateSummaryDays = useCallback((dayNumber: number, updater: (day: TripDay) => TripDay) => {
+    setSummary((prev) => {
+      if (!prev || !prev.days) return prev;
+      return {
+        ...prev,
+        days: prev.days.map(day => 
+          day.dayNumber === dayNumber ? updater(day) : day
+        ),
+      };
+    });
+  }, []);
+
+  const addDayActivity = useCallback((dayNumber: number, activity: Activity) => {
+    updateSummaryDays(dayNumber, (day) => ({
+      ...day,
+      plannedActivities: [...(day.plannedActivities || []), activity],
+    }));
+  }, [updateSummaryDays]);
+
+  const updateDayActivity = useCallback((dayNumber: number, activityIndex: number, activity: Activity) => {
+    updateSummaryDays(dayNumber, (day) => {
+      const newActivities = [...(day.plannedActivities || [])];
+      newActivities[activityIndex] = activity;
+      return { ...day, plannedActivities: newActivities };
+    });
+  }, [updateSummaryDays]);
+
+  const removeDayActivity = useCallback((dayNumber: number, activityIndex: number) => {
+    updateSummaryDays(dayNumber, (day) => {
+      const newActivities = [...(day.plannedActivities || [])];
+      newActivities.splice(activityIndex, 1);
+      return { ...day, plannedActivities: newActivities };
+    });
+  }, [updateSummaryDays]);
+
   // Reset
   const resetTrip = useCallback(() => {
     setLocations(DEFAULT_LOCATIONS);
@@ -215,6 +256,9 @@ export function TripProvider({
     removeLocation,
     reorderLocations,
     updateBudget,
+    addDayActivity,
+    updateDayActivity,
+    removeDayActivity,
     resetTrip,
   };
 
