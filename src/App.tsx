@@ -247,7 +247,7 @@ function AppContent() {
 
           {/* Desktop overlays (route strategy + trip summary) */}
           {summary && planningStep === 3 && (
-            <div className="hidden md:flex absolute bottom-6 right-6 z-20 flex-col gap-3 pointer-events-none">
+            <div className="hidden md:flex absolute bottom-6 right-6 z-20 flex-col gap-3 pointer-events-none w-[380px]">
               <div className="pointer-events-auto">
                 <RouteStrategyPicker
                   strategies={routeStrategies}

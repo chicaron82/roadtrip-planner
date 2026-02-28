@@ -28,8 +28,8 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
   if (!summary) return null;
 
   return (
-    <div className="absolute bottom-4 left-4 right-4 z-[1000] animate-in slide-in-from-bottom duration-500 max-h-[85vh] flex flex-col pointer-events-none">
-      <Card className="bg-white/90 backdrop-blur-md shadow-xl border-white/20 flex-1 overflow-hidden flex flex-col pointer-events-auto transition-all duration-300">
+    <div className="animate-in slide-in-from-bottom duration-500 max-h-[85vh] flex flex-col">
+      <Card className="bg-white/90 backdrop-blur-md shadow-xl border-white/20 flex-1 overflow-hidden flex flex-col transition-all duration-300">
         <CardContent className="p-4 flex-1 overflow-y-auto flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between mb-4 sticky top-0 bg-white/90 backdrop-blur-md z-10 -mx-4 px-4 py-2">
