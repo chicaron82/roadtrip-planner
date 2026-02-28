@@ -102,8 +102,12 @@ export function calculateMaxDistance(config: AdventureConfig): number {
   // Remaining budget for fuel
   const fuelBudget = Math.max(0, budget - fixedCosts);
 
+  // Use vehicle-derived cost when available, else fall back to hardcoded estimate.
+  // fuelCostPerKm is passed from App.tsx as (fuelEconomyL100km / 100) × gasPrice.
+  const costPerKm = config.fuelCostPerKm ?? COST_ESTIMATES.fuel.perKm;
+
   // Calculate max distance based on trip type
-  const maxDrivableKm = fuelBudget / COST_ESTIMATES.fuel.perKm;
+  const maxDrivableKm = fuelBudget / costPerKm;
 
   // For round trip, divide by 2 (need to drive both ways)
   // For one-way, use full distance

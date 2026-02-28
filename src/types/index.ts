@@ -628,6 +628,9 @@ export interface AdventureConfig {
   maxDriveHoursPerDay?: number;
   accommodationType?: 'budget' | 'moderate' | 'comfort';
   isRoundTrip?: boolean; // Default true - set false for one-way adventures
+  /** Fuel cost per km derived from user's actual vehicle + gas price.
+   *  When provided overrides the hardcoded $0.12/km COST_ESTIMATES fallback. */
+  fuelCostPerKm?: number;
 }
 
 // A reachable destination suggestion

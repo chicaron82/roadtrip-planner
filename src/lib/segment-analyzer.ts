@@ -1,4 +1,5 @@
 import type { RouteSegment, SegmentWarning, TripSettings } from '../types';
+import { isLikelyInUS } from './border-avoidance';
 
 /**
  * Analyzes route segments and adds intelligent warnings.
@@ -32,8 +33,11 @@ export function analyzeSegments(
     // Suggest breaks for segments > 3 hours
     const suggestedBreak = durationHours > 3;
 
-    // Detect border crossings based on location names
-    const crossesBorder = detectBorderCrossing(segment.from.name, segment.to.name);
+    // Detect border crossings using GPS coordinates — more reliable than
+    // string-matching location names which often omit province/state info.
+    const fromInUS = isLikelyInUS(segment.from.lat, segment.from.lng);
+    const toInUS = isLikelyInUS(segment.to.lat, segment.to.lng);
+    const crossesBorder = fromInUS !== toInUS;
     if (crossesBorder) {
       warnings.push({
         type: 'border_crossing',
@@ -64,21 +68,6 @@ export function analyzeSegments(
       timezoneCrossing: timezoneCrossing.crosses,
     };
   });
-}
-
-/**
- * Detects border crossings based on location names
- */
-function detectBorderCrossing(fromName: string, toName: string): boolean {
-  const canadianIndicators = ['canada', 'ontario', 'quebec', 'alberta', 'british columbia', 'bc', 'on', 'qc', 'ab'];
-  const usIndicators = ['usa', 'united states', 'new york', 'washington', 'michigan', 'ny', 'wa', 'mi', 'california'];
-
-  const fromIsCanada = canadianIndicators.some(ind => fromName.toLowerCase().includes(ind));
-  const toIsCanada = canadianIndicators.some(ind => toName.toLowerCase().includes(ind));
-  const fromIsUS = usIndicators.some(ind => fromName.toLowerCase().includes(ind));
-  const toIsUS = usIndicators.some(ind => toName.toLowerCase().includes(ind));
-
-  return (fromIsCanada && toIsUS) || (fromIsUS && toIsCanada);
 }
 
 /**

@@ -54,6 +54,16 @@ export const TRIP_CONSTANTS = {
     overThreshold: 1.0,
   },
 
+  /**
+   * OSRM routing corrections
+   * The public OSRM demo server uses conservative road speeds (~15% faster than
+   * real-world travel). Multiply raw durations by this factor to align with
+   * typical Google Maps / real-drive times.
+   */
+  routing: {
+    osrmDurationFactor: 0.85,
+  },
+
   /** Stop suggestion and consolidation parameters */
   stops: {
     /** Time window (ms) within which nearby stops are merged. */

@@ -53,8 +53,9 @@ function getBorderLatitude(lng: number): number {
 /**
  * Check if a coordinate is likely in the US (south of the border).
  * Uses the simplified border approximation above.
+ * Exported so segment-analyzer can reuse geometry-based detection instead of string heuristics.
  */
-function isLikelyInUS(lat: number, lng: number): boolean {
+export function isLikelyInUS(lat: number, lng: number): boolean {
   // Only applies to North American longitudes
   if (lng < -170 || lng > -50) return false;
 

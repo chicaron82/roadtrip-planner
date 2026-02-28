@@ -1,6 +1,7 @@
 import type { Location, RouteSegment } from '../types';
 import { detectBorderCrossing, getGuardWaypoints, insertGuardWaypoints } from './border-avoidance';
 import { NOMINATIM_BASE_URL } from './constants';
+import { TRIP_CONSTANTS } from './trip-constants';
 
 // ==================== GEOCODING ====================
 // Primary: Photon (komoot) — fuzzy/typo-tolerant, built on Nominatim data, no key needed.
@@ -260,9 +261,10 @@ async function fetchOSRMRoute(
             from: locations[i],
             to: locations[i+1],
             distanceKm: leg.distance / 1000,
-            // OSRM defaults to very conservative speeds. Apply a 15% reduction
+            // OSRM defaults to very conservative speeds. Apply a correction factor
             // to align closer with real-world Google Maps estimates.
-            durationMinutes: (leg.duration / 60) * 0.85,
+            // Factor is defined in TRIP_CONSTANTS.routing.osrmDurationFactor.
+            durationMinutes: (leg.duration / 60) * TRIP_CONSTANTS.routing.osrmDurationFactor,
             fuelNeededLitres: 0, // Calculated later
              fuelCost: 0, // Calculated later
         });

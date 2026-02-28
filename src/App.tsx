@@ -17,6 +17,7 @@ import {
   type PlanningStep,
 } from './hooks';
 import { getHistory } from './lib/storage';
+import { getWeightedFuelEconomyL100km } from './lib/unit-conversions';
 import type { TripSummary, TripMode, POICategory } from './types';
 
 /**
@@ -287,6 +288,7 @@ function AppContent() {
               }}
               onSelectDestination={handleAdventureSelect}
               onClose={() => setShowAdventureMode(false)}
+              fuelCostPerKm={(getWeightedFuelEconomyL100km(vehicle, settings.units) / 100) * settings.gasPrice}
             />
           )}
         </>

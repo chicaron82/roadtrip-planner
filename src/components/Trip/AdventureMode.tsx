@@ -27,6 +27,9 @@ interface AdventureModeProps {
   onSelectDestination: (selection: AdventureSelection) => void;
   onClose: () => void;
   className?: string;
+  /** Fuel cost per km derived from user's vehicle + gas price settings.
+   *  When provided, overrides the hardcoded $0.12/km estimate in adventure-service. */
+  fuelCostPerKm?: number;
 }
 
 export function AdventureMode({
@@ -35,6 +38,7 @@ export function AdventureMode({
   onSelectDestination,
   onClose,
   className,
+  fuelCostPerKm,
 }: AdventureModeProps) {
   const [localOrigin, setLocalOrigin] = useState<Location | null>(externalOrigin);
   const origin = localOrigin;
@@ -62,7 +66,7 @@ export function AdventureMode({
       setIsCalculating(true);
       try {
         const result = await findAdventureDestinations({
-          origin, budget, days, travelers, preferences, accommodationType, isRoundTrip,
+          origin, budget, days, travelers, preferences, accommodationType, isRoundTrip, fuelCostPerKm,
         });
         setDestinations(result.destinations);
         setMaxReachableKm(result.maxReachableKm);
@@ -77,7 +81,7 @@ export function AdventureMode({
   }, [origin, budget, days, travelers, preferences, accommodationType, isRoundTrip]);
 
   const previewMaxKm = origin && origin.lat !== 0
-    ? calculateMaxDistance({ origin, budget, days, travelers, preferences, accommodationType, isRoundTrip })
+    ? calculateMaxDistance({ origin, budget, days, travelers, preferences, accommodationType, isRoundTrip, fuelCostPerKm })
     : 0;
 
   const togglePreference = (pref: TripPreference) => {

@@ -388,6 +388,19 @@ export function useTripCalculation({
 
       setLocalSummary(updatedSummary);
       onSummaryChange(updatedSummary);
+
+      // Refresh strategic fuel stop map pins to reflect any changed overnight stops.
+      const newFuelStops = calculateStrategicFuelStops(
+        localSummary.fullGeometry as [number, number][],
+        segmentsWithTimes,
+        vehicle,
+        settings,
+      );
+      setStrategicFuelStops(newFuelStops);
+      // Fire-and-forget snap to real OSM stations
+      snapFuelStopsToStations(newFuelStops).then(snapped => {
+        setStrategicFuelStops(snapped);
+      }).catch(() => {});
     },
     [localSummary, settings, onSummaryChange]
   );
