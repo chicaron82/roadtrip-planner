@@ -36,6 +36,16 @@ export const TRIP_CONSTANTS = {
     minDrivingMinutesForBreakdown: 120,
   },
 
+  /** Day overflow: tolerance for slightly exceeding maxDriveHours in day splitting.
+   *  Humans "push through 30 more minutes" to reach the next city rather than
+   *  stopping at a highway km marker. Without this, an 8h30m day (510 min) gets
+   *  split into two 4h15m days, doubling the trip length. */
+  dayOverflow: {
+    /** Fixed hours of grace beyond maxDriveHours before forcing a new day.
+     *  1 hour is reasonable — especially with multiple drivers sharing the load. */
+    toleranceHours: 1,
+  },
+
   /** Budget analysis thresholds */
   budget: {
     /** Utilization fraction that triggers an amber (tight) warning. */

@@ -1,6 +1,7 @@
 import type { RouteSegment, Location } from '../../types';
 import { interpolateRoutePosition } from '../route-geocoder';
 import { findHubInWindow } from '../hub-cache';
+import { TRIP_CONSTANTS } from '../trip-constants';
 
 // ---------------------------------------------------------------------------
 // Internal type & helper for long-segment splitting
@@ -44,15 +45,20 @@ export function splitLongSegments(
 ): ProcessedSegment[] {
   const result: ProcessedSegment[] = [];
 
+  // Allow segments within tolerance (1h grace) to pass through unsplit.
+  // An 8h30m drive stays as one segment instead of being cut into two
+  // 4h15m halves that each waste a full day.
+  const effectiveMax = maxDriveMinutes + TRIP_CONSTANTS.dayOverflow.toleranceHours * 60;
+
   for (let origIdx = 0; origIdx < segments.length; origIdx++) {
     const seg = segments[origIdx];
 
-    if (seg.durationMinutes <= maxDriveMinutes) {
+    if (seg.durationMinutes <= effectiveMax) {
       result.push({ ...seg, _originalIndex: origIdx });
       continue;
     }
 
-    const numParts = Math.ceil(seg.durationMinutes / maxDriveMinutes);
+    const numParts = Math.ceil(seg.durationMinutes / effectiveMax);
 
     // Distribute drive time evenly across sub-segments instead of filling each
     // part to maxDriveMinutes. Fill-to-max creates heavily imbalanced splits

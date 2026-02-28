@@ -109,6 +109,10 @@ export function splitTripByDays(
   let foodRemaining = foodRemaining0;
 
   const maxDriveMinutes = settings.maxDriveHours * 60;
+  // Allow days to slightly exceed maxDriveHours (1h grace).
+  // Humans push through 30-60 extra minutes to reach a real city; without this,
+  // an 8h30m pair of segments gets split into two 4h15m days, doubling the trip.
+  const effectiveMaxDriveMinutes = maxDriveMinutes + TRIP_CONSTANTS.dayOverflow.toleranceHours * 60;
 
   // Build cumulative km-start offsets per segment for geometry interpolation.
   const segKmStarts: number[] = [];
@@ -149,7 +153,7 @@ export function splitTripByDays(
     // e.g. Toronto → Ottawa → Toronto is ~9h22m driving, which fits in a 10h day.
     const totalRoundTripMinutes = processedSegments.reduce((sum, s) => sum + s.durationMinutes, 0);
     // Beast mode bypasses the forced midpoint overnight — user accepts the fatigue risk.
-    const isRoundTripDayTrip = totalRoundTripMinutes <= maxDriveMinutes || settings.beastMode;
+    const isRoundTripDayTrip = totalRoundTripMinutes <= effectiveMaxDriveMinutes || settings.beastMode;
 
     if (
       !insertedFreeDays &&
@@ -269,7 +273,7 @@ export function splitTripByDays(
     }
 
     const segmentDriveMinutes = segment.durationMinutes;
-    const wouldExceedMaxDrive = currentDayDriveMinutes + segmentDriveMinutes > maxDriveMinutes;
+    const wouldExceedMaxDrive = currentDayDriveMinutes + segmentDriveMinutes > effectiveMaxDriveMinutes;
     // We also trigger a new day *after* this segment if it's an explicit overnight stop
     const isOvernightStop = segment.stopType === 'overnight';
 

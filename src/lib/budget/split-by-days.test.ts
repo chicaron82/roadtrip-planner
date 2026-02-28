@@ -292,3 +292,44 @@ describe('splitTripByDays — timezone change detection', () => {
     expect(allChanges).toHaveLength(0);
   });
 });
+
+// ── 9. Tolerance buffer — slightly-over segments combine into one day ────────
+
+describe('splitTripByDays — tolerance buffer (1h grace)', () => {
+  it('combines segments that slightly exceed maxDriveHours into one day', () => {
+    // 147 + 363 = 510 min (8h30m) with 8h max → within 1h tolerance (540 min)
+    const segments: RouteSegment[] = [
+      makeSegment({ from: WINNIPEG, to: KENORA, distanceKm: 210, durationMinutes: 147 }),
+      makeSegment({ from: KENORA, to: THUNDER, distanceKm: 490, durationMinutes: 363 }),
+    ];
+    const settings = makeSettings({ maxDriveHours: 8 });
+    const days = splitTripByDays(segments, settings, '2025-08-16', '09:00');
+
+    expect(days).toHaveLength(1);
+    expect(days[0].totals.driveTimeMinutes).toBe(510);
+  });
+
+  it('still splits when segments significantly exceed maxDriveHours', () => {
+    // 300 + 300 = 600 min (10h) with 8h max → exceeds 1h tolerance (540 min)
+    const segments: RouteSegment[] = [
+      makeSegment({ from: WINNIPEG, to: KENORA, distanceKm: 500, durationMinutes: 300 }),
+      makeSegment({ from: KENORA, to: THUNDER, distanceKm: 500, durationMinutes: 300 }),
+    ];
+    const settings = makeSettings({ maxDriveHours: 8 });
+    const days = splitTripByDays(segments, settings, '2025-08-16', '09:00');
+
+    expect(days.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('does not split a single segment within tolerance', () => {
+    // 510 min (8h30m) single segment with 8h max → within 1h tolerance, no split
+    const segments: RouteSegment[] = [
+      makeSegment({ from: WINNIPEG, to: THUNDER, distanceKm: 700, durationMinutes: 510 }),
+    ];
+    const settings = makeSettings({ maxDriveHours: 8 });
+    const days = splitTripByDays(segments, settings, '2025-08-16', '09:00');
+
+    expect(days).toHaveLength(1);
+    expect(days[0].totals.driveTimeMinutes).toBe(510);
+  });
+});
