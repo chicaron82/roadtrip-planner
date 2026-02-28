@@ -487,3 +487,124 @@ describe('real scenario: Winnipeg→Toronto trip changes', () => {
     expect(refinementWarnings.some(w => w.category === 'driver')).toBe(true);
   });
 });
+
+// ==================== COMPRESSED MORNING (timing gap between days) ====================
+
+describe('analyzeTiming — compressed morning', () => {
+  it('warns when arrival + departure leave less than 6h rest', () => {
+    // 1 AM arrival, 6 AM departure = 5h rest — warning territory
+    const day1 = makeDay({
+      dayNumber: 1,
+      totals: { distanceKm: 900, driveTimeMinutes: 960, stopTimeMinutes: 0,
+        departureTime: '2026-03-01T09:00:00', arrivalTime: '2026-03-02T01:00:00' },
+    });
+    const day2 = makeDay({
+      dayNumber: 2,
+      totals: { distanceKm: 500, driveTimeMinutes: 540, stopTimeMinutes: 0,
+        departureTime: '2026-03-02T06:00:00', arrivalTime: '2026-03-02T15:00:00' },
+    });
+    const summary = makeSummary([day1, day2]);
+    const result = analyzeFeasibility(summary, makeSettings({ maxDriveHours: 16, numDrivers: 4 }));
+
+    const compressed = result.warnings.find(
+      w => w.category === 'timing' && w.message.includes('Night 1→2'),
+    );
+    expect(compressed).toBeDefined();
+    expect(compressed?.severity).toBe('warning');
+    expect(compressed?.message).toMatch(/only 5h rest/);
+  });
+
+  it('flags critical when rest gap is under 4h', () => {
+    // 2 AM arrival, 5 AM departure = 3h — critical
+    const day1 = makeDay({
+      dayNumber: 1,
+      totals: { distanceKm: 900, driveTimeMinutes: 960, stopTimeMinutes: 0,
+        departureTime: '2026-03-01T09:00:00', arrivalTime: '2026-03-02T02:00:00' },
+    });
+    const day2 = makeDay({
+      dayNumber: 2,
+      totals: { distanceKm: 500, driveTimeMinutes: 300, stopTimeMinutes: 0,
+        departureTime: '2026-03-02T05:00:00', arrivalTime: '2026-03-02T10:00:00' },
+    });
+    const summary = makeSummary([day1, day2]);
+    const result = analyzeFeasibility(summary, makeSettings({ maxDriveHours: 16 }));
+
+    const compressed = result.warnings.find(
+      w => w.category === 'timing' && w.message.includes('Night 1→2'),
+    );
+    expect(compressed).toBeDefined();
+    expect(compressed?.severity).toBe('critical');
+    expect(compressed?.message).toMatch(/only 3h rest/);
+  });
+
+  it('does not warn when rest gap is 8h or more', () => {
+    // 9 PM arrival, 9 AM departure = 12h — comfortable
+    const day1 = makeDay({
+      dayNumber: 1,
+      totals: { distanceKm: 700, driveTimeMinutes: 720, stopTimeMinutes: 0,
+        departureTime: '2026-03-01T09:00:00', arrivalTime: '2026-03-01T21:00:00' },
+    });
+    const day2 = makeDay({
+      dayNumber: 2,
+      totals: { distanceKm: 500, driveTimeMinutes: 480, stopTimeMinutes: 0,
+        departureTime: '2026-03-02T09:00:00', arrivalTime: '2026-03-02T17:00:00' },
+    });
+    const summary = makeSummary([day1, day2]);
+    const result = analyzeFeasibility(summary, makeSettings());
+
+    expect(result.warnings.some(w => w.message.includes('Night 1→2'))).toBe(false);
+  });
+});
+
+// ==================== REDUCE-HOURS HINT ON ALL DRIVING DAYS ====================
+
+describe('analyzeDriveTime — reduce-hours hint on non-Day-1 close-to-limit days', () => {
+  it('adds driver hint to close-to-limit warning on Day 2+', () => {
+    // Day 1 is fine, Day 2 is close to the 16h limit with 4 drivers
+    const day1 = makeDay({
+      dayNumber: 1,
+      totals: { distanceKm: 500, driveTimeMinutes: 300, stopTimeMinutes: 0,
+        departureTime: '2026-03-01T09:00:00', arrivalTime: '2026-03-01T14:00:00' },
+    });
+    const day2 = makeDay({
+      dayNumber: 2,
+      totals: { distanceKm: 1400, driveTimeMinutes: 900, stopTimeMinutes: 0,
+        departureTime: '2026-03-02T05:00:00', arrivalTime: '2026-03-02T20:00:00' },
+    });
+    const summary = makeSummary([day1, day2]);
+    // 900 min = 15h — within the tight band of 16h max (tightThreshold = 14.4h = 864 min)
+    const settings = makeSettings({ maxDriveHours: 16, numDrivers: 4 });
+
+    const result = analyzeFeasibility(summary, settings);
+    const day2Warning = result.warnings.find(
+      w => w.category === 'drive-time' && w.severity === 'warning' && w.dayNumber === 2,
+    );
+    expect(day2Warning).toBeDefined();
+    expect(day2Warning?.suggestion).toMatch(/rotating drivers/);
+    expect(day2Warning?.suggestion).toMatch(/12h max/);
+  });
+
+  it('does NOT add driver hint when already within comfort max', () => {
+    // Day 2 close to 9h limit, only 1 driver — no multi-driver hint
+    const day1 = makeDay({
+      dayNumber: 1,
+      totals: { distanceKm: 300, driveTimeMinutes: 200, stopTimeMinutes: 0,
+        departureTime: '2026-03-01T09:00:00', arrivalTime: '2026-03-01T12:20:00' },
+    });
+    const day2 = makeDay({
+      dayNumber: 2,
+      totals: { distanceKm: 700, driveTimeMinutes: 520, stopTimeMinutes: 0,
+        departureTime: '2026-03-02T09:00:00', arrivalTime: '2026-03-02T17:40:00' },
+    });
+    const summary = makeSummary([day1, day2]);
+    const settings = makeSettings({ maxDriveHours: 9, numDrivers: 1 });
+
+    const result = analyzeFeasibility(summary, settings);
+    const day2Warning = result.warnings.find(
+      w => w.category === 'drive-time' && w.dayNumber === 2,
+    );
+    if (day2Warning) {
+      expect(day2Warning.suggestion).not.toMatch(/rotating drivers/);
+    }
+  });
+});

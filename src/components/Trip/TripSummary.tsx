@@ -7,6 +7,7 @@ import { Button } from '../UI/Button';
 import { TripOverview } from './TripOverview';
 import { FeasibilityBanner } from './FeasibilityBanner';
 import { BudgetSensitivity } from './BudgetSensitivity';
+import { HoursTradeoff } from './HoursTradeoff';
 import { analyzeFeasibility } from '../../lib/feasibility';
 
 interface TripSummaryProps {
@@ -142,6 +143,11 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
               {/* What-If Budget Scenarios */}
               {summary.costBreakdown && (
                 <BudgetSensitivity summary={summary} settings={settings} className="mt-3" />
+              )}
+
+              {/* Hours Tradeoff — drive days vs free days for multi-driver round trips */}
+              {settings.isRoundTrip && settings.numDrivers >= 2 && summary.days && (
+                <HoursTradeoff summary={summary} settings={settings} className="mt-3" />
               )}
 
               {/* Feasibility Health Check */}

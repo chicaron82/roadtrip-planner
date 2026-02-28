@@ -45,6 +45,38 @@ export function analyzeTiming(days: TripDay[]): FeasibilityWarning[] {
     }
   }
 
+  // Compressed-morning check — correlates consecutive day pairs.
+  // The per-day loop above catches each day in isolation. This catches the
+  // gap BETWEEN days: a late arrival followed by an early departure leaves
+  // the crew with barely enough time to sleep, even if neither day triggers
+  // the individual thresholds above (e.g. arrive midnight, leave 6 AM).
+  for (let i = 0; i < days.length - 1; i++) {
+    const today    = days[i];
+    const tomorrow = days[i + 1];
+    if (!today.totals.arrivalTime || !tomorrow.totals.departureTime) continue;
+    // Free days have no meaningful departure — skip them.
+    if (tomorrow.dayType === 'free' || tomorrow.totals.driveTimeMinutes === 0) continue;
+
+    const arrival   = new Date(today.totals.arrivalTime);
+    const departure = new Date(tomorrow.totals.departureTime);
+    if (isNaN(arrival.getTime()) || isNaN(departure.getTime())) continue;
+
+    const restHours = (departure.getTime() - arrival.getTime()) / (1000 * 60 * 60);
+    if (restHours > 0 && restHours < 6) {
+      const restH = Math.floor(restHours);
+      const restM = Math.round((restHours - restH) * 60);
+      const restLabel = restM > 0 ? `${restH}h ${restM}m` : `${restH}h`;
+      warnings.push({
+        category: 'timing',
+        severity: restHours < 4 ? 'critical' : 'warning',
+        message: `Night ${today.dayNumber}→${tomorrow.dayNumber}: only ${restLabel} rest`,
+        detail: `Arrived ${formatTime(arrival)}, departing ${formatTime(departure)} — barely time to sleep.`,
+        dayNumber: tomorrow.dayNumber,
+        suggestion: `Reduce max drive hours so Day ${today.dayNumber} arrives earlier, or push Day ${tomorrow.dayNumber}'s departure back.`,
+      });
+    }
+  }
+
   return warnings;
 }
 

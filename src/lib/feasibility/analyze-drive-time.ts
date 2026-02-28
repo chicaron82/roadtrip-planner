@@ -3,6 +3,24 @@ import type { FeasibilityWarning } from './types';
 import { formatDuration } from './helpers';
 import { TRIP_CONSTANTS } from '../trip-constants';
 
+/**
+ * Comfortable daily max for rotating drivers — the ceiling where individual
+ * shifts are still manageable and the crew checks in at a civilised hour.
+ * Used in both the Day 1 late-arrival hint and the per-day close-to-limit hint.
+ */
+function getComfortMaxHours(numDrivers: number): number {
+  return numDrivers >= 4 ? 12 : numDrivers === 3 ? 11 : 10; // 2 drivers
+}
+
+/** Build the multi-driver reduce-hours hint string, or '' if not applicable. */
+function buildDriverHint(numDrivers: number, maxDriveHours: number): string {
+  if (numDrivers < 2 || maxDriveHours <= 10) return '';
+  const comfortMax = getComfortMaxHours(numDrivers);
+  if (maxDriveHours <= comfortMax) return '';
+  const perShift = Math.round((comfortMax / numDrivers) * 10) / 10;
+  return ` With ${numDrivers} rotating drivers, try ${comfortMax}h max — shifts drop to ~${perShift}h each and you'll check in before midnight.`;
+}
+
 export function analyzeDriveTime(
   days: TripDay[],
   settings: TripSettings,
@@ -39,19 +57,7 @@ export function analyzeDriveTime(
       const arrivalLabel  = `${arrivalH}:${String(arrivalMin).padStart(2, '0')}${arrivalSuffix}`;
       const overByHours   = Math.round((estimatedArrivalHour - targetArrivalHour) * 10) / 10;
 
-      // Multi-driver "reduce hours" hint — when rotating drivers push the daily
-      // limit high enough to cause late-night arrivals, surface a comfortable
-      // ceiling so MEE time stays enjoyable and check-in stays sane.
-      let driverHint = '';
-      if (settings.numDrivers >= 2 && settings.maxDriveHours > 10) {
-        const comfortMax = settings.numDrivers >= 4 ? 12
-          : settings.numDrivers === 3 ? 11
-          : 10; // 2 drivers
-        if (settings.maxDriveHours > comfortMax) {
-          const perShift = Math.round((comfortMax / settings.numDrivers) * 10) / 10;
-          driverHint = ` With ${settings.numDrivers} rotating drivers, try ${comfortMax}h max — shifts drop to ~${perShift}h each and you'll check in before midnight.`;
-        }
-      }
+      const driverHint = buildDriverHint(settings.numDrivers, settings.maxDriveHours);
 
       warnings.push({
         category: 'drive-time',
@@ -79,13 +85,14 @@ export function analyzeDriveTime(
         suggestion: 'Consider adding an overnight stop to split this day.',
       });
     } else if (driveMinutes >= tightDriveMinutes && driveMinutes <= hardLimitMinutes) {
+      const hint = buildDriverHint(settings.numDrivers, settings.maxDriveHours);
       warnings.push({
         category: 'drive-time',
         severity: 'warning',
         message: `Day ${day.dayNumber}: Drive time is close to daily limit`,
         detail: `${formatDuration(driveMinutes)} driving vs ${settings.maxDriveHours}h limit.`,
         dayNumber: day.dayNumber,
-        suggestion: 'Ensure adequate rest stops are planned.',
+        suggestion: `Ensure adequate rest stops are planned.${hint}`,
       });
     }
     // Grace period (max < drive <= hard limit) now covered by the warning condition above.
