@@ -220,7 +220,12 @@ export function buildTimedTimeline(
       // and jump directly to that date.
       let daysToAdvance = 1;
       if (drivingDayDates.length > 0) {
-        const overnightDate = arr.toISOString().slice(0, 10); // "YYYY-MM-DD"
+        // Use LOCAL date (not UTC via toISOString) — overnight can arrive after 6 PM
+        // in negative-UTC-offset timezones (CST, MST, PST), which would tick the UTC
+        // date forward a day and cause drivingDayDates.find() to skip the very next
+        // driving day, advancing currentTime too far forward.
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const overnightDate = `${arr.getFullYear()}-${pad(arr.getMonth() + 1)}-${pad(arr.getDate())}`;
         const nextDrivingDate = drivingDayDates.find(d => d > overnightDate);
         if (nextDrivingDate) {
           const overnightDay = new Date(overnightDate + 'T00:00:00');

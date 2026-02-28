@@ -103,7 +103,7 @@ export function generateSmartStops(
           id: `overnight-midpoint-day${prevDrivingDay.dayNumber}`,
           type: 'overnight',
           reason: `Overnight at ${overnight.location.name}. Check in, rest up, and continue tomorrow.`,
-          afterSegmentIndex: index - 1,
+          afterSegmentIndex: Math.max(0, index - 1),
           estimatedTime: new Date(state.currentTime),
           duration: 720,
           priority: 'required',
