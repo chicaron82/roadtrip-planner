@@ -16,7 +16,7 @@ import {
   type PlanningStep,
 } from './hooks';
 import { getHistory } from './lib/storage';
-import type { TripSummary, TripMode } from './types';
+import type { TripSummary, TripMode, POICategory } from './types';
 
 /**
  * App.tsx — Root orchestrator (MEE Redesign)

@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import type React from 'react';
 import { DEFAULT_LOCATIONS } from '../contexts';
 import { getLastOrigin } from '../lib/storage';
-import type { Location, TripMode, TripChallenge } from '../types';
+import type { Location, TripMode, TripChallenge, TripOrigin } from '../types';
 
 interface UseAppResetOptions {
   setLocations: React.Dispatch<React.SetStateAction<Location[]>>;
@@ -12,7 +12,7 @@ interface UseAppResetOptions {
   clearStops: () => void;
   clearTripCalculation: () => void;
   setActiveChallenge: (c: TripChallenge | null) => void;
-  setTripOrigin: (o: Location | null) => void;
+  setTripOrigin: (o: TripOrigin | null) => void;
   setTripConfirmed: (v: boolean) => void;
   setTripMode: (m: TripMode | null) => void;
   setShowAdventureMode: (v: boolean) => void;

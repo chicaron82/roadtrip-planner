@@ -1,7 +1,7 @@
 import { useRef, useCallback, useLayoutEffect } from 'react';
 import { recordTrip } from '../lib/user-profile';
 import type { Location, TripSettings, TripSummary, TripPreference, RouteSegment } from '../types';
-import type { StylePreset } from '../lib/style-presets';
+import type { AdaptiveDefaults } from '../lib/user-profile';
 
 interface UseCalculateAndDiscoverOptions {
   calculateTrip: () => Promise<TripSummary | null>;
@@ -15,8 +15,8 @@ interface UseCalculateAndDiscoverOptions {
     preferences: TripPreference[],
     segments: RouteSegment[]
   ) => Promise<void>;
-  refreshAdaptiveDefaults: () => StylePreset;
-  setAdaptiveDefaults: (preset: StylePreset) => void;
+  refreshAdaptiveDefaults: () => AdaptiveDefaults | null;
+  setAdaptiveDefaults: (defaults: AdaptiveDefaults | null) => void;
 }
 
 /**
