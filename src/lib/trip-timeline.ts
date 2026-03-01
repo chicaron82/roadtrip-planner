@@ -11,7 +11,7 @@
 
 import type { RouteSegment, TripSettings, TripDay } from '../types';
 import type { SuggestedStop } from './stop-suggestions';
-import { lngToIANA, normalizeToIANA, parseLocalDateInTZ, formatTimeInZone } from './trip-timezone';
+import { lngToIANA, normalizeToIANA, parseLocalDateInTZ, formatTimeInZone, formatDateInZone } from './trip-timezone';
 
 export type TimedEventType =
   | 'departure'
@@ -174,10 +174,12 @@ export function buildTimedTimeline(
 
   /**
    * Resolve the nearest named waypoint for a SuggestedStop.
-   * Two passes:
+   * Three passes:
    *  1. afterSegmentIndex match — stop explicitly tagged to a segment endpoint.
-   *  2. Proximity scan — any segment endpoint within 20 km of the current km
-   *     (catches en-route stops with afterSegmentIndex=-1 that land near a city).
+   *  2. Proximity scan over original segment endpoints (20 km window).
+   *  3. Proximity scan over sub-segment (iterSegments) endpoints (20 km window).
+   *     This catches transit split-points like "Swift Current" or "Golden, BC"
+   *     that don't exist in the original 1-segment route.
    */
   const resolveWaypointName = (stop: SuggestedStop, currentKm: number): string | undefined => {
     // Pass 1: stops explicitly tagged to a segment boundary
@@ -188,10 +190,19 @@ export function buildTimedTimeline(
         return segments[idx].to.name;
       }
     }
-    // Pass 2: proximity scan over all segment endpoints
+    // Pass 2: proximity scan over all original segment endpoints
     for (let i = 0; i < segments.length; i++) {
       if (Math.abs(currentKm - segEndKm[i]) <= 20) {
         return segments[i].to.name;
+      }
+    }
+    // Pass 3: proximity scan over sub-segment endpoints (transit split-points)
+    if (iterSegEndKm.length > 0) {
+      for (let i = 0; i < iterSegEndKm.length; i++) {
+        if (Math.abs(currentKm - iterSegEndKm[i]) <= 20) {
+          const name = iterSegments[i]?.to.name;
+          if (name && !name.includes('(transit)')) return name;
+        }
       }
     }
     return undefined;
@@ -235,30 +246,33 @@ export function buildTimedTimeline(
     // straight to Day 3 morning — not Day 2 morning.
     if (stop.type === 'overnight') {
       const [dH, dM] = settings.departureTime.split(':').map(Number);
-      const nextMorning = new Date(arr);
 
       // How many calendar days to advance?  Default +1.
       // If we have tripDays info, find the next driving day after the overnight
       // and jump directly to that date.
       let daysToAdvance = 1;
+      // Determine the overnight's LOCAL date in the active timezone — browser
+      // local time can differ from destination timezone, causing off-by-one
+      // day calculations.
+      const overnightLocal = formatDateInZone(arr, activeTimezone);
       if (drivingDayDates.length > 0) {
-        // Use LOCAL date (not UTC via toISOString) — overnight can arrive after 6 PM
-        // in negative-UTC-offset timezones (CST, MST, PST), which would tick the UTC
-        // date forward a day and cause drivingDayDates.find() to skip the very next
-        // driving day, advancing currentTime too far forward.
-        const pad = (n: number) => String(n).padStart(2, '0');
-        const overnightDate = `${arr.getFullYear()}-${pad(arr.getMonth() + 1)}-${pad(arr.getDate())}`;
-        const nextDrivingDate = drivingDayDates.find(d => d > overnightDate);
+        const nextDrivingDate = drivingDayDates.find(d => d > overnightLocal);
         if (nextDrivingDate) {
-          const overnightDay = new Date(overnightDate + 'T00:00:00');
+          const overnightDay = new Date(overnightLocal + 'T00:00:00');
           const nextDay = new Date(nextDrivingDate + 'T00:00:00');
           daysToAdvance = Math.round((nextDay.getTime() - overnightDay.getTime()) / 86_400_000);
         }
       }
 
-      nextMorning.setDate(nextMorning.getDate() + daysToAdvance);
-      nextMorning.setHours(dH ?? 9, dM ?? 0, 0, 0);
-      currentTime = nextMorning;
+      // Build next morning's departure in the ACTIVE timezone, not browser local.
+      // Using parseLocalDateInTZ ensures "9:00 AM" means 9 AM in the city where
+      // the driver wakes up — not 9 AM in the user's browser timezone.
+      const nextDateParts = overnightLocal.split('-').map(Number);
+      const nextDate = new Date(Date.UTC(nextDateParts[0], nextDateParts[1] - 1, nextDateParts[2] + daysToAdvance));
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const nextDateStr = `${nextDate.getUTCFullYear()}-${pad(nextDate.getUTCMonth() + 1)}-${pad(nextDate.getUTCDate())}`;
+      const nextTimeStr = `${pad(dH ?? 9)}:${pad(dM ?? 0)}`;
+      currentTime = parseLocalDateInTZ(nextDateStr, nextTimeStr, activeTimezone);
     } else {
       currentTime = dep;
     }
@@ -324,6 +338,17 @@ export function buildTimedTimeline(
     iterSegments = segments.map((s, idx) => ({ ...s, _originalIndex: idx }));
   }
 
+  // Build cumulative km at the END of each iter-segment (for sub-segment
+  // waypoint resolution — transit split-points like "Swift Current, SK").
+  const iterSegEndKm: number[] = [];
+  {
+    let acc = 0;
+    for (const s of iterSegments) {
+      acc += s.distanceKm;
+      iterSegEndKm.push(acc);
+    }
+  }
+
   // ── Segment loop ───────────────────────────────────────────────────────────
   let prevOrigIdx = -1;
   for (let i = 0; i < iterSegments.length; i++) {
@@ -334,6 +359,21 @@ export function buildTimedTimeline(
     if (newDay) {
       currentDayNumber = newDay.dayNumber;
 
+      // Resolve a clean departure location name.
+      // Transit split-points may have generic names like "Winnipeg → Vancouver (transit)".
+      // Prefer the previous segment's TO name (same physical point, may be hub-resolved)
+      // or fall back to the tripDay's first segment from name.
+      let departLocation = seg.from.name;
+      if (departLocation.includes('(transit)')) {
+        const prev = i > 0 ? iterSegments[i - 1] : null;
+        if (prev?.to.name && !prev.to.name.includes('(transit)')) {
+          departLocation = prev.to.name;
+        } else {
+          // Strip the transit label for cleaner display
+          departLocation = departLocation.replace(/\s*\(transit\)/, '');
+        }
+      }
+
       // Emit a departure event for transit days 2+ so the timeline shows
       // "🚗 Depart [City]" at each new driving day's start.
       events.push({
@@ -343,7 +383,7 @@ export function buildTimedTimeline(
         departureTime: new Date(currentTime),
         durationMinutes: 0,
         distanceFromOriginKm: cumulativeKm,
-        locationHint: seg.from.name,
+        locationHint: departLocation,
         stops: [],
         timezone: activeTimezone,
       });

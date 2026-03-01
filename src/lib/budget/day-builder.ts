@@ -62,9 +62,10 @@ export function finalizeTripDay(
 ): void {
   if (day.segments.length === 0) return;
 
-  // Calculate route string
-  const firstStop = day.segments[0].from.name;
-  const lastStop = day.segments[day.segments.length - 1].to.name;
+  // Calculate route string — strip "(transit)" labels from split-point names
+  const cleanName = (n: string) => n.replace(/\s*\(transit\)/, '');
+  const firstStop = cleanName(day.segments[0].from.name);
+  const lastStop = cleanName(day.segments[day.segments.length - 1].to.name);
   day.route = `${firstStop} → ${lastStop}`;
 
   // Calculate totals

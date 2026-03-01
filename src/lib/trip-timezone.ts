@@ -116,3 +116,17 @@ export function formatTimeInZone(date: Date, ianaTimezone?: string): string {
     ...(ianaTimezone ? { timeZone: ianaTimezone } : {}),
   });
 }
+
+/**
+ * Format a UTC Date as "YYYY-MM-DD" in the given IANA timezone.
+ * Used for overnight advancement — ensures we compute dates in the destination
+ * timezone rather than the browser's local timezone.
+ */
+export function formatDateInZone(date: Date, ianaTimezone: string): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: ianaTimezone,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(date);
+  const pobj = Object.fromEntries(parts.map(p => [p.type, p.value]));
+  return `${pobj.year}-${pobj.month}-${pobj.day}`;
+}
