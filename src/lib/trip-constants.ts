@@ -80,11 +80,17 @@ export const TRIP_CONSTANTS = {
     /**
      * Safety margin subtracted from vehicle range before computing fuel stops.
      * safeRangeKm = vehicleRangeKm × (1 − buffer)
+     *
+     * Reflects realistic human behaviour: nobody drives to 75-80% of their
+     * tank range between fills. Most people top up around the half-tank mark.
+     *   conservative → stop at ~50% of range (tank at ~50%)
+     *   balanced     → stop at ~60% of range (tank at ~40%)
+     *   aggressive   → stop at ~65% of range (tank at ~35%)
      */
     buffers: {
-      conservative: 0.30,
-      balanced: 0.25,
-      aggressive: 0.20,
+      conservative: 0.50,
+      balanced: 0.40,
+      aggressive: 0.35,
     } as const,
 
     /** How many hours between mandatory rest breaks (by driving style). */
