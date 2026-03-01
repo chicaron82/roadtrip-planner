@@ -330,7 +330,7 @@ export function clearHubCache(): void {
 export function resolveHubName(
   lat: number,
   lng: number,
-  pois: POISuggestion[],
+  pois: POISuggestion[] = [],
 ): string | null {
   // Tier 1: Check known hub cache (instant)
   const known = findKnownHub(lat, lng);

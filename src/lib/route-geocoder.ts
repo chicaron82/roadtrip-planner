@@ -201,7 +201,7 @@ export async function resolveStopTowns(
     if (!pos) continue;
 
     // Tier 1 & 2: Hub cache + POI analysis (instant/fast)
-    const hubName = resolveHubName(pos.lat, pos.lng, pois);
+    const hubName = resolveHubName(pos.lat, pos.lng, pois ?? []);
     if (hubName) {
       townCache.set(key, hubName);
       result.set(event.id, hubName);
