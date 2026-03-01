@@ -199,7 +199,8 @@ export function generateSmartStops(
     const distBeforeSegment = (state.distanceSinceLastFill - segment.distanceKm);
     const { stops: enRouteStops, lastFillKm } = getEnRouteFuelStops(
       state, segment, index, config, safeRangeKm, segmentStartTime,
-      Math.max(0, distBeforeSegment), enRouteHubResolver
+      Math.max(0, distBeforeSegment), enRouteHubResolver,
+      state.comfortRefuelHours
     );
     suggestions.push(...enRouteStops);
 

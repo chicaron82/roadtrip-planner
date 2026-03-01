@@ -116,6 +116,11 @@ export function checkFuelStop(
  * backward (up to HUB_SNAP_WINDOW_KM) for a known city hub.
  *
  * @param distanceAlreadyDriven - km driven since last fill before this segment.
+ * @param comfortIntervalHours - Driver's preferred stop interval in hours (from
+ *   stopFrequency setting). When provided, this becomes the primary stop trigger
+ *   and the route-math safety range becomes a fallback only. This lets the stop
+ *   land at a real highway town (Brandon, Virden, Fargo) instead of at the exact
+ *   fuel-exhaustion km mark.
  */
 export function getEnRouteFuelStops(
   state: SimState,
@@ -126,42 +131,81 @@ export function getEnRouteFuelStops(
   segmentStartTime: Date,
   distanceAlreadyDriven = 0,
   hubResolver?: (kmIntoSegment: number) => string | undefined,
+  comfortIntervalHours?: number,
 ): { stops: SuggestedStop[]; lastFillKm: number } {
   const stops: SuggestedStop[] = [];
   let lastFillKm = 0;
 
-  const HUB_SNAP_WINDOW_KM = 80;
+  // Hub snap: scan backward (and slightly forward) from the trigger km mark to
+  // find the nearest real city. 140km window catches towns like Brandon (~200km
+  // on a 574km leg when the trigger fires at ~341km).
+  const HUB_SNAP_WINDOW_KM = 140;
   const HUB_SNAP_STEP_KM = 20;
 
-  const COMFORT_DRIVING_HOURS = 4;
   const avgSpeedKmH = segment.distanceKm / (segment.durationMinutes / 60);
-  const comfortKm = COMFORT_DRIVING_HOURS * avgSpeedKmH;
 
-  const kmUntilFirstStop = Math.max(0, safeRangeKm - distanceAlreadyDriven);
-  // Comfort stop is warranted when the segment takes > 4h of driving, regardless of fuel range.
-  const comfortStopWarranted = segment.durationMinutes > COMFORT_DRIVING_HOURS * 60 && comfortKm < segment.distanceKm;
+  // Safety trigger: how many more km until the tank hits the critical floor.
+  const kmUntilSafetyStop = Math.max(0, safeRangeKm - distanceAlreadyDriven);
 
-  // If the tank covers the full segment AND the drive is short enough, no stops needed.
-  if (kmUntilFirstStop >= segment.distanceKm && !comfortStopWarranted) {
-    return { stops, lastFillKm };
-  }
+  // Comfort trigger: the driver's natural stopping rhythm based on time driven.
+  // e.g. balanced = 3.5h → at 97 km/h that's ~342km. This is where a real person
+  // would pull off regardless of how much fuel is left.
+  const kmUntilComfortStop = comfortIntervalHours !== undefined
+    ? Math.max(0, comfortIntervalHours * avgSpeedKmH - distanceAlreadyDriven)
+    : kmUntilSafetyStop;
 
-  // When the tank covers the distance but the leg is too long for comfort (> 4h),
-  // suggest a single mid-leg top-up + stretch stop. No fuel urgency — just good practice.
-  if (kmUntilFirstStop >= segment.distanceKm) {
-    let snappedKm = comfortKm;
+  // First stop fires at whichever trigger comes first.
+  // Comfort-driven (< safety): "recommended" stop at a highway town.
+  // Safety-driven (≤ comfort): "required" stop to prevent running dry.
+  const firstStopKm = Math.min(kmUntilComfortStop, kmUntilSafetyStop);
+  const isComfortFirst = kmUntilComfortStop <= kmUntilSafetyStop;
+
+  // Nothing to do if even the earliest trigger falls beyond the segment.
+  if (firstStopKm >= segment.distanceKm) return { stops, lastFillKm };
+
+  let kmMark = firstStopKm;
+  let stopIndex = 1;
+
+  while (kmMark < segment.distanceKm) {
+    // Determine whether this specific stop is comfort- or safety-driven.
+    // First stop uses the pre-computed flag; subsequent stops are always safety.
+    const isComfortStop = stopIndex === 1 && isComfortFirst;
+
+    // Hub resolution: check the exact trigger point first, then scan backward
+    // in 20km steps up to 140km. This snaps the stop to the nearest real town
+    // (e.g. Brandon, MB at km~200 when trigger fires at km~341 for Wpg→Regina).
+    // Also scan slightly forward (up to 40km) so we don't miss a town just past
+    // the trigger (e.g. Virden at km~270 when trigger fires at km~261).
+    let snappedKm = kmMark;
     let stopHubName: string | undefined;
 
     if (hubResolver) {
-      stopHubName = hubResolver(comfortKm);
+      // Check exact point first
+      stopHubName = hubResolver(kmMark);
+
       if (!stopHubName) {
+        // Scan backward up to HUB_SNAP_WINDOW_KM (preferred — don't overshoot)
         for (let lookback = HUB_SNAP_STEP_KM; lookback <= HUB_SNAP_WINDOW_KM; lookback += HUB_SNAP_STEP_KM) {
-          const candidateKm = comfortKm - lookback;
+          const candidateKm = kmMark - lookback;
           if (candidateKm <= 0) break;
-          const candidateHub = hubResolver(candidateKm);
-          if (candidateHub) {
+          const hub = hubResolver(candidateKm);
+          if (hub) {
             snappedKm = candidateKm;
-            stopHubName = candidateHub;
+            stopHubName = hub;
+            break;
+          }
+        }
+      }
+
+      if (!stopHubName) {
+        // Scan slightly forward (up to 40km) as a second chance
+        for (let lookahead = HUB_SNAP_STEP_KM; lookahead <= 40; lookahead += HUB_SNAP_STEP_KM) {
+          const candidateKm = kmMark + lookahead;
+          if (candidateKm >= segment.distanceKm) break;
+          const hub = hubResolver(candidateKm);
+          if (hub) {
+            snappedKm = candidateKm;
+            stopHubName = hub;
             break;
           }
         }
@@ -176,23 +220,32 @@ export function getEnRouteFuelStops(
     const comboMeal = isLunchWindow || isDinnerWindow;
     const stopDuration = comboMeal ? 45 : 15;
 
-    const locationDesc = stopHubName ? `in ${stopHubName}` : `around km ${Math.round(snappedKm)}`;
+    const locationDesc = stopHubName
+      ? `in ${stopHubName}`
+      : `around km ${Math.round(snappedKm)} (~${(minutesMark / 60).toFixed(1)}h in)`;
     const mealNote = comboMeal
-      ? (isLunchWindow ? ' Great time to grab lunch too.' : ' Good time to grab dinner too.')
+      ? (isLunchWindow ? ' Great time to grab lunch while you\'re stopped.' : ' Good time to grab dinner too.')
       : '';
 
+    let reason: string;
+    if (isComfortStop) {
+      reason = `${(segment.durationMinutes / 60).toFixed(1)}h drive — good time to top up and stretch ${locationDesc}.${mealNote}`;
+    } else {
+      reason = `En-route refuel needed ${locationDesc}. Your tank cannot cover the full distance without stopping.${mealNote}`;
+    }
+
     stops.push({
-      id: `fuel-comfort-${index}`,
+      id: `fuel-enroute-${index}-${stopIndex}`,
       type: 'fuel',
-      reason: `Long drive (${(segment.durationMinutes / 60).toFixed(1)}h) — good time to top up and stretch ${locationDesc}.${mealNote}`,
-      afterSegmentIndex: index - 1 + 0.01,
+      reason,
+      afterSegmentIndex: index - 1 + stopIndex * 0.01,
       estimatedTime: stopTime,
       duration: stopDuration,
-      priority: 'recommended',
+      priority: isComfortStop ? 'recommended' : 'required',
       details: {
-        fuelNeeded: config.tankSizeLitres * 0.5,
-        fuelCost: config.tankSizeLitres * 0.5 * config.gasPrice,
-        fillType: 'topup',
+        fuelNeeded: isComfortStop ? config.tankSizeLitres * 0.5 : config.tankSizeLitres * 0.9,
+        fuelCost: (isComfortStop ? config.tankSizeLitres * 0.5 : config.tankSizeLitres * 0.9) * config.gasPrice,
+        fillType: isComfortStop ? 'topup' : 'full',
         comboMeal,
       },
       hubName: stopHubName,
@@ -200,78 +253,8 @@ export function getEnRouteFuelStops(
       accepted: true,
     });
 
-    return { stops, lastFillKm };
-  }
-
-  const COMFORT_HUB_SCAN_WINDOW_KM = 50;
-
-  let proactiveHubKm: number | undefined;
-  let proactiveHubName: string | undefined;
-
-  if (hubResolver && comfortKm > 50 && comfortKm < kmUntilFirstStop - 80) {
-    for (let offset = 0; offset <= COMFORT_HUB_SCAN_WINDOW_KM; offset += 20) {
-      for (const delta of [0, -offset, offset]) {
-        const candidateKm = comfortKm + delta;
-        if (candidateKm <= 0 || candidateKm >= segment.distanceKm) continue;
-        const hub = hubResolver(candidateKm);
-        if (hub) {
-          proactiveHubKm = candidateKm;
-          proactiveHubName = hub;
-          break;
-        }
-      }
-      if (proactiveHubName) break;
-    }
-  }
-
-  let kmMark = proactiveHubKm ?? kmUntilFirstStop;
-  let stopIndex = 1;
-
-  while (kmMark < segment.distanceKm) {
-    let snappedKm = kmMark;
-    let stopHubName: string | undefined = (kmMark === proactiveHubKm) ? proactiveHubName : undefined;
-
-    if (hubResolver && !stopHubName) {
-      stopHubName = hubResolver(kmMark);
-
-      if (!stopHubName) {
-        for (let lookback = HUB_SNAP_STEP_KM; lookback <= HUB_SNAP_WINDOW_KM; lookback += HUB_SNAP_STEP_KM) {
-          const candidateKm = kmMark - lookback;
-          if (candidateKm <= 0) break;
-          const candidateHub = hubResolver(candidateKm);
-          if (candidateHub) {
-            snappedKm = candidateKm;
-            stopHubName = candidateHub;
-            break;
-          }
-        }
-      }
-    }
-
-    const minutesMark = (snappedKm / segment.distanceKm) * segment.durationMinutes;
-
-    const locationDesc = stopHubName
-      ? `near ${stopHubName}`
-      : `around km ${Math.round(snappedKm)} into this ${segment.distanceKm.toFixed(0)} km leg (~${(minutesMark / 60).toFixed(1)}h after departing)`;
-
-    stops.push({
-      id: `fuel-enroute-${index}-${stopIndex}`,
-      type: 'fuel',
-      reason: `En-route refuel needed ${locationDesc}. Your tank cannot cover the full distance without stopping.`,
-      afterSegmentIndex: index - 1 + stopIndex * 0.01,
-      estimatedTime: new Date(segmentStartTime.getTime() + minutesMark * 60 * 1000),
-      duration: 15,
-      priority: 'required',
-      details: {
-        fuelNeeded: config.tankSizeLitres * 0.9,
-        fuelCost: config.tankSizeLitres * 0.9 * config.gasPrice,
-        fillType: 'full',
-      },
-      hubName: stopHubName,
-      dayNumber: state.currentDayNumber,
-    });
-
     lastFillKm = snappedKm;
+    // All subsequent stops use the safety range interval
     kmMark = snappedKm + safeRangeKm;
     stopIndex++;
   }
