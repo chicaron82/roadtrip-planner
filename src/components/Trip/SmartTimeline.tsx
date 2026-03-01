@@ -124,15 +124,19 @@ function DriveRow({ event }: { event: TimedEvent }) {
 function StopCard({
   event,
   poiSuggestions = [],
+  isResolvingTowns = false,
 }: {
   event: TimedEvent;
   poiSuggestions?: POISuggestion[];
+  isResolvingTowns?: boolean;
 }) {
   const isCombo = event.type === 'combo';
   const isDeparture = event.type === 'departure';
   const isArrival = event.type === 'arrival';
   const color = EVENT_COLOR[event.type] ?? '#fff';
   const nearbyPOIs = isCombo ? getNearbyPOINames(event, poiSuggestions) : [];
+
+  const hintClass = isResolvingTowns ? 'transition-opacity animate-pulse opacity-60' : 'transition-opacity opacity-100';
 
   // ── Departure ──────────────────────────────────────────────────────────
   if (isDeparture) {
@@ -146,7 +150,7 @@ function StopCard({
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color }}>Depart</div>
-          <div className="text-sm font-semibold text-foreground leading-tight">{event.locationHint}</div>
+          <div className={`text-sm font-semibold text-foreground leading-tight ${hintClass}`}>{event.locationHint}</div>
         </div>
         <span className="text-sm font-mono font-bold tabular-nums shrink-0" style={{ color }}>
           {formatTime(event.arrivalTime)}
@@ -167,7 +171,7 @@ function StopCard({
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color }}>Arrive</div>
-          <div className="text-sm font-semibold text-foreground leading-tight">{event.locationHint}</div>
+          <div className={`text-sm font-semibold text-foreground leading-tight ${hintClass}`}>{event.locationHint}</div>
         </div>
         <span className="text-sm font-mono font-bold tabular-nums shrink-0" style={{ color }}>
           {formatTime(event.arrivalTime)}
@@ -198,7 +202,7 @@ function StopCard({
               <div className="text-xs font-bold leading-tight" style={{ color }}>{label}</div>
               <div className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
                 <MapPin className="h-2.5 w-2.5 shrink-0" />
-                <span>{event.locationHint}</span>
+                <span className={hintClass}>{event.locationHint}</span>
               </div>
             </div>
             {event.timeSavedMinutes !== undefined && event.timeSavedMinutes > 0 && (
@@ -274,7 +278,7 @@ function StopCard({
         {event.type !== 'destination' && (
           <div className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
             <MapPin className="h-2.5 w-2.5 shrink-0" />
-            <span>{event.locationHint}</span>
+            <span className={hintClass}>{event.locationHint}</span>
           </div>
         )}
         {/* Arrive · duration · Depart row */}
@@ -321,10 +325,15 @@ export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [],
   // ── Step 2: Async town resolution (updates labels after geocoding) ───────
   // Uses tiered resolution: hub cache → POI analysis → Nominatim
   const [townMap, setTownMap] = useState<Map<string, string>>(new Map());
+  const [isResolvingTowns, setIsResolvingTowns] = useState(true);
 
   useEffect(() => {
-    if (!rawEvents.length || !summary?.fullGeometry?.length) return;
+    if (!rawEvents.length || !summary?.fullGeometry?.length) {
+      setIsResolvingTowns(false);
+      return;
+    }
 
+    setIsResolvingTowns(true);
     const controller = new AbortController();
 
     // Prefer the inference corpus (gas/hotel) for hub detection — it always contains
@@ -332,11 +341,15 @@ export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [],
     const hubPOIs = (poiInference && poiInference.length > 0) ? poiInference : poiSuggestions;
     resolveStopTowns(rawEvents, summary.fullGeometry, controller.signal, hubPOIs)
       .then(resolved => {
-        if (!controller.signal.aborted && resolved.size > 0) {
-          setTownMap(resolved);
+        if (!controller.signal.aborted) {
+          if (resolved.size > 0) setTownMap(resolved);
+          setIsResolvingTowns(false);
         }
       })
-      .catch(() => { /* network error — keep generic hints */ });
+      .catch(() => {
+        setIsResolvingTowns(false);
+        /* network error — keep generic hints */
+      });
 
     return () => controller.abort();
   }, [rawEvents, summary?.fullGeometry, poiInference, poiSuggestions]);
@@ -393,6 +406,7 @@ export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [],
               key={event.id}
               event={event}
               poiSuggestions={poiSuggestions}
+              isResolvingTowns={isResolvingTowns}
             />
           );
         })}

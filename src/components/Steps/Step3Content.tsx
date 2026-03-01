@@ -12,6 +12,8 @@ import { ConfirmTripCard } from '../Trip/ConfirmTripCard';
 import { EstimateBreakdown } from '../Trip/EstimateBreakdown';
 import { printTrip } from '../Trip/TripPrintView';
 import { generateEstimate } from '../../lib/estimate-service';
+import { generateTripOverview } from '../../lib/trip-analyzer';
+import { BudgetBar } from '../Trip/BudgetBar';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
 import type { PlanningStep } from '../../hooks';
 import { useTripContext } from '../../contexts/TripContext';
@@ -104,6 +106,27 @@ export function Step3Content({
     return generateEstimate(summary, vehicle, settings);
   }, [tripMode, summary, vehicle, settings]);
 
+  // Trip difficulty badge
+  const overview = useMemo(
+    () => summary ? generateTripOverview(summary, settings) : null,
+    [summary, settings],
+  );
+
+  // Arrival hero: destination name + ETA
+  const arrivalInfo = useMemo(() => {
+    if (!summary) return null;
+    const lastSeg = summary.segments.at(-1);
+    if (!lastSeg?.arrivalTime) return null;
+    const d = new Date(lastSeg.arrivalTime);
+    if (isNaN(d.getTime())) return null;
+    const time = d.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit', hour12: true });
+    if (settings.isRoundTrip && summary.roundTripMidpoint) {
+      const destSeg = summary.segments[summary.roundTripMidpoint - 1];
+      return { dest: destSeg?.to.name ?? lastSeg.to.name, time, isRoundTrip: true as const };
+    }
+    return { dest: lastSeg.to.name, time, isRoundTrip: false as const };
+  }, [summary, settings]);
+
   // Expanded itinerary mode — show only the itinerary with full space
   if (isExpanded && summary) {
     return (
@@ -156,7 +179,26 @@ export function Step3Content({
       <div className="flex flex-col gap-3">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-lg font-semibold">Your Trip</h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-lg font-semibold">Your Trip</h2>
+                {overview && (() => {
+                  const c = overview.difficulty.color;
+                  const palette: Record<string, { border: string; text: string; bg: string }> = {
+                    green:  { border: 'rgba(34,197,94,0.35)',  text: '#22c55e', bg: 'rgba(34,197,94,0.1)'  },
+                    yellow: { border: 'rgba(234,179,8,0.35)',  text: '#eab308', bg: 'rgba(234,179,8,0.1)'  },
+                    orange: { border: 'rgba(249,115,22,0.35)', text: '#f97316', bg: 'rgba(249,115,22,0.1)' },
+                    red:    { border: 'rgba(239,68,68,0.35)',  text: '#ef4444', bg: 'rgba(239,68,68,0.1)'  },
+                  };
+                  const dc = palette[c] ?? palette.green;
+                  return (
+                    <span className="text-xs px-2 py-0.5 rounded-full font-medium capitalize"
+                      style={{ border: `1px solid ${dc.border}`, color: dc.text, background: dc.bg }}
+                    >
+                      {overview.difficulty.emoji} {overview.difficulty.level}
+                    </span>
+                  );
+                })()}
+              </div>
             <p className="text-sm text-muted-foreground">Review your route and itinerary.</p>
           </div>
           <div className="flex gap-2">
@@ -227,6 +269,30 @@ export function Step3Content({
 
       {summary ? (
         <>
+          {/* Arrival hero — shown in plan view */}
+          {viewMode !== 'journal' && arrivalInfo && (
+            <div
+              className="rounded-xl border px-4 py-3 text-center"
+              style={{ background: 'rgba(34,197,94,0.05)', borderColor: 'rgba(34,197,94,0.18)' }}
+            >
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-1">
+                {arrivalInfo.isRoundTrip ? 'outbound · round trip' : 'destination'}
+              </p>
+              <p className="text-sm italic text-foreground/80 leading-snug">
+                {arrivalInfo.isRoundTrip ? (
+                  <>You’ll roll into{' '}<span className="not-italic font-bold text-green-400">{arrivalInfo.dest}</span>{' '}and be back by{' '}<span className="not-italic font-bold text-green-400">{arrivalInfo.time}</span></>
+                ) : (
+                  <>You’ll roll into{' '}<span className="not-italic font-bold text-green-400">{arrivalInfo.dest}</span>{' '}at{' '}<span className="not-italic font-bold text-green-400">{arrivalInfo.time}</span></>
+                )}
+              </p>
+            </div>
+          )}
+
+          {/* Budget bar — shown in plan view when breakdown is available */}
+          {viewMode !== 'journal' && summary.costBreakdown && (
+            <BudgetBar breakdown={summary.costBreakdown} settings={settings} />
+          )}
+
           <TripTimelineView
             summary={summary}
             settings={settings}

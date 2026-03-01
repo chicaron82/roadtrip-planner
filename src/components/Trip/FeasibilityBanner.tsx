@@ -51,22 +51,22 @@ const STATUS_CONFIG: Record<FeasibilityStatus, {
   'on-track': {
     label: 'On Track',
     icon: CheckCircle,
-    containerClass: 'border-green-200 bg-green-50/80',
-    iconClass: 'text-green-600',
+    containerClass: 'border-green-500/25 bg-green-500/10',
+    iconClass: 'text-green-500',
     dotClass: 'bg-green-500',
   },
   'tight': {
     label: 'Getting Tight',
     icon: AlertTriangle,
-    containerClass: 'border-amber-200 bg-amber-50/80',
-    iconClass: 'text-amber-600',
+    containerClass: 'border-amber-500/25 bg-amber-500/10',
+    iconClass: 'text-amber-400',
     dotClass: 'bg-amber-500',
   },
   'over': {
     label: 'Needs Attention',
     icon: XCircle,
-    containerClass: 'border-red-200 bg-red-50/80',
-    iconClass: 'text-red-600',
+    containerClass: 'border-red-500/25 bg-red-500/10',
+    iconClass: 'text-red-400',
     dotClass: 'bg-red-500',
   },
 };
@@ -86,16 +86,16 @@ const SEVERITY_STYLES: Record<WarningSeverity, {
   text: string;
 }> = {
   info: {
-    badge: 'bg-blue-100 text-blue-700',
-    text: 'text-blue-700',
+    badge: 'bg-blue-500/15 text-blue-400',
+    text: 'text-blue-400',
   },
   warning: {
-    badge: 'bg-amber-100 text-amber-700',
-    text: 'text-amber-700',
+    badge: 'bg-amber-500/15 text-amber-400',
+    text: 'text-amber-400',
   },
   critical: {
-    badge: 'bg-red-100 text-red-700',
-    text: 'text-red-700',
+    badge: 'bg-red-500/15 text-red-400',
+    text: 'text-red-400',
   },
 };
 
@@ -144,13 +144,13 @@ export function FeasibilityBanner({
         <div className="flex items-center gap-2.5">
           <div className={cn('w-2.5 h-2.5 rounded-full animate-pulse', config.dotClass)} />
           <StatusIcon className={cn('w-5 h-5', config.iconClass)} />
-          <span className="font-semibold text-sm text-gray-800">
+          <span className="font-semibold text-sm text-foreground">
             {config.label}
           </span>
           {warningCount > 0 && (
             <span className={cn(
               'text-xs px-2 py-0.5 rounded-full font-medium',
-              criticalCount > 0 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700',
+              criticalCount > 0 ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400',
               !expanded && 'animate-pulse',
             )}>
               {warningCount} {warningCount === 1 ? 'note' : 'notes'}
@@ -160,7 +160,7 @@ export function FeasibilityBanner({
         <div className="flex items-center gap-2">
           {/* Budget chip: per-person for groups, total for solo */}
           {result.summary.budgetUtilization > 0 && (
-            <span className="text-xs text-gray-500 hidden sm:inline">
+            <span className="text-xs text-foreground/50 hidden sm:inline">
               {isMultiPerson
                 ? `$${result.summary.perPersonCost}/person · ${Math.round(result.summary.budgetUtilization * 100)}% budget`
                 : `${Math.round(result.summary.budgetUtilization * 100)}% budget`
@@ -168,8 +168,8 @@ export function FeasibilityBanner({
             </span>
           )}
           {expanded
-            ? <ChevronUp className="w-4 h-4 text-gray-400" />
-            : <ChevronDown className="w-4 h-4 text-gray-400" />
+            ? <ChevronUp className="w-4 h-4 text-foreground/40" />
+            : <ChevronDown className="w-4 h-4 text-foreground/40" />
           }
         </div>
       </button>
@@ -177,7 +177,7 @@ export function FeasibilityBanner({
       {/* Expanded: Warning list */}
       {expanded && warningCount > 0 && (
         <div className="px-3 pb-3 space-y-2">
-          <div className="border-t border-gray-200/60 pt-2" />
+          <div className="border-t border-white/10 pt-2" />
           {result.warnings.map((warning, i) => (
             <WarningRow key={`${warning.category}-${warning.dayNumber ?? 'trip'}-${i}`} warning={warning} />
           ))}
@@ -187,8 +187,8 @@ export function FeasibilityBanner({
       {/* Expanded: All clear message */}
       {expanded && warningCount === 0 && (
         <div className="px-3 pb-3">
-          <div className="border-t border-gray-200/60 pt-2" />
-          <p className="text-sm text-green-700 flex items-center gap-2">
+          <div className="border-t border-white/10 pt-2" />
+          <p className="text-sm text-green-500 flex items-center gap-2">
             <CheckCircle className="w-4 h-4" />
             All green. Fuel up, get sleep, depart on time. You've got this.
           </p>
@@ -213,14 +213,14 @@ function WarningRow({ warning }: { warning: FeasibilityWarning }) {
             {warning.message}
           </span>
           {warning.dayNumber != null && (
-            <span className="text-xs text-gray-400">Day {warning.dayNumber}</span>
+            <span className="text-xs text-foreground/40">Day {warning.dayNumber}</span>
           )}
         </div>
         {warning.detail && (
-          <p className="text-xs text-gray-500 mt-0.5">{warning.detail}</p>
+          <p className="text-xs text-foreground/50 mt-0.5">{warning.detail}</p>
         )}
         {warning.suggestion && (
-          <p className="text-xs text-gray-600 mt-1 flex items-center gap-1">
+          <p className="text-xs text-foreground/60 mt-1 flex items-center gap-1">
             <Lightbulb className="w-3 h-3 text-amber-500 shrink-0" />
             {warning.suggestion}
           </p>

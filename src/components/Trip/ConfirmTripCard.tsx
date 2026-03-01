@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import { Check, CheckCircle2, BookOpen, Pencil, Sparkles } from 'lucide-react';
 
 interface ConfirmTripCardProps {
@@ -9,6 +10,28 @@ interface ConfirmTripCardProps {
   onGoToJournal?: () => void;
 }
 
+// ── tiny CSS-only confetti explosion ─────────────────────────────────────────
+const CONFETTI_COLORS = ['#f97316', '#22c55e', '#3b82f6', '#a855f7', '#f59e0b', '#ec4899', '#06b6d4', '#84cc16'];
+
+function ConfettiBurst() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-xl" aria-hidden>
+      {CONFETTI_COLORS.map((color, i) => (
+        <span
+          key={i}
+          className="confetti-particle"
+          style={{
+            '--confetti-x': `${10 + i * 11}%`,
+            '--confetti-color': color,
+            '--confetti-delay': `${i * 70}ms`,
+            '--confetti-rot': `${(i % 2 === 0 ? 1 : -1) * (200 + i * 40)}deg`,
+          } as React.CSSProperties}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function ConfirmTripCard({
   confirmed,
   addedStopCount,
@@ -17,14 +40,27 @@ export function ConfirmTripCard({
   onUnconfirm,
   onGoToJournal,
 }: ConfirmTripCardProps) {
+  const [showConfetti, setShowConfetti] = useState(false);
+  const prevConfirmed = useRef(false);
+
+  useEffect(() => {
+    if (confirmed && !prevConfirmed.current) {
+      setShowConfetti(true);
+      const t = setTimeout(() => setShowConfetti(false), 1200);
+      return () => clearTimeout(t);
+    }
+    prevConfirmed.current = confirmed;
+  }, [confirmed]);
+
   if (confirmed) {
     return (
-      <div className="rounded-xl border-2 border-green-200 bg-green-50/60 p-5 text-center">
-        <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-2">
-          <CheckCircle2 className="h-5 w-5 text-green-600" />
+      <div className="relative rounded-xl border-2 border-green-500/25 bg-green-500/10 p-5 text-center">
+        {showConfetti && <ConfettiBurst />}
+        <div className="w-10 h-10 rounded-full bg-green-500/15 flex items-center justify-center mx-auto mb-2">
+          <CheckCircle2 className="h-5 w-5 text-green-400" />
         </div>
-        <h3 className="font-bold text-green-900 mb-1">Trip Confirmed</h3>
-        <p className="text-xs text-green-700 mb-3">
+        <h3 className="font-bold text-green-400 mb-1">Trip Confirmed</h3>
+        <p className="text-xs text-green-400/70 mb-3">
           Your plan is locked in. Ready to start capturing your trip?
         </p>
         <div className="flex items-center justify-center gap-3">
@@ -39,7 +75,7 @@ export function ConfirmTripCard({
           )}
           <button
             onClick={onUnconfirm}
-            className="inline-flex items-center gap-1.5 text-xs text-green-600 hover:text-green-800 font-medium transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs text-green-400 hover:text-green-300 font-medium transition-colors"
           >
             <Pencil className="h-3 w-3" />
             Modify Plan
@@ -50,16 +86,16 @@ export function ConfirmTripCard({
   }
 
   return (
-    <div className="rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/50 p-5 text-center">
-      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-2">
-        <Sparkles className="h-5 w-5 text-blue-600" />
+    <div className="rounded-xl border-2 border-dashed border-blue-500/25 bg-blue-500/8 p-5 text-center">
+      <div className="w-10 h-10 rounded-full bg-blue-500/15 flex items-center justify-center mx-auto mb-2">
+        <Sparkles className="h-5 w-5 text-blue-400" />
       </div>
-      <h3 className="font-bold text-blue-900 mb-1">Ready to go?</h3>
-      <p className="text-xs text-blue-700 mb-1">
+      <h3 className="font-bold text-blue-300 mb-1">Ready to go?</h3>
+      <p className="text-xs text-blue-400 mb-1">
         {totalDays} day{totalDays !== 1 ? 's' : ''}
         {addedStopCount > 0 && ` · ${addedStopCount} stop${addedStopCount !== 1 ? 's' : ''} added`}
       </p>
-      <p className="text-[11px] text-blue-500 mb-4">
+      <p className="text-[11px] text-blue-400/60 mb-4">
         Confirm your plan to unlock the trip journal.
       </p>
       <button

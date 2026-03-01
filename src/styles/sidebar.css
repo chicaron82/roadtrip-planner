@@ -832,3 +832,35 @@
 .sidebar-dark [class*="rounded-2xl"] .hover\:bg-muted:hover {
   background-color: hsla(24, 8%, 18%, 0.6) !important;
 }
+
+/* ─── CTA ready-glow ─────────────────────────────────────── */
+
+@keyframes ctaReadyPulse {
+  0%, 100% { box-shadow: 0 0 12px rgba(249,115,22,0.35), 0 0 28px rgba(249,115,22,0.15); }
+  50%       { box-shadow: 0 0 22px rgba(249,115,22,0.60), 0 0 48px rgba(249,115,22,0.25); }
+}
+
+.mee-cta-button.ready {
+  animation: ctaReadyPulse 1.8s ease-in-out infinite;
+}
+
+/* ─── ConfirmTripCard confetti ───────────────────────────── */
+
+@keyframes confetti-fall {
+  0%   { transform: translateY(-8px) translateX(0) rotate(0deg);   opacity: 1; }
+  60%  { opacity: 1; }
+  100% { transform: translateY(60px) translateX(calc(var(--confetti-rot) * 0.15)) rotate(var(--confetti-rot)); opacity: 0; }
+}
+
+.confetti-particle {
+  position: absolute;
+  left: var(--confetti-x);
+  top: 20%;
+  width: 7px;
+  height: 7px;
+  background: var(--confetti-color);
+  border-radius: 2px;
+  animation: confetti-fall 900ms ease-in forwards;
+  animation-delay: var(--confetti-delay);
+  pointer-events: none;
+}

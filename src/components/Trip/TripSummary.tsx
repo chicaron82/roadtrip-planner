@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import type { TripSummary, TripSettings } from '../../types';
 import { Card, CardContent } from '../UI/Card';
 import { formatDistance, formatDuration, formatCurrency } from '../../lib/calculations';
@@ -9,6 +9,24 @@ import { FeasibilityBanner } from './FeasibilityBanner';
 import { BudgetSensitivity } from './BudgetSensitivity';
 import { HoursTradeoff } from './HoursTradeoff';
 import { analyzeFeasibility } from '../../lib/feasibility';
+
+// ─── Count-up hook: eases a number from 0 → target over ~700 ms ────────────────
+function useCountUp(target: number, duration = 700): number {
+  const [val, setVal] = useState(0);
+  const rafRef = useRef<number | null>(null);
+  useEffect(() => {
+    const start = performance.now();
+    const tick = (now: number) => {
+      const p = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setVal(target * eased);
+      if (p < 1) rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, [target, duration]);
+  return val;
+}
 
 interface TripSummaryProps {
   summary: TripSummary | null;
@@ -25,6 +43,12 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
     () => summary ? analyzeFeasibility(summary, settings) : null,
     [summary, settings],
   );
+
+  // Animated stat values — count up from 0 on first render
+  const animDistKm      = useCountUp(summary?.totalDistanceKm     ?? 0);
+  const animDurationMin = useCountUp(summary?.totalDurationMinutes ?? 0);
+  const animFuelCost    = useCountUp(summary?.totalFuelCost        ?? 0);
+  const animPerPerson   = useCountUp(summary?.costPerPerson        ?? 0);
 
   if (!summary) return null;
 
@@ -71,7 +95,7 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
                 <div className="text-[9px] uppercase tracking-wider text-blue-600 font-semibold">Distance</div>
               </div>
               <div className="text-base font-bold text-blue-700 dark:text-blue-400">
-                {formatDistance(summary.totalDistanceKm, settings.units)}
+                {formatDistance(animDistKm, settings.units)}
                 {settings.isRoundTrip && <span className="text-xs ml-1 font-normal opacity-70">(x2)</span>}
               </div>
               {summary.gasStops > 0 && (
@@ -87,7 +111,7 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
                 <div className="text-[9px] uppercase tracking-wider text-amber-600 font-semibold">⏱ Drive Time</div>
               </div>
               <div className="text-base font-bold text-amber-700 dark:text-amber-400">
-                {formatDuration(summary.totalDurationMinutes)}
+                {formatDuration(Math.round(animDurationMin))}
               </div>
               <div className="text-[9px] text-amber-500/70 mt-0.5">excl. stops</div>
             </div>
@@ -98,7 +122,7 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
                 <div className="text-[9px] uppercase tracking-wider text-green-600 font-semibold">Fuel Cost</div>
               </div>
               <div className="text-base font-bold text-green-700 dark:text-green-400">
-                {formatCurrency(summary.totalFuelCost, settings.currency)}
+                {formatCurrency(animFuelCost, settings.currency)}
               </div>
             </div>
 
@@ -108,7 +132,7 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
                 <div className="text-[9px] uppercase tracking-wider text-purple-600 font-semibold">Per Person</div>
               </div>
               <div className="text-base font-bold text-purple-700 dark:text-purple-400">
-                {formatCurrency(summary.costPerPerson, settings.currency)}
+                {formatCurrency(animPerPerson, settings.currency)}
               </div>
             </div>
           </div>

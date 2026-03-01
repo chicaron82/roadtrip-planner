@@ -123,7 +123,7 @@ export function WizardContent({
           )}
           {planningStep < 3 && (
             <button
-              className="mee-cta-button flex-1"
+              className={`mee-cta-button flex-1${canProceed && !isCalculating ? ' ready' : ''}`}
               onClick={onNext}
               disabled={!canProceed || isCalculating}
             >
