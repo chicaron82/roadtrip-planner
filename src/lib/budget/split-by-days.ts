@@ -199,9 +199,14 @@ export function splitTripByDays(
 
             // Estimate return driving days from remaining segment durations.
             // Don't assume return = outbound (timing differences can change day count).
-            const returnSegments = processedSegments.slice(i + 1);
+            // slice(i) — segment[i] IS the first return sub-segment (the midpoint
+            // condition matched it), so it must be included in the return total.
+            const returnSegments = processedSegments.slice(i);
             const returnTotalMinutes = returnSegments.reduce((sum, s) => sum + s.durationMinutes, 0);
-            const returnDrivingDays = Math.max(1, Math.ceil(returnTotalMinutes / maxDriveMinutes));
+            // Use effectiveMaxDriveMinutes (includes 1h grace) to match the actual
+            // day-splitting logic — otherwise the estimate is more pessimistic than
+            // reality, and we over-insert free days.
+            const returnDrivingDays = Math.max(1, Math.ceil(returnTotalMinutes / effectiveMaxDriveMinutes));
 
             return Math.max(0, totalTripDays - outboundDrivingDays - returnDrivingDays);
           })()
