@@ -193,7 +193,7 @@ function AppContent() {
   });
 
   return (
-    <div className="relative h-screen w-full overflow-hidden">
+    <div className="relative h-[100dvh] w-full overflow-hidden">
 
       {/* ── Full-bleed map — always mounted (landing floats above it) ── */}
       <div className="absolute inset-0">

@@ -136,6 +136,7 @@
 .sidebar-nav-footer {
   background: linear-gradient(0deg, hsl(225 30% 8%) 0%, hsl(225 28% 10%) 100%);
   border-top: 1px solid hsl(225 18% 16%);
+  padding-bottom: max(0px, env(safe-area-inset-bottom));
 }
 
 /* ── Button overrides in dark sidebar ── */
