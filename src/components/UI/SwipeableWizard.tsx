@@ -5,15 +5,22 @@ interface SwipeableWizardProps {
   children: React.ReactNode;
   /** Pass the current trip mode. If not present (landing screen), disable swiping. */
   tripMode?: string | null;
+  /** Called whenever the map-reveal state changes (mobile only). */
+  onRevealChange?: (revealed: boolean) => void;
 }
 
-export function SwipeableWizard({ children, tripMode }: SwipeableWizardProps) {
+export function SwipeableWizard({ children, tripMode, onRevealChange }: SwipeableWizardProps) {
   const [isRevealed, setIsRevealed] = useState(false);
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 768px)').matches : false
   );
   const controls = useAnimation();
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Keep a ref to the callback so stale closures inside touch event handlers always
+  // call the latest version without needing to re-register the listeners.
+  const onRevealChangeRef = useRef(onRevealChange);
+  useEffect(() => { onRevealChangeRef.current = onRevealChange; }, [onRevealChange]);
 
   // Ref mirror of isRevealed so touch event callbacks (closed over stale state) always
   // read the current value without needing to be re-registered.
@@ -34,6 +41,7 @@ export function SwipeableWizard({ children, tripMode }: SwipeableWizardProps) {
         setIsRevealed(false);
         isRevealedRef.current = false;
         controls.set({ x: 0 });
+        onRevealChangeRef.current?.(false);
       }, 0);
     }
     return () => { if (timeoutId) clearTimeout(timeoutId); };
@@ -57,6 +65,7 @@ export function SwipeableWizard({ children, tripMode }: SwipeableWizardProps) {
       setIsRevealed(reveal);
       isRevealedRef.current = reveal;
       controls.start({ x: reveal ? 'calc(-100% + 48px)' : 0 });
+      onRevealChangeRef.current?.(reveal);
     };
 
     const onTouchStart = (e: TouchEvent) => {
@@ -141,6 +150,7 @@ export function SwipeableWizard({ children, tripMode }: SwipeableWizardProps) {
     setIsRevealed(next);
     isRevealedRef.current = next;
     controls.start({ x: next ? 'calc(-100% + 48px)' : 0 });
+    onRevealChangeRef.current?.(next);
   };
 
   if (!isMobile) {

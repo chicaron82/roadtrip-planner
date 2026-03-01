@@ -33,6 +33,7 @@ function AppContent() {
   const previewGeometry = useEagerRoute(locations);
   const onCalcCompleteRef = useRef<() => void>(() => {});
   const [tripConfirmed, setTripConfirmed] = useState(false);
+  const [mapRevealed, setMapRevealed] = useState(false);
   const [history] = useState<TripSummary[]>(() => getHistory());
 
   // Mode management (plan/adventure/estimate)
@@ -218,7 +219,7 @@ function AppContent() {
 
           <div className="absolute inset-0 z-20 md:inset-auto md:left-6 md:top-6 md:bottom-6 md:w-[420px] pointer-events-none">
             {/* Floating glass panel via SwipeableWizard */}
-            <SwipeableWizard tripMode={tripMode}>
+            <SwipeableWizard tripMode={tripMode} onRevealChange={setMapRevealed}>
               <div className="sidebar-dark mee-panel w-full h-full flex flex-col pointer-events-auto md:rounded-[20px]">
               <StepsBanner
                 currentStep={planningStep}
@@ -264,9 +265,9 @@ function AppContent() {
             </div>
           )}
 
-          {/* Trip summary card — bottom-right of map */}
+          {/* Trip summary card — bottom-right on desktop; bottom of map on mobile when revealed */}
           {summary && planningStep === 3 && (
-            <div className="hidden md:flex absolute bottom-6 right-6 z-20 pointer-events-none w-[380px]">
+            <div className={`absolute z-20 pointer-events-none bottom-4 left-14 right-2 md:bottom-6 md:right-6 md:left-auto md:w-[380px] ${mapRevealed ? 'flex' : 'hidden md:flex'}`}>
               <div className="pointer-events-auto w-full">
                 <TripSummaryCard
                   summary={summary}
