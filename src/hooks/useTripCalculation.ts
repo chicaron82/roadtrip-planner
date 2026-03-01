@@ -3,12 +3,10 @@ import type { Location, Vehicle, TripSettings, TripSummary, RouteStrategy } from
 import { calculateRoute, fetchAllRouteStrategies } from '../lib/api';
 import {
   calculateTripCosts,
-  calculateHumanFuelCosts,
   calculateStrategicFuelStops,
   calculateArrivalTimes,
   type StrategicFuelStop,
 } from '../lib/calculations';
-import { getTankSizeLitres, getWeightedFuelEconomyL100km, estimateGasStops } from '../lib/unit-conversions';
 import { snapFuelStopsToStations } from '../lib/fuel-stop-snapper';
 import { buildRoundTripSegments, checkAndSetOvernightPrompt, fireAndForgetOvernightSnap } from '../lib/trip-calculation-helpers';
 import {
@@ -21,6 +19,7 @@ import { fetchWeather } from '../lib/weather';
 import { addToHistory } from '../lib/storage';
 import { serializeStateToURL } from '../lib/url';
 import { validateTripInputs } from '../lib/validate-inputs';
+import { buildStrategyUpdate } from '../lib/trip-strategy-selector';
 
 interface UseTripCalculationOptions {
   locations: Location[];
@@ -250,97 +249,8 @@ export function useTripCalculation({
     (index: number) => {
       const strategy = routeStrategies[index];
       if (!strategy || !localSummary) return;
-
       setActiveStrategyIndex(index);
-
-      // Recalculate costs from the strategy's one-way segments
-      const newSummary = calculateTripCosts(strategy.segments, vehicle, settings);
-
-      // For round trips, mirror the full outbound+return structure that calculateTrip
-      // builds — without this, summary.segments is one-way and any code that iterates
-      // segments (stop-type editor, print views) only sees half the trip.
-      let allSegments = newSummary.segments;
-      let outboundLength: number | undefined;
-      if (settings.isRoundTrip) {
-        const outbound = newSummary.segments;
-        outboundLength = outbound.length;
-        const returnLegs = [...outbound].reverse().map(seg => ({
-          ...seg,
-          from: seg.to,
-          to: seg.from,
-          departureTime: undefined,
-          arrivalTime: undefined,
-          stopDuration: undefined,
-          stopType: 'drive' as const,
-        }));
-        allSegments = calculateArrivalTimes(
-          [...outbound, ...returnLegs],
-          settings.departureDate,
-          settings.departureTime,
-          outboundLength, // roundTripMidpoint
-        );
-        // Recalculate totals from the full round trip
-        newSummary.totalDistanceKm = allSegments.reduce((s, seg) => s + seg.distanceKm, 0);
-        newSummary.totalDurationMinutes = allSegments.reduce((s, seg) => s + seg.durationMinutes, 0);
-        newSummary.totalFuelLitres = allSegments.reduce((s, seg) => s + seg.fuelNeededLitres, 0);
-        const stratSegFuelCost = allSegments.reduce((s, seg) => s + seg.fuelCost, 0);
-        const tankSizeLitres = getTankSizeLitres(vehicle, settings.units);
-        newSummary.gasStops = estimateGasStops(newSummary.totalFuelLitres, tankSizeLitres);
-
-        // Human fuel model (full-tank per stop)
-        const stratEconomy = getWeightedFuelEconomyL100km(vehicle, settings.units);
-        const stratLastSeg = allSegments[allSegments.length - 1];
-        const stratAverageGasPrice = newSummary.totalFuelLitres > 0
-          ? stratSegFuelCost / newSummary.totalFuelLitres
-          : settings.gasPrice;
-          
-        const stratHuman = calculateHumanFuelCosts(
-          newSummary.gasStops, tankSizeLitres, stratAverageGasPrice,
-          stratLastSeg?.distanceKm ?? 0, stratEconomy,
-        );
-        newSummary.totalFuelCost = Math.max(stratSegFuelCost, stratHuman.totalFuelCost);
-
-        newSummary.costPerPerson = settings.numTravelers > 0
-          ? newSummary.totalFuelCost / settings.numTravelers
-          : newSummary.totalFuelCost;
-      }
-
-      // Split the new route into days, using the same flow as calculateTrip
-      const updatedDays = splitTripByDays(
-        allSegments,
-        settings,
-        settings.departureDate,
-        settings.departureTime,
-        outboundLength,
-        strategy.geometry as [number, number][],
-      );
-
-      let updatedCostBreakdown = localSummary.costBreakdown;
-      let updatedBudgetStatus = localSummary.budgetStatus;
-      let updatedBudgetRemaining = localSummary.budgetRemaining;
-
-      if (updatedDays.length > 0) {
-        updatedCostBreakdown = calculateCostBreakdown(updatedDays, settings.numTravelers);
-        updatedBudgetStatus = getBudgetStatus(settings.budget, updatedCostBreakdown);
-        updatedBudgetRemaining = settings.budget.total - updatedCostBreakdown.total;
-      }
-
-      const updatedSummary: TripSummary = {
-        ...localSummary,
-        totalDistanceKm: newSummary.totalDistanceKm,
-        totalDurationMinutes: newSummary.totalDurationMinutes,
-        totalFuelLitres: newSummary.totalFuelLitres,
-        totalFuelCost: newSummary.totalFuelCost,
-        costPerPerson: newSummary.costPerPerson,
-        gasStops: newSummary.gasStops,
-        fullGeometry: strategy.geometry,
-        segments: allSegments,
-        days: updatedDays,
-        costBreakdown: updatedCostBreakdown,
-        budgetStatus: updatedBudgetStatus,
-        budgetRemaining: updatedBudgetRemaining,
-      };
-
+      const updatedSummary = buildStrategyUpdate(strategy, localSummary, vehicle, settings);
       setLocalSummary(updatedSummary);
       onSummaryChange(updatedSummary);
     },

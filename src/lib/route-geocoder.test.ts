@@ -25,7 +25,8 @@ function makeEvent(id: string, km: number, hint = `~${km} km`): TimedEvent {
     durationMinutes: 15,
     distanceFromOriginKm: km,
     stops: [],
-  } as TimedEvent;
+    timezone: 'America/Chicago',
+  } as unknown as TimedEvent;
 }
 
 /** Mock a successful Nominatim response */

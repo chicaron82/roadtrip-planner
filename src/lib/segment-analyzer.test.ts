@@ -110,8 +110,8 @@ describe('analyzeSegments', () => {
   it('detects border crossing from Canada to US', () => {
     const segments = [
       makeSegment({
-        from: makeLocation('Winnipeg, Manitoba, Canada'),
-        to: makeLocation('Grand Forks, North Dakota, USA'),
+        from: makeLocation('Winnipeg, Manitoba, Canada', 49.8, -97.1),
+        to: makeLocation('Grand Forks, North Dakota, USA', 47.9, -97.0),
       }),
     ];
     const result = analyzeSegments(segments);
