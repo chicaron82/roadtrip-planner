@@ -4,15 +4,15 @@ import {
   consolidateStops,
 } from './stop-suggestions';
 import type { SuggestedStop, StopSuggestionConfig } from './stop-suggestion-types';
-import type { RouteSegment, TripDay } from '../types';
+import type { ProcessedSegment, TripDay } from '../types';
 
 // ─── Test Fixtures ────────────────────────────────────────────────────────────
 
 const LOC_A = { id: 'a', name: 'City A', lat: 49.895, lng: -97.138, type: 'waypoint' as const };
 const LOC_B = { id: 'b', name: 'City B', lat: 50.0, lng: -96.0, type: 'waypoint' as const };
 
-/** Minimal RouteSegment for simulation tests */
-function makeSegment(overrides: Partial<RouteSegment> = {}): RouteSegment {
+/** Minimal ProcessedSegment for simulation tests */
+function makeSegment(overrides: Partial<ProcessedSegment> = {}): ProcessedSegment {
   return {
     from: LOC_A,
     to: LOC_B,
@@ -20,6 +20,7 @@ function makeSegment(overrides: Partial<RouteSegment> = {}): RouteSegment {
     durationMinutes: 60,
     fuelNeededLitres: 9,
     fuelCost: 14,
+    _originalIndex: 0,
     ...overrides,
   };
 }
@@ -158,7 +159,7 @@ describe('generateSmartStops — overnight suppression', () => {
    * Build a 2-day trip: 9 x 1h/100km segments (9h total drive).
    * With maxDriveHoursPerDay=8, Day 2 starts after an overnight.
    */
-  function makeTwoDaySegments(count = 9): RouteSegment[] {
+  function makeTwoDaySegments(count = 9): ProcessedSegment[] {
     return Array.from({ length: count }, (_, i) =>
       makeSegment({
         from: { id: `s${i}`, name: `Stop ${i}`, lat: 49.9 + i * 0.1, lng: -97, type: 'waypoint' as const },
@@ -167,6 +168,7 @@ describe('generateSmartStops — overnight suppression', () => {
         durationMinutes: 60,
         fuelNeededLitres: 9,
         fuelCost: 14,
+        _originalIndex: i,
       })
     );
   }

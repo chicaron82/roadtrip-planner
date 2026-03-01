@@ -12,7 +12,7 @@ import type {
   TripSummary,
   TripSettings,
   TripDay,
-  RouteSegment,
+  ProcessedSegment,
   TripBudget,
   Location,
 } from '../types';
@@ -23,7 +23,7 @@ export function makeLocation(name: string, lat = 49.8, lng = -97.1): Location {
   return { id: `loc-${name}`, name, lat, lng, type: 'waypoint' };
 }
 
-export function makeSegment(overrides: Partial<RouteSegment> = {}): RouteSegment {
+export function makeSegment(overrides: Partial<ProcessedSegment> = {}): ProcessedSegment {
   return {
     from: makeLocation('A'),
     to: makeLocation('B'),
@@ -31,6 +31,7 @@ export function makeSegment(overrides: Partial<RouteSegment> = {}): RouteSegment
     durationMinutes: 120,
     fuelNeededLitres: 15,
     fuelCost: 25,
+    _originalIndex: 0,
     ...overrides,
   };
 }
