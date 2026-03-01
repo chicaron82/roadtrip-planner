@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { DollarSign, Fuel, Hotel, Utensils, Sparkles, Lock, Unlock, Users, ChevronDown, ChevronUp, Save } from 'lucide-react';
+import { DollarSign, Sparkles, Lock, Unlock, Users, ChevronDown, ChevronUp, Save } from 'lucide-react';
 import { Input } from '../UI/Input';
 import { Label } from '../UI/Label';
 import type { TripBudget, Currency, BudgetWeights, SavedBudgetProfile } from '../../types';
@@ -7,6 +7,8 @@ import { applyBudgetWeights, getPerPersonCost } from '../../lib/budget';
 import { cn } from '../../lib/utils';
 import { BudgetProfilePicker, SaveProfileDialog } from './BudgetProfilePicker';
 import { getAdaptiveDefaults, isAdaptiveMeaningful } from '../../lib/user-profile';
+import { BudgetDistributionBar } from './BudgetDistributionBar';
+import { BudgetCategoryDetails } from './BudgetCategoryDetails';
 
 interface BudgetInputProps {
   budget: TripBudget;
@@ -290,51 +292,7 @@ export function BudgetInput({ budget, onChange, currency: _currency, numTraveler
         </div>
 
         {/* Weight Distribution Bar */}
-        {budget.total > 0 && (
-          <div className="pt-3 border-t border-gray-200">
-            <Label className="text-xs text-gray-500 mb-2 block">Budget Distribution</Label>
-            <div className="h-4 rounded-full overflow-hidden flex bg-gray-200">
-              <div
-                className="bg-orange-400 transition-all"
-                style={{ width: `${budget.weights.gas}%` }}
-                title={`Gas: ${budget.weights.gas}%`}
-              />
-              <div
-                className="bg-blue-400 transition-all"
-                style={{ width: `${budget.weights.hotel}%` }}
-                title={`Hotel: ${budget.weights.hotel}%`}
-              />
-              <div
-                className="bg-green-400 transition-all"
-                style={{ width: `${budget.weights.food}%` }}
-                title={`Food: ${budget.weights.food}%`}
-              />
-              <div
-                className="bg-purple-400 transition-all"
-                style={{ width: `${budget.weights.misc}%` }}
-                title={`Misc: ${budget.weights.misc}%`}
-              />
-            </div>
-            <div className="flex justify-between mt-1 text-[10px] text-gray-500">
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-orange-400" />
-                Gas {budget.weights.gas}%
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-blue-400" />
-                Hotel {budget.weights.hotel}%
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-green-400" />
-                Food {budget.weights.food}%
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-purple-400" />
-                Misc {budget.weights.misc}%
-              </span>
-            </div>
-          </div>
-        )}
+        <BudgetDistributionBar weights={budget.weights} total={budget.total} />
 
         {/* Advanced: Category Inputs */}
         <button
@@ -346,126 +304,13 @@ export function BudgetInput({ budget, onChange, currency: _currency, numTraveler
         </button>
 
         {showAdvanced && (
-          <div className="pt-3 border-t border-gray-200 space-y-4">
-            {/* Category Inputs */}
-            <div className="grid grid-cols-2 gap-4">
-              {/* Gas Budget */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium flex items-center gap-1.5">
-                  <Fuel className="h-3.5 w-3.5 text-orange-500" />
-                  Gas
-                  <span className="text-gray-400 ml-auto">{budget.weights.gas}%</span>
-                </Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">{currencySymbol}</span>
-                  <Input
-                    type="number"
-                    value={budget.gas || ''}
-                    onChange={(e) => updateCategory('gas', Number(e.target.value) || 0)}
-                    className="pl-7 h-9"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-
-              {/* Hotel Budget */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium flex items-center gap-1.5">
-                  <Hotel className="h-3.5 w-3.5 text-blue-500" />
-                  Hotel
-                  <span className="text-gray-400 ml-auto">{budget.weights.hotel}%</span>
-                </Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">{currencySymbol}</span>
-                  <Input
-                    type="number"
-                    value={budget.hotel || ''}
-                    onChange={(e) => updateCategory('hotel', Number(e.target.value) || 0)}
-                    className="pl-7 h-9"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-
-              {/* Food Budget */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium flex items-center gap-1.5">
-                  <Utensils className="h-3.5 w-3.5 text-green-500" />
-                  Food
-                  <span className="text-gray-400 ml-auto">{budget.weights.food}%</span>
-                </Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">{currencySymbol}</span>
-                  <Input
-                    type="number"
-                    value={budget.food || ''}
-                    onChange={(e) => updateCategory('food', Number(e.target.value) || 0)}
-                    className="pl-7 h-9"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-
-              {/* Misc Budget */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium flex items-center gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5 text-purple-500" />
-                  {activeSavedProfile?.categoryLabels?.misc || 'Misc / Activities'}
-                  <span className="text-gray-400 ml-auto">{budget.weights.misc}%</span>
-                </Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">{currencySymbol}</span>
-                  <Input
-                    type="number"
-                    value={budget.misc || ''}
-                    onChange={(e) => updateCategory('misc', Number(e.target.value) || 0)}
-                    className="pl-7 h-9"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Custom Weight Sliders (only in custom profile) */}
-            {budget.profile === 'custom' && (
-              <div className="pt-3 border-t border-gray-200 space-y-3">
-                <Label className="text-xs text-gray-500">Adjust Priorities</Label>
-                {(['gas', 'hotel', 'food', 'misc'] as const).map((field) => {
-                  const icons = {
-                    gas: <Fuel className="h-3 w-3 text-orange-500" />,
-                    hotel: <Hotel className="h-3 w-3 text-blue-500" />,
-                    food: <Utensils className="h-3 w-3 text-green-500" />,
-                    misc: <Sparkles className="h-3 w-3 text-purple-500" />,
-                  };
-                  const colors = {
-                    gas: 'accent-orange-500',
-                    hotel: 'accent-blue-500',
-                    food: 'accent-green-500',
-                    misc: 'accent-purple-500',
-                  };
-                  return (
-                    <div key={field} className="flex items-center gap-3">
-                      <div className="w-16 flex items-center gap-1 text-xs capitalize">
-                        {icons[field]}
-                        {field}
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="70"
-                        value={budget.weights[field]}
-                        onChange={(e) => updateWeight(field, Number(e.target.value))}
-                        className={cn('flex-1 h-2 rounded-lg cursor-pointer', colors[field])}
-                      />
-                      <span className="w-10 text-xs text-gray-500 text-right">
-                        {budget.weights[field]}%
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          <BudgetCategoryDetails
+            budget={budget}
+            currencySymbol={currencySymbol}
+            miscLabel={activeSavedProfile?.categoryLabels?.misc || 'Misc / Activities'}
+            onUpdateCategory={updateCategory}
+            onUpdateWeight={updateWeight}
+          />
         )}
       </div>
 

@@ -1,11 +1,10 @@
 import { useState, useMemo } from 'react';
-import { Share2, Printer, Maximize2, Minimize2, ArrowLeft, PenLine } from 'lucide-react';
+import { Share2, Printer, Maximize2, Minimize2, PenLine } from 'lucide-react';
 import type { Location, Vehicle, TripSettings, TripSummary, POISuggestion, TripJournal, StopType, DayType, OvernightStop, TripMode, TripChallenge } from '../../types';
 import { Button } from '../UI/Button';
 import { OvernightStopPrompt } from '../Trip/OvernightStopPrompt';
 import { JournalModeToggle, type ViewMode } from '../Trip/JournalModeToggle';
 import { TripTimelineView } from '../Trip/TripTimelineView';
-import { JournalTimeline } from '../Trip/JournalTimeline';
 import { FeasibilityBanner } from '../Trip/FeasibilityBanner';
 import { analyzeFeasibility } from '../../lib/feasibility';
 import { ConfirmTripCard } from '../Trip/ConfirmTripCard';
@@ -14,6 +13,11 @@ import { printTrip } from '../Trip/TripPrintView';
 import { generateEstimate } from '../../lib/estimate-service';
 import { generateTripOverview } from '../../lib/trip-analyzer';
 import { BudgetBar } from '../Trip/BudgetBar';
+import { DifficultyBadge } from '../Trip/DifficultyBadge';
+import { TripArrivalHero } from '../Trip/TripArrivalHero';
+import { JournalFullscreenOverlay } from '../Trip/JournalFullscreenOverlay';
+import { TripBottomActions } from '../Trip/TripBottomActions';
+import { RecentTrips } from '../Trip/RecentTrips';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
 import type { PlanningStep } from '../../hooks';
 import { useTripContext } from '../../contexts/TripContext';
@@ -181,23 +185,7 @@ export function Step3Content({
           <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-lg font-semibold">Your Trip</h2>
-                {overview && (() => {
-                  const c = overview.difficulty.color;
-                  const palette: Record<string, { border: string; text: string; bg: string }> = {
-                    green:  { border: 'rgba(34,197,94,0.35)',  text: '#22c55e', bg: 'rgba(34,197,94,0.1)'  },
-                    yellow: { border: 'rgba(234,179,8,0.35)',  text: '#eab308', bg: 'rgba(234,179,8,0.1)'  },
-                    orange: { border: 'rgba(249,115,22,0.35)', text: '#f97316', bg: 'rgba(249,115,22,0.1)' },
-                    red:    { border: 'rgba(239,68,68,0.35)',  text: '#ef4444', bg: 'rgba(239,68,68,0.1)'  },
-                  };
-                  const dc = palette[c] ?? palette.green;
-                  return (
-                    <span className="text-xs px-2 py-0.5 rounded-full font-medium capitalize"
-                      style={{ border: `1px solid ${dc.border}`, color: dc.text, background: dc.bg }}
-                    >
-                      {overview.difficulty.emoji} {overview.difficulty.level}
-                    </span>
-                  );
-                })()}
+                {overview && <DifficultyBadge difficulty={overview.difficulty} />}
               </div>
             <p className="text-sm text-muted-foreground">Review your route and itinerary.</p>
           </div>
@@ -270,23 +258,7 @@ export function Step3Content({
       {summary ? (
         <>
           {/* Arrival hero — shown in plan view */}
-          {viewMode !== 'journal' && arrivalInfo && (
-            <div
-              className="rounded-xl border px-4 py-3 text-center"
-              style={{ background: 'rgba(34,197,94,0.05)', borderColor: 'rgba(34,197,94,0.18)' }}
-            >
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-1">
-                {arrivalInfo.isRoundTrip ? 'outbound · round trip' : 'destination'}
-              </p>
-              <p className="text-sm italic text-foreground/80 leading-snug">
-                {arrivalInfo.isRoundTrip ? (
-                  <>You’ll roll into{' '}<span className="not-italic font-bold text-green-400">{arrivalInfo.dest}</span>{' '}and be back by{' '}<span className="not-italic font-bold text-green-400">{arrivalInfo.time}</span></>
-                ) : (
-                  <>You’ll roll into{' '}<span className="not-italic font-bold text-green-400">{arrivalInfo.dest}</span>{' '}at{' '}<span className="not-italic font-bold text-green-400">{arrivalInfo.time}</span></>
-                )}
-              </p>
-            </div>
-          )}
+          {viewMode !== 'journal' && arrivalInfo && <TripArrivalHero arrivalInfo={arrivalInfo} />}
 
           {/* Budget bar — shown in plan view when breakdown is available */}
           {viewMode !== 'journal' && summary.costBreakdown && (
@@ -346,33 +318,13 @@ export function Step3Content({
 
           {/* Journal fullscreen overlay — covers full viewport on mobile for writing */}
           {isJournalFullscreen && activeJournal && (
-            <div className="fixed inset-0 z-50 flex flex-col bg-background">
-              {/* Header */}
-              <div className="flex items-center gap-3 px-4 border-b shrink-0" style={{ height: '52px', minHeight: '52px' }}>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="gap-1.5 -ml-2 text-muted-foreground hover:text-foreground"
-                  onClick={() => setIsJournalFullscreen(false)}
-                >
-                  <ArrowLeft className="h-4 w-4" /> Back
-                </Button>
-                <span className="text-sm font-semibold truncate flex-1">
-                  {activeJournal.metadata.title || 'Journal'}
-                </span>
-              </div>
-              {/* Scrollable journal body */}
-              <div className="flex-1 overflow-y-auto">
-                <div className="px-4 py-4">
-                  <JournalTimeline
-                    summary={summary}
-                    settings={settings}
-                    journal={activeJournal}
-                    onUpdateJournal={onUpdateJournal}
-                  />
-                </div>
-              </div>
-            </div>
+            <JournalFullscreenOverlay
+              summary={summary}
+              settings={settings}
+              journal={activeJournal}
+              onUpdateJournal={onUpdateJournal}
+              onClose={() => setIsJournalFullscreen(false)}
+            />
           )}
 
           {/* Confirm Trip Card — shown in plan view */}
@@ -388,39 +340,14 @@ export function Step3Content({
           )}
 
           {/* Bottom action row — export shortcuts so you don't scroll back up */}
-          <div
-            className="flex items-center justify-center gap-2 pt-1 pb-0.5 flex-wrap"
-            style={{ borderTop: '1px solid rgba(245,240,232,0.07)', paddingTop: '12px' }}
-          >
-            <button
-              onClick={onOpenGoogleMaps}
-              className="inline-flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-full transition-all"
-              style={{ background: 'rgba(245,240,232,0.05)', border: '1px solid rgba(245,240,232,0.1)', color: 'rgba(245,240,232,0.45)' }}
-            >
-              <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
-              </svg>
-              Google Maps
-            </button>
-            {shareUrl && (
-              <button
-                onClick={onCopyShareLink}
-                className="inline-flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-full transition-all"
-                style={{ background: 'rgba(245,240,232,0.05)', border: '1px solid rgba(245,240,232,0.1)', color: 'rgba(245,240,232,0.45)' }}
-              >
-                <Share2 className="h-3 w-3" />
-                Share
-              </button>
-            )}
-            <button
-              onClick={() => printTrip({ summary, settings, vehicle })}
-              className="inline-flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-full transition-all"
-              style={{ background: 'rgba(245,240,232,0.05)', border: '1px solid rgba(245,240,232,0.1)', color: 'rgba(245,240,232,0.45)' }}
-            >
-              <Printer className="h-3 w-3" />
-              Print
-            </button>
-          </div>
+          <TripBottomActions
+            summary={summary}
+            settings={settings}
+            vehicle={vehicle}
+            shareUrl={shareUrl}
+            onOpenGoogleMaps={onOpenGoogleMaps}
+            onCopyShareLink={onCopyShareLink}
+          />
         </>
       ) : (
         <div className="text-center py-12 text-muted-foreground">
@@ -433,53 +360,7 @@ export function Step3Content({
       )}
 
       {/* Recent Trips */}
-      {history.length > 0 && (
-        <div className="border-t pt-4 mt-4">
-          <h3 className="text-sm font-semibold mb-2">Recent Trips</h3>
-          <div className="space-y-2 max-h-48 overflow-y-auto">
-            {history.slice(0, 5).map((trip, i) => {
-              const origin = trip.segments[0]?.from.name ?? 'Unknown';
-              const dest = trip.segments[trip.segments.length - 1]?.to.name ?? 'Unknown';
-              const date = trip.displayDate
-                ? new Date(trip.displayDate).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })
-                : null;
-              const clickable = !!onLoadHistoryTrip;
-              return (
-                <div
-                  key={i}
-                  onClick={() => onLoadHistoryTrip?.(trip)}
-                  className="p-2 border rounded text-xs bg-muted/20"
-                  style={{
-                    cursor: clickable ? 'pointer' : 'default',
-                    transition: 'background 0.15s ease, border-color 0.15s ease',
-                  }}
-                  onMouseEnter={e => {
-                    if (clickable) {
-                      (e.currentTarget as HTMLDivElement).style.background = 'rgba(245,158,11,0.08)';
-                      (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(245,158,11,0.4)';
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLDivElement).style.background = '';
-                    (e.currentTarget as HTMLDivElement).style.borderColor = '';
-                  }}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold text-foreground truncate mr-2">
-                      {origin} → {dest}
-                    </span>
-                    {date && <span className="text-muted-foreground shrink-0">{date}</span>}
-                  </div>
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>{trip.totalDistanceKm.toFixed(0)} km</span>
-                    <span className="text-green-600">${trip.totalFuelCost.toFixed(2)}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <RecentTrips history={history} onLoadHistoryTrip={onLoadHistoryTrip} />
     </div>
   );
 }
