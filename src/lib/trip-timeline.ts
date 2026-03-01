@@ -11,6 +11,7 @@
 
 import type { RouteSegment, TripSettings, TripDay } from '../types';
 import type { SuggestedStop } from './stop-suggestions';
+import { lngToIANA, normalizeToIANA, parseLocalDateInTZ, formatTimeInZone } from './trip-timezone';
 
 export type TimedEventType =
   | 'departure'
@@ -44,16 +45,25 @@ export interface TimedEvent {
   // For stops — original SuggestedStop(s) that sourced this event
   stops: SuggestedStop[];
 
+  /**
+   * IANA timezone active at this stop (e.g. 'America/Toronto').
+   * Used by SmartTimeline to display times in local destination time
+   * rather than the user's browser timezone. Set to the origin's timezone
+   * for all events before the first crossing, then updated on each boundary.
+   */
+  timezone: string;
+
   // Combo metadata (set by stop-consolidator)
   timeSavedMinutes?: number;
   comboLabel?: string; // e.g. "Fuel + Lunch"
 }
 
 /**
- * Format a Date as "9:00 AM" / "12:15 PM"
+ * Format a Date as "9:00 AM" / "12:15 PM" in the given IANA timezone.
+ * Falls back to browser local time when no timezone provided (legacy).
  */
-export const formatTime = (d: Date): string =>
-  d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+export const formatTime = (d: Date, ianaTimezone?: string): string =>
+  formatTimeInZone(d, ianaTimezone);
 
 /**
  * Format a duration in minutes as "1h 15min" / "45 min"
@@ -109,7 +119,13 @@ export function buildTimedTimeline(
   if (segments.length === 0) return [];
 
   const events: TimedEvent[] = [];
-  let currentTime = new Date(`${settings.departureDate}T${settings.departureTime}`);
+
+  // Determine origin IANA timezone from the departure location's longitude.
+  // This fixes `new Date('YYYY-MMDDThh:mm')` being parsed in browser local time.
+  let activeTimezone = lngToIANA(segments[0].from.lng);
+
+  // Parse the departure time in the ORIGIN's timezone (not browser local).
+  let currentTime = parseLocalDateInTZ(settings.departureDate, settings.departureTime, activeTimezone);
   let cumulativeKm = 0;
   const emittedIds = new Set<string>();
 
@@ -191,6 +207,7 @@ export function buildTimedTimeline(
     distanceFromOriginKm: 0,
     locationHint: originName,
     stops: [],
+    timezone: activeTimezone,
   });
 
   // ── Emit helpers ───────────────────────────────────────────────────────────
@@ -210,6 +227,7 @@ export function buildTimedTimeline(
       distanceFromOriginKm: cumulativeKm,
       locationHint: makeLocationHint(cumulativeKm, wpName, stop.hubName),
       stops: [stop],
+      timezone: activeTimezone,
     });
 
     // Overnight: advance to next DRIVING morning (skip free days).
@@ -262,12 +280,22 @@ export function buildTimedTimeline(
       segmentDistanceKm: km,
       segmentDurationMinutes: minutes,
       stops: [],
+      timezone: activeTimezone,
     });
     currentTime = driveEnd;
   };
 
   // ── Segment loop ───────────────────────────────────────────────────────────
   for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+
+    // Update the active timezone when this segment crosses a boundary.
+    // segment.timezone is either a TZ abbreviation ("EST") from the weather API
+    // or an IANA string ("America/Toronto") from the longitude heuristic.
+    // All subsequent events (stops, drive, arrival) will display in this zone.
+    if (seg.timezoneCrossing && seg.timezone) {
+      activeTimezone = normalizeToIANA(seg.timezone);
+    }
     // ── Day-trip destination dwell ──────────────────────────────────────────
     // At the round-trip midpoint (first return segment), inject a "Time at
     // [Destination]" stop before driving back. This only fires when the user
@@ -290,6 +318,7 @@ export function buildTimedTimeline(
         distanceFromOriginKm: cumulativeKm,
         locationHint: destName,
         stops: [],
+        timezone: activeTimezone,
       });
       currentTime = dep;
     }
@@ -431,6 +460,7 @@ export function buildTimedTimeline(
         distanceFromOriginKm: cumulativeKm,
         locationHint: seg.to.name,
         stops: [],
+        timezone: activeTimezone,
       });
     } else {
       const nextFrom = segments[i + 1]?.from;
@@ -444,6 +474,7 @@ export function buildTimedTimeline(
           distanceFromOriginKm: cumulativeKm,
           locationHint: seg.to.name,
           stops: [],
+          timezone: activeTimezone,
         });
       }
     }

@@ -153,7 +153,7 @@ function StopCard({
           <div className={`text-sm font-semibold text-foreground leading-tight ${hintClass}`}>{event.locationHint}</div>
         </div>
         <span className="text-sm font-mono font-bold tabular-nums shrink-0" style={{ color }}>
-          {formatTime(event.arrivalTime)}
+          {formatTime(event.arrivalTime, event.timezone)}
         </span>
       </div>
     );
@@ -174,7 +174,7 @@ function StopCard({
           <div className={`text-sm font-semibold text-foreground leading-tight ${hintClass}`}>{event.locationHint}</div>
         </div>
         <span className="text-sm font-mono font-bold tabular-nums shrink-0" style={{ color }}>
-          {formatTime(event.arrivalTime)}
+          {formatTime(event.arrivalTime, event.timezone)}
         </span>
       </div>
     );
@@ -217,14 +217,14 @@ function StopCard({
           {/* Arrive · duration · Depart row */}
           <div className="flex items-center gap-1 mt-1 text-[11px] font-mono tabular-nums">
             <span className="text-muted-foreground/60">Arrive</span>
-            <span className="font-semibold" style={{ color }}>{formatTime(event.arrivalTime)}</span>
+            <span className="font-semibold" style={{ color }}>{formatTime(event.arrivalTime, event.timezone)}</span>
             <span className="text-muted-foreground/40 mx-0.5">·</span>
             <span className="text-muted-foreground">{formatDuration(event.durationMinutes)}</span>
             <span className="text-muted-foreground/40 mx-0.5">·</span>
             <span className="text-muted-foreground/60">Depart</span>
-            <span className="font-semibold text-foreground/70">{formatTime(event.departureTime)}</span>
+            <span className="font-semibold text-foreground/70">{formatTime(event.departureTime, event.timezone)}</span>
           </div>
-          {/* Nearby POIs */}
+          {/* Nearby POIs */
           {nearbyPOIs.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1.5">
               {nearbyPOIs.map(name => (
@@ -284,14 +284,14 @@ function StopCard({
         {/* Arrive · duration · Depart row */}
         <div className="flex items-center gap-1 mt-1 text-[11px] font-mono tabular-nums">
           <span className="text-muted-foreground/60">Arrive</span>
-          <span className="font-semibold" style={{ color }}>{formatTime(event.arrivalTime)}</span>
+          <span className="font-semibold" style={{ color }}>{formatTime(event.arrivalTime, event.timezone)}</span>
           <span className="text-muted-foreground/40 mx-0.5">·</span>
           <span className="text-muted-foreground">{formatDuration(event.durationMinutes)}</span>
           {event.type !== 'overnight' && (
             <>
               <span className="text-muted-foreground/40 mx-0.5">·</span>
               <span className="text-muted-foreground/60">Depart</span>
-              <span className="font-semibold text-foreground/70">{formatTime(event.departureTime)}</span>
+              <span className="font-semibold text-foreground/70">{formatTime(event.departureTime, event.timezone)}</span>
             </>
           )}
         </div>

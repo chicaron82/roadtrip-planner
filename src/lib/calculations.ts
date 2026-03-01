@@ -2,6 +2,7 @@ import type { RouteSegment, TripSummary, Vehicle, TripSettings } from '../types'
 import { analyzeSegments } from './segment-analyzer';
 import { haversineDistance } from './poi-ranking';
 import { KM_TO_MILES } from './constants';
+import { lngToIANA, parseLocalDateInTZ } from './trip-timezone';
 import {
   getTankSizeLitres,
   getWeightedFuelEconomyL100km,
@@ -344,8 +345,9 @@ export function calculateArrivalTimes(
 ): RouteSegment[] {
   if (segments.length === 0) return segments;
 
-  // Parse initial departure time
-  const initialDateTime = new Date(`${departureDate}T${departureTime}`);
+  // Parse initial departure time in the origin's local timezone (fixes browser-local-time bug).
+  const originIANA = lngToIANA(segments[0].from.lng);
+  const initialDateTime = parseLocalDateInTZ(departureDate, departureTime, originIANA);
   let currentTime = initialDateTime;
 
   return segments.map((segment, index) => {
