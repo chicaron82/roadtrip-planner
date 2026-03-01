@@ -66,6 +66,7 @@ interface UsePlanningStepPropsOptions {
   updateDayOvernight: (day: number, o: OvernightStop) => void;
   // POI
   poiSuggestions: POISuggestion[];
+  poiInference?: POISuggestion[];
   isLoadingPOIs: boolean;
   poiPartialResults: boolean;
   addPOI: (id: string) => void;
@@ -139,6 +140,7 @@ export function usePlanningStepProps(o: UsePlanningStepPropsOptions): PlanningSt
     onUpdateDayType: o.updateDayType,
     onUpdateOvernight: o.updateDayOvernight,
     poiSuggestions: o.poiSuggestions,
+    poiInference: o.poiInference,
     isLoadingPOIs: o.isLoadingPOIs,
     poiPartialResults: o.poiPartialResults,
     onAddPOI: handleAddPOI,

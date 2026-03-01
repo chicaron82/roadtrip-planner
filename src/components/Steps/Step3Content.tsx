@@ -34,6 +34,7 @@ interface Step3ContentProps {
   showOvernightPrompt: boolean;
   suggestedOvernightStop: Location | null;
   poiSuggestions: POISuggestion[];
+  poiInference?: POISuggestion[];
   isLoadingPOIs: boolean;
   poiPartialResults?: boolean;
   history: TripSummary[];
@@ -71,6 +72,7 @@ export function Step3Content({
   showOvernightPrompt,
   suggestedOvernightStop,
   poiSuggestions,
+  poiInference,
   isLoadingPOIs,
   poiPartialResults,
   history,
@@ -165,6 +167,7 @@ export function Step3Content({
           onRemoveDayActivity={removeDayActivity}
           onUpdateOvernight={onUpdateOvernight}
           poiSuggestions={poiSuggestions}
+          poiInference={poiInference}
           isLoadingPOIs={isLoadingPOIs}
           poiPartialResults={poiPartialResults}
           onAddPOI={onAddPOI}
@@ -284,6 +287,7 @@ export function Step3Content({
             onRemoveDayActivity={removeDayActivity}
             onUpdateOvernight={onUpdateOvernight}
             poiSuggestions={poiSuggestions}
+            poiInference={poiInference}
             isLoadingPOIs={isLoadingPOIs}
             poiPartialResults={poiPartialResults}
             onAddPOI={onAddPOI}
