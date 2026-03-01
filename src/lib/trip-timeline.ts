@@ -9,7 +9,7 @@
  * 💚 My Experience Engine
  */
 
-import type { RouteSegment, TripSettings, TripDay } from '../types';
+import type { RouteSegment, TripSettings, TripDay, ProcessedSegment } from '../types';
 import type { SuggestedStop } from './stop-suggestions';
 import { lngToIANA, normalizeToIANA, parseLocalDateInTZ, formatTimeInZone, formatDateInZone } from './trip-timezone';
 
@@ -135,10 +135,17 @@ export function buildTimedTimeline(
   // When a free day sits between two driving days, the overnight handler needs
   // to skip past it rather than just advancing +1 calendar day.
   const drivingDayDates: string[] = [];
+  // Maps date → planned departure UTC ISO time from TripDay.totals.departureTime.
+  // Used by the overnight handler to match the budget engine's computed departure
+  // (which accounts for targetArrivalHour) rather than settings.departureTime.
+  const drivingDayDepartures = new Map<string, string>();
   if (tripDays) {
     for (const d of tripDays) {
       if (d.segmentIndices.length > 0) {
         drivingDayDates.push(d.date);
+        if (d.totals?.departureTime) {
+          drivingDayDepartures.set(d.date, d.totals.departureTime);
+        }
       }
     }
   }
@@ -245,18 +252,14 @@ export function buildTimedTimeline(
     // A 3-day trip [Drive, Free, Drive] should jump from Day 1 evening
     // straight to Day 3 morning — not Day 2 morning.
     if (stop.type === 'overnight') {
-      const [dH, dM] = settings.departureTime.split(':').map(Number);
-
-      // How many calendar days to advance?  Default +1.
-      // If we have tripDays info, find the next driving day after the overnight
-      // and jump directly to that date.
-      let daysToAdvance = 1;
       // Determine the overnight's LOCAL date in the active timezone — browser
       // local time can differ from destination timezone, causing off-by-one
       // day calculations.
       const overnightLocal = formatDateInZone(arr, activeTimezone);
+      let daysToAdvance = 1;
+      let nextDrivingDate: string | undefined;
       if (drivingDayDates.length > 0) {
-        const nextDrivingDate = drivingDayDates.find(d => d > overnightLocal);
+        nextDrivingDate = drivingDayDates.find(d => d > overnightLocal);
         if (nextDrivingDate) {
           const overnightDay = new Date(overnightLocal + 'T00:00:00');
           const nextDay = new Date(nextDrivingDate + 'T00:00:00');
@@ -264,15 +267,21 @@ export function buildTimedTimeline(
         }
       }
 
-      // Build next morning's departure in the ACTIVE timezone, not browser local.
-      // Using parseLocalDateInTZ ensures "9:00 AM" means 9 AM in the city where
-      // the driver wakes up — not 9 AM in the user's browser timezone.
-      const nextDateParts = overnightLocal.split('-').map(Number);
-      const nextDate = new Date(Date.UTC(nextDateParts[0], nextDateParts[1] - 1, nextDateParts[2] + daysToAdvance));
-      const pad = (n: number) => String(n).padStart(2, '0');
-      const nextDateStr = `${nextDate.getUTCFullYear()}-${pad(nextDate.getUTCMonth() + 1)}-${pad(nextDate.getUTCDate())}`;
-      const nextTimeStr = `${pad(dH ?? 9)}:${pad(dM ?? 0)}`;
-      currentTime = parseLocalDateInTZ(nextDateStr, nextTimeStr, activeTimezone);
+      // Prefer the budget engine's planned departure time (matches the day card
+      // header's Departure field). Falls back to settings.departureTime.
+      const plannedDeparture = nextDrivingDate ? drivingDayDepartures.get(nextDrivingDate) : undefined;
+      if (plannedDeparture) {
+        currentTime = new Date(plannedDeparture);
+      } else {
+        // Fallback: derive next morning from settings.departureTime in active timezone
+        const [dH, dM] = settings.departureTime.split(':').map(Number);
+        const nextDateParts = overnightLocal.split('-').map(Number);
+        const nextDate = new Date(Date.UTC(nextDateParts[0], nextDateParts[1] - 1, nextDateParts[2] + daysToAdvance));
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const nextDateStr = `${nextDate.getUTCFullYear()}-${pad(nextDate.getUTCMonth() + 1)}-${pad(nextDate.getUTCDate())}`;
+        const nextTimeStr = `${pad(dH ?? 9)}:${pad(dM ?? 0)}`;
+        currentTime = parseLocalDateInTZ(nextDateStr, nextTimeStr, activeTimezone);
+      }
     } else {
       currentTime = dep;
     }
@@ -308,11 +317,7 @@ export function buildTimedTimeline(
   // all sub-segments share _originalIndex 0.
   //
   // Without tripDays, fall back to original segments (simple day trips).
-  type TimelineSegment = RouteSegment & {
-    _originalIndex: number;
-    _transitPart?: { index: number; total: number };
-  };
-  let iterSegments: TimelineSegment[];
+  let iterSegments: ProcessedSegment[];
   let useDayFiltering = false;
   const dayStartMap = new Map<number, TripDay>();
   let currentDayNumber = 1;
@@ -323,7 +328,7 @@ export function buildTimedTimeline(
     // Some callers provide tripDays for overnight-advancement only (empty segments[]).
     const hasPopulatedSegments = drivingDays.some(d => d.segments.length > 0);
     if (drivingDays.length > 0 && hasPopulatedSegments) {
-      iterSegments = drivingDays.flatMap(d => d.segments as TimelineSegment[]);
+      iterSegments = drivingDays.flatMap(d => d.segments);
       useDayFiltering = true;
       currentDayNumber = drivingDays[0].dayNumber;
       let flatIdx = 0;
@@ -360,19 +365,15 @@ export function buildTimedTimeline(
       currentDayNumber = newDay.dayNumber;
 
       // Resolve a clean departure location name.
-      // Transit split-points may have generic names like "Winnipeg → Vancouver (transit)".
-      // Prefer the previous segment's TO name (same physical point, may be hub-resolved)
-      // or fall back to the tripDay's first segment from name.
-      let departLocation = seg.from.name;
-      if (departLocation.includes('(transit)')) {
-        const prev = i > 0 ? iterSegments[i - 1] : null;
-        if (prev?.to.name && !prev.to.name.includes('(transit)')) {
-          departLocation = prev.to.name;
-        } else {
-          // Strip the transit label for cleaner display
-          departLocation = departLocation.replace(/\s*\(transit\)/, '');
-        }
-      }
+      // Prefer the previous segment's TO name (same physical point, usually hub-resolved).
+      // Strip unsnapped "CityA → CityB" patterns and "(transit)" labels from fallback names.
+      const prevSeg = i > 0 ? iterSegments[i - 1] : null;
+      const prevToClean = prevSeg?.to.name &&
+        !prevSeg.to.name.includes('(transit)') &&
+        !prevSeg.to.name.includes(' → ');
+      let departLocation = prevToClean ? prevSeg!.to.name : seg.from.name;
+      if (departLocation.includes(' → ')) departLocation = departLocation.split(' → ')[0].trim();
+      departLocation = departLocation.replace(/\s*\(transit\)/, '');
 
       // Emit a departure event for transit days 2+ so the timeline shows
       // "🚗 Depart [City]" at each new driving day's start.
@@ -389,16 +390,10 @@ export function buildTimedTimeline(
       });
     }
 
-    // Update the active timezone when this segment crosses a boundary.
-    // Transit sub-segments (_transitPart) inherit the parent's DESTINATION
-    // timezone which is wrong for intermediate parts. Derive from the
-    // sub-segment's FROM longitude instead (accurately interpolated on route).
-    if (seg._transitPart) {
-      const derivedTz = lngToIANA(seg.from.lng);
-      if (derivedTz !== activeTimezone) {
-        activeTimezone = derivedTz;
-      }
-    } else if (seg.timezoneCrossing && seg.timezone) {
+    // Update timezone for explicit crossings on non-sub-segments at segment start.
+    // Transit sub-segment timezone is updated AFTER the drive (based on destination)
+    // so that overnight, fuel, and rest stops use the correct arrival timezone.
+    if (!seg._transitPart && seg.timezoneCrossing && seg.timezone) {
       activeTimezone = normalizeToIANA(seg.timezone);
     }
 
@@ -555,6 +550,17 @@ export function buildTimedTimeline(
       }
     } else {
       emitDrive(segKm, segMin, i);
+    }
+
+    // ── Post-drive timezone update ────────────────────────────────────────
+    // Now that we've arrived at the destination, update to the destination's
+    // timezone. This ensures overnight/fuel/rest stops at this location use
+    // the correct local time (not the departure city's timezone).
+    if (seg._transitPart) {
+      const destTz = lngToIANA(seg.to.lng);
+      if (destTz !== activeTimezone) {
+        activeTimezone = destTz;
+      }
     }
 
     // ── Waypoint / arrival ────────────────────────────────────────────────
