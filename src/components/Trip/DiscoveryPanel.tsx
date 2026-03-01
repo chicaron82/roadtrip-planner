@@ -21,7 +21,6 @@ import {
   getNobrainers,
   getTierCounts,
   totalDetourMinutes,
-  type DiscoveredPOI,
   type DiscoveryTier,
 } from '../../lib/discovery-engine';
 

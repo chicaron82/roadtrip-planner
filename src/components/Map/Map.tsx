@@ -12,7 +12,8 @@ import { DayRouteLayer } from './DayRouteLayer';
 import { FuelStopLayer } from './FuelStopLayer';
 import { TILE_LAYERS, type TileStyle, PREVIEW_LINE_COLOR, FEASIBILITY_LINE_COLOR, DEFAULT_ROUTE_COLOR, weatherEmoji } from './map-constants';
 import { createCustomIcon, createAddedIcon } from './map-icons';
-import { MapUpdater, MapClickHandler, findNearestSegment } from './MapHelpers';
+import { MapUpdater, MapClickHandler } from './MapHelpers';
+import { findNearestSegment } from './map-utils';
 
 interface AlternateRouteGeometry {
   geometry: [number, number][];

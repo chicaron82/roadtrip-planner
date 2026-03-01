@@ -82,17 +82,6 @@ const EXPIRY_DAYS = 90;
 const EXPIRY_MS = EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 const PROMOTION_THRESHOLD = 3;  // Uses before a discovered hub becomes promoted
 
-// POI density thresholds for hub detection
-const MIN_POIS_FOR_HUB = 5;
-const SEARCH_RADIUS_KM = 30;
-
-// Radius scaling based on POI count
-const RADIUS_TIERS = [
-  { minPois: 20, radius: 60 },  // Major metro (Chicago, Toronto)
-  { minPois: 10, radius: 40 },  // Medium city (Minneapolis, Calgary)
-  { minPois: 5, radius: 25 },   // Small hub (Fargo, Brandon)
-];
-
 // ─── Cache Management ─────────────────────────────────────────────────────────
 
 // In-memory singleton — avoids repeated localStorage reads + JSON.parse per lookup.
@@ -321,4 +310,38 @@ export function getHubCacheStats(): {
 export function clearHubCache(): void {
   memoryCache = null;
   localStorage.removeItem(CACHE_KEY);
+}
+
+// ─── Main Resolver ────────────────────────────────────────────────────────────
+
+/**
+ * Resolve the hub name for a lat/lng position using a two-tier strategy:
+ *   1. Check the hub cache (instant — covers seeded + previously discovered hubs)
+ *   2. Analyze nearby POI density to discover a new hub and cache it
+ *
+ * **When to use:** Fuel stop and overnight stop labeling. Call this instead of
+ * raw Nominatim when a quick city-name lookup is needed.
+ *
+ * @param lat - Target latitude
+ * @param lng - Target longitude
+ * @param pois - Available POI suggestions for density analysis
+ * @returns Hub name (e.g., "Fargo, ND") or null if no hub found
+ */
+export function resolveHubName(
+  lat: number,
+  lng: number,
+  pois: POISuggestion[],
+): string | null {
+  // Tier 1: Check known hub cache (instant)
+  const known = findKnownHub(lat, lng);
+  if (known) return known;
+
+  // Tier 2: Analyze POI density (fast, CPU-only)
+  const discovered = analyzeForHub(lat, lng, pois);
+  if (discovered) {
+    cacheDiscoveredHub(discovered);
+    return discovered.name;
+  }
+
+  return null;
 }

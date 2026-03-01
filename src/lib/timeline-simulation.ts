@@ -1,6 +1,6 @@
-import type { TripSummary, TripSettings, Vehicle, TripDay } from '../../types';
-import type { SuggestedStop } from '../../lib/stop-suggestions';
-import { getTankSizeLitres } from '../../lib/unit-conversions';
+import type { TripSummary, TripSettings, Vehicle, TripDay } from '../types';
+import type { SuggestedStop } from './stop-suggestions';
+import { getTankSizeLitres } from './unit-conversions';
 
 export interface SimulationItem {
   type: 'gas' | 'stop' | 'suggested';
