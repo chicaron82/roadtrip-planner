@@ -1,9 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import type { TripSummary, TripSettings } from '../../types';
-import { Card, CardContent } from '../UI/Card';
 import { formatDistance, formatDuration, formatCurrency } from '../../lib/calculations';
 import { Car, Fuel, Users, TrendingDown, TrendingUp, Gauge, ChevronUp, ChevronDown } from 'lucide-react';
-import { Button } from '../UI/Button';
 import { TripOverview } from './TripOverview';
 import { FeasibilityBanner } from './FeasibilityBanner';
 import { BudgetSensitivity } from './BudgetSensitivity';
@@ -52,35 +50,52 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
 
   if (!summary) return null;
 
+  const cardBg  = 'rgba(13,13,16,0.93)';
+  const borderC = 'rgba(245,240,232,0.09)';
+
   return (
     <div className="animate-in slide-in-from-bottom duration-500 max-h-[85vh] flex flex-col">
-      <Card className="bg-white/90 backdrop-blur-md shadow-xl border-white/20 flex-1 overflow-hidden flex flex-col transition-all duration-300">
-        <CardContent className="p-4 flex-1 overflow-y-auto flex flex-col">
+      <div
+        className="rounded-[20px] shadow-2xl flex-1 overflow-hidden flex flex-col transition-all duration-300"
+        style={{ background: cardBg, border: `1px solid ${borderC}`, backdropFilter: 'blur(24px)' }}
+      >
+        <div className="p-4 flex-1 overflow-y-auto flex flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between mb-4 sticky top-0 bg-white/90 backdrop-blur-md z-10 -mx-4 px-4 py-2">
+          <div
+            className="flex items-center justify-between mb-4 sticky top-0 z-10 -mx-4 px-4 py-2 rounded-t-[20px]"
+            style={{ background: cardBg, borderBottom: `1px solid ${borderC}` }}
+          >
             <div className="flex items-center gap-3">
               {tripActive && <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />}
-              <span className="font-bold text-lg">{tripActive ? 'Trip Active' : 'Trip Summary'}</span>
+              <span className="font-bold text-base" style={{ color: 'rgba(245,240,232,0.88)', fontFamily: "'DM Sans', sans-serif", letterSpacing: '0.01em' }}>
+                {tripActive ? 'Trip Active' : 'Trip Summary'}
+              </span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               {onOpenVehicleTab && !tripActive && (
-                <Button
-                  variant="outline"
-                  size="sm"
+                <button
                   onClick={onOpenVehicleTab}
-                  className="h-7 text-xs gap-1"
+                  className="h-7 px-2.5 rounded-full text-[11px] font-medium flex items-center gap-1 transition-all"
+                  style={{ background: 'rgba(245,240,232,0.07)', border: '1px solid rgba(245,240,232,0.12)', color: 'rgba(245,240,232,0.55)' }}
                 >
                   <Car className="w-3 h-3" />
                   Edit Vehicle
-                </Button>
+                </button>
               )}
               {tripActive && onStop && (
-                <Button variant="destructive" size="sm" onClick={onStop}>End Trip</Button>
+                <button
+                  onClick={onStop}
+                  className="h-7 px-2.5 rounded-full text-[11px] font-medium transition-all"
+                  style={{ background: 'rgba(239,68,68,0.18)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}
+                >
+                  End Trip
+                </button>
               )}
               <button
                 onClick={() => setIsMinimized(!isMinimized)}
-                className="h-7 w-7 flex items-center justify-center rounded hover:bg-muted text-muted-foreground"
-                title={isMinimized ? "Expand" : "Minimize"}
+                className="h-7 w-7 flex items-center justify-center rounded-full transition-all"
+                style={{ color: 'rgba(245,240,232,0.35)' }}
+                title={isMinimized ? 'Expand' : 'Minimize'}
               >
                 {isMinimized ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               </button>
@@ -89,49 +104,49 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
 
           {/* Stat Tiles */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2 border border-blue-100 dark:border-blue-800">
+            <div className="rounded-lg p-2 border" style={{ background: 'rgba(59,130,246,0.1)', borderColor: 'rgba(59,130,246,0.22)' }}>
               <div className="flex items-center gap-1.5 mb-0.5">
-                <Car className="w-3.5 h-3.5 text-blue-600" />
-                <div className="text-[9px] uppercase tracking-wider text-blue-600 font-semibold">Distance</div>
+                <Car className="w-3.5 h-3.5 text-blue-400" />
+                <div className="text-[9px] uppercase tracking-wider text-blue-400 font-semibold">Distance</div>
               </div>
-              <div className="text-base font-bold text-blue-700 dark:text-blue-400">
+              <div className="text-base font-bold text-blue-300">
                 {formatDistance(animDistKm, settings.units)}
                 {settings.isRoundTrip && <span className="text-xs ml-1 font-normal opacity-70">(x2)</span>}
               </div>
               {summary.gasStops > 0 && (
-                <div className="text-[9px] text-blue-500/70 mt-0.5 flex items-center gap-1">
+                <div className="text-[9px] mt-0.5 flex items-center gap-1" style={{ color: 'rgba(147,197,253,0.55)' }}>
                   <Gauge className="w-2.5 h-2.5" />
                   {summary.gasStops} fill-up{summary.gasStops !== 1 ? 's' : ''}
                 </div>
               )}
             </div>
 
-            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-2 border border-amber-100 dark:border-amber-800">
+            <div className="rounded-lg p-2 border" style={{ background: 'rgba(245,158,11,0.1)', borderColor: 'rgba(245,158,11,0.22)' }}>
               <div className="flex items-center gap-1.5 mb-0.5">
-                <div className="text-[9px] uppercase tracking-wider text-amber-600 font-semibold">⏱ Drive Time</div>
+                <div className="text-[9px] uppercase tracking-wider text-amber-400 font-semibold">⏱ Drive Time</div>
               </div>
-              <div className="text-base font-bold text-amber-700 dark:text-amber-400">
+              <div className="text-base font-bold text-amber-300">
                 {formatDuration(Math.round(animDurationMin))}
               </div>
-              <div className="text-[9px] text-amber-500/70 mt-0.5">excl. stops</div>
+              <div className="text-[9px] mt-0.5" style={{ color: 'rgba(252,211,77,0.45)' }}>excl. stops</div>
             </div>
 
-            <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-2 border border-green-100 dark:border-green-800">
+            <div className="rounded-lg p-2 border" style={{ background: 'rgba(34,197,94,0.1)', borderColor: 'rgba(34,197,94,0.22)' }}>
               <div className="flex items-center gap-1.5 mb-0.5">
-                <Fuel className="w-3.5 h-3.5 text-green-600" />
-                <div className="text-[9px] uppercase tracking-wider text-green-600 font-semibold">Fuel Cost</div>
+                <Fuel className="w-3.5 h-3.5 text-green-400" />
+                <div className="text-[9px] uppercase tracking-wider text-green-400 font-semibold">Fuel Cost</div>
               </div>
-              <div className="text-base font-bold text-green-700 dark:text-green-400">
+              <div className="text-base font-bold text-green-300">
                 {formatCurrency(animFuelCost, settings.currency)}
               </div>
             </div>
 
-            <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-2 border border-purple-100 dark:border-purple-800">
+            <div className="rounded-lg p-2 border" style={{ background: 'rgba(168,85,247,0.1)', borderColor: 'rgba(168,85,247,0.22)' }}>
               <div className="flex items-center gap-1.5 mb-0.5">
-                <Users className="w-3.5 h-3.5 text-purple-600" />
-                <div className="text-[9px] uppercase tracking-wider text-purple-600 font-semibold">Per Person</div>
+                <Users className="w-3.5 h-3.5 text-purple-400" />
+                <div className="text-[9px] uppercase tracking-wider text-purple-400 font-semibold">Per Person</div>
               </div>
-              <div className="text-base font-bold text-purple-700 dark:text-purple-400">
+              <div className="text-base font-bold text-purple-300">
                 {formatCurrency(animPerPerson, settings.currency)}
               </div>
             </div>
@@ -139,13 +154,15 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
 
           {/* Budget status row */}
           {summary.budgetStatus && summary.budgetRemaining !== undefined && settings.budget.total > 0 && (
-            <div className={`mt-3 rounded-xl px-3 py-2 flex items-center justify-between text-sm border ${
-              summary.budgetStatus === 'over'
-                ? 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-800'
-                : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800'
-            }`}>
+            <div
+              className="mt-3 rounded-xl px-3 py-2 flex items-center justify-between text-sm border"
+              style={summary.budgetStatus === 'over'
+                ? { background: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.25)' }
+                : { background: 'rgba(16,185,129,0.1)', borderColor: 'rgba(16,185,129,0.25)' }
+              }
+            >
               <div className={`flex items-center gap-1.5 font-semibold text-xs uppercase tracking-wider ${
-                summary.budgetStatus === 'over' ? 'text-red-600' : 'text-emerald-600'
+                summary.budgetStatus === 'over' ? 'text-red-400' : 'text-emerald-400'
               }`}>
                 {summary.budgetStatus === 'over'
                   ? <TrendingUp className="w-3.5 h-3.5" />
@@ -153,7 +170,9 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
                 }
                 {summary.budgetStatus === 'over' ? 'Over budget' : 'Under budget'}
               </div>
-              <div className={`font-bold ${summary.budgetStatus === 'over' ? 'text-red-700 dark:text-red-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
+              <div className={`font-bold ${
+                summary.budgetStatus === 'over' ? 'text-red-300' : 'text-emerald-300'
+              }`}>
                 {formatCurrency(Math.abs(summary.budgetRemaining), settings.currency)}
               </div>
             </div>
@@ -180,8 +199,8 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
               )}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
