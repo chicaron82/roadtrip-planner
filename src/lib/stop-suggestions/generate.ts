@@ -1,8 +1,9 @@
-import type { RouteSegment, TripDay } from '../../types';
+import type { RouteSegment, TripDay, ProcessedSegment } from '../../types';
 import type { SuggestedStop, StopSuggestionConfig } from '../stop-suggestion-types';
 import type { SimState } from './types';
 import { consolidateStops } from './consolidate';
 import { TRIP_CONSTANTS } from '../trip-constants';
+import { flattenDrivingSegments } from '../flatten-driving-segments';
 import {
   handleDayBoundaryReset,
   checkArrivalWindow,
@@ -82,24 +83,8 @@ export function generateSmartStops(
   // reset and the simulation clock stays correct.
   // afterSegmentIndex in generated stops uses segment._originalIndex (segOrigIdx)
   // so trip-timeline.ts can match stops to segments.
-  type SimSegment = RouteSegment & {
-    _originalIndex: number;
-    _transitPart?: { index: number; total: number };
-  };
-  let simulationSegments: SimSegment[];
-  const drivingDayStartMap = new Map<number, TripDay>();
-
-  if (days) {
-    const drivingDays = days.filter(d => d.segmentIndices.length > 0);
-    simulationSegments = drivingDays.flatMap(d => d.segments as SimSegment[]);
-    let flatIdx = 0;
-    drivingDays.forEach((day, i) => {
-      if (i > 0) drivingDayStartMap.set(flatIdx, day);
-      flatIdx += day.segments.length;
-    });
-  } else {
-    simulationSegments = segments.map((s, i) => ({ ...s, _originalIndex: i }));
-  }
+  const { segments: flatList, dayBoundaries: drivingDayStartMap } = flattenDrivingSegments(segments, days);
+  const simulationSegments: ProcessedSegment[] = flatList.map(f => f.seg);
 
   // Days where the user has already filled in hotel/overnight info.
   // Auto-generated overnight suggestions are suppressed for these days —

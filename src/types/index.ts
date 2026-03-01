@@ -195,6 +195,15 @@ export interface RouteSegment {
   activity?: Activity; // Planned activity at this stop
 }
 
+/** RouteSegment extended with original-index tracking for split sub-segments.
+ *  Produced by splitLongSegments, stored in TripDay.segments. */
+export type ProcessedSegment = RouteSegment & {
+  /** Index into the original `segments` array this sub-segment was derived from. */
+  _originalIndex: number;
+  /** Populated when the original segment was split; tracks which part this is. */
+  _transitPart?: { index: number; total: number };
+};
+
 export type WarningType = 'long_drive' | 'weather' | 'border_crossing' | 'fuel_stop' | 'timezone';
 
 export interface SegmentWarning {
@@ -247,7 +256,7 @@ export interface TripDay {
   dateFormatted: string; // "Sat, Aug 16"
   title?: string; // "Let's Get Outta Here"
   route: string; // "Winnipeg → Sault Ste. Marie"
-  segments: RouteSegment[];
+  segments: ProcessedSegment[];
   segmentIndices: number[]; // Original indices in full segments array
   overnight?: OvernightStop;
   timezoneChanges: TimezoneChange[];

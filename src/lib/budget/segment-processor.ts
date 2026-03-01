@@ -1,19 +1,9 @@
-import type { RouteSegment, Location } from '../../types';
+import type { RouteSegment, Location, ProcessedSegment } from '../../types';
 import { interpolateRoutePosition } from '../route-geocoder';
 import { findHubInWindow } from '../hub-cache';
 import { TRIP_CONSTANTS } from '../trip-constants';
 
-// ---------------------------------------------------------------------------
-// Internal type & helper for long-segment splitting
-// ---------------------------------------------------------------------------
-
-/** RouteSegment extended with original-index tracking for split sub-segments. */
-export type ProcessedSegment = RouteSegment & {
-  /** Index into the original `segments` array this sub-segment was derived from. */
-  _originalIndex: number;
-  /** Populated when the original segment was split; tracks which part this is. */
-  _transitPart?: { index: number; total: number };
-};
+export type { ProcessedSegment };
 
 /**
  * Pre-process the segments array so that any single segment whose

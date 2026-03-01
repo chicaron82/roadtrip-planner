@@ -4,8 +4,9 @@ import { generateSmartStops, createStopConfig, type SuggestedStop } from '../../
 import { assignDrivers, extractFuelStopIndices } from '../../lib/driver-rotation';
 import { buildSimulationItems, type SimulationItem } from '../../lib/timeline-simulation';
 import { buildPacingSuggestions } from '../../lib/pacing-suggestions-builder';
+import { parseLocalDateInTZ, lngToIANA } from '../../lib/trip-timezone';
+import { flattenDrivingSegments } from '../../lib/flatten-driving-segments';
 
-// ---------------------------------------------------------------------------
 export type { SimulationItem };
 
 interface UseTimelineDataParams {
@@ -19,10 +20,14 @@ interface UseTimelineDataParams {
 // ---------------------------------------------------------------------------
 
 export function useTimelineData({ summary, settings, vehicle, days, externalStops }: UseTimelineDataParams) {
-  const startTime = useMemo(
-    () => new Date(`${settings.departureDate}T${settings.departureTime}`),
-    [settings.departureDate, settings.departureTime],
-  );
+  // Parse departure in the origin's timezone (not browser local)
+  const startTime = useMemo(() => {
+    const originLng = summary.segments[0]?.from.lng;
+    if (originLng !== undefined) {
+      return parseLocalDateInTZ(settings.departureDate, settings.departureTime, lngToIANA(originLng));
+    }
+    return new Date(`${settings.departureDate}T${settings.departureTime}`);
+  }, [settings.departureDate, settings.departureTime, summary.segments]);
 
   // Activity editor state
   const [editingActivity, setEditingActivity] = useState<{
@@ -55,8 +60,7 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
     startTime,
   }), [maxDayMinutes, settings, isAlreadySplit, summary, vehicle, startTime]);
 
-  // Map pacing suggestions to specific days for inline rendering.
-  // Return trip tips → day that starts the return leg; general tips → first driving day.
+  // Map pacing suggestions to specific days (return tips → return day, general → first driving day)
   const pacingSuggestionsByDay = useMemo(() => {
     const map = new Map<number, string[]>();
     if (!days || pacingSuggestions.length === 0) return map;
@@ -95,8 +99,7 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
     return generateSmartStops(summary.segments, config, days);
   }, [summary.segments, summary.fullGeometry, vehicle, settings, days]);
 
-  // Per-stop user overrides — kept separate so baseSuggestions can regenerate without wiping
-  // decisions the user already made (accept, dismiss, custom duration).
+  // Per-stop user overrides (kept separate so baseSuggestions can regenerate)
   const [userOverrides, setUserOverrides] = useState<Record<string, { accepted?: boolean; dismissed?: boolean; duration?: number }>>({});
 
   // Merged: base suggestions with any user overrides applied on top
@@ -144,10 +147,9 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
     activeSuggestions,
   }), [summary, settings, vehicle, days, startTime, activeSuggestions]);
 
-  // Pending suggestions (not yet accepted or dismissed)
   const pendingSuggestions = activeSuggestions.filter(s => !s.accepted);
 
-  // Map dayNumber → pending suggestions for that day (inline rendering)
+  // Map dayNumber → pending suggestions for that day
   const pendingSuggestionsByDay = useMemo(() => {
     const map = new Map<number, SuggestedStop[]>();
     if (!days) return map;
@@ -215,37 +217,57 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
     return new Map(driverRotation.assignments.map(a => [a.segmentIndex, a.driver]));
   }, [driverRotation]);
 
-  // Map: segment index → TripDay[], keyed on the day's first segment.
-  // Multiple days can share the same segmentIndices[0] when a long segment was
-  // split by splitLongSegments (e.g. Winnipeg→Montreal split across Day 1 + Day 2 —
-  // both reference original segment index 0). Accumulating into an array prevents
-  // the later day from silently overwriting the earlier one.
+  // Shared flat-index computation — single source of truth with
+  // buildSimulationItems and generateSmartStops.
+  const flatResult = useMemo(
+    () => flattenDrivingSegments(summary.segments, days),
+    [summary.segments, days],
+  );
+
+  // Map: flat sub-segment index → TripDay[], keyed on each driving day's first
+  // flat index.  buildSimulationItems iterates sub-segments with the same flat
+  // counter, so dayStartMap.get(item.index) returns the day card to render.
   const dayStartMap = useMemo(() => {
     const map = new Map<number, { day: TripDay; isFirst: boolean }[]>();
-    if (days) {
-      days.forEach((day, idx) => {
-        if (day.segmentIndices.length > 0) {
-          const key = day.segmentIndices[0];
-          const existing = map.get(key) ?? [];
-          map.set(key, [...existing, { day, isFirst: idx === 0 }]);
-        }
-      });
+    if (!days) return map;
+    const drivingDays = days.filter(d => d.segmentIndices.length > 0);
+    // First driving day always starts at flat index 0
+    if (drivingDays.length > 0) {
+      const firstIdx = days.indexOf(drivingDays[0]);
+      map.set(0, [{ day: drivingDays[0], isFirst: firstIdx === 0 }]);
     }
+    // Subsequent driving days come from dayBoundaries
+    flatResult.dayBoundaries.forEach((day, flatIdx) => {
+      const dayIdx = days.indexOf(day);
+      const existing = map.get(flatIdx) ?? [];
+      map.set(flatIdx, [...existing, { day, isFirst: dayIdx === 0 }]);
+    });
     return map;
-  }, [days]);
+  }, [days, flatResult]);
 
-  // Map: last-segment-index-of-a-driving-day → free TripDay[] that follow it
+  // Map: flat sub-segment index (last of a driving day) → free TripDay[] that follow it
   const freeDaysAfterSegment = useMemo(() => {
     const map = new Map<number, TripDay[]>();
     if (!days) return map;
+    // Build dayNumber → last flat index from flatResult
+    const dayLastFlat = new Map<number, number>();
+    const drivingDays = days.filter(d => d.segmentIndices.length > 0);
+    let runningIdx = 0;
+    drivingDays.forEach(day => {
+      dayLastFlat.set(day.dayNumber, runningIdx + day.segments.length - 1);
+      runningIdx += day.segments.length;
+    });
+
     days.forEach(day => {
-      if (day.segmentIndices.length > 0) return;
+      if (day.segmentIndices.length > 0) return; // skip driving days
       const dayIdx = days.indexOf(day);
       for (let i = dayIdx - 1; i >= 0; i--) {
         if (days[i].segmentIndices.length > 0) {
-          const lastSeg = days[i].segmentIndices[days[i].segmentIndices.length - 1];
-          const existing = map.get(lastSeg) ?? [];
-          map.set(lastSeg, [...existing, day]);
+          const lastFlat = dayLastFlat.get(days[i].dayNumber);
+          if (lastFlat !== undefined) {
+            const existing = map.get(lastFlat) ?? [];
+            map.set(lastFlat, [...existing, day]);
+          }
           break;
         }
       }

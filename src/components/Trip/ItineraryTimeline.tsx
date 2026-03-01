@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import type { TripSummary, TripSettings, Vehicle, StopType, TripDay, DayType, Activity, DayOption, OvernightStop, POISuggestion } from '../../types';
 import { SmartSuggestions } from './SmartSuggestions';
@@ -111,6 +111,16 @@ export function ItineraryTimeline({
     activityIndex: number;
     activity?: Activity;
   } | null>(null);
+
+  // Last stop's flat index — used for destination detection
+  const lastStopFlatIndex = useMemo(() => {
+    for (let i = simulationItems.length - 1; i >= 0; i--) {
+      if (simulationItems[i].type === 'stop' && simulationItems[i].index !== undefined) {
+        return simulationItems[i].index;
+      }
+    }
+    return -1;
+  }, [simulationItems]);
 
   return (
     <div className="space-y-6">
@@ -296,14 +306,14 @@ export function ItineraryTimeline({
                 <WaypointNode
                   segment={item.segment}
                   arrivalTime={item.arrivalTime}
-                  index={item.index}
-                  isDestination={item.index === summary.segments.length - 1}
+                  index={item.originalIndex ?? item.index}
+                  isDestination={item.index === lastStopFlatIndex}
                   onUpdateStopType={onUpdateStopType}
                   onEditActivity={onUpdateActivity ? (segIdx, activity, locName) => {
                     setEditingActivity({ segmentIndex: segIdx, activity, locationName: locName });
                   } : undefined}
                   activity={item.segment.activity}
-                  assignedDriver={driverBySegment.get(item.index)}
+                  assignedDriver={driverBySegment.get(item.originalIndex ?? item.index!)}
                 />
                 {freeDaysAfter.map(freeDay => (
                   <div key={`free-day-${freeDay.dayNumber}`} className="mt-4">

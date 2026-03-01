@@ -1,6 +1,6 @@
 import type { RouteSegment, TripDay, TripSettings } from '../../types';
 import { splitLongSegments, type ProcessedSegment } from './segment-processor';
-import { createEmptyDay, finalizeTripDay, ceilToNearest } from './day-builder';
+import { createEmptyDay, finalizeTripDay, ceilToNearest, labelTransitDay } from './day-builder';
 import { getTimezoneOffset, getTimezoneName } from './timezone';
 import { TRIP_CONSTANTS } from '../trip-constants';
 import { getHotelMultiplier } from '../regional-costs';
@@ -180,6 +180,7 @@ export function splitTripByDays(
         }
 
         finalizeTripDay(currentDay, gasRemaining, hotelRemaining, foodRemaining, settings);
+        labelTransitDay(currentDay, segments);
         gasRemaining = currentDay.budget.gasRemaining;
         hotelRemaining = currentDay.budget.hotelRemaining;
         foodRemaining = currentDay.budget.foodRemaining;
@@ -323,11 +324,7 @@ export function splitTripByDays(
       finalizeTripDay(currentDay, gasRemaining, hotelRemaining, foodRemaining, settings);
 
       // Label transit days when the segment was split by splitLongSegments.
-      const lastPS = currentDay.segments[currentDay.segments.length - 1] as ProcessedSegment;
-      if (lastPS?._transitPart) {
-        const destName = segments[lastPS._originalIndex].to.name.split(',')[0].trim();
-        currentDay.title = `In Transit to ${destName} (Day ${lastPS._transitPart.index + 1}/${lastPS._transitPart.total})`;
-      }
+      labelTransitDay(currentDay, segments);
 
       // Update running totals for the NEXT day
       gasRemaining = currentDay.budget.gasRemaining;
@@ -402,6 +399,7 @@ export function splitTripByDays(
       // Force a day boundary AFTER this segment
       // Finalize current day consisting of segments up to this overnight stop
       finalizeTripDay(currentDay, gasRemaining, hotelRemaining, foodRemaining, settings);
+      labelTransitDay(currentDay, segments);
 
       gasRemaining = currentDay.budget.gasRemaining;
       hotelRemaining = currentDay.budget.hotelRemaining;
@@ -431,6 +429,7 @@ export function splitTripByDays(
   // Finalize last day
   if (currentDay && currentDay.segments.length > 0) {
     finalizeTripDay(currentDay, gasRemaining, hotelRemaining, foodRemaining, settings);
+    labelTransitDay(currentDay, segments);
     days.push(currentDay);
   }
 

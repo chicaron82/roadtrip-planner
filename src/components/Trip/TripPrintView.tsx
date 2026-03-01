@@ -10,6 +10,7 @@
 
 import type { TripSummary, TripSettings, Vehicle } from '../../types';
 import type { DriverRotationResult } from '../../lib/driver-rotation';
+import type { SuggestedStop } from '../../lib/stop-suggestions';
 import { assignDrivers } from '../../lib/driver-rotation';
 import { showToast } from '../../lib/toast';
 import { generateSmartStops, createStopConfig } from '../../lib/stop-suggestions';
@@ -23,6 +24,11 @@ interface TripPrintViewProps {
   summary: TripSummary;
   settings: TripSettings;
   vehicle?: Vehicle;
+  /** When provided, use these instead of regenerating from scratch.
+   *  This is the single-source-of-truth link: the main UI computes
+   *  suggestions (with user accept/dismiss state), and the PDF
+   *  renders exactly what the user sees. */
+  activeSuggestions?: SuggestedStop[];
 }
 
 
@@ -40,14 +46,16 @@ export function printTrip(props: TripPrintViewProps): void {
     driverRotation = assignDrivers(summary.segments, settings.numDrivers, fuelIndices);
   }
 
-  // Build timed events (mirrors SmartTimeline logic)
+  // Build timed events — use caller's suggestions when available (single source of truth),
+  // otherwise regenerate fresh (backwards compatible for callers that don't pass suggestions).
   let timedEvents: TimedEvent[] = [];
   if (vehicle) {
-    const allSuggestions = generateSmartStops(
-      summary.segments,
-      createStopConfig(vehicle, settings, summary.fullGeometry),
-      summary.days,
-    );
+    const allSuggestions = props.activeSuggestions
+      ?? generateSmartStops(
+        summary.segments,
+        createStopConfig(vehicle, settings, summary.fullGeometry),
+        summary.days,
+      );
     const raw = buildTimedTimeline(
       summary.segments,
       allSuggestions,

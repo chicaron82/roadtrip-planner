@@ -1,4 +1,5 @@
-import type { TripDay, TripSettings } from '../../types';
+import type { RouteSegment, TripDay, TripSettings } from '../../types';
+import type { ProcessedSegment } from './segment-processor';
 
 /**
  * Round a value UP to the nearest increment.
@@ -9,6 +10,22 @@ import type { TripDay, TripSettings } from '../../types';
 export function ceilToNearest(value: number, increment: number): number {
   if (value === 0) return 0;
   return Math.ceil(value / increment) * increment;
+}
+
+/**
+ * Label a transit day with "In Transit to X (Day N/M)" when the day
+ * contains sub-segments from a splitLongSegments split.
+ *
+ * Called after finalizeTripDay at each of the three finalization points
+ * (max-drive split, midpoint split, final day).
+ */
+export function labelTransitDay(day: TripDay, originalSegments: RouteSegment[]): void {
+  const lastPS = day.segments[day.segments.length - 1] as ProcessedSegment | undefined;
+  if (!lastPS?._transitPart) return;
+  const destName = originalSegments[lastPS._originalIndex]?.to.name.split(',')[0].trim();
+  if (destName) {
+    day.title = `In Transit to ${destName} (Day ${lastPS._transitPart.index + 1}/${lastPS._transitPart.total})`;
+  }
 }
 
 /**
@@ -63,7 +80,13 @@ export function finalizeTripDay(
   if (day.segments.length === 0) return;
 
   // Calculate route string — strip "(transit)" labels from split-point names
-  const cleanName = (n: string) => n.replace(/\s*\(transit\)/, '');
+  // and simplify un-snapped transit split-points ("CityA → CityB" → "CityA")
+  const cleanName = (n: string): string => {
+    let name = n.replace(/\s*\(transit\)\s*$/, '');
+    const arrow = name.indexOf(' → ');
+    if (arrow >= 0) name = name.substring(0, arrow);
+    return name;
+  };
   const firstStop = cleanName(day.segments[0].from.name);
   const lastStop = cleanName(day.segments[day.segments.length - 1].to.name);
   day.route = `${firstStop} → ${lastStop}`;
