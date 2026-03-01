@@ -329,11 +329,14 @@ export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [],
 
   useEffect(() => {
     if (!rawEvents.length || !summary?.fullGeometry?.length) {
-      setIsResolvingTowns(false);
-      return;
+      const timer = setTimeout(() => setIsResolvingTowns(false), 0);
+      return () => clearTimeout(timer);
     }
 
-    setIsResolvingTowns(true);
+    let isActive = true;
+    const timer = setTimeout(() => {
+      if (isActive) setIsResolvingTowns(true);
+    }, 0);
     const controller = new AbortController();
 
     // Prefer the inference corpus (gas/hotel) for hub detection — it always contains
@@ -341,7 +344,7 @@ export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [],
     const hubPOIs = (poiInference && poiInference.length > 0) ? poiInference : poiSuggestions;
     resolveStopTowns(rawEvents, summary.fullGeometry, controller.signal, hubPOIs)
       .then(resolved => {
-        if (!controller.signal.aborted) {
+        if (!controller.signal.aborted && isActive) {
           if (resolved.size > 0) setTownMap(resolved);
           setIsResolvingTowns(false);
         }
@@ -351,7 +354,11 @@ export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [],
         /* network error — keep generic hints */
       });
 
-    return () => controller.abort();
+    return () => {
+      isActive = false;
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [rawEvents, summary?.fullGeometry, poiInference, poiSuggestions]);
 
   // ── Step 3: Merge town names into events ─────────────────────────────────

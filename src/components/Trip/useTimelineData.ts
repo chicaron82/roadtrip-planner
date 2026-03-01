@@ -1,24 +1,12 @@
 import { useState, useMemo } from 'react';
-import type { TripSummary, TripSettings, Vehicle, TripDay, Activity, OvernightStop, RouteSegment } from '../../types';
-import { generatePacingSuggestions } from '../../lib/segment-analyzer';
+import type { TripSummary, TripSettings, Vehicle, TripDay, Activity, OvernightStop } from '../../types';
 import { generateSmartStops, createStopConfig, type SuggestedStop } from '../../lib/stop-suggestions';
-import { getTankSizeLitres } from '../../lib/unit-conversions';
 import { assignDrivers, extractFuelStopIndices } from '../../lib/driver-rotation';
-import { findOptimalReturnDeparture } from '../../lib/return-departure-optimizer';
-import { findOptimalOutboundDeparture } from '../../lib/outbound-departure-optimizer';
+import { buildSimulationItems, type SimulationItem } from '../../lib/timeline-simulation';
+import { buildPacingSuggestions } from '../../lib/pacing-suggestions-builder';
 
 // ---------------------------------------------------------------------------
-
-export interface SimulationItem {
-  type: 'gas' | 'stop' | 'suggested';
-  arrivalTime: Date;
-  cost?: number;
-  litres?: number;
-  segment?: RouteSegment;
-  index?: number;
-  suggestedStop?: SuggestedStop;
-  fuelPriority?: 'critical' | 'recommended' | 'optional';
-}
+export type { SimulationItem };
 
 interface UseTimelineDataParams {
   summary: TripSummary;
@@ -58,80 +46,14 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
   const maxDayMinutes = isAlreadySplit
     ? Math.max(...drivingDays.map(d => d.totals?.driveTimeMinutes ?? 0))
     : summary.totalDurationMinutes;
-  const pacingSuggestions = useMemo(() => {
-    const base = generatePacingSuggestions(maxDayMinutes, settings, isAlreadySplit);
-
-    // Check if tweaking the outbound departure would create a Fuel + Lunch combo
-    // at a major hub city ~4h out (e.g., depart 8:00 AM → arrive Dryden at noon).
-    if (vehicle && summary.fullGeometry?.length > 1) {
-      const outboundSegments = summary.roundTripMidpoint != null && summary.roundTripMidpoint > 0
-        ? summary.segments.slice(0, summary.roundTripMidpoint)
-        : summary.segments;
-
-      const outboundSuggestion = findOptimalOutboundDeparture(
-        outboundSegments,
-        startTime,
-        summary.fullGeometry as number[][],
-        vehicle,
-        settings,
-      );
-
-      if (outboundSuggestion) {
-        base.push(
-          `⏰ Outbound tip: departing at ${outboundSuggestion.suggestedTime} instead of ${settings.departureTime} would create a Fuel + Lunch combo at ${outboundSuggestion.hubName} around ${outboundSuggestion.arrivalTime}.`
-        );
-      }
-    }
-
-    // For round trips with a vehicle, check if tweaking the return departure
-    // would create a Fuel + Lunch combo at a real hub city.
-    if (
-      summary.roundTripMidpoint != null &&
-      summary.roundTripMidpoint > 0 &&
-      vehicle &&
-      summary.fullGeometry?.length > 1
-    ) {
-      const returnSegments = summary.segments.slice(summary.roundTripMidpoint);
-
-      // Outbound km = sum of outbound segments; return geometry starts there
-      const returnStartKm = summary.segments
-        .slice(0, summary.roundTripMidpoint)
-        .reduce((sum, s) => sum + s.distanceKm, 0);
-
-      // Determine the return leg's current departure time.
-      // Prefer the first return segment's departureTime; fall back to settings.
-      const firstReturnSeg = returnSegments[0];
-      const returnDeparture: Date =
-        firstReturnSeg?.departureTime
-          ? new Date(firstReturnSeg.departureTime)
-          : (() => {
-              const d = new Date(`${settings.departureDate}T${settings.departureTime}`);
-              return d;
-            })();
-
-      const suggestion = findOptimalReturnDeparture(
-        returnSegments,
-        returnDeparture,
-        summary.fullGeometry as number[][],
-        returnStartKm,
-        vehicle,
-        settings,
-      );
-
-      if (suggestion) {
-        const direction = suggestion.minutesDelta < 0 ? 'earlier' : 'later';
-        const absDelta = Math.abs(suggestion.minutesDelta);
-        const deltaStr = absDelta >= 60
-          ? `${Math.floor(absDelta / 60)}h${absDelta % 60 > 0 ? ` ${absDelta % 60}min` : ''}`
-          : `${absDelta} min`;
-        base.push(
-          `⏰ Return trip tip: departing ${deltaStr} ${direction} (${suggestion.suggestedTime}) would create a Fuel + Lunch combo stop near ${suggestion.hubName}, saving ~${suggestion.timeSavedMinutes} min.`
-        );
-      }
-    }
-
-    return base;
-  }, [maxDayMinutes, settings, isAlreadySplit, summary, vehicle, startTime]);
+  const pacingSuggestions = useMemo(() => buildPacingSuggestions({
+    maxDayMinutes,
+    settings,
+    isAlreadySplit,
+    summary,
+    vehicle,
+    startTime,
+  }), [maxDayMinutes, settings, isAlreadySplit, summary, vehicle, startTime]);
 
   // Map pacing suggestions to specific days for inline rendering.
   // Return trip tips → day that starts the return leg; general tips → first driving day.
@@ -213,97 +135,14 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
   ], [stopSuggestions, externalStops]);
 
   // Build simulation items including accepted stops
-  const simulationItems = useMemo(() => {
-    const items: SimulationItem[] = [];
-    let currentTime = new Date(startTime);
-
-    // Tank capacity in litres. Default 55 L when vehicle is null.
-    const VIRTUAL_TANK_CAPACITY = vehicle
-      ? getTankSizeLitres(vehicle, settings.units)
-      : 55;
-    let currentFuel = VIRTUAL_TANK_CAPACITY;
-
-    // Get accepted stops grouped by afterSegmentIndex
-    const acceptedBySegment = new Map<number, SuggestedStop[]>();
-    activeSuggestions.filter(s => s.accepted).forEach(stop => {
-      const existing = acceptedBySegment.get(stop.afterSegmentIndex) || [];
-      acceptedBySegment.set(stop.afterSegmentIndex, [...existing, stop]);
-    });
-
-    // Returns the next driving day only when free days exist between segIdx and it.
-    const nextDrivingDayAfterGap = (segIdx: number): TripDay | undefined => {
-      if (!days) return undefined;
-      const curDay = days.find(
-        d => d.segmentIndices.length > 0 && d.segmentIndices[d.segmentIndices.length - 1] === segIdx
-      );
-      if (!curDay) return undefined;
-      const curDayIdx = days.indexOf(curDay);
-      const nextDriving = days.slice(curDayIdx + 1).find(d => d.segmentIndices.length > 0);
-      if (!nextDriving) return undefined;
-      const nextDrivingIdx = days.indexOf(nextDriving);
-      if (nextDrivingIdx <= curDayIdx + 1) return undefined;
-      return nextDriving;
-    };
-
-    // Initial stops at the origin (afterSegmentIndex: -1)
-    const initialStops = acceptedBySegment.get(-1) || [];
-    initialStops.forEach(stop => {
-      items.push({ type: 'suggested', arrivalTime: new Date(currentTime), suggestedStop: stop });
-      currentTime = new Date(currentTime.getTime() + (stop.duration * 60 * 1000));
-      if (stop.type === 'fuel') currentFuel = VIRTUAL_TANK_CAPACITY;
-    });
-
-    for (let i = 0; i < summary.segments.length; i++) {
-      const segment = summary.segments[i];
-      const fuelNeeded = segment.fuelNeededLitres;
-
-      // Safety-net fuel check — fires only when there is no accepted fuel stop before segment i.
-      if (currentFuel - fuelNeeded < (VIRTUAL_TANK_CAPACITY * 0.15)) {
-        const hasAcceptedFuelStop = acceptedBySegment.get(i - 1)?.some(s => s.type === 'fuel');
-        if (!hasAcceptedFuelStop) {
-          const refillAmount = VIRTUAL_TANK_CAPACITY - currentFuel;
-          const refillCost = refillAmount * settings.gasPrice;
-          const fuelPercent = currentFuel / VIRTUAL_TANK_CAPACITY;
-          const fuelPriority: 'critical' | 'recommended' | 'optional' =
-            fuelPercent < 0.10 ? 'critical' :
-            fuelPercent < 0.25 ? 'recommended' : 'optional';
-
-          const stopTime = new Date(currentTime);
-          currentTime = new Date(currentTime.getTime() + (15 * 60 * 1000));
-          currentFuel = VIRTUAL_TANK_CAPACITY;
-          items.push({ type: 'gas', arrivalTime: stopTime, cost: refillCost, litres: refillAmount, fuelPriority });
-        }
-      }
-
-      // Drive the segment
-      const durationMs = (segment.durationMinutes || 0) * 60 * 1000;
-      currentTime = new Date(currentTime.getTime() + durationMs);
-      currentFuel -= fuelNeeded;
-
-      items.push({ type: 'stop', segment, arrivalTime: new Date(currentTime), index: i });
-
-      // Jump currentTime across free-day gaps before rendering post-arrival stops.
-      // Also reset fuel — the driver refuels overnight at the hotel.
-      const nextDay = nextDrivingDayAfterGap(i);
-      if (nextDay) {
-        const [dh, dm] = settings.departureTime.split(':').map(Number);
-        const dayStart = new Date(nextDay.date + 'T00:00:00');
-        dayStart.setHours(dh, dm, 0, 0);
-        if (dayStart > currentTime) currentTime = dayStart;
-        currentFuel = VIRTUAL_TANK_CAPACITY;
-      }
-
-      // Accepted stops after this segment
-      const stopsAfterSegment = acceptedBySegment.get(i) || [];
-      stopsAfterSegment.forEach(stop => {
-        items.push({ type: 'suggested', arrivalTime: new Date(currentTime), suggestedStop: stop });
-        currentTime = new Date(currentTime.getTime() + (stop.duration * 60 * 1000));
-        if (stop.type === 'fuel') currentFuel = VIRTUAL_TANK_CAPACITY;
-      });
-    }
-
-    return items;
-  }, [summary.segments, startTime, settings.gasPrice, settings.departureTime, settings.units, activeSuggestions, vehicle, days]);
+  const simulationItems = useMemo(() => buildSimulationItems({
+    summary,
+    settings,
+    vehicle,
+    days,
+    startTime,
+    activeSuggestions,
+  }), [summary, settings, vehicle, days, startTime, activeSuggestions]);
 
   // Pending suggestions (not yet accepted or dismissed)
   const pendingSuggestions = activeSuggestions.filter(s => !s.accepted);

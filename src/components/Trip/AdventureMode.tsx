@@ -78,7 +78,7 @@ export function AdventureMode({
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [origin, budget, days, travelers, preferences, accommodationType, isRoundTrip]);
+  }, [origin, budget, days, travelers, preferences, accommodationType, isRoundTrip, fuelCostPerKm]);
 
   const previewMaxKm = origin && origin.lat !== 0
     ? calculateMaxDistance({ origin, budget, days, travelers, preferences, accommodationType, isRoundTrip, fuelCostPerKm })

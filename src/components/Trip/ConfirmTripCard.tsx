@@ -44,12 +44,17 @@ export function ConfirmTripCard({
   const prevConfirmed = useRef(false);
 
   useEffect(() => {
+    let t: ReturnType<typeof setTimeout>;
     if (confirmed && !prevConfirmed.current) {
-      setShowConfetti(true);
-      const t = setTimeout(() => setShowConfetti(false), 1200);
-      return () => clearTimeout(t);
+      t = setTimeout(() => {
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 1200);
+      }, 0);
     }
     prevConfirmed.current = confirmed;
+    return () => {
+      if (t) clearTimeout(t);
+    };
   }, [confirmed]);
 
   if (confirmed) {

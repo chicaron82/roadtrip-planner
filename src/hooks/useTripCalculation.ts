@@ -312,7 +312,7 @@ export function useTripCalculation({
         setStrategicFuelStops(snapped);
       }).catch(() => {});
     },
-    [localSummary, settings, onSummaryChange]
+    [localSummary, settings, vehicle, onSummaryChange]
   );
 
   // Generic day updater — updates a single day in summary.days

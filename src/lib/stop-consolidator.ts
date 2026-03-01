@@ -103,6 +103,7 @@ export function applyComboOptimization(
       stops: [...mealEvent.stops, ...fuelEvent.stops],
       timeSavedMinutes: timeSaved,
       comboLabel,
+      timezone: mealEvent.timezone,
     };
 
     result[i] = merged;
@@ -177,6 +178,7 @@ export function applyComboOptimization(
       stops: [...fuelEvent.stops, ...flexEvent.stops],
       timeSavedMinutes: timeSaved,
       comboLabel,
+      timezone: fuelEvent.timezone,
     };
 
     result[i] = merged;
