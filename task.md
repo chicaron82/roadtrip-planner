@@ -30,22 +30,25 @@
 - generate.ts: flat-index dayStartMap, segOrigIdx remapping, timezone guard
 - day-builder.ts: midnight placeholder detection
 
-### 🐛 Bug A: Stop times before departure on transit return legs
-**Priority: HIGH** — En-route fuel stops on return transit days show times before the day's departure hour (e.g., fuel at 6:45 AM on a 10:00 AM departure).
-- Root cause: under investigation. Likely interaction between `_transitPart` timezone guard (which skips ALL transit sub-segments) and `handleDayBoundaryReset` clock.
-- The guard prevents PDT from applying on Day 1 (correct), but also prevents timezone progression across multi-day transit (incorrect for days 2+).
+### ✅ Bug A: Transit timezone progression (fixed)
+- Was: `_transitPart` guard blocked ALL timezone updates for sub-segments
+- Fix: derive timezone from sub-segment's FROM longitude via `lngToIANA` + `ianaToAbbr`
+- generate.ts: updates `state.currentTzAbbr` per-sub-segment from coordinates
+- trip-timeline.ts: updates `activeTimezone` per-sub-segment from coordinates
 
-### 🐛 Bug B: Missing Depart node on transit days
-- Days 2+ of a transit leg have no "🚗 Depart" event — just a drive connector.
-- Trip-timeline needs to emit a depart event when `dayStartMap.has(i)`.
+### ✅ Bug B: Missing Depart on transit days (fixed)
+- Emits a departure event when `dayStartMap.has(i)` fires at day boundaries
 
-### 🐛 Bug C: Post-arrival fuel stop
-- Day 8 (final day): a full-fill fires AFTER the 🏁 Arrive event.
-- `inDestinationGraceZone` or `isFinalSegment` check may not be handling the last sub-segment correctly.
+### ✅ Bug C: Post-arrival fuel stop (fixed)
+- `boundaryAfter` now suppresses non-overnight stops on `isLastSegment`
 
-### 🐛 Bug D: Unnamed comfort stops
-- Comfort en-route stops show "~290 km from Winnipeg" instead of hub names.
-- Hub resolver may not be interpolating position correctly for sub-segments (segmentStartKm offset).
+### ✅ Bug D: Unnamed comfort stops (fixed)
+- Return-leg km positions are now mirrored onto the outbound geometry via `toGeometryKm`
+- Both per-segment hub lookup and en-route hub resolver use the mirror
+
+### ✅ Free day off-by-one (eaff613)
+- `slice(i+1)` → `slice(i)` to include first return sub-segment in the estimate
+- Denominator changed from `maxDriveMinutes` → `effectiveMaxDriveMinutes`
 
 ### 💳 Dual fuel model disconnect
 **Priority: MEDIUM** — day-builder.ts sums raw `segment.fuelCost` (L/km × price) for daily gas budget, but stop suggestions show human fill amounts ($74 full, $41 top-up). Both numbers appear in the same itinerary. ~$57 discrepancy on 8-day Winnipeg→Vancouver trip. Needs reconciliation to one model.

@@ -41,6 +41,21 @@ const TZ_ABBR_TO_IANA: Record<string, string> = {
   NST: 'America/St_Johns',   NDT: 'America/St_Johns',
 };
 
+// ── IANA → TZ abbreviation (daylight-saving flavour) ─────────────────────────
+// Used by transit sub-segment timezone derivation: lngToIANA returns an IANA
+// string, but the stop simulator's state tracks abbreviations (CDT, MDT, etc.).
+const IANA_TO_ABBR: Record<string, string> = {
+  'America/Vancouver': 'PDT', 'America/Edmonton': 'MDT',
+  'America/Regina': 'CST', 'America/Winnipeg': 'CDT',
+  'America/Toronto': 'EDT', 'America/Halifax': 'ADT',
+  'America/St_Johns': 'NDT', 'America/Anchorage': 'AKDT',
+};
+
+/** Convert an IANA timezone to its rough abbreviation (daylight-saving variant). */
+export function ianaToAbbr(iana: string): string | null {
+  return IANA_TO_ABBR[iana] ?? null;
+}
+
 /**
  * Normalize a TZ abbreviation ("EST", "CDT") or an already-IANA string
  * ("America/Toronto") to a canonical IANA string.

@@ -16,6 +16,8 @@ import {
 } from './stop-checks';
 import { findHubInWindow } from '../hub-cache';
 import { interpolateRoutePosition } from '../route-geocoder';
+import { lngToIANA, ianaToAbbr } from '../trip-timezone';
+import { getTimezoneShiftHours } from './timezone';
 
 function createInitialState(config: StopSuggestionConfig, segments: RouteSegment[]): SimState {
   const stopFrequency = config.stopFrequency || 'balanced';
@@ -36,10 +38,6 @@ function createInitialState(config: StopSuggestionConfig, segments: RouteSegment
 
 /**
  * Generate smart stop suggestions based on route, vehicle, and settings.
- *
- * @param segments - Route segments from OSRM
- * @param config - Vehicle and preference configuration (includes fullGeometry for hub-aware placement)
- * @param days - Optional trip day structure for multi-day trips
  */
 export function generateSmartStops(
   segments: RouteSegment[],
@@ -67,22 +65,25 @@ export function generateSmartStops(
   const totalRouteDistanceKm = segments.reduce((sum, seg) => sum + seg.distanceKm, 0);
   let cumulativeDistanceKm = 0;
 
+  // For round trips, the fullGeometry covers only the outbound leg.
+  // Return-leg positions must be mirrored back onto this geometry so
+  // hub name lookups resolve correctly (otherwise they fall off the end).
+  const outboundTotalKm = isRoundTrip ? totalRouteDistanceKm / 2 : totalRouteDistanceKm;
+  /** Map a cumulative-km position onto the outbound geometry, mirroring return-leg positions. */
+  const toGeometryKm = (km: number): number => {
+    if (isRoundTrip && km > outboundTotalKm) {
+      return Math.max(0, outboundTotalKm - (km - outboundTotalKm));
+    }
+    return km;
+  };
+
   // Build drivingDayStartMap keyed by FLAT processedSegment index (not _originalIndex).
-  //
-  // When splitLongSegments splits a 2300km segment into 4 sub-segments, all sub-segments
-  // share the same _originalIndex (e.g. 0). Days 2, 3, and 4 all have segmentIndices[0]=0,
-  // so keying by _originalIndex causes later days to overwrite earlier ones — only the
-  // last day's clock reset fires. Flat index is unique per sub-segment, so every
-  // driving-day boundary gets its own reset and the simulation clock stays correct.
-  //
-  // afterSegmentIndex in generated stops still uses segment._originalIndex (segOrigIdx)
-  // so trip-timeline.ts (which iterates original segments) can match stops to segments.
+  // Flat index is unique per sub-segment, so every driving-day boundary gets its own
+  // reset and the simulation clock stays correct.
+  // afterSegmentIndex in generated stops uses segment._originalIndex (segOrigIdx)
+  // so trip-timeline.ts can match stops to segments.
   type SimSegment = RouteSegment & {
     _originalIndex: number;
-    // Populated by splitLongSegments when a segment was split into sub-parts.
-    // Sub-segments inherit their parent's destination timezoneAbbr — which is
-    // wrong for sub-segments covering earlier parts of the route. We use this
-    // flag to skip applyTimezoneShift for split sub-segments.
     _transitPart?: { index: number; total: number };
   };
   let simulationSegments: SimSegment[];
@@ -153,15 +154,24 @@ export function generateSmartStops(
     }
 
     // Apply timezone shift BEFORE fuel/rest/meal checks so stops are stamped in the
-    // correct local time (Bug B fix). Example: Winnipeg (CDT) → Regina (CST) segment
+    // correct local time. Example: Winnipeg (CDT) → Regina (CST) segment
     // should stamp the fuel stop at 2:13 PM CST, not 3:13 PM CDT.
     //
-    // Guard: split sub-segments (_transitPart is set) inherit their parent's DESTINATION
-    // timezoneAbbr. A Winnipeg→Vancouver mega-segment split into 4 parts gives ALL parts
-    // timezoneAbbr='PDT' — applying PDT on Day 1 (still in Manitoba, CDT) shifts the clock
-    // back 2h and corrupts all stop times. Only apply the shift for non-split segments
-    // where timezoneAbbr accurately reflects that segment's own destination timezone.
-    if (!segment._transitPart) {
+    // Transit sub-segments (_transitPart) inherit their parent's DESTINATION
+    // timezoneAbbr — which is WRONG for intermediate sub-segments. A Winnipeg→Vancouver
+    // mega-segment split into 4 parts gives ALL parts timezoneAbbr='PDT'. We can't use
+    // segment.weather.timezoneAbbr for these. Instead, derive the correct timezone from
+    // the sub-segment's FROM longitude (which IS accurate — interpolated on the real road).
+    if (segment._transitPart) {
+      // Longitude-based timezone for transit sub-segments
+      const derivedAbbr = ianaToAbbr(lngToIANA(segment.from.lng)) ?? state.currentTzAbbr;
+      if (derivedAbbr && derivedAbbr !== state.currentTzAbbr) {
+        const shiftMs = getTimezoneShiftHours(state.currentTzAbbr, derivedAbbr) * 3600000;
+        state.currentTime = new Date(state.currentTime.getTime() + shiftMs);
+        state.lastBreakTime = new Date(state.lastBreakTime.getTime() + shiftMs);
+        state.currentTzAbbr = derivedAbbr;
+      }
+    } else {
       applyTimezoneShift(state, segment);
     }
 
@@ -188,7 +198,7 @@ export function generateSmartStops(
     const segmentStartKm = cumulativeDistanceKm - segment.distanceKm;
     let hubName: string | undefined;
     if (fullGeometry && fullGeometry.length > 1) {
-      const pos = interpolateRoutePosition(fullGeometry, segmentStartKm + segment.distanceKm * 0.5);
+      const pos = interpolateRoutePosition(fullGeometry, toGeometryKm(segmentStartKm + segment.distanceKm * 0.5));
       if (pos) {
         const hub = findHubInWindow(pos.lat, pos.lng);
         if (hub) {
@@ -241,7 +251,7 @@ export function generateSmartStops(
     // Build a resolver so each stop gets its own hub name from its actual route position.
     const enRouteHubResolver = (fullGeometry && fullGeometry.length > 1)
       ? (kmIntoSegment: number): string | undefined => {
-          const pos = interpolateRoutePosition(fullGeometry!, segmentStartKm + kmIntoSegment);
+          const pos = interpolateRoutePosition(fullGeometry!, toGeometryKm(segmentStartKm + kmIntoSegment));
           if (!pos) return undefined;
           const hub = findHubInWindow(pos.lat, pos.lng);
           return hub?.name;

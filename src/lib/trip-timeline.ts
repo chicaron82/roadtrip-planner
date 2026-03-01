@@ -333,14 +333,32 @@ export function buildTimedTimeline(
     const newDay = dayStartMap.get(i);
     if (newDay) {
       currentDayNumber = newDay.dayNumber;
+
+      // Emit a departure event for transit days 2+ so the timeline shows
+      // "🚗 Depart [City]" at each new driving day's start.
+      events.push({
+        id: `departure-day${newDay.dayNumber}`,
+        type: 'departure',
+        arrivalTime: new Date(currentTime),
+        departureTime: new Date(currentTime),
+        durationMinutes: 0,
+        distanceFromOriginKm: cumulativeKm,
+        locationHint: seg.from.name,
+        stops: [],
+        timezone: activeTimezone,
+      });
     }
 
     // Update the active timezone when this segment crosses a boundary.
-    // Guard: split sub-segments (_transitPart) inherit the parent's DESTINATION
-    // timezone — applying it on the first sub-segment shifts the clock too early.
-    // Only apply for non-split segments where timezone accurately reflects
-    // that segment's own destination timezone.
-    if (seg.timezoneCrossing && seg.timezone && !seg._transitPart) {
+    // Transit sub-segments (_transitPart) inherit the parent's DESTINATION
+    // timezone which is wrong for intermediate parts. Derive from the
+    // sub-segment's FROM longitude instead (accurately interpolated on route).
+    if (seg._transitPart) {
+      const derivedTz = lngToIANA(seg.from.lng);
+      if (derivedTz !== activeTimezone) {
+        activeTimezone = derivedTz;
+      }
+    } else if (seg.timezoneCrossing && seg.timezone) {
       activeTimezone = normalizeToIANA(seg.timezone);
     }
 
@@ -533,8 +551,10 @@ export function buildTimedTimeline(
     }
 
     // ── Post-segment boundary stops ───────────────────────────────────────
+    // On the final segment, suppress fuel/rest/meal stops that would appear
+    // after the Arrive event — you're home, no need to refuel.
     boundaryAfter
-      .filter(s => !emittedIds.has(s.id))
+      .filter(s => !emittedIds.has(s.id) && !(isLastSegment && s.type !== 'overnight'))
       .sort((a, b) => {
         if (useDayFiltering) {
           // Day mode: sort by estimated time (chronological), type as tiebreaker.
