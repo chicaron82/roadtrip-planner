@@ -25,8 +25,8 @@ function makePOI(overrides: Partial<POISuggestion> = {}): POISuggestion {
 
 function makeSegment(stopType: RouteSegment['stopType'] = 'break'): RouteSegment {
   return {
-    from: { name: 'A', lat: 49.0, lng: -97.0 },
-    to:   { name: 'B', lat: 49.5, lng: -97.0 },
+    from: { id: 'a', type: 'origin' as const, name: 'A', lat: 49.0, lng: -97.0 },
+    to:   { id: 'b', type: 'destination' as const, name: 'B', lat: 49.5, lng: -97.0 },
     distanceKm: 55,
     durationMinutes: 45,
     stopType,

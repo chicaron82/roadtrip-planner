@@ -55,6 +55,7 @@ interface PlanningStepContentProps {
   onUpdateOvernight: (day: number, o: OvernightStop) => void;
   // Step 3 — POI
   poiSuggestions: POISuggestion[];
+  poiInference?: POISuggestion[];
   isLoadingPOIs: boolean;
   poiPartialResults: boolean;
   onAddPOI: (poiId: string, segmentIndex?: number) => void;
@@ -103,7 +104,7 @@ export function PlanningStepContent(p: PlanningStepContentProps) {
       activeJournal={p.activeJournal} activeChallenge={p.activeChallenge}
       showOvernightPrompt={p.showOvernightPrompt}
       suggestedOvernightStop={p.suggestedOvernightStop}
-      poiSuggestions={p.poiSuggestions} isLoadingPOIs={p.isLoadingPOIs}
+      poiSuggestions={p.poiSuggestions} poiInference={p.poiInference} isLoadingPOIs={p.isLoadingPOIs}
       poiPartialResults={p.poiPartialResults}
       history={p.history} shareUrl={p.shareUrl}
       onOpenGoogleMaps={p.onOpenGoogleMaps}
