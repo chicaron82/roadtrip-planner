@@ -130,16 +130,80 @@ export function getEnRouteFuelStops(
   const stops: SuggestedStop[] = [];
   let lastFillKm = 0;
 
-  const kmUntilFirstStop = Math.max(0, safeRangeKm - distanceAlreadyDriven);
-  if (kmUntilFirstStop >= segment.distanceKm) return { stops, lastFillKm };
-
   const HUB_SNAP_WINDOW_KM = 80;
   const HUB_SNAP_STEP_KM = 20;
 
   const COMFORT_DRIVING_HOURS = 4;
-  const COMFORT_HUB_SCAN_WINDOW_KM = 50;
   const avgSpeedKmH = segment.distanceKm / (segment.durationMinutes / 60);
   const comfortKm = COMFORT_DRIVING_HOURS * avgSpeedKmH;
+
+  const kmUntilFirstStop = Math.max(0, safeRangeKm - distanceAlreadyDriven);
+  // Comfort stop is warranted when the segment takes > 4h of driving, regardless of fuel range.
+  const comfortStopWarranted = segment.durationMinutes > COMFORT_DRIVING_HOURS * 60 && comfortKm < segment.distanceKm;
+
+  // If the tank covers the full segment AND the drive is short enough, no stops needed.
+  if (kmUntilFirstStop >= segment.distanceKm && !comfortStopWarranted) {
+    return { stops, lastFillKm };
+  }
+
+  // When the tank covers the distance but the leg is too long for comfort (> 4h),
+  // suggest a single mid-leg top-up + stretch stop. No fuel urgency — just good practice.
+  if (kmUntilFirstStop >= segment.distanceKm) {
+    let snappedKm = comfortKm;
+    let stopHubName: string | undefined;
+
+    if (hubResolver) {
+      stopHubName = hubResolver(comfortKm);
+      if (!stopHubName) {
+        for (let lookback = HUB_SNAP_STEP_KM; lookback <= HUB_SNAP_WINDOW_KM; lookback += HUB_SNAP_STEP_KM) {
+          const candidateKm = comfortKm - lookback;
+          if (candidateKm <= 0) break;
+          const candidateHub = hubResolver(candidateKm);
+          if (candidateHub) {
+            snappedKm = candidateKm;
+            stopHubName = candidateHub;
+            break;
+          }
+        }
+      }
+    }
+
+    const minutesMark = (snappedKm / segment.distanceKm) * segment.durationMinutes;
+    const stopTime = new Date(segmentStartTime.getTime() + minutesMark * 60 * 1000);
+    const hour = stopTime.getHours();
+    const isLunchWindow = hour >= 11 && hour < 13;
+    const isDinnerWindow = hour >= 17 && hour < 19;
+    const comboMeal = isLunchWindow || isDinnerWindow;
+    const stopDuration = comboMeal ? 45 : 15;
+
+    const locationDesc = stopHubName ? `in ${stopHubName}` : `around km ${Math.round(snappedKm)}`;
+    const mealNote = comboMeal
+      ? (isLunchWindow ? ' Great time to grab lunch too.' : ' Good time to grab dinner too.')
+      : '';
+
+    stops.push({
+      id: `fuel-comfort-${index}`,
+      type: 'fuel',
+      reason: `Long drive (${(segment.durationMinutes / 60).toFixed(1)}h) — good time to top up and stretch ${locationDesc}.${mealNote}`,
+      afterSegmentIndex: index - 1 + 0.01,
+      estimatedTime: stopTime,
+      duration: stopDuration,
+      priority: 'recommended',
+      details: {
+        fuelNeeded: config.tankSizeLitres * 0.5,
+        fuelCost: config.tankSizeLitres * 0.5 * config.gasPrice,
+        fillType: 'topup',
+        comboMeal,
+      },
+      hubName: stopHubName,
+      dayNumber: state.currentDayNumber,
+      accepted: true,
+    });
+
+    return { stops, lastFillKm };
+  }
+
+  const COMFORT_HUB_SCAN_WINDOW_KM = 50;
 
   let proactiveHubKm: number | undefined;
   let proactiveHubName: string | undefined;
