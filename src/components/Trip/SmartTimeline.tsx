@@ -224,7 +224,7 @@ function StopCard({
             <span className="text-muted-foreground/60">Depart</span>
             <span className="font-semibold text-foreground/70">{formatTime(event.departureTime, event.timezone)}</span>
           </div>
-          {/* Nearby POIs */
+          {/* Nearby POIs */}
           {nearbyPOIs.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1.5">
               {nearbyPOIs.map(name => (

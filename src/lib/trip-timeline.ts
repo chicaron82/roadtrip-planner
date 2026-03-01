@@ -323,7 +323,6 @@ export function buildTimedTimeline(
       currentTime = dep;
     }
 
-    const seg = segments[i];
     const segKm = seg.distanceKm ?? 0;
     const segMin = seg.durationMinutes ?? 0;
 
