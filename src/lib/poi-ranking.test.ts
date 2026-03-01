@@ -30,6 +30,8 @@ function makeSegment(stopType: RouteSegment['stopType'] = 'break'): RouteSegment
     distanceKm: 55,
     durationMinutes: 45,
     stopType,
+    fuelNeededLitres: 0,
+    fuelCost: 0,
   };
 }
 
