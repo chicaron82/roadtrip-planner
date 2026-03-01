@@ -72,9 +72,20 @@ export function finalizeTripDay(
   day.totals.driveTimeMinutes = day.segments.reduce((sum, s) => sum + s.durationMinutes, 0);
   day.totals.stopTimeMinutes = day.segments.reduce((sum, s) => sum + (s.stopDuration || 0), 0);
 
-  // Get departure time - prefer day-level (set by split-by-days), fall back to first segment
+  // Get departure time. Priority:
+  //   1. day.totals.departureTime from split-by-days (smart departure hour)
+  //   2. firstSegment.departureTime (from route calculation)
+  //   3. midnight placeholder from createTripDay (never correct — means the
+  //      departure time was never computed)
+  //
+  // The midnight test catches the createTripDay placeholder: it's always at
+  // 00:00:00 which causes stop times in generateSmartStops to fire before
+  // the visible departure hour (e.g. fuel at 6:45 AM on a 10:00 AM departure).
   const firstSegment = day.segments[0];
-  if (firstSegment?.departureTime && !day.totals.departureTime) {
+  const currentDep = day.totals.departureTime;
+  const isMidnightPlaceholder = currentDep && new Date(currentDep).getHours() === 0
+    && new Date(currentDep).getMinutes() === 0 && new Date(currentDep).getSeconds() === 0;
+  if (isMidnightPlaceholder && firstSegment?.departureTime) {
     day.totals.departureTime = firstSegment.departureTime;
   }
 
@@ -101,6 +112,12 @@ export function finalizeTripDay(
   }
 
   // Calculate budget
+  // TODO: Refactor — dual fuel model disconnect.
+  // gasUsed here sums raw segment.fuelCost (mathematical L/km × price).
+  // Stop suggestions display human fill amounts ($74 full fill, $41 top-up) which differ.
+  // Both numbers appear in the same itinerary output, causing a ~$57 discrepancy on an
+  // 8-day Winnipeg→Vancouver trip. Decision needed: reconcile to one model.
+  // See: task.md for cleanup ticket.
   const gasUsed = day.segments.reduce((sum, s) => sum + s.fuelCost, 0);
   const hotelCost = day.overnight?.cost || 0;
   const mealsToday = estimateMealsForDay(day, settings);

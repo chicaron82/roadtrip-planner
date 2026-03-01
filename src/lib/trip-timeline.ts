@@ -285,28 +285,76 @@ export function buildTimedTimeline(
     currentTime = driveEnd;
   };
 
+  // ── Dual-path iteration ──────────────────────────────────────────────────
+  //
+  // When tripDays provides per-day sub-segments (from splitLongSegments),
+  // iterate those instead of original segments. Each sub-segment gets its own
+  // drive connector and stops are classified by dayNumber instead of
+  // afterSegmentIndex — fixing the single-OSRM-segment multi-day case where
+  // all sub-segments share _originalIndex 0.
+  //
+  // Without tripDays, fall back to original segments (simple day trips).
+  type TimelineSegment = RouteSegment & {
+    _originalIndex: number;
+    _transitPart?: { index: number; total: number };
+  };
+  let iterSegments: TimelineSegment[];
+  let useDayFiltering = false;
+  const dayStartMap = new Map<number, TripDay>();
+  let currentDayNumber = 1;
+
+  if (tripDays) {
+    const drivingDays = tripDays.filter(d => d.segmentIndices.length > 0);
+    // Only use day-filtering when tripDays contain actual sub-segments.
+    // Some callers provide tripDays for overnight-advancement only (empty segments[]).
+    const hasPopulatedSegments = drivingDays.some(d => d.segments.length > 0);
+    if (drivingDays.length > 0 && hasPopulatedSegments) {
+      iterSegments = drivingDays.flatMap(d => d.segments as TimelineSegment[]);
+      useDayFiltering = true;
+      currentDayNumber = drivingDays[0].dayNumber;
+      let flatIdx = 0;
+      drivingDays.forEach((day, dayI) => {
+        if (dayI > 0) dayStartMap.set(flatIdx, day);
+        flatIdx += day.segments.length;
+      });
+    } else {
+      iterSegments = segments.map((s, idx) => ({ ...s, _originalIndex: idx }));
+    }
+  } else {
+    iterSegments = segments.map((s, idx) => ({ ...s, _originalIndex: idx }));
+  }
+
   // ── Segment loop ───────────────────────────────────────────────────────────
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i];
+  let prevOrigIdx = -1;
+  for (let i = 0; i < iterSegments.length; i++) {
+    const seg = iterSegments[i];
+
+    // ── Day boundary handling ─────────────────────────────────────────────
+    const newDay = dayStartMap.get(i);
+    if (newDay) {
+      currentDayNumber = newDay.dayNumber;
+    }
 
     // Update the active timezone when this segment crosses a boundary.
-    // segment.timezone is either a TZ abbreviation ("EST") from the weather API
-    // or an IANA string ("America/Toronto") from the longitude heuristic.
-    // All subsequent events (stops, drive, arrival) will display in this zone.
-    if (seg.timezoneCrossing && seg.timezone) {
+    // Guard: split sub-segments (_transitPart) inherit the parent's DESTINATION
+    // timezone — applying it on the first sub-segment shifts the clock too early.
+    // Only apply for non-split segments where timezone accurately reflects
+    // that segment's own destination timezone.
+    if (seg.timezoneCrossing && seg.timezone && !seg._transitPart) {
       activeTimezone = normalizeToIANA(seg.timezone);
     }
+
     // ── Day-trip destination dwell ──────────────────────────────────────────
-    // At the round-trip midpoint (first return segment), inject a "Time at
-    // [Destination]" stop before driving back. This only fires when the user
-    // has set dayTripDurationHours > 0 and the trip fits in a single day.
+    // At the round-trip midpoint, inject a "Time at [Destination]" stop.
+    // Detect via _originalIndex crossing rather than loop index (handles sub-segments).
+    const origIdx = useDayFiltering ? (seg._originalIndex ?? i) : i;
     if (
       roundTripMidpoint !== undefined &&
       destinationStayMinutes &&
       destinationStayMinutes > 0 &&
-      i === roundTripMidpoint
+      origIdx >= roundTripMidpoint && prevOrigIdx < roundTripMidpoint && prevOrigIdx >= 0
     ) {
-      const destName = segments[i - 1]?.to.name ?? 'Destination';
+      const destName = segments[roundTripMidpoint - 1]?.to.name ?? 'Destination';
       const arr = new Date(currentTime);
       const dep = new Date(arr.getTime() + destinationStayMinutes * 60 * 1000);
       events.push({
@@ -322,79 +370,86 @@ export function buildTimedTimeline(
       });
       currentTime = dep;
     }
+    prevOrigIdx = origIdx;
 
     const segKm = seg.distanceKm ?? 0;
     const segMin = seg.durationMinutes ?? 0;
 
-    // Compute the time window for this segment's pure driving time.
-    // This is BEFORE any stops — the window in which a stop's estimatedTime
-    // would fall if it happens during the drive.
+    // Compute the time window for this sub-segment's pure driving time.
     const driveStartTime = new Date(currentTime);
     const driveEndTime = new Date(currentTime.getTime() + segMin * 60 * 1000);
 
     // ── Classify all non-emitted suggestions for this segment ────────────
     //
-    // "Boundary" stops: afterSegmentIndex === i-1 (before) or i (after).
-    //   For i=0, boundary-before = afterSegmentIndex -1.
-    //
-    // "Mid-drive" stops: estimatedTime falls strictly within the drive window,
-    //   regardless of afterSegmentIndex. This is the key fix for single-segment
-    //   routes where en-route fuel and meals share the same afterSegmentIndex.
-    //
-    // A stop can only be in ONE bucket. Mid-drive takes priority.
+    // Two modes:
+    //   Day-filtering (useDayFiltering): filter by dayNumber, classify by time.
+    //     Stops whose estimatedTime falls after this sub-segment's window are
+    //     deferred to a later sub-segment (same day, multi-segment days).
+    //   Legacy (no tripDays): classify by afterSegmentIndex + time window.
 
     const boundaryBefore: SuggestedStop[] = [];
     const midDrive: SuggestedStop[] = [];
     const boundaryAfter: SuggestedStop[] = [];
 
+    // Is this the last sub-segment for the current day?
+    // Used to catch remaining day stops that didn't match any earlier sub-segment.
+    const isLastDaySegment = (i === iterSegments.length - 1) || dayStartMap.has(i + 1);
+
     for (const s of suggestions) {
       if (s.dismissed || emittedIds.has(s.id)) continue;
 
-      // Check if this stop belongs to the current segment's time window strictly based on time
+      // Check if this stop belongs to the current segment's time window
       const hasMidDriveTime = s.estimatedTime &&
-        s.estimatedTime.getTime() > driveStartTime.getTime() + 60_000 && // >1 min after start
-        s.estimatedTime.getTime() < driveEndTime.getTime() - 60_000;     // >1 min before end
+        s.estimatedTime.getTime() > driveStartTime.getTime() + 60_000 &&
+        s.estimatedTime.getTime() < driveEndTime.getTime() - 60_000;
 
-      // Robust check: explicitly pull in ALL mid-drive stops (fuel, rest, meal)
-      // that were generated for this segment, even if their `estimatedTime` drifted slightly
-      // due to timezone or stop accumulations.
-      // `generateSmartStops` tags them with `afterSegmentIndex: i - 1` when they belong *inside* segment `i`
-      // Note: en-route fuel stops use fractional values (e.g. 0.01, 0.02) to avoid false
-      // consolidation, so we floor before comparing.
-      const isMidDriveForThisSegment =
-        (s.type === 'fuel' || s.type === 'rest' || s.type === 'meal') && 
-        Math.floor(s.afterSegmentIndex) === i - 1;
+      if (useDayFiltering) {
+        // Day-based filtering: only consider stops for the current day.
+        if (s.dayNumber !== undefined && s.dayNumber !== currentDayNumber) continue;
 
-      if (hasMidDriveTime || isMidDriveForThisSegment) {
-        midDrive.push(s);
-        continue;
-      }
+        // Defer stops whose time falls after this sub-segment's window to a
+        // later sub-segment in the same day. On the last sub-segment of the day,
+        // accept everything remaining so no stops are orphaned.
+        const isAfterThisSegment = s.estimatedTime &&
+          s.estimatedTime.getTime() > driveEndTime.getTime() + 60_000;
+        if (isAfterThisSegment && !isLastDaySegment) continue;
 
-      // Boundary classification by afterSegmentIndex (floor for fractional en-route values)
-      const flooredIdx = Math.floor(s.afterSegmentIndex);
-      if (flooredIdx === i - 1) {
-        // "Before this segment" — note: en-route fuel is now handled fully by midDrive above
-        boundaryBefore.push(s);
-      } else if (flooredIdx === i) {
-        // En-route fuel stops for the NEXT segment use afterSegmentIndex = index-1,
-        // which equals `i` here. They belong as midDrive for segment i+1, not as
-        // a boundary-after for segment i. Skip them — the next iteration will
-        // catch them via isMidDriveForThisSegment.
-        const isEnRouteFuel = s.id.includes('enroute');
-        if (isEnRouteFuel && i + 1 < segments.length) {
-          // Deferred to next segment's midDrive classification
+        // Overnight is always boundary-after (end of day). Everything else
+        // with a valid mid-drive time is mid-drive.
+        if (s.type !== 'overnight' && hasMidDriveTime) {
+          midDrive.push(s);
         } else {
           boundaryAfter.push(s);
+        }
+      } else {
+        // Original afterSegmentIndex-based classification (simple day trips)
+        const isMidDriveForThisSegment =
+          (s.type === 'fuel' || s.type === 'rest' || s.type === 'meal') &&
+          Math.floor(s.afterSegmentIndex) === i - 1;
+
+        if (hasMidDriveTime || isMidDriveForThisSegment) {
+          midDrive.push(s);
+          continue;
+        }
+
+        const flooredIdx = Math.floor(s.afterSegmentIndex);
+        if (flooredIdx === i - 1) {
+          boundaryBefore.push(s);
+        } else if (flooredIdx === i) {
+          const isEnRouteFuel = s.id.includes('enroute');
+          if (isEnRouteFuel && i + 1 < iterSegments.length) {
+            // Deferred to next segment's midDrive classification
+          } else {
+            boundaryAfter.push(s);
+          }
         }
       }
     }
 
-    // Sort mid-drive by estimated time (fallback to 0 if undefined to push them to start or let failsafe distribute them)
+    // Sort mid-drive by estimated time
     midDrive.sort((a, b) => (a.estimatedTime?.getTime() ?? 0) - (b.estimatedTime?.getTime() ?? 0));
 
     // ── Pre-segment boundary stops ────────────────────────────────────────
-    // Skip redundant "fill up before leaving" fuel when we have en-route
-    // fuel stops that handle mid-drive refueling for this segment.
     const hasEnRouteForThisSeg = midDrive.some(s => s.type === 'fuel');
     const filteredBoundaryBefore = hasEnRouteForThisSeg
       ? boundaryBefore.filter(s => s.type !== 'fuel')
@@ -411,15 +466,12 @@ export function buildTimedTimeline(
 
       for (let m = 0; m < midDrive.length; m++) {
         const stop = midDrive[m];
-        // Proportion of the segment where this stop falls.
-        // Failsafe: Time drift across multiday single segments can cause stopTimeMs to blow past bounds or NaN.
-        // Rather than clumping them at the boundary, we geometrically distribute them evenly.
         const stopTimeMs = stop.estimatedTime ? stop.estimatedTime.getTime() - driveStartTime.getTime() : NaN;
         let fraction = stopTimeMs / (segMin * 60 * 1000);
         if (isNaN(fraction) || fraction <= 0.05 || fraction >= 0.95) {
           fraction = (m + 1) / (midDrive.length + 1);
         }
-        
+
         const stopKm = segKm * fraction;
         const stopMin = segMin * fraction;
 
@@ -448,7 +500,7 @@ export function buildTimedTimeline(
     }
 
     // ── Waypoint / arrival ────────────────────────────────────────────────
-    const isLastSegment = i === segments.length - 1;
+    const isLastSegment = i === iterSegments.length - 1;
     if (isLastSegment) {
       events.push({
         id: 'arrival',
@@ -462,8 +514,10 @@ export function buildTimedTimeline(
         timezone: activeTimezone,
       });
     } else {
-      const nextFrom = segments[i + 1]?.from;
-      if (nextFrom && nextFrom.name !== seg.to.name) {
+      // Transit splits generate sub-segments with matching from/to names,
+      // so the name check naturally suppresses false waypoints between them.
+      const nextSeg = iterSegments[i + 1];
+      if (nextSeg && nextSeg.from?.name !== seg.to.name) {
         events.push({
           id: `waypoint-${i}`,
           type: 'waypoint',
@@ -482,8 +536,14 @@ export function buildTimedTimeline(
     boundaryAfter
       .filter(s => !emittedIds.has(s.id))
       .sort((a, b) => {
-        // Fuel first, then meals, then overnight last
-        const order = { fuel: 0, meal: 1, rest: 2, overnight: 3 };
+        if (useDayFiltering) {
+          // Day mode: sort by estimated time (chronological), type as tiebreaker.
+          // Ensures fuel/meal fire before overnight at end of day.
+          const timeA = a.estimatedTime?.getTime() ?? 0;
+          const timeB = b.estimatedTime?.getTime() ?? 0;
+          if (timeA !== timeB) return timeA - timeB;
+        }
+        const order: Record<string, number> = { fuel: 0, meal: 1, rest: 2, overnight: 3 };
         return (order[a.type] ?? 2) - (order[b.type] ?? 2);
       })
       .forEach(emitStop);

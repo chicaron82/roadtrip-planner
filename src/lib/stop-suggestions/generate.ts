@@ -67,16 +67,37 @@ export function generateSmartStops(
   const totalRouteDistanceKm = segments.reduce((sum, seg) => sum + seg.distanceKm, 0);
   let cumulativeDistanceKm = 0;
 
-  // Build map: first-segment-index → TripDay, for non-first driving days only.
-  // Used to reset simulation state at multi-day boundaries (e.g., after a free day).
+  // Build drivingDayStartMap keyed by FLAT processedSegment index (not _originalIndex).
+  //
+  // When splitLongSegments splits a 2300km segment into 4 sub-segments, all sub-segments
+  // share the same _originalIndex (e.g. 0). Days 2, 3, and 4 all have segmentIndices[0]=0,
+  // so keying by _originalIndex causes later days to overwrite earlier ones — only the
+  // last day's clock reset fires. Flat index is unique per sub-segment, so every
+  // driving-day boundary gets its own reset and the simulation clock stays correct.
+  //
+  // afterSegmentIndex in generated stops still uses segment._originalIndex (segOrigIdx)
+  // so trip-timeline.ts (which iterates original segments) can match stops to segments.
+  type SimSegment = RouteSegment & {
+    _originalIndex: number;
+    // Populated by splitLongSegments when a segment was split into sub-parts.
+    // Sub-segments inherit their parent's destination timezoneAbbr — which is
+    // wrong for sub-segments covering earlier parts of the route. We use this
+    // flag to skip applyTimezoneShift for split sub-segments.
+    _transitPart?: { index: number; total: number };
+  };
+  let simulationSegments: SimSegment[];
   const drivingDayStartMap = new Map<number, TripDay>();
+
   if (days) {
     const drivingDays = days.filter(d => d.segmentIndices.length > 0);
-    drivingDays.slice(1).forEach(day => {
-      if (day.segmentIndices.length > 0) {
-        drivingDayStartMap.set(day.segmentIndices[0], day);
-      }
+    simulationSegments = drivingDays.flatMap(d => d.segments as SimSegment[]);
+    let flatIdx = 0;
+    drivingDays.forEach((day, i) => {
+      if (i > 0) drivingDayStartMap.set(flatIdx, day);
+      flatIdx += day.segments.length;
     });
+  } else {
+    simulationSegments = segments.map((s, i) => ({ ...s, _originalIndex: i }));
   }
 
   // Days where the user has already filled in hotel/overnight info.
@@ -86,7 +107,12 @@ export function generateSmartStops(
     days?.filter(d => d.overnight != null).map(d => d.dayNumber) ?? []
   );
 
-  segments.forEach((segment, index) => {
+  simulationSegments.forEach((segment, index) => {
+    // segOrigIdx: index into the original `segments` array.
+    // Used for afterSegmentIndex so trip-timeline.ts can match stops to route segments.
+    // `index` (flat processedSegment position) is used only for drivingDayStartMap lookups.
+    const segOrigIdx = segment._originalIndex;
+
     // When crossing a day boundary, synthesize an overnight stop from TripDay
     // overnight data if the auto-generator would have been suppressed by daysWithHotel.
     // This covers round-trip destinations where the outbound leg fits within
@@ -103,7 +129,7 @@ export function generateSmartStops(
           id: `overnight-midpoint-day${prevDrivingDay.dayNumber}`,
           type: 'overnight',
           reason: `Overnight at ${overnight.location.name}. Check in, rest up, and continue tomorrow.`,
-          afterSegmentIndex: Math.max(0, index - 1),
+          afterSegmentIndex: Math.max(0, segOrigIdx - 1),
           estimatedTime: new Date(state.currentTime),
           duration: 720,
           priority: 'required',
@@ -118,8 +144,26 @@ export function generateSmartStops(
     handleDayBoundaryReset(state, index, drivingDayStartMap, config);
 
     // Arrival window check (pre-segment: would arriving too late?)
+    // Note: checkArrivalWindow handles timezone shift internally via getTimezoneShiftHours,
+    // so it correctly accounts for the crossing even before applyTimezoneShift fires below.
     const arrivalSug = checkArrivalWindow(state, segment, index, config, daysWithHotel);
-    if (arrivalSug) suggestions.push(arrivalSug);
+    if (arrivalSug) {
+      arrivalSug.afterSegmentIndex += (segOrigIdx - index);
+      suggestions.push(arrivalSug);
+    }
+
+    // Apply timezone shift BEFORE fuel/rest/meal checks so stops are stamped in the
+    // correct local time (Bug B fix). Example: Winnipeg (CDT) → Regina (CST) segment
+    // should stamp the fuel stop at 2:13 PM CST, not 3:13 PM CDT.
+    //
+    // Guard: split sub-segments (_transitPart is set) inherit their parent's DESTINATION
+    // timezoneAbbr. A Winnipeg→Vancouver mega-segment split into 4 parts gives ALL parts
+    // timezoneAbbr='PDT' — applying PDT on Day 1 (still in Manitoba, CDT) shifts the clock
+    // back 2h and corrupts all stop times. Only apply the shift for non-split segments
+    // where timezoneAbbr accurately reflects that segment's own destination timezone.
+    if (!segment._transitPart) {
+      applyTimezoneShift(state, segment);
+    }
 
     // Accumulate distance/hours for fuel check
     state.distanceSinceLastFill += segment.distanceKm;
@@ -129,7 +173,7 @@ export function generateSmartStops(
     // Destination grace period: suppress fuel stops within 50km of final destination.
     // This prevents the "destination panic" duplicate-fill bug caused by multiple
     // short segments near the destination each triggering their own fuel check.
-    const isFinalSegment = index === segments.length - 1;
+    const isFinalSegment = segOrigIdx === segments.length - 1 && index === simulationSegments.length - 1;
     const remainingDistanceKm = totalRouteDistanceKm - cumulativeDistanceKm;
     const inDestinationGraceZone = remainingDistanceKm < GRACE_ZONE_KM;
 
@@ -138,7 +182,7 @@ export function generateSmartStops(
     // If yes: label the stop with the hub name ("Fuel up in Fargo, ND").
     // If no: fall through to standard tank-math behavior.
     //
-    // NOTE: cumulativeDistanceKm already includes this segment's distance (line 127).
+    // NOTE: cumulativeDistanceKm already includes this segment's distance.
     // For per-stop hub lookups inside getEnRouteFuelStops, we pass segmentStartKm
     // so each stop can interpolate its own position on the full route geometry.
     const segmentStartKm = cumulativeDistanceKm - segment.distanceKm;
@@ -157,11 +201,17 @@ export function generateSmartStops(
     const { suggestion: fuelSug, stopTimeAddedMs } = checkFuelStop(
       state, segment, index, config, safeRangeKm, inDestinationGraceZone, hubName
     );
-    if (fuelSug) suggestions.push(fuelSug);
+    if (fuelSug) {
+      fuelSug.afterSegmentIndex += (segOrigIdx - index);
+      suggestions.push(fuelSug);
+    }
 
     // Rest break check
     const restSug = checkRestBreak(state, segment, index, config, stopTimeAddedMs);
-    if (restSug) suggestions.push(restSug);
+    if (restSug) {
+      restSug.afterSegmentIndex += (segOrigIdx - index);
+      suggestions.push(restSug);
+    }
 
     // Save current time for meal/en-route calculations (after stop delays)
     const segmentStartTime = new Date(state.currentTime);
@@ -174,6 +224,7 @@ export function generateSmartStops(
     // This prevents suggesting a meal in "Unorganized Kenora District" when they just
     // filled up at Dryden and can eat there instead.
     if (mealSug) {
+      mealSug.afterSegmentIndex += (segOrigIdx - index);
       const mealTime = mealSug.estimatedTime?.getTime() ?? 0;
       const COMBO_WINDOW_MS = 2 * 60 * 60 * 1000; // 2 hours
       const hasRecentFuelStop = suggestions.some(s =>
@@ -202,6 +253,7 @@ export function generateSmartStops(
       Math.max(0, distBeforeSegment), enRouteHubResolver,
       state.comfortRefuelHours
     );
+    enRouteStops.forEach(s => { s.afterSegmentIndex += (segOrigIdx - index); });
     suggestions.push(...enRouteStops);
 
     // Drive the segment
@@ -225,10 +277,10 @@ export function generateSmartStops(
     const overnightSug = checkOvernightStop(
       state, index, config, daysWithHotel, arrivalTime, isFinalSegment
     );
-    if (overnightSug) suggestions.push(overnightSug);
-
-    // Timezone crossing adjustment
-    applyTimezoneShift(state, segment);
+    if (overnightSug) {
+      overnightSug.afterSegmentIndex += (segOrigIdx - index);
+      suggestions.push(overnightSug);
+    }
   });
 
   return consolidateStops(suggestions);
