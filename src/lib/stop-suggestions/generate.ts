@@ -243,6 +243,17 @@ export function generateSmartStops(
       : checkFuelStop(state, segment, index, config, safeRangeKm, inDestinationGraceZone, hubName);
     if (fuelSug) {
       fuelSug.afterSegmentIndex += (segOrigIdx - index);
+      // Attach geographic coordinates for map pin projection.
+      // inter-segment stops (index > 0) fire at segment.from — use exact coords.
+      // Segment-0 stops (no previous segment junction) interpolate from geometry.
+      fuelSug.distanceFromStart = segmentStartKm;
+      if (index > 0) {
+        fuelSug.lat = segment.from.lat;
+        fuelSug.lng = segment.from.lng;
+      } else if (fullGeometry && fullGeometry.length > 1) {
+        const pos = interpolateRoutePosition(fullGeometry, toGeometryKm(segmentStartKm));
+        if (pos) { fuelSug.lat = pos.lat; fuelSug.lng = pos.lng; }
+      }
       suggestions.push(fuelSug);
     }
 
@@ -288,10 +299,15 @@ export function generateSmartStops(
         }
       : undefined;
     const distBeforeSegment = (state.distanceSinceLastFill - segment.distanceKm);
+    const enRoutePositionResolver = (fullGeometry && fullGeometry.length > 1)
+      ? (kmIntoSegment: number) => {
+          return interpolateRoutePosition(fullGeometry!, toGeometryKm(segmentStartKm + kmIntoSegment)) ?? undefined;
+        }
+      : undefined;
     const { stops: enRouteStops, lastFillKm } = getEnRouteFuelStops(
       state, segment, index, config, safeRangeKm, segmentStartTime,
       Math.max(0, distBeforeSegment), enRouteHubResolver,
-      state.comfortRefuelHours
+      state.comfortRefuelHours, enRoutePositionResolver, segmentStartKm
     );
     enRouteStops.forEach(s => { s.afterSegmentIndex += (segOrigIdx - index); });
     suggestions.push(...enRouteStops);

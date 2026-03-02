@@ -186,6 +186,12 @@ function StopCard({
     const icons = label.includes('Lunch') || label.includes('Dinner') || label.includes('Meal')
       ? '⛽🍽' : label.includes('Break') ? '⛽☕' : '⛽🛑';
 
+    // Detect meal-absorbs-fuel consolidation: the consolidator silently pulls a
+    // downstream fuel stop into this meal stop (within a 5-hour window). Surface
+    // this so users aren't surprised when a fuel stop disappears from the itinerary.
+    const hasMealAbsorbedFuel = event.stops.some(s => s.type === 'fuel')
+      && event.stops.some(s => s.type === 'meal' || s.type === 'rest');
+
     return (
       <div className="flex items-start gap-3 py-1.5">
         {/* Node */}
@@ -204,6 +210,11 @@ function StopCard({
                 <MapPin className="h-2.5 w-2.5 shrink-0" />
                 <span className={hintClass}>{event.locationHint}</span>
               </div>
+              {hasMealAbsorbedFuel && (
+                <div className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.35)', fontStyle: 'italic' }}>
+                  ⛽ filling up while we eat
+                </div>
+              )}
             </div>
             {event.timeSavedMinutes !== undefined && event.timeSavedMinutes > 0 && (
               <span

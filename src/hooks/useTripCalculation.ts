@@ -3,10 +3,10 @@ import type { Location, Vehicle, TripSettings, TripSummary, RouteStrategy } from
 import { calculateRoute, fetchAllRouteStrategies } from '../lib/api';
 import {
   calculateTripCosts,
-  calculateStrategicFuelStops,
   calculateArrivalTimes,
   type StrategicFuelStop,
 } from '../lib/calculations';
+import type { SuggestedStop } from '../lib/stop-suggestion-types';
 import { snapFuelStopsToStations } from '../lib/fuel-stop-snapper';
 import { buildRoundTripSegments, checkAndSetOvernightPrompt, fireAndForgetOvernightSnap } from '../lib/trip-calculation-helpers';
 import {
@@ -20,6 +20,35 @@ import { addToHistory } from '../lib/storage';
 import { serializeStateToURL } from '../lib/url';
 import { validateTripInputs } from '../lib/validate-inputs';
 import { buildStrategyUpdate } from '../lib/trip-strategy-selector';
+
+/**
+ * Project simulation fuel stops onto the map pin shape.
+ * The simulation engine (generateSmartStops) is the single source of truth —
+ * these stops already carry lat/lng set in generate.ts so no separate geometry
+ * calculation is needed. OSM station snapping runs on top of these projected pins.
+ */
+function projectFuelStopsFromSimulation(stops: SuggestedStop[]): StrategicFuelStop[] {
+  return stops
+    .filter(s => s.type === 'fuel' && !s.dismissed && s.lat != null && s.lng != null)
+    .map(s => {
+      const t = s.estimatedTime;
+      const h = t.getHours();
+      const m = t.getMinutes();
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      const timeStr = `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
+      return {
+        lat: s.lat!,
+        lng: s.lng!,
+        distanceFromStart: s.distanceFromStart ?? 0,
+        estimatedTime: timeStr,
+        fuelRemaining: s.details.fillType === 'full' ? 15 : 35,
+        stationName: s.hubName,
+        cost: s.details.fuelCost,
+        isFullFill: s.details.fillType === 'full',
+      };
+    });
+}
 
 interface UseTripCalculationOptions {
   locations: Location[];
@@ -144,7 +173,9 @@ export function useTripCalculation({
       tripSummary.segments = segmentsWithTimes;
       tripSummary.roundTripMidpoint = roundTripMidpoint;
 
-      // Split trip into days with budget tracking
+      // Split trip into days with budget tracking.
+      // Note: fuelStops no longer passed here — the simulation (generateSmartStops below)
+      // is now the single source of truth for both the itinerary and the map pins.
       const tripDays = splitTripByDays(
         segmentsWithTimes,
         settings,
@@ -160,26 +191,27 @@ export function useTripCalculation({
         tripSummary.costBreakdown = calculateCostBreakdown(tripDays, settings.numTravelers);
         tripSummary.budgetStatus = getBudgetStatus(settings.budget, tripSummary.costBreakdown);
         tripSummary.budgetRemaining = settings.budget.total - tripSummary.costBreakdown.total;
+
+        // Ensure Summary perfectly matches the sum of its days
+        tripSummary.totalFuelCost = tripSummary.costBreakdown.fuel;
+        tripSummary.costPerPerson = settings.numTravelers > 0
+          ? tripSummary.totalFuelCost / settings.numTravelers
+          : tripSummary.totalFuelCost;
       }
 
-      // Calculate strategic fuel stops
-      const fuelStops = calculateStrategicFuelStops(
-        routeData.fullGeometry,
-        tripSummary.segments,
-        vehicle,
-        settings
-      );
-      setStrategicFuelStops(fuelStops);
-
-      // Patch each day's arrival time to include smart-stop durations (fuel, rest, meal).
-      // finalizeTripDay only counts segment.stopDuration in stopTimeMinutes, missing the
-      // SuggestedStop durations that the SmartTimeline clock accumulates. Each stop's
-      // dayNumber field maps it to the correct TripDay.
+      // Generate smart stops — drives BOTH the arrival time patch AND the map pins.
+      // Replaces the separate calculateStrategicFuelStops call: the simulation engine
+      // is the superset (hub-aware, simulation-state fuel tracking, regional costs,
+      // timezone-aware, dismissable) so it should be the single source of truth.
       const smartStopsForPatch = generateSmartStops(
         tripSummary.segments,
         createStopConfig(vehicle, settings, tripSummary.fullGeometry),
         tripDays,
       );
+
+      // Patch each day's arrival time to include smart-stop durations (fuel, rest, meal).
+      // finalizeTripDay only counts segment.stopDuration in stopTimeMinutes, missing the
+      // SuggestedStop durations that the SmartTimeline clock accumulates.
       for (const day of tripDays) {
         if (!day.totals.arrivalTime || day.segments.length === 0) continue;
         const dayStopMinutes = smartStopsForPatch
@@ -192,12 +224,16 @@ export function useTripCalculation({
         }
       }
 
-      // Background: snap fuel stop pins to real OSM gas stations.
-      // Fire-and-forget — updates markers in place once the query resolves.
-      snapFuelStopsToStations(fuelStops).then(snapped => {
+      // Project fuel stops from simulation onto the map.
+      // Each SuggestedStop of type 'fuel' now carries lat/lng (set in generate.ts).
+      // OSM station snapping runs on these projected pins — same fire-and-forget
+      // pattern as before, just fed from the simulation instead of a separate algorithm.
+      const projectedFuelStops = projectFuelStopsFromSimulation(smartStopsForPatch);
+      setStrategicFuelStops(projectedFuelStops);
+      snapFuelStopsToStations(projectedFuelStops).then(snapped => {
         setStrategicFuelStops(snapped);
       }).catch(() => {
-        // Silently keep geometry-interpolated positions if Overpass is unavailable
+        // Silently keep simulation-interpolated positions if Overpass is unavailable
       });
 
       checkAndSetOvernightPrompt(
@@ -299,16 +335,15 @@ export function useTripCalculation({
       setLocalSummary(updatedSummary);
       onSummaryChange(updatedSummary);
 
-      // Refresh strategic fuel stop map pins to reflect any changed overnight stops.
-      const newFuelStops = calculateStrategicFuelStops(
-        localSummary.fullGeometry as [number, number][],
+      // Refresh map pins from simulation to reflect any changed overnight stops.
+      const refreshedSmartStops = generateSmartStops(
         segmentsWithTimes,
-        vehicle,
-        settings,
+        createStopConfig(vehicle, settings, localSummary.fullGeometry as number[][]),
+        updatedDays,
       );
-      setStrategicFuelStops(newFuelStops);
-      // Fire-and-forget snap to real OSM stations
-      snapFuelStopsToStations(newFuelStops).then(snapped => {
+      const refreshedFuelStops = projectFuelStopsFromSimulation(refreshedSmartStops);
+      setStrategicFuelStops(refreshedFuelStops);
+      snapFuelStopsToStations(refreshedFuelStops).then(snapped => {
         setStrategicFuelStops(snapped);
       }).catch(() => {});
     },

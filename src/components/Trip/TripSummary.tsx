@@ -9,20 +9,30 @@ import { HoursTradeoff } from './HoursTradeoff';
 import { analyzeFeasibility } from '../../lib/feasibility';
 
 // ─── Count-up hook: eases a number from 0 → target over ~700 ms ────────────────
+// Debounces the target by 200ms before starting the animation so rapid strategy
+// changes (user clicking through route options) don't cause stuttering restarts.
 function useCountUp(target: number, duration = 700): number {
   const [val, setVal] = useState(0);
+  const [debouncedTarget, setDebouncedTarget] = useState(target);
   const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedTarget(target), 200);
+    return () => clearTimeout(t);
+  }, [target]);
+
   useEffect(() => {
     const start = performance.now();
     const tick = (now: number) => {
       const p = Math.min((now - start) / duration, 1);
       const eased = 1 - Math.pow(1 - p, 3);
-      setVal(target * eased);
+      setVal(debouncedTarget * eased);
       if (p < 1) rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [target, duration]);
+  }, [debouncedTarget, duration]);
+
   return val;
 }
 

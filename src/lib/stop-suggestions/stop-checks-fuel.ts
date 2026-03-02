@@ -135,6 +135,12 @@ export function getEnRouteFuelStops(
   distanceAlreadyDriven = 0,
   hubResolver?: (kmIntoSegment: number) => string | undefined,
   comfortIntervalHours?: number,
+  /** Optional resolver for stop lat/lng — used to project stops onto the map
+   *  without a separate geometric fuel stop calculation. */
+  positionResolver?: (kmIntoSegment: number) => { lat: number; lng: number } | undefined,
+  /** Cumulative km from route origin to the start of this segment — used to set
+   *  distanceFromStart on each stop for map pin projection. */
+  segmentStartKm = 0,
 ): { stops: SuggestedStop[]; lastFillKm: number } {
   const stops: SuggestedStop[] = [];
   let lastFillKm = 0;
@@ -248,6 +254,7 @@ export function getEnRouteFuelStops(
     const fuelCostForStop = costSinceLastFillInSegment
       + (kmFromLastFill / segment.distanceKm) * (segment.fuelCost ?? 0);
 
+    const stopPosition = positionResolver?.(snappedKm);
     stops.push({
       id: `fuel-enroute-${index}-${stopIndex}`,
       type: 'fuel',
@@ -265,6 +272,8 @@ export function getEnRouteFuelStops(
       hubName: stopHubName,
       dayNumber: state.currentDayNumber,
       accepted: true,
+      ...(stopPosition && { lat: stopPosition.lat, lng: stopPosition.lng }),
+      distanceFromStart: segmentStartKm + snappedKm,
     });
 
     lastFillKm = snappedKm;

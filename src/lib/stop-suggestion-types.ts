@@ -35,6 +35,13 @@ export interface SuggestedStop {
   dayNumber?: number; // Which numeric day of the trip this occurs on
   dismissed?: boolean;
   accepted?: boolean;
+  /** Geographic coordinates of the stop — populated at generation time for fuel stops.
+   *  Used to project simulation fuel stops onto the map, replacing the separate
+   *  calculateStrategicFuelStops geometry-based system with a single source of truth. */
+  lat?: number;
+  lng?: number;
+  /** Cumulative km from route origin to this stop — for map pin lat/lng interpolation. */
+  distanceFromStart?: number;
 }
 
 export type StopFrequency = 'conservative' | 'balanced' | 'aggressive';

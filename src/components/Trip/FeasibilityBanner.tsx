@@ -5,7 +5,7 @@
  * Pure display component — all logic lives in feasibility.ts
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { cn } from '../../lib/utils';
 import {
   CheckCircle,
@@ -101,6 +101,11 @@ const SEVERITY_STYLES: Record<WarningSeverity, {
 
 // ==================== COMPONENT ====================
 
+// Stable string key for a warning — used to track dismissals within a session.
+function getWarningKey(w: FeasibilityWarning): string {
+  return `${w.category}-${w.dayNumber ?? 'trip'}-${w.message}`;
+}
+
 export function FeasibilityBanner({
   result,
   numTravelers = 1,
@@ -108,14 +113,33 @@ export function FeasibilityBanner({
   defaultCollapsed = false,
 }: FeasibilityBannerProps) {
   const [expanded, setExpanded] = useState(!defaultCollapsed);
+  const [dismissed, setDismissed] = useState(() => new Set<string>());
   const config = STATUS_CONFIG[result.status];
   const StatusIcon = config.icon;
+
+  // Reset dismissals when the warning set changes (route recalculated → fresh context).
+  // Signature uses category + dayNumber + severity so structural changes clear dismissals
+  // even if the message text is unchanged.
+  const resultSignature = result.warnings
+    .map(w => `${w.category}:${w.dayNumber ?? 'trip'}:${w.severity}`)
+    .join('|');
+  const prevSig = useRef(resultSignature);
+  useEffect(() => {
+    if (prevSig.current !== resultSignature) {
+      prevSig.current = resultSignature;
+      setDismissed(new Set());
+    }
+  }, [resultSignature]);
+
+  const visibleWarnings = result.warnings.filter(w => !dismissed.has(getWarningKey(w)));
+  const dismissedCount = result.warnings.length - visibleWarnings.length;
 
   const warningCount = result.warnings.length;
   const criticalCount = result.warnings.filter(w => w.severity === 'critical').length;
   const isMultiPerson = numTravelers > 1;
 
-  const needsAttention = !expanded && warningCount > 0 && result.status !== 'on-track';
+  // Pulse only when there are still unacknowledged warnings visible
+  const needsAttention = !expanded && visibleWarnings.length > 0 && result.status !== 'on-track';
 
   return (
     <div
@@ -151,9 +175,12 @@ export function FeasibilityBanner({
             <span className={cn(
               'text-xs px-2 py-0.5 rounded-full font-medium',
               criticalCount > 0 ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400',
-              !expanded && 'animate-pulse',
+              !expanded && visibleWarnings.length > 0 && 'animate-pulse',
             )}>
               {warningCount} {warningCount === 1 ? 'note' : 'notes'}
+              {dismissedCount > 0 && (
+                <span className="opacity-50 font-normal ml-1">({dismissedCount} ✓)</span>
+              )}
             </span>
           )}
         </div>
@@ -178,9 +205,18 @@ export function FeasibilityBanner({
       {expanded && warningCount > 0 && (
         <div className="px-3 pb-3 space-y-2">
           <div className="border-t border-white/10 pt-2" />
-          {result.warnings.map((warning, i) => (
-            <WarningRow key={`${warning.category}-${warning.dayNumber ?? 'trip'}-${i}`} warning={warning} />
+          {visibleWarnings.map((warning) => (
+            <WarningRow
+              key={getWarningKey(warning)}
+              warning={warning}
+              onDismiss={() => setDismissed(prev => new Set([...prev, getWarningKey(warning)]))}
+            />
           ))}
+          {dismissedCount > 0 && visibleWarnings.length === 0 && (
+            <p className="text-xs text-foreground/35 text-center py-1">
+              All notes acknowledged — looking good.
+            </p>
+          )}
         </div>
       )}
 
@@ -200,7 +236,7 @@ export function FeasibilityBanner({
 
 // ==================== WARNING ROW ====================
 
-function WarningRow({ warning }: { warning: FeasibilityWarning }) {
+function WarningRow({ warning, onDismiss }: { warning: FeasibilityWarning; onDismiss?: () => void }) {
   const CategoryIcon = CATEGORY_ICONS[warning.category] || AlertTriangle;
   const severity = SEVERITY_STYLES[warning.severity];
 
@@ -226,12 +262,24 @@ function WarningRow({ warning }: { warning: FeasibilityWarning }) {
           </p>
         )}
       </div>
-      <span className={cn(
-        'text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0',
-        severity.badge,
-      )}>
-        {warning.severity}
-      </span>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <span className={cn(
+          'text-[10px] px-1.5 py-0.5 rounded font-medium',
+          severity.badge,
+        )}>
+          {warning.severity}
+        </span>
+        {onDismiss && (
+          <button
+            onClick={onDismiss}
+            title="Acknowledge — I've read this"
+            className="text-foreground/25 hover:text-foreground/60 transition-colors text-base leading-none"
+            aria-label="Acknowledge warning"
+          >
+            ×
+          </button>
+        )}
+      </div>
     </div>
   );
 }

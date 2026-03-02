@@ -361,3 +361,15 @@ export function resolveHubName(
 
   return null;
 }
+
+// Cross-tab cache invalidation: when another browser tab writes a new hub to
+// localStorage, the in-memory singleton in this tab becomes stale. Listening for
+// the `storage` event and clearing memoryCache forces the next lookup to re-read
+// from localStorage, so both tabs see the same discovered hubs without a page reload.
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === CACHE_KEY) {
+      memoryCache = null; // Cleared — loadCache() will re-parse on next access
+    }
+  });
+}
