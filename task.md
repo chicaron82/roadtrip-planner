@@ -50,7 +50,11 @@
 - `slice(i+1)` → `slice(i)` to include first return sub-segment in the estimate
 - Denominator changed from `maxDriveMinutes` → `effectiveMaxDriveMinutes`
 
-### 💳 Dual fuel model disconnect
-**Priority: MEDIUM** — day-builder.ts sums raw `segment.fuelCost` (L/km × price) for daily gas budget, but stop suggestions show human fill amounts ($74 full, $41 top-up). Both numbers appear in the same itinerary. ~$57 discrepancy on 8-day Winnipeg→Vancouver trip. Needs reconciliation to one model.
+### ✅ Dual fuel model disconnect (resolved — 763fa58)
+
+- day-builder.ts now uses strategic fuel stops as primary model (at-the-pump cost per stop)
+- segment.fuelCost math used only for the home stretch after the last stop
+- totalFuelCost in summary sourced from calculateCostBreakdown (sum of reconciled daily costs)
+- ~$57 Winnipeg→Vancouver discrepancy eliminated
 
 ---

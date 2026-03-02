@@ -10,7 +10,7 @@
  *
  * 💚 My Experience Engine
  */
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { Clock, Zap, Utensils, Fuel, Coffee, Moon, MapPin, ChevronRight, Timer } from 'lucide-react';
 import type { TripSummary, TripSettings, Vehicle } from '../../types';
 import type { POISuggestion } from '../../types';
@@ -18,6 +18,7 @@ import { generateSmartStops, createStopConfig } from '../../lib/stop-suggestions
 import { buildTimedTimeline, formatTime, formatDuration, type TimedEvent } from '../../lib/trip-timeline';
 import { applyComboOptimization } from '../../lib/stop-consolidator';
 import { resolveStopTowns } from '../../lib/route-geocoder';
+import { getWeatherGradientClass } from '../../lib/weather-ui-utils';
 
 interface SmartTimelineProps {
   summary: TripSummary;
@@ -97,11 +98,13 @@ function applyTownHints(
 function DriveRow({ event }: { event: TimedEvent }) {
   const km = event.segmentDistanceKm ?? 0;
   const min = event.segmentDurationMinutes ?? 0;
+  const lineBgClass = getWeatherGradientClass(event.segment?.weather?.weatherCode);
+
   return (
     <div className="flex items-stretch gap-0 py-0">
       {/* Gutter: continuous vertical line */}
       <div className="flex flex-col items-center" style={{ width: 26, flexShrink: 0 }}>
-        <div className="w-px bg-muted-foreground/20 flex-1" style={{ minHeight: 28 }} />
+        <div className={`w-[3px] rounded-full flex-1 ${lineBgClass} opacity-80`} style={{ minHeight: 28 }} />
       </div>
       {/* Drive info */}
       <div className="flex items-center gap-1.5 pl-3 py-1">
@@ -138,10 +141,12 @@ function StopCard({
 
   const hintClass = isResolvingTowns ? 'transition-opacity animate-pulse opacity-60' : 'transition-opacity opacity-100';
 
+  const ambientContext = isDeparture ? 'day' : (event.type === 'overnight' ? 'night' : undefined);
+
   // ── Departure ──────────────────────────────────────────────────────────
   if (isDeparture) {
     return (
-      <div className="flex items-center gap-3 py-2">
+      <div className="flex items-center gap-3 py-2" data-ambient={ambientContext}>
         <div
           className="w-[26px] h-[26px] rounded-full flex items-center justify-center shrink-0 border-2"
           style={{ borderColor: color, background: `${color}18` }}
@@ -162,7 +167,7 @@ function StopCard({
   // ── Arrival ────────────────────────────────────────────────────────────
   if (isArrival) {
     return (
-      <div className="flex items-center gap-3 py-2">
+      <div className="flex items-center gap-3 py-2" data-ambient={ambientContext}>
         <div
           className="w-[26px] h-[26px] rounded-full flex items-center justify-center shrink-0 border-2"
           style={{ borderColor: color, background: `${color}18` }}
@@ -193,7 +198,7 @@ function StopCard({
       && event.stops.some(s => s.type === 'meal' || s.type === 'rest');
 
     return (
-      <div className="flex items-start gap-3 py-1.5">
+      <div className="flex items-start gap-3 py-1.5" data-ambient={ambientContext}>
         {/* Node */}
         <div
           className="w-[26px] h-[26px] rounded-full flex items-center justify-center shrink-0 text-sm mt-0.5"
@@ -274,7 +279,7 @@ function StopCard({
     : 'Stop';
 
   return (
-    <div className="flex items-start gap-3 py-1.5">
+    <div className="flex items-start gap-3 py-1.5" data-ambient={ambientContext}>
       {/* Node */}
       <div
         className="w-[26px] h-[26px] rounded-full flex items-center justify-center shrink-0 mt-0.5"
@@ -378,23 +383,50 @@ export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [],
     [rawEvents, townMap],
   );
 
+  // ── Ambient Day/Night Tracking ───────────────────────────────────────────
+  const [activeAmbient, setActiveAmbient] = useState<'day' | 'night'>('day');
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      // Find the first intersecting entry from the viewport center
+      const intersecting = entries.find(e => e.isIntersecting);
+      if (intersecting) {
+        const ambient = intersecting.target.getAttribute('data-ambient');
+        if (ambient === 'day' || ambient === 'night') {
+          setActiveAmbient(ambient);
+        }
+      }
+    }, { rootMargin: '-40% 0px -40% 0px' });
+
+    const elements = containerRef.current?.querySelectorAll('[data-ambient]') ?? [];
+    elements.forEach(el => observer.observe(el));
+    
+    return () => observer.disconnect();
+  }, [events]);
+
   if (!events.length) return null;
 
   const comboCount = events.filter(e => e.type === 'combo').length;
   const totalSaved = events.reduce((sum, e) => sum + (e.timeSavedMinutes ?? 0), 0);
 
+  const ambientStyle = activeAmbient === 'night'
+    ? { borderColor: 'rgba(99,102,241,0.2)', background: 'linear-gradient(to bottom, rgba(49,46,129,0.1), transparent)' }
+    : { borderColor: 'rgba(34,197,94,0.2)', background: 'linear-gradient(to bottom, rgba(34,197,94,0.05), transparent)' };
+
   return (
     <div
-      className="rounded-xl border overflow-hidden"
-      style={{ borderColor: 'rgba(34,197,94,0.2)', background: 'rgba(34,197,94,0.03)' }}
+      ref={containerRef}
+      className="rounded-xl border overflow-hidden transition-all duration-1000"
+      style={ambientStyle}
     >
       {/* Header */}
       <div
         className="flex items-center justify-between px-4 py-2.5 border-b"
-        style={{ borderColor: 'rgba(34,197,94,0.15)' }}
+        style={{ borderColor: activeAmbient === 'night' ? 'rgba(99,102,241,0.15)' : 'rgba(34,197,94,0.15)' }}
       >
         <div className="flex items-center gap-2">
-          <Clock className="h-4 w-4 text-green-500" />
+          <Clock className={`h-4 w-4 transition-colors duration-1000 ${activeAmbient === 'night' ? 'text-indigo-400' : 'text-green-500'}`} />
           <span className="text-sm font-semibold text-foreground">Smart Timeline</span>
         </div>
         <div className="flex items-center gap-3 text-[11px] text-muted-foreground">

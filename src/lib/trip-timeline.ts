@@ -313,6 +313,7 @@ export function buildTimedTimeline(
       locationHint: makeLocationHint(startKm),
       segmentDistanceKm: km,
       segmentDurationMinutes: minutes,
+      segment: iterSegments[segIndex],
       stops: [],
       timezone: activeTimezone,
     });
