@@ -77,6 +77,16 @@ export interface DiscoveredHub {
 const CACHE_KEY = 'roadtrip-discovered-hubs';
 const MAX_CACHE_SIZE = 500;
 
+/**
+ * Returns false for administrative placeholders that are geographically correct
+ * but useless as trip stop labels — e.g. "Unorganized Kenora District".
+ * These appear when OSRM resolves sparse highway coordinates to unincorporated
+ * territory names instead of the nearest real city.
+ */
+function isUsableHubName(name: string): boolean {
+  return !/unorganized/i.test(name);
+}
+
 // TTL and promotion
 const EXPIRY_DAYS = 90;
 const EXPIRY_MS = EXPIRY_DAYS * 24 * 60 * 60 * 1000;
@@ -168,6 +178,7 @@ export function findKnownHub(lat: number, lng: number): string | null {
   const hubs = loadCache();
 
   for (const hub of hubs) {
+    if (!isUsableHubName(hub.name)) continue;
     const dist = haversineDistance(lat, lng, hub.lat, hub.lng);
     if (dist <= hub.radius) {
       recordHubUse(hub, hubs);
@@ -186,6 +197,10 @@ export function findKnownHub(lat: number, lng: number): string | null {
  * POI analysis discovers a new hub. Exported for testing.
  */
 export function cacheDiscoveredHub(hub: Omit<DiscoveredHub, 'lastUsed' | 'useCount'>): void {
+  // Reject administrative placeholder names — they're geographically accurate
+  // but meaningless as stop labels (e.g. "Unorganized Kenora District").
+  if (!isUsableHubName(hub.name)) return;
+
   const hubs = loadCache();
 
   // Check for duplicates by proximity
@@ -262,6 +277,7 @@ export function findHubInWindow(
   let bestDist = Infinity;
 
   for (const hub of hubs) {
+    if (!isUsableHubName(hub.name)) continue;
     const distFromCurrent = haversineDistance(currentLat, currentLng, hub.lat, hub.lng);
     if (distFromCurrent <= windowKm && distFromCurrent < bestDist) {
       bestDist = distFromCurrent;

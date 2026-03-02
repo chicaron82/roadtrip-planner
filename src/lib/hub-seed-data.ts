@@ -119,6 +119,7 @@ const ONTARIO_CORRIDOR: SeedHub[] = [
   { name: 'London, ON', lat: 42.984, lng: -81.246, radius: 35, poiCount: 15, discoveredAt: SEED_DATE, source: 'seed' },
   { name: 'Hamilton, ON', lat: 43.256, lng: -79.869, radius: 35, poiCount: 18, discoveredAt: SEED_DATE, source: 'seed' },
   { name: 'Sudbury, ON', lat: 46.522, lng: -80.953, radius: 25, poiCount: 10, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'Parry Sound, ON', lat: 45.348, lng: -80.035, radius: 20, poiCount: 6, discoveredAt: SEED_DATE, source: 'seed' },
 ];
 
 // ─── I-75 Corridor (Michigan → Florida) ───────────────────────────────────────

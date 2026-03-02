@@ -15,7 +15,7 @@ import {
   checkOvernightStop,
   applyTimezoneShift,
 } from './stop-checks';
-import { findHubInWindow } from '../hub-cache';
+import { findHubInWindow, cacheDiscoveredHub } from '../hub-cache';
 import { interpolateRoutePosition } from '../route-geocoder';
 import { lngToIANA, ianaToAbbr } from '../trip-timezone';
 import { getTimezoneShiftHours } from './timezone';
@@ -55,6 +55,30 @@ export function generateSmartStops(
 
   const state = createInitialState(config, segments);
   const suggestions: SuggestedStop[] = [];
+
+  // Pre-warm the hub cache from the route's own named waypoints.
+  // cacheDiscoveredHub is a no-op for coordinates already within 20km of any
+  // existing entry, so seeded major cities (Winnipeg, Calgary, etc.) are never
+  // overwritten — only genuinely un-seeded cities get a new 25km-radius entry.
+  // Effect: fuel stops within 25km of any waypoint snap to the city name on the
+  // FIRST run through a new corridor, not just after a second-run cache warm-up.
+  const prewarmPoints = [
+    segments[0]?.from,
+    ...segments.map(s => s.to),
+  ];
+  for (const pt of prewarmPoints) {
+    if (pt?.name && pt.lat != null && pt.lng != null && !/unorganized/i.test(pt.name)) {
+      cacheDiscoveredHub({
+        name: pt.name,
+        lat: pt.lat,
+        lng: pt.lng,
+        radius: 25,    // Minimum hub tier (≥5 POIs) — conservative for unknown cities
+        poiCount: 5,
+        discoveredAt: new Date().toISOString(),
+        source: 'discovered',
+      });
+    }
+  }
 
   // Detect round trip (origin === final destination) for meal suppression at end
   const originName = segments[0]?.from.name;
@@ -173,30 +197,50 @@ export function generateSmartStops(
     const remainingDistanceKm = totalRouteDistanceKm - cumulativeDistanceKm;
     const inDestinationGraceZone = remainingDistanceKm < GRACE_ZONE_KM;
 
-    // Hub-aware fuel stop placement:
-    // When a fuel stop is due, check if a known hub falls within the snap window.
-    // If yes: label the stop with the hub name ("Fuel up in Fargo, ND").
-    // If no: fall through to standard tank-math behavior.
-    //
+    // Hub-aware fuel stop placement.
     // NOTE: cumulativeDistanceKm already includes this segment's distance.
     // For per-stop hub lookups inside getEnRouteFuelStops, we pass segmentStartKm
     // so each stop can interpolate its own position on the full route geometry.
     const segmentStartKm = cumulativeDistanceKm - segment.distanceKm;
+
+    // Fuel needs for the coming segment — used for endpoint deferral safety check.
+    const segFuelNeeded = segment.fuelNeededLitres
+      ?? (segment.distanceKm / 100) * config.fuelEconomyL100km;
+    const wouldRunCriticallyLow =
+      (state.currentFuel - segFuelNeeded) < (config.tankSizeLitres * 0.15);
+
+    // Hub lookup — priority order:
+    // 1. segment.from (the actual stop location for inter-segment stops, index > 0).
+    //    checkFuelStop places the stop at afterSegmentIndex = index - 1, which is
+    //    physically at segment.from. Checking here first gives correct city labels
+    //    on city-to-city routes (e.g. "Fuel up in Kenora, ON" not an unnamed midpoint).
+    // 2. Route midpoint fallback — for safety stops on segment 0, or when segment.from
+    //    has no hub (sparse stretches between seeded cities).
     let hubName: string | undefined;
-    if (fullGeometry && fullGeometry.length > 1) {
+    if (index > 0) {
+      const fromHub = findHubInWindow(segment.from.lat, segment.from.lng, 40);
+      if (fromHub) hubName = fromHub.name;
+    }
+    if (!hubName && fullGeometry && fullGeometry.length > 1) {
       const pos = interpolateRoutePosition(fullGeometry, toGeometryKm(segmentStartKm + segment.distanceKm * 0.5));
       if (pos) {
         const hub = findHubInWindow(pos.lat, pos.lng);
-        if (hub) {
-          hubName = hub.name;
-        }
+        if (hub) hubName = hub.name;
       }
     }
 
+    // Endpoint deferral: segment.from has no hub, but segment.to is a real city
+    // we can safely reach. Suppress the stop here — the next iteration fires with
+    // segment.from = this segment.to = the hub, and it gets correctly labeled.
+    // wouldRunCriticallyLow guard: critical stops always fire immediately.
+    const endpointHub = (!hubName && !wouldRunCriticallyLow && !inDestinationGraceZone && index > 0)
+      ? findHubInWindow(segment.to.lat, segment.to.lng, 40)
+      : null;
+
     // Fuel stop check
-    const { suggestion: fuelSug, stopTimeAddedMs } = checkFuelStop(
-      state, segment, index, config, safeRangeKm, inDestinationGraceZone, hubName
-    );
+    const { suggestion: fuelSug, stopTimeAddedMs } = endpointHub
+      ? { suggestion: null, stopTimeAddedMs: 0 }
+      : checkFuelStop(state, segment, index, config, safeRangeKm, inDestinationGraceZone, hubName);
     if (fuelSug) {
       fuelSug.afterSegmentIndex += (segOrigIdx - index);
       suggestions.push(fuelSug);
