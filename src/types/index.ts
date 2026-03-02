@@ -195,13 +195,13 @@ export interface RouteSegment {
   activity?: Activity; // Planned activity at this stop
 }
 
-/** RouteSegment extended with original-index tracking for split sub-segments.
- *  Produced by splitLongSegments, stored in TripDay.segments. */
 export type ProcessedSegment = RouteSegment & {
   /** Index into the original `segments` array this sub-segment was derived from. */
   _originalIndex: number;
   /** Populated when the original segment was split; tracks which part this is. */
   _transitPart?: { index: number; total: number };
+  /** Absolute distance from the very start of the route. */
+  distanceFromStart?: number;
 };
 
 export type WarningType = 'long_drive' | 'weather' | 'border_crossing' | 'fuel_stop' | 'timezone';

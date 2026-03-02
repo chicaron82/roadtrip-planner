@@ -40,11 +40,18 @@ export function splitLongSegments(
   // 4h15m halves that each waste a full day.
   const effectiveMax = maxDriveMinutes + TRIP_CONSTANTS.dayOverflow.toleranceHours * 60;
 
+  let runningDistance = 0;
+
   for (let origIdx = 0; origIdx < segments.length; origIdx++) {
     const seg = segments[origIdx];
 
     if (seg.durationMinutes <= effectiveMax) {
-      result.push({ ...seg, _originalIndex: origIdx });
+      result.push({
+        ...seg,
+        _originalIndex: origIdx,
+        distanceFromStart: Math.round(runningDistance * 10) / 10,
+      });
+      runningDistance += seg.distanceKm;
       continue;
     }
 
@@ -140,19 +147,22 @@ export function splitLongSegments(
       cumulativeMs += Math.round(partMinutes) * 60 * 1000;
       const partArrivalTime = hasValidTime ? new Date(cumulativeMs).toISOString() : undefined;
 
+      const partDistance = Math.round(seg.distanceKm * ratio * 10) / 10;
       result.push({
         ...seg,
         from: fromLoc,
         to: toLoc,
         _originalIndex: origIdx,
         durationMinutes: Math.round(partMinutes),
-        distanceKm: Math.round(seg.distanceKm * ratio * 10) / 10,
+        distanceKm: partDistance,
         fuelCost: Math.round(seg.fuelCost * ratio * 100) / 100,
         fuelNeededLitres: Math.round(seg.fuelNeededLitres * ratio * 100) / 100,
         departureTime: partDepartureTime,
         arrivalTime: partArrivalTime,
         _transitPart: { index: part, total: numParts },
+        distanceFromStart: Math.round(runningDistance * 10) / 10,
       });
+      runningDistance += partDistance;
     }
   }
 

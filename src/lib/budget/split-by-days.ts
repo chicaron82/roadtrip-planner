@@ -1,4 +1,5 @@
 import type { RouteSegment, TripDay, TripSettings } from '../../types';
+import type { StrategicFuelStop } from '../fuel-stops';
 import { splitLongSegments, type ProcessedSegment } from './segment-processor';
 import { createEmptyDay, finalizeTripDay, ceilToNearest, labelTransitDay } from './day-builder';
 import { getTimezoneOffset, getTimezoneName } from './timezone';
@@ -77,6 +78,7 @@ export function splitTripByDays(
   departureTime: string,
   roundTripMidpoint?: number,
   fullGeometry?: [number, number][],
+  fuelStops?: StrategicFuelStop[],
 ): TripDay[] {
   if (segments.length === 0) return [];
 
@@ -321,7 +323,7 @@ export function splitTripByDays(
       }
 
       // Finalize current day
-      finalizeTripDay(currentDay, gasRemaining, hotelRemaining, foodRemaining, settings);
+      finalizeTripDay(currentDay, gasRemaining, hotelRemaining, foodRemaining, settings, fuelStops);
 
       // Label transit days when the segment was split by splitLongSegments.
       labelTransitDay(currentDay, segments);
@@ -396,9 +398,8 @@ export function splitTripByDays(
         roomsNeeded,
       };
 
-      // Force a day boundary AFTER this segment
       // Finalize current day consisting of segments up to this overnight stop
-      finalizeTripDay(currentDay, gasRemaining, hotelRemaining, foodRemaining, settings);
+      finalizeTripDay(currentDay, gasRemaining, hotelRemaining, foodRemaining, settings, fuelStops);
       labelTransitDay(currentDay, segments);
 
       gasRemaining = currentDay.budget.gasRemaining;
@@ -428,7 +429,7 @@ export function splitTripByDays(
 
   // Finalize last day
   if (currentDay && currentDay.segments.length > 0) {
-    finalizeTripDay(currentDay, gasRemaining, hotelRemaining, foodRemaining, settings);
+    finalizeTripDay(currentDay, gasRemaining, hotelRemaining, foodRemaining, settings, fuelStops);
     labelTransitDay(currentDay, segments);
     days.push(currentDay);
   }
@@ -463,7 +464,7 @@ export function splitTripByDays(
         hotelRemaining += lastDrivingDay.budget.hotelCost; // undo old
         gasRemaining += lastDrivingDay.budget.gasUsed;
         foodRemaining += lastDrivingDay.budget.foodEstimate;
-        finalizeTripDay(lastDrivingDay, gasRemaining, hotelRemaining, foodRemaining, settings);
+        finalizeTripDay(lastDrivingDay, gasRemaining, hotelRemaining, foodRemaining, settings, fuelStops);
       }
 
       for (let k = 1; k < gapDays; k++) {

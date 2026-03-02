@@ -1,5 +1,6 @@
 import type { RouteSegment, TripDay, TripSettings } from '../../types';
 import type { ProcessedSegment } from './segment-processor';
+import type { StrategicFuelStop } from '../fuel-stops';
 
 /**
  * Round a value UP to the nearest increment.
@@ -76,6 +77,7 @@ export function finalizeTripDay(
   hotelRemaining: number,
   foodRemaining: number,
   settings: TripSettings,
+  fuelStops?: StrategicFuelStop[],
 ): void {
   if (day.segments.length === 0) return;
 
@@ -156,16 +158,45 @@ export function finalizeTripDay(
   }
 
   // Calculate budget
-  // TODO: Refactor — dual fuel model disconnect.
-  // gasUsed here sums raw segment.fuelCost (mathematical L/km × price).
-  // Stop suggestions display human fill amounts ($74 full fill, $41 top-up) which differ.
-  // Both numbers appear in the same itinerary output, causing a ~$57 discrepancy on an
-  // 8-day Winnipeg→Vancouver trip. Decision needed: reconcile to one model.
-  // See: task.md for cleanup ticket.
-  const gasUsed = day.segments.reduce((sum, s) => sum + s.fuelCost, 0);
+  // Calculate budget
+  // RECONCILED: Unified Human Fuel Model
+  // 1. Charge for actual fuel stops occurrence (at-the-pump cost)
+  // 2. Only charge mathematical L/km for segments that occur AFTER the very last fuel stop
+  //    (the "home stretch" top-off).
+  let gasUsed = 0;
+  if (fuelStops && fuelStops.length > 0) {
+    const firstSeg = day.segments[0];
+    const lastSeg = day.segments[day.segments.length - 1];
+    const dayStartKm = firstSeg.distanceFromStart ?? 0;
+    const dayEndKm = (lastSeg.distanceFromStart ?? 0) + lastSeg.distanceKm;
+
+    // A. Sum any fuel stops that occurred during this day's range
+    const stopsToday = fuelStops.filter(s =>
+      s.distanceFromStart > dayStartKm && s.distanceFromStart <= dayEndKm,
+    );
+    gasUsed = stopsToday.reduce((sum, s) => sum + (s.cost ?? 0), 0);
+
+    // B. Add mathematical cost for any driving done AFTER the absolute last fuel stop
+    const ultimateLastStopKm = fuelStops[fuelStops.length - 1].distanceFromStart;
+    for (const s of day.segments) {
+      if (s.distanceFromStart !== undefined && s.distanceFromStart >= ultimateLastStopKm) {
+        // This segment (or part of it) is in the home stretch
+        gasUsed += s.fuelCost;
+      } else if (s.distanceFromStart !== undefined && s.distanceFromStart + s.distanceKm > ultimateLastStopKm) {
+        // Segment straddles the last fuel stop — only take the part after
+        const postStopDist = (s.distanceFromStart + s.distanceKm) - ultimateLastStopKm;
+        const ratio = postStopDist / s.distanceKm;
+        gasUsed += s.fuelCost * ratio;
+      }
+    }
+  } else {
+    // No strategic stops available (perhaps trip is too short) — use math
+    gasUsed = day.segments.reduce((sum, s) => sum + s.fuelCost, 0);
+  }
+
   const hotelCost = day.overnight?.cost || 0;
   const mealsToday = estimateMealsForDay(day, settings);
-  const foodEstimate = mealsToday * settings.mealPricePerDay / 3; // Per meal
+  const foodEstimate = mealsToday * settings.mealPricePerDay / 3;
 
   const roundedGas = ceilToNearest(gasUsed, 5);
   const roundedHotel = ceilToNearest(hotelCost, 5);

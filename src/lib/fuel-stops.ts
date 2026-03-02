@@ -29,6 +29,10 @@ export interface StrategicFuelStop {
   stationAddress?: string;
   /** true when no real gas station was found within 3 km */
   isRemote?: boolean;
+  /** Estimated cost for this fill-up */
+  cost?: number;
+  /** Whether this is a full-tank fill or a partial top-up */
+  isFullFill?: boolean;
 }
 
 /**
@@ -104,6 +108,8 @@ export function calculateStrategicFuelStops(
   const safeRangeKm = rangeKm * (1 - TRIP_CONSTANTS.stops.buffers[stopFrequency]);
 
   const fuelStops: StrategicFuelStop[] = [];
+  const fullTankCost = tankSizeLitres * settings.gasPrice;
+
   let currentDistance = 0;
   let currentTime = 0;
 
@@ -207,6 +213,8 @@ export function calculateStrategicFuelStops(
         distanceFromStart: Math.round(stopDistance * 10) / 10,
         estimatedTime: `${hours}h ${mins}m`,
         fuelRemaining: Math.max(0, Math.round(100 - fuelUsedPercent)),
+        cost: fullTankCost,
+        isFullFill: true,
       });
 
       // Both triggers reset the full clock — driver refuelled here

@@ -10,8 +10,10 @@ import type { RouteStrategy, Vehicle, TripSettings, TripSummary } from '../types
 import {
   calculateTripCosts,
   calculateArrivalTimes,
-  calculateHumanFuelCosts,
 } from './calculations';
+import {
+  calculateStrategicFuelStops,
+} from './fuel-stops';
 import {
   splitTripByDays,
   calculateCostBreakdown,
@@ -19,7 +21,6 @@ import {
 } from './budget';
 import {
   getTankSizeLitres,
-  getWeightedFuelEconomyL100km,
   estimateGasStops,
 } from './unit-conversions';
 
@@ -65,25 +66,17 @@ export function buildStrategyUpdate(
     newSummary.totalDistanceKm = allSegments.reduce((s, seg) => s + seg.distanceKm, 0);
     newSummary.totalDurationMinutes = allSegments.reduce((s, seg) => s + seg.durationMinutes, 0);
     newSummary.totalFuelLitres = allSegments.reduce((s, seg) => s + seg.fuelNeededLitres, 0);
-    const stratSegFuelCost = allSegments.reduce((s, seg) => s + seg.fuelCost, 0);
     const tankSizeLitres = getTankSizeLitres(vehicle, settings.units);
     newSummary.gasStops = estimateGasStops(newSummary.totalFuelLitres, tankSizeLitres);
-
-    const stratEconomy = getWeightedFuelEconomyL100km(vehicle, settings.units);
-    const stratLastSeg = allSegments[allSegments.length - 1];
-    const stratAverageGasPrice = newSummary.totalFuelLitres > 0
-      ? stratSegFuelCost / newSummary.totalFuelLitres
-      : settings.gasPrice;
-
-    const stratHuman = calculateHumanFuelCosts(
-      newSummary.gasStops, tankSizeLitres, stratAverageGasPrice,
-      stratLastSeg?.distanceKm ?? 0, stratEconomy,
-    );
-    newSummary.totalFuelCost = Math.max(stratSegFuelCost, stratHuman.totalFuelCost);
-    newSummary.costPerPerson = settings.numTravelers > 0
-      ? newSummary.totalFuelCost / settings.numTravelers
-      : newSummary.totalFuelCost;
   }
+
+  // Calculate strategic fuel stops for this strategy
+  const stratFuelStops = calculateStrategicFuelStops(
+    strategy.geometry as [number, number][],
+    allSegments,
+    vehicle,
+    settings
+  );
 
   const updatedDays = splitTripByDays(
     allSegments,
@@ -92,6 +85,7 @@ export function buildStrategyUpdate(
     settings.departureTime,
     outboundLength,
     strategy.geometry as [number, number][],
+    stratFuelStops,
   );
 
   let updatedCostBreakdown = localSummary.costBreakdown;
@@ -102,6 +96,12 @@ export function buildStrategyUpdate(
     updatedCostBreakdown = calculateCostBreakdown(updatedDays, settings.numTravelers);
     updatedBudgetStatus = getBudgetStatus(settings.budget, updatedCostBreakdown);
     updatedBudgetRemaining = settings.budget.total - updatedCostBreakdown.total;
+
+    // Sync summary with breakdown (parity fix)
+    newSummary.totalFuelCost = updatedCostBreakdown.fuel;
+    newSummary.costPerPerson = settings.numTravelers > 0
+      ? newSummary.totalFuelCost / settings.numTravelers
+      : newSummary.totalFuelCost;
   }
 
   return {
