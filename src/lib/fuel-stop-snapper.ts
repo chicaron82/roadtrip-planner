@@ -6,6 +6,13 @@ import { haversineDistance } from './poi-ranking';
 const SNAP_RADIUS_M = 3000;
 const SNAP_RADIUS_KM = SNAP_RADIUS_M / 1000;
 
+const snappedStopCache = new Map<string, StrategicFuelStop>();
+
+function getCacheKey(lat: number, lng: number): string {
+  // Round to ~100m precision (3 decimal places) to handle slight float fuzziness
+  return `${lat.toFixed(3)},${lng.toFixed(3)}`;
+}
+
 /**
  * Snaps each strategic fuel stop to the nearest real OSM gas station.
  *
@@ -23,9 +30,32 @@ export async function snapFuelStopsToStations(
 ): Promise<StrategicFuelStop[]> {
   if (stops.length === 0) return stops;
 
-  // Build one union query — each stop contributes one `around:` node filter.
-  // Overpass evaluates these as a union, returning all fuel nodes near any stop.
-  const aroundFilters = stops
+  const result: StrategicFuelStop[] = new Array(stops.length);
+  const uncachedIndices: number[] = [];
+  const uncachedStops: StrategicFuelStop[] = [];
+
+  // 1. Check Cache
+  for (let i = 0; i < stops.length; i++) {
+    const stop = stops[i];
+    const key = getCacheKey(stop.lat, stop.lng);
+    
+    if (snappedStopCache.has(key)) {
+      // Return cached snap, combining current stop metadata with cached location
+      const cached = snappedStopCache.get(key)!;
+      result[i] = { ...stop, ...cached };
+    } else {
+      uncachedIndices.push(i);
+      uncachedStops.push(stop);
+    }
+  }
+
+  // If everything was cached, return immediately
+  if (uncachedStops.length === 0) {
+    return result;
+  }
+
+  // 2. Build one union query for only the UNCACHED stops
+  const aroundFilters = uncachedStops
     .map(s => `  node(around:${SNAP_RADIUS_M},${s.lat},${s.lng})[amenity=fuel];`)
     .join('\n');
 
@@ -37,7 +67,9 @@ out body;`;
 
   const elements = await executeOverpassQuery(query);
 
-  return stops.map(stop => {
+  // 3. Process uncached results and populate cache
+  uncachedStops.forEach((stop, idx) => {
+    const originalIndex = uncachedIndices[idx];
     let bestDist = Infinity;
     let bestEl: (typeof elements)[number] | null = null;
 
@@ -53,26 +85,34 @@ out body;`;
       }
     }
 
+    let snappedStop: StrategicFuelStop;
+
     if (!bestEl || bestDist > SNAP_RADIUS_KM) {
       // No station nearby — flag as remote but keep original geometry position
-      return { ...stop, isRemote: true };
+      snappedStop = { ...stop, isRemote: true };
+    } else {
+      const snappedLat = bestEl.lat ?? bestEl.center!.lat;
+      const snappedLng = bestEl.lon ?? bestEl.center!.lon;
+
+      const stationName = bestEl.tags?.name || bestEl.tags?.brand || undefined;
+      const stationAddress = bestEl.tags?.['addr:city'] || bestEl.tags?.['addr:place'] || undefined;
+
+      snappedStop = {
+        ...stop,
+        lat: snappedLat,
+        lng: snappedLng,
+        stationName,
+        stationAddress,
+        isRemote: false,
+      };
     }
 
-    const snappedLat = bestEl.lat ?? bestEl.center!.lat;
-    const snappedLng = bestEl.lon ?? bestEl.center!.lon;
+    // Save to cache
+    const key = getCacheKey(stop.lat, stop.lng);
+    snappedStopCache.set(key, snappedStop);
 
-    const stationName =
-      bestEl.tags?.name || bestEl.tags?.brand || undefined;
-    const stationAddress =
-      bestEl.tags?.['addr:city'] || bestEl.tags?.['addr:place'] || undefined;
-
-    return {
-      ...stop,
-      lat: snappedLat,
-      lng: snappedLng,
-      stationName,
-      stationAddress,
-      isRemote: false,
-    };
+    result[originalIndex] = snappedStop;
   });
+
+  return result;
 }

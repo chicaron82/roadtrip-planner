@@ -33,7 +33,15 @@ export function getWeatherEmoji(code: number): string {
     return '🌡️';
 }
 
+const weatherCache = new Map<string, WeatherData>();
+
 export async function fetchWeather(lat: number, lng: number, date?: string): Promise<WeatherData | null> {
+    // Round to 1 decimal place (~11km resolution) to group nearby stops into the same cache entry
+    const cacheKey = `${Math.round(lat * 10) / 10},${Math.round(lng * 10) / 10}|${date || 'none'}`;
+    if (weatherCache.has(cacheKey)) {
+        return weatherCache.get(cacheKey)!;
+    }
+
     try {
         const params = new URLSearchParams({
             latitude: lat.toString(),
@@ -54,7 +62,7 @@ export async function fetchWeather(lat: number, lng: number, date?: string): Pro
             return null;
         }
 
-        return {
+        const result: WeatherData = {
             temperatureMax: data.daily.temperature_2m_max[0],
             temperatureMin: data.daily.temperature_2m_min[0],
             precipitationProb: data.daily.precipitation_probability_max[0],
@@ -62,6 +70,10 @@ export async function fetchWeather(lat: number, lng: number, date?: string): Pro
             timezone: data.timezone,
             timezoneAbbr: data.timezone_abbreviation,
         };
+
+        // Cache the successful result
+        weatherCache.set(cacheKey, result);
+        return result;
     } catch (error) {
         console.error("Failed to fetch weather:", error);
         return null;

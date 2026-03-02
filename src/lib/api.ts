@@ -127,8 +127,21 @@ export async function fetchRouteGeometry(locations: Location[]): Promise<[number
   }
 }
 
+const routeCache = new Map<string, string>();
+
+function getRouteCacheKey(locations: Location[], options?: { avoidTolls?: boolean; avoidBorders?: boolean; scenicMode?: boolean }): string {
+  const locStr = locations.map(l => `${l.lat.toFixed(4)},${l.lng.toFixed(4)}`).join('|');
+  const optStr = `${options?.avoidTolls ? 'toll' : 'no'}-${options?.avoidBorders ? 'border' : 'no'}-${options?.scenicMode ? 'scenic' : 'no'}`;
+  return `${locStr}=${optStr}`;
+}
+
 export async function calculateRoute(locations: Location[], options?: { avoidTolls?: boolean; avoidBorders?: boolean; scenicMode?: boolean }): Promise<{ segments: RouteSegment[], fullGeometry: [number, number][] } | null> {
   if (locations.length < 2) return null;
+
+  const cacheKey = getRouteCacheKey(locations, options);
+  if (routeCache.has(cacheKey)) {
+    return JSON.parse(routeCache.get(cacheKey)!);
+  }
 
   const parts: string[] = [];
   if (options?.avoidTolls) parts.push('toll');
@@ -160,6 +173,7 @@ export async function calculateRoute(locations: Location[], options?: { avoidTol
         if (safeResult) {
           // Return the safe route but map segments back to original locations
           // (guard waypoints appear as intermediate stops)
+          routeCache.set(cacheKey, JSON.stringify(safeResult));
           return safeResult;
         }
         // If reroute fails, fall through to the original route
@@ -167,6 +181,7 @@ export async function calculateRoute(locations: Location[], options?: { avoidTol
     }
   }
 
+  routeCache.set(cacheKey, JSON.stringify(result));
   return result;
 }
 

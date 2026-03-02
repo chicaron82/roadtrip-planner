@@ -1,5 +1,6 @@
 import type { RouteSegment, SegmentWarning, TripSettings } from '../types';
 import { isLikelyInUS } from './border-avoidance';
+import { lngToIANA, ianaToAbbr } from './trip-timezone';
 
 /**
  * Analyzes route segments and adds intelligent warnings.
@@ -104,24 +105,22 @@ function detectTimezoneCrossing(
     };
   }
 
-  // ── Strategy 2: longitude heuristic (no weather data available) ──────────
+  // ── Strategy 2: longitude boundaries (no weather data available) ─────────
   const { from, to } = segment;
-  const lngDiff = Math.abs(to.lng - from.lng);
+  const fromIANA = prevSegment ? lngToIANA(prevSegment.to.lng) : lngToIANA(from.lng);
+  const toIANA = lngToIANA(to.lng);
 
-  if (lngDiff > 10) {
-    const direction = to.lng > from.lng ? 'East' : 'West';
-    const hoursChange = Math.round(lngDiff / 15);
-
-    let timezone = 'America/Toronto';
-    if (to.lng < -120) timezone = 'America/Los_Angeles';
-    else if (to.lng < -105) timezone = 'America/Denver';
-    else if (to.lng < -90) timezone = 'America/Chicago';
-    else if (to.lng < -75) timezone = 'America/New_York';
+  if (fromIANA !== toIANA) {
+    // Attempt to convert IANA strings back to familiar daylight/standard abbreviations
+    const toAbbrFallback = ianaToAbbr(toIANA) || toIANA;
+    const tzName = getTimezoneName(toAbbrFallback) !== toAbbrFallback
+      ? getTimezoneName(toAbbrFallback)
+      : toIANA.split('/').pop()?.replace('_', ' ') || toIANA;
 
     return {
       crosses: true,
-      timezone,
-      message: `You ${direction === 'East' ? 'lose' : 'gain'} ${hoursChange} hour${hoursChange > 1 ? 's' : ''}`,
+      timezone: toAbbrFallback,
+      message: `Entering ${tzName} (${toAbbrFallback})`,
     };
   }
 
