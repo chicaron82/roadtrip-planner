@@ -21,11 +21,11 @@ export function LandingHeroSection({
       {/* Eyebrow with heartbeat orb */}
       <div
         className="landing-hero-eyebrow"
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '4px' }}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '20px' }}
       >
         <div style={{
-          width: '8px',
-          height: '8px',
+          width: '9px',
+          height: '9px',
           borderRadius: '50%',
           background: '#f97316',
           flexShrink: 0,
@@ -34,29 +34,31 @@ export function LandingHeroSection({
             : '0 0 0 0px rgba(249,115,22,0)',
           transition: 'box-shadow 1.2s ease',
         }} />
-        <p style={{
-          fontFamily: "'DM Mono', monospace",
-          fontSize: '11px',
-          fontWeight: 500,
-          letterSpacing: '0.2em',
-          color: 'rgba(255,255,255,0.35)',
-          textTransform: 'uppercase',
-          margin: 0,
-        }}>
-          My Experience Engine™ (MEE)
-        </p>
+        <div style={{ textAlign: 'left' }}>
+          <p style={{
+            fontFamily: "'DM Mono', monospace",
+            fontSize: '15px',
+            fontWeight: 500,
+            letterSpacing: '0.15em',
+            color: 'rgba(255,255,255,0.65)',
+            textTransform: 'uppercase',
+            margin: 0,
+            lineHeight: 1.3,
+          }}>
+            My Experience Engine™ (MEE)
+          </p>
+          <p style={{
+            fontFamily: "'DM Mono', monospace",
+            fontSize: '11px',
+            color: 'rgba(255,255,255,0.3)',
+            letterSpacing: '0.05em',
+            margin: 0,
+            fontStyle: 'italic',
+          }}>
+            /pronounced "me"/
+          </p>
+        </div>
       </div>
-
-      <p style={{
-        fontFamily: "'DM Mono', monospace",
-        fontSize: '10px',
-        color: 'rgba(255,255,255,0.2)',
-        letterSpacing: '0.05em',
-        marginBottom: '14px',
-        fontStyle: 'italic',
-      }}>
-        /pronounced "me"/
-      </p>
 
       {/* Hero title */}
       <h1 className="landing-hero-title" style={{
@@ -67,7 +69,7 @@ export function LandingHeroSection({
         color: '#F8FAFF',
         lineHeight: 1.0,
         letterSpacing: '-0.01em',
-        margin: '0 0 14px',
+        margin: '0 0 28px',
       }}>
         The Open Road
         <br />
@@ -81,17 +83,19 @@ export function LandingHeroSection({
         }}>
           Is Calling.
         </span>
+        <br />
+        <span style={{
+          fontFamily: "'DM Mono', monospace",
+          fontSize: 'clamp(12px, 1.3vw, 15px)',
+          fontStyle: 'normal',
+          fontWeight: 400,
+          color: 'rgba(255,255,255,0.35)',
+          letterSpacing: '0.02em',
+          WebkitTextFillColor: 'rgba(255,255,255,0.35)',
+        }}>
+          Get driving. Enjoy your MEE time.
+        </span>
       </h1>
-
-      <p className="landing-hero-sub" style={{
-        fontSize: 'clamp(13px, 1.4vw, 16px)',
-        color: 'rgba(255,255,255,0.4)',
-        lineHeight: 1.5,
-        margin: '0 0 14px',
-        fontWeight: 300,
-      }}>
-        Start planning. Get driving. Enjoy your MEE time.
-      </p>
 
       {/* Continue Saved Trip */}
       {hasSavedTrip && onContinueSavedTrip && !hasActiveSession && (
