@@ -26,6 +26,7 @@ function createInitialState(config: StopSuggestionConfig, segments: RouteSegment
     currentFuel: config.tankSizeLitres,
     distanceSinceLastFill: 0,
     hoursSinceLastFill: 0,
+    costSinceLastFill: 0,
     currentTime: new Date(config.departureTime),
     hoursOnRoad: 0,
     totalDrivingToday: 0,
@@ -266,6 +267,11 @@ export function generateSmartStops(
       state.currentFuel          = config.tankSizeLitres - remainingFuel;
       state.distanceSinceLastFill = remainingKm;
       state.hoursSinceLastFill    = remainingMin / 60;
+      // Cost of the remaining portion after the last en-route fill (regional prices)
+      state.costSinceLastFill = (remainingKm / segment.distanceKm) * (segment.fuelCost ?? 0);
+    } else {
+      // No en-route fill — accumulate the entire segment's cost
+      state.costSinceLastFill += segment.fuelCost ?? 0;
     }
 
     // Overnight stop check (uses strict "final segment" check, not grace zone)

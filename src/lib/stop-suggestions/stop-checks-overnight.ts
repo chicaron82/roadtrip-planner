@@ -45,6 +45,7 @@ export function handleDayBoundaryReset(
   state.currentFuel = config.tankSizeLitres;
   state.distanceSinceLastFill = 0;
   state.hoursSinceLastFill = 0;
+  state.costSinceLastFill = 0;
   state.currentDayNumber = newDrivingDay.dayNumber;
 }
 
@@ -106,6 +107,7 @@ export function checkArrivalWindow(
   state.currentFuel = config.tankSizeLitres;
   state.distanceSinceLastFill = 0;
   state.hoursSinceLastFill = 0;
+  state.costSinceLastFill = 0;
   state.currentDayNumber++;
 
   return suggestion;
@@ -167,6 +169,7 @@ export function checkOvernightStop(
   state.currentFuel = config.tankSizeLitres;
   state.distanceSinceLastFill = 0;
   state.hoursSinceLastFill = 0;
+  state.costSinceLastFill = 0;
   const departHour = config.departureTime.getHours();
   const departMinute = config.departureTime.getMinutes();
   const nextDay = new Date(arrivalTime);

@@ -195,7 +195,10 @@ describe('buildTimedTimeline', () => {
     expect(types(result)).toContain('waypoint');
   });
 
-  it('does NOT produce a waypoint when adjacent segment names match', () => {
+  it('produces a waypoint at intermediate original-segment junctions even when names match', () => {
+    // Kenora is a real user-specified waypoint — it should appear in the timeline
+    // even though seg1.to.name === seg2.from.name. Suppression only applies to
+    // transit sub-segments (_transitPart=true) which are artificial split-points.
     const seg1 = makeSegment({
       from: makeLocation('Winnipeg'),
       to: makeLocation('Kenora'),
@@ -203,14 +206,14 @@ describe('buildTimedTimeline', () => {
       distanceKm: 200,
     });
     const seg2 = makeSegment({
-      from: makeLocation('Kenora'), // matches seg1.to.name → no waypoint
+      from: makeLocation('Kenora'),
       to: makeLocation('Thunder Bay'),
       durationMinutes: 180,
       distanceKm: 300,
     });
 
     const result = buildTimedTimeline([seg1, seg2], [], makeSettings());
-    expect(types(result)).not.toContain('waypoint');
+    expect(types(result)).toContain('waypoint');
   });
 
   // ── isMidDriveForThisSegment path (single-segment fallback) ──────────────
@@ -239,11 +242,11 @@ describe('buildTimedTimeline', () => {
     const result = buildTimedTimeline([seg0, seg1], [junctionFuel], settings);
     const eventTypes = types(result);
 
-    // Fuel appears between the two drives (at the junction), not splitting either
+    // Fuel appears at the segment junction after the waypoint (arrive at B, then refuel)
     expect(eventTypes).toContain('fuel');
     const fuelIdx = eventTypes.indexOf('fuel');
-    expect(eventTypes[fuelIdx - 1]).toBe('drive');
-    expect(eventTypes[fuelIdx + 1]).toBe('drive');
+    expect(eventTypes[fuelIdx - 1]).toBe('waypoint'); // arrive at junction city first
+    expect(eventTypes[fuelIdx + 1]).toBe('drive');    // then continue driving
     // 2 drive segments total — fuel did NOT split either one
     expect(eventTypes.filter(t => t === 'drive')).toHaveLength(2);
     // Stop emitted exactly once

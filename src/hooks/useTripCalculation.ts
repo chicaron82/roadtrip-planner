@@ -171,24 +171,24 @@ export function useTripCalculation({
       );
       setStrategicFuelStops(fuelStops);
 
-      // Day trip arrival time sync: segment arrivalTimes don't include fuel/meal stop
-      // durations (those are computed separately by generateSmartStops). Without this
-      // adjustment, the printed itinerary shows ~45min earlier arrival than SmartTimeline.
-      if (tripDays.length === 1 && tripDays[0].totals.arrivalTime) {
-        const smartStops = generateSmartStops(
-          tripSummary.segments,
-          createStopConfig(vehicle, settings, tripSummary.fullGeometry),
-          tripDays,
-        );
-        // Sum non-overnight stop durations (fuel, meal, rest)
-        const totalStopMinutes = smartStops
-          .filter(s => s.type !== 'overnight' && !s.dismissed)
+      // Patch each day's arrival time to include smart-stop durations (fuel, rest, meal).
+      // finalizeTripDay only counts segment.stopDuration in stopTimeMinutes, missing the
+      // SuggestedStop durations that the SmartTimeline clock accumulates. Each stop's
+      // dayNumber field maps it to the correct TripDay.
+      const smartStopsForPatch = generateSmartStops(
+        tripSummary.segments,
+        createStopConfig(vehicle, settings, tripSummary.fullGeometry),
+        tripDays,
+      );
+      for (const day of tripDays) {
+        if (!day.totals.arrivalTime || day.segments.length === 0) continue;
+        const dayStopMinutes = smartStopsForPatch
+          .filter(s => s.dayNumber === day.dayNumber && s.type !== 'overnight' && !s.dismissed)
           .reduce((sum, s) => sum + s.duration, 0);
-
-        if (totalStopMinutes > 0) {
-          const adjustedArrival = new Date(tripDays[0].totals.arrivalTime);
-          adjustedArrival.setMinutes(adjustedArrival.getMinutes() + totalStopMinutes);
-          tripDays[0].totals.arrivalTime = adjustedArrival.toISOString();
+        if (dayStopMinutes > 0) {
+          const adjustedArrival = new Date(day.totals.arrivalTime);
+          adjustedArrival.setMinutes(adjustedArrival.getMinutes() + dayStopMinutes);
+          day.totals.arrivalTime = adjustedArrival.toISOString();
         }
       }
 

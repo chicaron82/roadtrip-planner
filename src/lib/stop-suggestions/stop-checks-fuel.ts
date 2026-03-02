@@ -45,7 +45,9 @@ export function checkFuelStop(
   }
 
   const refillAmount = config.tankSizeLitres - state.currentFuel;
-  const refillCost = refillAmount * config.gasPrice;
+  // Use cost accumulated from segment.fuelCost (regional prices) rather than
+  // litres × flat gasPrice — ensures stop card matches the budget model.
+  const refillCost = state.costSinceLastFill;
   const tankPercent = Math.round((state.currentFuel / config.tankSizeLitres) * 100);
   const litresRemaining = state.currentFuel.toFixed(1);
   const locationPrefix = hubName ? `Fuel up in ${hubName}. ` : '';
@@ -70,6 +72,7 @@ export function checkFuelStop(
   state.currentFuel = config.tankSizeLitres;
   state.distanceSinceLastFill = 0;
   state.hoursSinceLastFill = 0;
+  state.costSinceLastFill = 0;
 
   const hour = state.currentTime.getHours();
   const isLunchWindow = hour >= 11 && hour < 13;
@@ -135,6 +138,11 @@ export function getEnRouteFuelStops(
 ): { stops: SuggestedStop[]; lastFillKm: number } {
   const stops: SuggestedStop[] = [];
   let lastFillKm = 0;
+  // Track cost accumulated from previous segments + within this segment since last fill.
+  // Mirrors the logic in checkFuelStop: use segment.fuelCost (regional prices) instead
+  // of litres × flat gasPrice so stop cards agree with the per-day budget total.
+  let costSinceLastFillInSegment = state.costSinceLastFill;
+  let lastStopKmInSegment = 0;
 
   // Hub snap: scan backward (and slightly forward) from the trigger km mark to
   // find the nearest real city. 140km window catches towns like Brandon (~200km
@@ -234,6 +242,12 @@ export function getEnRouteFuelStops(
       reason = `En-route refuel needed ${locationDesc}. Your tank cannot cover the full distance without stopping.${mealNote}`;
     }
 
+    // Cost from last fill position to this stop: accumulated from previous segments
+    // plus the proportional cost of driving from lastStopKmInSegment to snappedKm.
+    const kmFromLastFill = snappedKm - lastStopKmInSegment;
+    const fuelCostForStop = costSinceLastFillInSegment
+      + (kmFromLastFill / segment.distanceKm) * (segment.fuelCost ?? 0);
+
     stops.push({
       id: `fuel-enroute-${index}-${stopIndex}`,
       type: 'fuel',
@@ -244,7 +258,7 @@ export function getEnRouteFuelStops(
       priority: isComfortStop ? 'recommended' : 'required',
       details: {
         fuelNeeded: isComfortStop ? config.tankSizeLitres * 0.5 : config.tankSizeLitres * 0.9,
-        fuelCost: (isComfortStop ? config.tankSizeLitres * 0.5 : config.tankSizeLitres * 0.9) * config.gasPrice,
+        fuelCost: fuelCostForStop,
         fillType: isComfortStop ? 'topup' : 'full',
         comboMeal,
       },
@@ -254,6 +268,8 @@ export function getEnRouteFuelStops(
     });
 
     lastFillKm = snappedKm;
+    lastStopKmInSegment = snappedKm;
+    costSinceLastFillInSegment = 0; // reset — next stop counts from this fill point
     // All subsequent stops use the safety range interval
     kmMark = snappedKm + safeRangeKm;
     stopIndex++;

@@ -167,7 +167,7 @@ export function SwipeableWizard({ children, tripMode, onRevealChange }: Swipeabl
       // touchAction auto — we manage gestures ourselves via addEventListener above
     >
       <motion.div
-        className="flex-1 w-full h-full pointer-events-auto max-w-[100vw] relative"
+        className={`flex-1 w-full h-full pointer-events-auto max-w-[100vw] relative ${tripMode ? 'pr-12' : ''}`}
         animate={{ opacity: isRevealed ? 0.35 : 1 }}
         transition={{ duration: 0.3 }}
       >

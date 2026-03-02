@@ -297,27 +297,34 @@ describe('buildSimulationItems', () => {
   });
 
   it('emits accepted stops after LAST sub-segment of each original', () => {
+    // 3-day trip: original seg 0 splits across day 1 (WPG→TB) and day 2 (TB→SSM),
+    // original seg 1 covers day 3 (SSM→VAN). The accepted stop is for day 2 (last
+    // of original 0), which is NOT the global final segment — so it isn't suppressed
+    // by the final-segment non-overnight filter in buildTimedTimeline.
     const subSeg1 = makeProcessedSeg(LOC_WPG, LOC_TB, 0);
-    const subSeg2 = makeProcessedSeg(LOC_TB, LOC_VAN, 0);
+    const subSeg2 = makeProcessedSeg(LOC_TB, LOC_SSM, 0);
+    const subSeg3 = makeProcessedSeg(LOC_SSM, LOC_VAN, 1);
 
     const days = [
       makeDay(1, '2026-08-01', [subSeg1], [0]),
       makeDay(2, '2026-08-02', [subSeg2], [0]),
+      makeDay(3, '2026-08-03', [subSeg3], [1]),
     ];
 
     const acceptedStop: SuggestedStop = {
       id: 'fuel-1',
       type: 'fuel',
-      reason: 'Fuel up at destination',
+      reason: 'Fuel after day 2 drive',
       afterSegmentIndex: 0,
       estimatedTime: new Date('2026-08-02T12:00:00'),
       duration: 15,
       priority: 'recommended',
       accepted: true,
       details: {},
+      dayNumber: 2, // generateSmartStops always sets dayNumber; adapter relies on it for day routing
     };
 
-    const summary = makeSummary([makeSeg(LOC_WPG, LOC_VAN)]);
+    const summary = makeSummary([makeSeg(LOC_WPG, LOC_SSM), makeSeg(LOC_SSM, LOC_VAN)]);
     const items = buildSimulationItems({
       summary,
       settings: DEFAULT_SETTINGS,
@@ -330,20 +337,27 @@ describe('buildSimulationItems', () => {
     // Should appear AFTER the 2nd stop (last sub-seg of original 0), not after the 1st
     const stopIndices = items.map((it, idx) => ({ type: it.type, idx }));
     const sugIdx = stopIndices.findIndex(s => s.type === 'suggested');
-    const lastStopIdx = stopIndices.filter(s => s.type === 'stop').pop()!.idx;
-    expect(sugIdx).toBeGreaterThan(lastStopIdx);
+    const stop2Idx = stopIndices.filter(s => s.type === 'stop')[1]?.idx;
+    expect(sugIdx).toBeGreaterThan(-1); // stop was emitted
+    expect(sugIdx).toBeGreaterThan(stop2Idx); // appears after sub-seg 2 (day 2 end)
   });
 
   it('does not emit accepted stops between sub-segments of same original', () => {
-    // 3 sub-segments of original 0: stop should NOT appear after sub-seg 1 or 2
-    const subSeg1 = makeProcessedSeg(LOC_WPG, LOC_TB, 0, { durationMinutes: 240, fuelNeededLitres: 20 });
-    const subSeg2 = makeProcessedSeg(LOC_TB, LOC_SSM, 0, { durationMinutes: 240, fuelNeededLitres: 20 });
+    // 3 sub-segs of original 0 + 1 sub-seg of original 1 (return leg).
+    // Stop has dayNumber:3 (last day of original 0).
+    // Verifies: stop fires after sub-seg 3 (end of original 0), NOT between 1↔2 or 2↔3,
+    // and the 4th sub-seg (original 1) provides a non-final anchor so day 3's boundary
+    // is not suppressed by buildTimedTimeline's final-segment filter.
+    const subSeg1 = makeProcessedSeg(LOC_WPG, LOC_TB,  0, { durationMinutes: 240, fuelNeededLitres: 20 });
+    const subSeg2 = makeProcessedSeg(LOC_TB,  LOC_SSM, 0, { durationMinutes: 240, fuelNeededLitres: 20 });
     const subSeg3 = makeProcessedSeg(LOC_SSM, LOC_VAN, 0, { durationMinutes: 240, fuelNeededLitres: 20 });
+    const subSeg4 = makeProcessedSeg(LOC_VAN, LOC_WPG, 1, { durationMinutes: 240, fuelNeededLitres: 20 });
 
     const days = [
       makeDay(1, '2026-08-01', [subSeg1], [0]),
       makeDay(2, '2026-08-02', [subSeg2], [0]),
       makeDay(3, '2026-08-03', [subSeg3], [0]),
+      makeDay(4, '2026-08-04', [subSeg4], [1]),
     ];
 
     const acceptedStop: SuggestedStop = {
@@ -356,9 +370,13 @@ describe('buildSimulationItems', () => {
       priority: 'recommended',
       accepted: true,
       details: {},
+      dayNumber: 3, // generateSmartStops always sets dayNumber; adapter relies on it for day routing
     };
 
-    const summary = makeSummary([makeSeg(LOC_WPG, LOC_VAN, { durationMinutes: 720 })]);
+    const summary = makeSummary([
+      makeSeg(LOC_WPG, LOC_VAN, { durationMinutes: 720 }),
+      makeSeg(LOC_VAN, LOC_WPG),
+    ]);
     const items = buildSimulationItems({
       summary,
       settings: DEFAULT_SETTINGS,
@@ -368,13 +386,16 @@ describe('buildSimulationItems', () => {
       activeSuggestions: [acceptedStop],
     });
 
-    // There should be exactly 1 suggested item (after the 3rd stop)
+    // Exactly 1 suggested item
     const suggested = items.filter(i => i.type === 'suggested');
     expect(suggested).toHaveLength(1);
 
-    // And it should be the LAST item (after all 3 stops)
-    const lastItem = items[items.length - 1];
-    expect(lastItem.type).toBe('suggested');
+    // It must appear after stop 3 (end of original 0) and before stop 4 (original 1)
+    const positions = items.map((it, idx) => ({ type: it.type, idx }));
+    const sugIdx   = positions.findIndex(p => p.type === 'suggested');
+    const stopIdxs = positions.filter(p => p.type === 'stop').map(p => p.idx);
+    expect(sugIdx).toBeGreaterThan(stopIdxs[2]); // after sub-seg 3 waypoint
+    expect(sugIdx).toBeLessThan(stopIdxs[3]);    // before sub-seg 4 arrival
   });
 
   it('filters out overnight stops from accepted list', () => {
@@ -433,8 +454,10 @@ describe('buildSimulationItems', () => {
     expect(gasStops).toHaveLength(0);
   });
 
-  it('inserts safety-net gas stop when tank is low and no accepted fuel exists', () => {
-    // Single segment using most of the tank
+  it('emits no gas items when suggestions list is empty (critical fuel surfaced via generateSmartStops)', () => {
+    // The adapter delegates entirely to buildTimedTimeline which does not perform
+    // independent tank simulation. Critical fuel warnings are surfaced as
+    // priority:'required' SuggestedStopCards by generateSmartStops upstream.
     const seg = makeSeg(LOC_WPG, LOC_TB, { fuelNeededLitres: 45, durationMinutes: 120 });
     const summary = makeSummary([seg, makeSeg(LOC_TB, LOC_SSM, { fuelNeededLitres: 40, durationMinutes: 120 })]);
     const items = buildSimulationItems({
@@ -446,9 +469,9 @@ describe('buildSimulationItems', () => {
       activeSuggestions: [],
     });
 
-    // Should have at least one gas stop before the 2nd segment
+    // No gas items emitted — type:'gas' is no longer produced by the adapter
     const gasStops = items.filter(i => i.type === 'gas');
-    expect(gasStops.length).toBeGreaterThanOrEqual(1);
+    expect(gasStops).toHaveLength(0);
   });
 
   it('skips safety-net gas when tank is nearly full', () => {

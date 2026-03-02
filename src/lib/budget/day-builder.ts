@@ -79,16 +79,22 @@ export function finalizeTripDay(
 ): void {
   if (day.segments.length === 0) return;
 
-  // Calculate route string — strip "(transit)" labels from split-point names
-  // and simplify un-snapped transit split-points ("CityA → CityB" → "CityA")
-  const cleanName = (n: string): string => {
-    let name = n.replace(/\s*\(transit\)\s*$/, '');
+  // Calculate route string — strip "(transit)" labels from split-point names.
+  // Un-snapped transit split-points use the format "CityA → CityB (transit)".
+  //   As a FROM name: take CityA (the source — directionally correct)
+  //   As a TO name:   take CityB (the destination — avoids "Winnipeg → Winnipeg")
+  const cleanFrom = (n: string): string => {
+    const name = n.replace(/\s*\(transit\)\s*$/, '');
     const arrow = name.indexOf(' → ');
-    if (arrow >= 0) name = name.substring(0, arrow);
-    return name;
+    return arrow >= 0 ? name.substring(0, arrow).trim() : name;
   };
-  const firstStop = cleanName(day.segments[0].from.name);
-  const lastStop = cleanName(day.segments[day.segments.length - 1].to.name);
+  const cleanTo = (n: string): string => {
+    const name = n.replace(/\s*\(transit\)\s*$/, '');
+    const arrow = name.indexOf(' → ');
+    return arrow >= 0 ? name.substring(arrow + 3).trim() : name;
+  };
+  const firstStop = cleanFrom(day.segments[0].from.name);
+  const lastStop = cleanTo(day.segments[day.segments.length - 1].to.name);
   day.route = `${firstStop} → ${lastStop}`;
 
   // Calculate totals

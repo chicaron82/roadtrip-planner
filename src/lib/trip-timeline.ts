@@ -56,6 +56,12 @@ export interface TimedEvent {
   // Combo metadata (set by stop-consolidator)
   timeSavedMinutes?: number;
   comboLabel?: string; // e.g. "Fuel + Lunch"
+
+  // UI bridge fields — populated for 'waypoint' and 'arrival' events so the
+  // SimulationItems adapter can build SimulationItem without re-deriving data.
+  segment?: RouteSegment;
+  flatIndex?: number;
+  originalIndex?: number;
 }
 
 /**
@@ -115,6 +121,7 @@ export function buildTimedTimeline(
   roundTripMidpoint?: number,
   destinationStayMinutes?: number,
   tripDays?: TripDay[],
+  startTimeOverride?: Date,
 ): TimedEvent[] {
   if (segments.length === 0) return [];
 
@@ -125,7 +132,11 @@ export function buildTimedTimeline(
   let activeTimezone = lngToIANA(segments[0].from.lng);
 
   // Parse the departure time in the ORIGIN's timezone (not browser local).
-  let currentTime = parseLocalDateInTZ(settings.departureDate, settings.departureTime, activeTimezone);
+  // startTimeOverride lets callers (e.g. the SimulationItems adapter) supply a
+  // pre-computed timezone-correct start time rather than re-deriving it here.
+  let currentTime = startTimeOverride
+    ? new Date(startTimeOverride)
+    : parseLocalDateInTZ(settings.departureDate, settings.departureTime, activeTimezone);
   let cumulativeKm = 0;
   const emittedIds = new Set<string>();
 
@@ -364,6 +375,22 @@ export function buildTimedTimeline(
     if (newDay) {
       currentDayNumber = newDay.dayNumber;
 
+      // Fallback clock reset: advance to this day's planned departure if an
+      // overnight stop wasn't emitted to advance the clock (e.g. when callers
+      // pass only accepted non-overnight suggestions, or in tests with no stops).
+      // When an overnight stop DID fire, currentTime is already at next-morning
+      // departure (or later), so the `>` guard makes this a no-op.
+      const plannedDep = drivingDayDepartures.get(newDay.date);
+      if (plannedDep) {
+        const depTime = new Date(plannedDep);
+        if (depTime > currentTime) currentTime = depTime;
+      } else {
+        const [dH, dM] = settings.departureTime.split(':').map(Number);
+        const nextDate = new Date(newDay.date + 'T00:00:00');
+        nextDate.setHours(dH ?? 9, dM ?? 0, 0, 0);
+        if (nextDate > currentTime) currentTime = nextDate;
+      }
+
       // Resolve a clean departure location name.
       // Prefer the previous segment's TO name (same physical point, usually hub-resolved).
       // Strip unsnapped "CityA → CityB" patterns and "(transit)" labels from fallback names.
@@ -576,12 +603,18 @@ export function buildTimedTimeline(
         locationHint: seg.to.name,
         stops: [],
         timezone: activeTimezone,
+        segment: seg,
+        flatIndex: i,
+        originalIndex: origIdx,
       });
     } else {
-      // Transit splits generate sub-segments with matching from/to names,
-      // so the name check naturally suppresses false waypoints between them.
+      // Suppress waypoints only at transit split-point boundaries — where a
+      // single OSRM segment was split into sub-segments (_transitPart=true) and
+      // the names happen to match across the boundary. For genuine route waypoints
+      // (original segments, or named sub-segment endpoints) always emit.
       const nextSeg = iterSegments[i + 1];
-      if (nextSeg && nextSeg.from?.name !== seg.to.name) {
+      const isTransitBoundary = seg._transitPart && nextSeg?.from?.name === seg.to.name;
+      if (nextSeg && !isTransitBoundary) {
         events.push({
           id: `waypoint-${i}`,
           type: 'waypoint',
@@ -592,6 +625,9 @@ export function buildTimedTimeline(
           locationHint: seg.to.name,
           stops: [],
           timezone: activeTimezone,
+          segment: seg,
+          flatIndex: i,
+          originalIndex: origIdx,
         });
       }
     }
