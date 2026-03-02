@@ -6,7 +6,8 @@ import { TripOverview } from './TripOverview';
 import { FeasibilityBanner } from './FeasibilityBanner';
 import { BudgetSensitivity } from './BudgetSensitivity';
 import { HoursTradeoff } from './HoursTradeoff';
-import { analyzeFeasibility } from '../../lib/feasibility';
+import { analyzeFeasibility, compareRefinements } from '../../lib/feasibility';
+import type { FeasibilityResult, FeasibilityWarning } from '../../lib/feasibility';
 
 // ─── Count-up hook: eases a number from 0 → target over ~700 ms ────────────────
 // Debounces the target by 200ms before starting the animation so rapid strategy
@@ -51,6 +52,42 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
     () => summary ? analyzeFeasibility(summary, settings) : null,
     [summary, settings],
   );
+
+  // Refinement delta warnings — produced when the user changes traveler/driver count
+  // mid-session. Cleared when the route (summary) changes so stale deltas don't linger.
+  const [refinementWarnings, setRefinementWarnings] = useState<FeasibilityWarning[]>([]);
+  const prevFeasibility = useRef<FeasibilityResult | null>(null);
+  const prevCounts = useRef<{ numTravelers: number; numDrivers: number } | null>(null);
+
+  // Route changed → wipe refinement context so old deltas don't linger.
+  // Must be declared before the effect below so it runs first (React effect order).
+  useEffect(() => {
+    setRefinementWarnings([]);
+    prevFeasibility.current = null;
+  }, [summary]);
+
+  // Traveler or driver count changed → compare before/after feasibility.
+  useEffect(() => {
+    if (feasibility && prevFeasibility.current && prevCounts.current) {
+      const travelersChanged = prevCounts.current.numTravelers !== settings.numTravelers;
+      const driversChanged   = prevCounts.current.numDrivers   !== settings.numDrivers;
+      if (travelersChanged || driversChanged) {
+        setRefinementWarnings(compareRefinements(prevFeasibility.current, feasibility, {
+          ...(travelersChanged && { travelersBefore: prevCounts.current.numTravelers, travelersAfter: settings.numTravelers }),
+          ...(driversChanged   && { driversBefore:   prevCounts.current.numDrivers,   driversAfter:   settings.numDrivers   }),
+        }));
+      }
+    }
+    if (feasibility) prevFeasibility.current = feasibility;
+    prevCounts.current = { numTravelers: settings.numTravelers, numDrivers: settings.numDrivers };
+  }, [feasibility, settings.numTravelers, settings.numDrivers]);
+
+  // Merge refinement warnings (at top, so they appear first) with base warnings.
+  const displayFeasibility = useMemo(() => {
+    if (!feasibility) return null;
+    if (refinementWarnings.length === 0) return feasibility;
+    return { ...feasibility, warnings: [...refinementWarnings, ...feasibility.warnings] };
+  }, [feasibility, refinementWarnings]);
 
   // Animated stat values — count up from 0 on first render
   const animDistKm      = useCountUp(summary?.totalDistanceKm     ?? 0);
@@ -204,8 +241,8 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
               )}
 
               {/* Feasibility Health Check */}
-              {feasibility && (
-                <FeasibilityBanner result={feasibility} numTravelers={settings.numTravelers} className="mt-3" defaultCollapsed />
+              {displayFeasibility && (
+                <FeasibilityBanner result={displayFeasibility} numTravelers={settings.numTravelers} className="mt-3" defaultCollapsed />
               )}
             </div>
           )}
