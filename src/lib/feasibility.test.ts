@@ -40,8 +40,8 @@ describe('analyzeFeasibility', () => {
       const settings = makeSettings({ budget: makeBudget({ total: 2000 }) });
 
       const result = analyzeFeasibility(summary, settings);
-      expect(result.status).toBe('over');
-      expect(result.warnings.some(w => w.category === 'budget' && w.severity === 'critical')).toBe(true);
+      expect(result.status).toBe('tight');
+      expect(result.warnings.some(w => w.category === 'budget' && w.severity === 'warning')).toBe(true);
     });
 
     it('skips budget analysis in open mode', () => {
@@ -49,10 +49,13 @@ describe('analyzeFeasibility', () => {
         budget: { gasUsed: 9999, hotelCost: 9999, foodEstimate: 9999, miscCost: 9999, dayTotal: 39996, gasRemaining: 0, hotelRemaining: 0, foodRemaining: 0 },
       });
       const summary = makeSummary([day]);
-      const settings = makeSettings({ budget: makeBudget({ mode: 'open', total: 100 }) });
+      const settings = makeSettings({ budgetMode: 'open', budget: makeBudget({ mode: 'open', total: 100 }) });
 
       const result = analyzeFeasibility(summary, settings);
-      expect(result.warnings.filter(w => w.category === 'budget')).toHaveLength(0);
+      const budgetWarnings = result.warnings.filter(w => w.category === 'budget');
+      expect(budgetWarnings).toHaveLength(1);
+      expect(budgetWarnings[0].severity).toBe('info');
+      expect(budgetWarnings[0].message).toContain('budget estimates');
     });
 
     it('warns when gas category exceeds gas budget', () => {
@@ -317,7 +320,7 @@ describe('compareRefinements', () => {
     const after = analyzeFeasibility(makeSummary([dayOver]), safeSettings);
 
     const warnings = compareRefinements(before, after, {});
-    expect(warnings.some(w => w.severity === 'critical' && w.message.includes('no longer within budget'))).toBe(true);
+    expect(warnings.some(w => w.severity === 'warning' && w.message.includes('no longer within budget'))).toBe(true);
   });
 
   it('reports recovery when plan goes from over to on-track', () => {
@@ -351,6 +354,43 @@ describe('compareRefinements', () => {
 
     // No status change = no status warnings
     expect(warnings.filter(w => w.category === 'budget' && w.message.includes('no longer'))).toHaveLength(0);
+  });
+
+  it('reports when stops are added to the route', () => {
+    const day = makeDay();
+    const summary = makeSummary([day]);
+    const settings = makeSettings();
+    const result = analyzeFeasibility(summary, settings);
+
+    const warnings = compareRefinements(result, result, { stopsAdded: 2 });
+
+    expect(warnings.some(w => w.category === 'drive-time' && w.message.includes('2 stops added'))).toBe(true);
+  });
+
+  it('reports when stops are removed from the route', () => {
+    const day = makeDay();
+    const summary = makeSummary([day]);
+    const settings = makeSettings();
+    const result = analyzeFeasibility(summary, settings);
+
+    const warnings = compareRefinements(result, result, { stopsRemoved: 1 });
+
+    expect(warnings.some(w => w.category === 'drive-time' && w.message.includes('1 stop removed'))).toBe(true);
+  });
+
+  it('rounds per-person cost to nearest dollar', () => {
+    // Fractional trip costs should produce integer dollar amounts in messages
+    const day = makeDay({
+      budget: { gasUsed: 601, hotelCost: 800, foodEstimate: 400, miscCost: 0, dayTotal: 1801, gasRemaining: 0, hotelRemaining: 0, foodRemaining: 0 },
+    });
+    const summary = makeSummary([day]);
+    const before = analyzeFeasibility(summary, makeSettings({ numTravelers: 3 }));
+    const after = analyzeFeasibility(summary, makeSettings({ numTravelers: 2 }));
+
+    const warnings = compareRefinements(before, after, { travelersBefore: 3, travelersAfter: 2 });
+    const msg = warnings.find(w => w.category === 'passenger')?.message ?? '';
+    // Should not contain decimal points in the dollar amount
+    expect(msg).not.toMatch(/\$\d+\.\d/);
   });
 });
 
