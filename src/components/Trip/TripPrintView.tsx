@@ -36,14 +36,24 @@ export function printTrip(props: TripPrintViewProps): void {
   const { summary, settings, vehicle } = props;
   const days = summary.days || [];
 
-  // Compute driver rotation (same logic as ItineraryTimeline)
   let driverRotation: DriverRotationResult | null = null;
   if (settings.numDrivers > 1) {
+    const flatSegments: typeof summary.segments = [];
+    if (days && days.length > 0) {
+      days.forEach(day => {
+        if (day.segmentIndices.length > 0) {
+          flatSegments.push(...day.segments);
+        }
+      });
+    } else {
+      flatSegments.push(...summary.segments);
+    }
+    
     // We need simulationItems to extract fuel indices, but for print we can use segment stopTypes directly
-    const fuelIndices = summary.segments
+    const fuelIndices = flatSegments
       .map((seg, i) => seg.stopType === 'fuel' ? i : -1)
       .filter(i => i >= 0);
-    driverRotation = assignDrivers(summary.segments, settings.numDrivers, fuelIndices);
+    driverRotation = assignDrivers(flatSegments, settings.numDrivers, fuelIndices);
   }
 
   // Build timed events — use caller's suggestions when available (single source of truth),

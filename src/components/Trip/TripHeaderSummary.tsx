@@ -13,20 +13,20 @@ export function TripHeaderSummary({ summary, drivingDays, freeDays }: TripHeader
   const totalDays = drivingDays + freeDays;
 
   return (
-    <div className="rounded-xl border bg-gradient-to-r from-slate-50 to-white p-4 shadow-sm">
-      <div className="flex flex-wrap items-center gap-4 text-sm">
+    <div className="rounded-xl border border-border bg-muted/20 p-4 shadow-sm">
+      <div className="flex flex-wrap items-center gap-4 text-sm text-foreground">
         <div className="flex items-center gap-2">
-          <Car className="h-4 w-4 text-blue-500" />
+          <Car className="h-4 w-4 text-blue-400" />
           <span className="font-semibold">{Math.round(totalKm).toLocaleString()} km</span>
         </div>
-        <div className="h-4 w-px bg-slate-200" />
+        <div className="h-4 w-px bg-border" />
         <div className="flex items-center gap-2">
-          <Fuel className="h-4 w-4 text-orange-500" />
+          <Fuel className="h-4 w-4 text-orange-400" />
           <span className="font-semibold">${totalFuel.toFixed(0)} fuel</span>
         </div>
-        <div className="h-4 w-px bg-slate-200" />
+        <div className="h-4 w-px bg-border" />
         <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-purple-500" />
+          <Calendar className="h-4 w-4 text-purple-400" />
           <span className="font-semibold">
             {totalDays} day{totalDays !== 1 ? 's' : ''}
             {freeDays > 0 && (

@@ -39,16 +39,16 @@ export function DailyBudgetCard({ budget, dayNumber, budgetMode, className }: Da
   return (
     <div
       className={cn(
-        "rounded-xl border-2 border-gray-100 bg-gradient-to-br from-gray-50 to-white p-4 mt-4",
+        "rounded-xl border-2 border-border bg-muted/20 p-4 mt-4",
         className
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100">
-        <span className="text-xs font-bold uppercase tracking-wider text-gray-500">
+      <div className="flex items-center justify-between mb-3 pb-2 border-b border-border">
+        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
           Day {dayNumber} Budget Summary
         </span>
-        <span className="text-sm font-bold text-gray-900">
+        <span className="text-sm font-bold text-foreground">
           ${budget.dayTotal.toFixed(0)}
         </span>
       </div>
@@ -58,18 +58,18 @@ export function DailyBudgetCard({ budget, dayNumber, budgetMode, className }: Da
         {/* Gas */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center">
-              <Fuel className="h-3 w-3 text-orange-600" />
+            <div className="w-6 h-6 rounded-full bg-orange-500/20 flex items-center justify-center">
+              <Fuel className="h-3 w-3 text-orange-500" />
             </div>
-            <span className="text-xs text-gray-600">Gas Used</span>
+            <span className="text-xs text-muted-foreground">Gas Used</span>
           </div>
-          <span className="text-sm font-semibold text-gray-900">${budget.gasUsed.toFixed(0)}</span>
+          <span className="text-sm font-semibold text-foreground">${budget.gasUsed.toFixed(0)}</span>
         </div>
 
         {/* Gas Remaining */}
         {showRemaining && (
           <div className="flex items-center justify-end gap-1.5">
-            <span className="text-xs text-gray-500">Remaining:</span>
+            <span className="text-xs text-muted-foreground">Remaining:</span>
             <span className={cn("text-xs font-semibold flex items-center gap-0.5", getBudgetStatus(budget.gasRemaining).color)}>
               {getBudgetStatus(budget.gasRemaining).icon}
               ${budget.gasRemaining.toFixed(0)}
@@ -80,12 +80,12 @@ export function DailyBudgetCard({ budget, dayNumber, budgetMode, className }: Da
         {/* Hotel */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
-              <Hotel className="h-3 w-3 text-blue-600" />
+            <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center">
+              <Hotel className="h-3 w-3 text-blue-500" />
             </div>
-            <span className="text-xs text-gray-600">Hotel</span>
+            <span className="text-xs text-muted-foreground">Hotel</span>
           </div>
-          <span className="text-sm font-semibold text-gray-900">
+          <span className="text-sm font-semibold text-foreground">
             {budget.hotelCost > 0 ? `$${budget.hotelCost.toFixed(0)}` : '-'}
           </span>
         </div>
@@ -93,7 +93,7 @@ export function DailyBudgetCard({ budget, dayNumber, budgetMode, className }: Da
         {/* Hotel Remaining */}
         {showRemaining && (
           <div className="flex items-center justify-end gap-1.5">
-            <span className="text-xs text-gray-500">Remaining:</span>
+            <span className="text-xs text-muted-foreground">Remaining:</span>
             <span className={cn("text-xs font-semibold flex items-center gap-0.5", getBudgetStatus(budget.hotelRemaining).color)}>
               {getBudgetStatus(budget.hotelRemaining).icon}
               ${budget.hotelRemaining.toFixed(0)}
@@ -104,18 +104,18 @@ export function DailyBudgetCard({ budget, dayNumber, budgetMode, className }: Da
         {/* Food */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
-              <Utensils className="h-3 w-3 text-green-600" />
+            <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center">
+              <Utensils className="h-3 w-3 text-green-500" />
             </div>
-            <span className="text-xs text-gray-600">Food Est.</span>
+            <span className="text-xs text-muted-foreground">Food Est.</span>
           </div>
-          <span className="text-sm font-semibold text-gray-900">${budget.foodEstimate.toFixed(0)}</span>
+          <span className="text-sm font-semibold text-foreground">${budget.foodEstimate.toFixed(0)}</span>
         </div>
 
         {/* Food Remaining */}
         {showRemaining && (
           <div className="flex items-center justify-end gap-1.5">
-            <span className="text-xs text-gray-500">Remaining:</span>
+            <span className="text-xs text-muted-foreground">Remaining:</span>
             <span className={cn("text-xs font-semibold flex items-center gap-0.5", getBudgetStatus(budget.foodRemaining).color)}>
               {getBudgetStatus(budget.foodRemaining).icon}
               ${budget.foodRemaining.toFixed(0)}
@@ -126,16 +126,16 @@ export function DailyBudgetCard({ budget, dayNumber, budgetMode, className }: Da
 
       {/* Visual Progress Bars */}
       {showRemaining && (
-        <div className="mt-4 pt-3 border-t border-gray-100 space-y-2">
+        <div className="mt-4 pt-3 border-t border-border space-y-2">
           {/* Gas Progress */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Gas Budget</span>
-              <span className="text-[10px] font-semibold text-gray-600">
+              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Gas Budget</span>
+              <span className="text-[10px] font-semibold text-foreground">
                 {getProgressPercent(budget.gasUsed, budget.gasRemaining).toFixed(0)}%
               </span>
             </div>
-            <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+            <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
               <div
                 className={cn("h-full transition-all duration-500", getProgressBarColor(budget.gasUsed, budget.gasRemaining))}
                 style={{ width: `${getProgressPercent(budget.gasUsed, budget.gasRemaining)}%` }}
@@ -146,12 +146,12 @@ export function DailyBudgetCard({ budget, dayNumber, budgetMode, className }: Da
           {/* Hotel Progress */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Hotel Budget</span>
-              <span className="text-[10px] font-semibold text-gray-600">
+              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Hotel Budget</span>
+              <span className="text-[10px] font-semibold text-foreground">
                 {getProgressPercent(budget.hotelCost, budget.hotelRemaining).toFixed(0)}%
               </span>
             </div>
-            <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+            <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
               <div
                 className={cn("h-full transition-all duration-500", getProgressBarColor(budget.hotelCost, budget.hotelRemaining))}
                 style={{ width: `${getProgressPercent(budget.hotelCost, budget.hotelRemaining)}%` }}
@@ -162,12 +162,12 @@ export function DailyBudgetCard({ budget, dayNumber, budgetMode, className }: Da
           {/* Food Progress */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Food Budget</span>
-              <span className="text-[10px] font-semibold text-gray-600">
+              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Food Budget</span>
+              <span className="text-[10px] font-semibold text-foreground">
                 {getProgressPercent(budget.foodEstimate, budget.foodRemaining).toFixed(0)}%
               </span>
             </div>
-            <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+            <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
               <div
                 className={cn("h-full transition-all duration-500", getProgressBarColor(budget.foodEstimate, budget.foodRemaining))}
                 style={{ width: `${getProgressPercent(budget.foodEstimate, budget.foodRemaining)}%` }}
@@ -190,7 +190,7 @@ export function DailyBudgetBadge({ budget, className }: DailyBudgetBadgeProps) {
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-3 px-3 py-1.5 rounded-full bg-gray-100 text-xs",
+        "inline-flex items-center gap-3 px-3 py-1.5 rounded-full bg-muted text-xs",
         className
       )}
     >
@@ -208,7 +208,7 @@ export function DailyBudgetBadge({ budget, className }: DailyBudgetBadgeProps) {
         <Utensils className="h-3 w-3 text-green-500" />
         ${budget.foodEstimate.toFixed(0)}
       </span>
-      <span className="font-semibold text-gray-700 border-l border-gray-300 pl-3">
+      <span className="font-semibold text-foreground border-l border-border pl-3">
         ${budget.dayTotal.toFixed(0)}
       </span>
     </div>

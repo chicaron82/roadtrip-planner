@@ -282,9 +282,9 @@ export function ItineraryTimeline({
                           {dayTips.map((tip, tipIdx) => (
                             <div
                               key={`tip-${entryDay.dayNumber}-${tipIdx}`}
-                              className="ml-10 mt-2 flex items-start gap-2 p-2.5 rounded-lg border bg-gradient-to-r from-yellow-50 to-transparent text-sm"
+                              className="ml-10 mt-2 flex items-start gap-2 p-2.5 rounded-lg border border-amber-500/20 bg-amber-500/10 text-sm"
                             >
-                              <span className="text-yellow-500 mt-0.5">💡</span>
+                              <span className="text-amber-500 mt-0.5">💡</span>
                               <span className="text-muted-foreground">{tip}</span>
                             </div>
                           ))}

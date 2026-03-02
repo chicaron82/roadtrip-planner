@@ -208,8 +208,24 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
   const driverRotation = useMemo(() => {
     if (settings.numDrivers <= 1) return null;
     const fuelIndices = extractFuelStopIndices(simulationItems);
-    return assignDrivers(summary.segments, settings.numDrivers, fuelIndices);
-  }, [summary.segments, settings.numDrivers, simulationItems]);
+    
+    // We must assign drivers over the flattened, split fragments (which 
+    // timeline items map to), rather than the raw 24-hour summary segments.
+    // Ensure we only pass driving sub-segments from processed days, matching
+    // the timeline simulation structure.
+    const flatSegments = [];
+    if (days) {
+      days.forEach(day => {
+        if (day.segmentIndices.length > 0) {
+          flatSegments.push(...day.segments);
+        }
+      });
+    } else {
+      flatSegments.push(...summary.segments);
+    }
+    
+    return assignDrivers(flatSegments, settings.numDrivers, fuelIndices);
+  }, [summary.segments, settings.numDrivers, simulationItems, days]);
 
   // Quick lookup: segment index → driver number
   const driverBySegment = useMemo(() => {

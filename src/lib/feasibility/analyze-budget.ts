@@ -10,22 +10,32 @@ export function analyzeBudget(
   const warnings: FeasibilityWarning[] = [];
   const budget = settings.budget;
 
-  if (budget.mode !== 'plan-to-budget' || budget.total <= 0) {
-    return warnings; // No budget constraints in open mode
-  }
-
+  // Calculate totals before bailout so we can hint in open mode
   const days = summary.days || [];
   const totalUsed = calculateTotalBudgetUsed(days);
-  const utilization = totalUsed / budget.total;
+  const utilization = budget.total > 0 ? totalUsed / budget.total : 0;
+
+  if (settings.budgetMode !== 'plan-to-budget' || budget.total <= 0) {
+    if (budget.total > 0 && utilization > TRIP_CONSTANTS.budget.overThreshold) {
+      warnings.push({
+        category: 'budget',
+        severity: 'info',
+        message: 'Tracking above base budget estimates',
+        detail: `Expected cost is $${Math.round(totalUsed)} vs reference budget of $${Math.round(budget.total)}.`,
+        suggestion: 'Consider budgeting a little more for this trip.',
+      });
+    }
+    return warnings; // No strict budget constraints in open mode
+  }
 
   if (utilization > TRIP_CONSTANTS.budget.overThreshold) {
     const overBy = Math.round(totalUsed - budget.total);
     warnings.push({
       category: 'budget',
-      severity: 'critical',
+      severity: 'warning', // Downgraded from critical to avoid "Not Feasible"
       message: `Over budget by $${overBy}`,
       detail: `Total estimated cost: $${Math.round(totalUsed)}. Budget: $${Math.round(budget.total)}.`,
-      suggestion: 'Consider reducing hotel costs, cutting a stop, or increasing the budget.',
+      suggestion: 'Consider reducing hotel costs, cutting a stop, reducing trip days, or increasing the budget.',
     });
   } else if (utilization >= TRIP_CONSTANTS.budget.tightThreshold) {
     const remaining = Math.round(budget.total - totalUsed);

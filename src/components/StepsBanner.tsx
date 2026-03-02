@@ -87,10 +87,11 @@ export function StepsBanner({
     stepNumber <= currentStep || completedSteps.includes(stepNumber - 1);
 
   return (
-    <div className="relative overflow-hidden w-full shrink-0 px-4 pt-4 pb-3 border-b border-white/5">
+    <div className="relative w-full shrink-0 px-4 pt-4 pb-3 border-b border-white/5">
 
       {/* ── Animated road SVG background ── */}
-      <svg className="mee-road-svg" viewBox="0 0 440 120" preserveAspectRatio="xMidYMid slice">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <svg className="mee-road-svg" viewBox="0 0 440 120" preserveAspectRatio="xMidYMid slice">
         <path
           d="M0,75 Q110,55 220,70 Q330,85 440,65"
           stroke="#f97316" strokeWidth="1.5" fill="none"
@@ -111,10 +112,11 @@ export function StepsBanner({
             <circle cx={cx} cy={cy} r="7" fill="none" stroke="#f97316" strokeWidth="0.5" opacity={0.3} />
           </g>
         ))}
-      </svg>
+        </svg>
+      </div>
 
       {/* ── Row 1: Brand + Mode Badge ── */}
-      <div className="flex items-start justify-between gap-3">
+      <div className="relative z-10 flex items-start justify-between gap-3">
         <div className="flex items-start gap-2.5 min-w-0">
           {/* Heartbeat orb */}
           <div style={{ position: 'relative', width: 28, height: 28, flexShrink: 0, marginTop: 2 }}>
@@ -186,7 +188,7 @@ export function StepsBanner({
       </div>
 
       {/* ── Row 2: Pill Step Dots ── */}
-      <div className="flex items-center gap-2 mt-4">
+      <div className="relative z-10 flex items-center gap-2 mt-4">
         {STEP_CONFIG.map((step, index) => {
           const isActive    = step.number === currentStep;
           const isCompleted = completedSteps.includes(step.number);

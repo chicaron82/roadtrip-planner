@@ -153,7 +153,7 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
           </div>
 
           {/* Budget status row */}
-          {summary.budgetStatus && summary.budgetRemaining !== undefined && settings.budget.total > 0 && (
+          {summary.budgetStatus && summary.budgetRemaining !== undefined && settings.budgetMode === 'plan-to-budget' && settings.budget.total > 0 && (
             <div
               className="mt-3 rounded-xl px-3 py-2 flex items-center justify-between text-sm border"
               style={summary.budgetStatus === 'over'

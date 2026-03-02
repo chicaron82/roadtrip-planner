@@ -84,11 +84,25 @@ export function finalizeTripDay(
   //   As a FROM name: take CityA (the source — directionally correct)
   //   As a TO name:   take CityB (the destination — avoids "Winnipeg → Winnipeg")
   const cleanFrom = (n: string): string => {
+    if (n.includes('(transit)')) {
+      const name = n.replace(/\s*\(transit\)\s*$/, '');
+      const arrow = name.indexOf(' → ');
+      if (arrow >= 0) {
+        return `En route from ${name.substring(0, arrow).trim()}`;
+      }
+    }
     const name = n.replace(/\s*\(transit\)\s*$/, '');
     const arrow = name.indexOf(' → ');
     return arrow >= 0 ? name.substring(0, arrow).trim() : name;
   };
   const cleanTo = (n: string): string => {
+    if (n.includes('(transit)')) {
+      const name = n.replace(/\s*\(transit\)\s*$/, '');
+      const arrow = name.indexOf(' → ');
+      if (arrow >= 0) {
+        return `towards ${name.substring(arrow + 3).trim()}`;
+      }
+    }
     const name = n.replace(/\s*\(transit\)\s*$/, '');
     const arrow = name.indexOf(' → ');
     return arrow >= 0 ? name.substring(arrow + 3).trim() : name;
