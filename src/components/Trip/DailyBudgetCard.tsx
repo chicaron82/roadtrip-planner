@@ -22,15 +22,28 @@ export function DailyBudgetCard({ budget, dayNumber, budgetMode, className }: Da
     }
   };
 
+  /** Formats a remaining value for display.
+   *  Positive:  "Remaining: $150"
+   *  Zero:      "Remaining: $0"
+   *  Negative:  label becomes "Over by:" and shows "$275" (abs value, red)
+   */
+  const formatRemaining = (remaining: number): { label: string; text: string } => {
+    if (remaining < 0) {
+      return { label: 'Over by:', text: `$${Math.abs(remaining).toFixed(0)}` };
+    }
+    return { label: 'Remaining:', text: `$${remaining.toFixed(0)}` };
+  };
+
   const getProgressBarColor = (used: number, remaining: number): string => {
+    if (remaining < 0) return 'bg-red-500';
     const total = used + remaining;
     const percentUsed = total > 0 ? (used / total) * 100 : 0;
-    if (percentUsed > 100) return 'bg-red-500';
     if (percentUsed > 85) return 'bg-amber-500';
     return 'bg-green-500';
   };
 
   const getProgressPercent = (used: number, remaining: number): number => {
+    if (remaining < 0) return 100;
     const total = used + remaining;
     if (total === 0) return 0;
     return Math.min((used / total) * 100, 100);
@@ -69,10 +82,10 @@ export function DailyBudgetCard({ budget, dayNumber, budgetMode, className }: Da
         {/* Gas Remaining */}
         {showRemaining && (
           <div className="flex items-center justify-end gap-1.5">
-            <span className="text-xs text-muted-foreground">Remaining:</span>
+            <span className="text-xs text-muted-foreground">{formatRemaining(budget.gasRemaining).label}</span>
             <span className={cn("text-xs font-semibold flex items-center gap-0.5", getBudgetStatus(budget.gasRemaining).color)}>
               {getBudgetStatus(budget.gasRemaining).icon}
-              ${budget.gasRemaining.toFixed(0)}
+              {formatRemaining(budget.gasRemaining).text}
             </span>
           </div>
         )}
@@ -93,10 +106,10 @@ export function DailyBudgetCard({ budget, dayNumber, budgetMode, className }: Da
         {/* Hotel Remaining */}
         {showRemaining && (
           <div className="flex items-center justify-end gap-1.5">
-            <span className="text-xs text-muted-foreground">Remaining:</span>
+            <span className="text-xs text-muted-foreground">{formatRemaining(budget.hotelRemaining).label}</span>
             <span className={cn("text-xs font-semibold flex items-center gap-0.5", getBudgetStatus(budget.hotelRemaining).color)}>
               {getBudgetStatus(budget.hotelRemaining).icon}
-              ${budget.hotelRemaining.toFixed(0)}
+              {formatRemaining(budget.hotelRemaining).text}
             </span>
           </div>
         )}
@@ -115,10 +128,10 @@ export function DailyBudgetCard({ budget, dayNumber, budgetMode, className }: Da
         {/* Food Remaining */}
         {showRemaining && (
           <div className="flex items-center justify-end gap-1.5">
-            <span className="text-xs text-muted-foreground">Remaining:</span>
+            <span className="text-xs text-muted-foreground">{formatRemaining(budget.foodRemaining).label}</span>
             <span className={cn("text-xs font-semibold flex items-center gap-0.5", getBudgetStatus(budget.foodRemaining).color)}>
               {getBudgetStatus(budget.foodRemaining).icon}
-              ${budget.foodRemaining.toFixed(0)}
+              {formatRemaining(budget.foodRemaining).text}
             </span>
           </div>
         )}

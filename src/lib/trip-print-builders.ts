@@ -271,8 +271,8 @@ export function buildDayHTML(
       • 🍽️ ${formatCurrency(b.foodEstimate)} food
       • Total: <strong>${formatCurrency(b.dayTotal)}</strong>
       &nbsp;|&nbsp;
-      Gas remaining: ${formatCurrency(b.gasRemaining)}
-      • Hotel remaining: ${formatCurrency(b.hotelRemaining)}
+      ${b.gasRemaining < 0 ? `Gas over by: ${formatCurrency(Math.abs(b.gasRemaining))}` : `Gas remaining: ${formatCurrency(b.gasRemaining)}`}
+      • ${b.hotelRemaining < 0 ? `Hotel over by: ${formatCurrency(Math.abs(b.hotelRemaining))}` : `Hotel remaining: ${formatCurrency(b.hotelRemaining)}`}
     </div>
   `;
 
