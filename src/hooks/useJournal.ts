@@ -45,14 +45,29 @@ export function useJournal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load active journal on mount
+  // Load active journal on mount — but only if it's in-progress (not complete).
+  // A completed journal means the trip is done; the next journey should start
+  // fresh through the wizard. In-progress journals (partial visits) are restored
+  // so the user can pick up mid-trip after a page reload.
   useEffect(() => {
     const loadActiveJournal = async () => {
       try {
         const journal = await getActiveJournal();
-        if (journal) {
-          setActiveJournal(journal);
+        if (!journal) return;
+
+        const totalRealStops = journal.tripSummary.segments.filter(
+          s => !s.to.id?.startsWith('guard-'),
+        ).length;
+        const stopsVisited = journal.entries.filter(e => e.status === 'visited').length;
+
+        if (totalRealStops > 0 && stopsVisited >= totalRealStops) {
+          // Trip complete — unset the active pointer so the wizard starts fresh.
+          // The journal data stays in storage (accessible via history).
+          setActiveJournalId(null);
+          return;
         }
+
+        setActiveJournal(journal);
       } catch (err) {
         console.error('Failed to load active journal:', err);
       }
