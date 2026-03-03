@@ -58,9 +58,15 @@ export function getEventLabel(event: TimedEvent): string {
     case 'departure': return 'Depart';
     case 'arrival':   return 'Arrive';
     case 'fuel': {
-      const fillType = event.stops[0]?.details?.fillType;
-      const cost = event.stops[0]?.details?.fuelCost;
+      const stop = event.stops[0];
+      const fillType = stop?.details?.fillType;
+      const cost = stop?.details?.fuelCost;
       const costStr = cost != null ? ` · ~$${cost.toFixed(0)}` : '';
+      const comboMealType = stop?.details?.comboMealType;
+      if (comboMealType) {
+        const mealLabel = comboMealType === 'dinner' ? 'Dinner' : 'Lunch';
+        return `Fuel + ${mealLabel}${costStr}`;
+      }
       return fillType === 'topup' ? `Top-Up${costStr}` : `Full Fill${costStr}`;
     }
     case 'meal': {

@@ -79,8 +79,8 @@ export function DailyBudgetCard({ budget, dayNumber, budgetMode, className }: Da
           <span className="text-sm font-semibold text-foreground">${budget.gasUsed.toFixed(0)}</span>
         </div>
 
-        {/* Gas Remaining */}
-        {showRemaining && (
+        {/* Gas Remaining — only when gas was actually used today */}
+        {showRemaining && budget.gasUsed > 0 && (
           <div className="flex items-center justify-end gap-1.5">
             <span className="text-xs text-muted-foreground">{formatRemaining(budget.gasRemaining).label}</span>
             <span className={cn("text-xs font-semibold flex items-center gap-0.5", getBudgetStatus(budget.gasRemaining).color)}>
@@ -103,8 +103,8 @@ export function DailyBudgetCard({ budget, dayNumber, budgetMode, className }: Da
           </span>
         </div>
 
-        {/* Hotel Remaining */}
-        {showRemaining && (
+        {/* Hotel Remaining — only when hotel was actually paid today */}
+        {showRemaining && budget.hotelCost > 0 && (
           <div className="flex items-center justify-end gap-1.5">
             <span className="text-xs text-muted-foreground">{formatRemaining(budget.hotelRemaining).label}</span>
             <span className={cn("text-xs font-semibold flex items-center gap-0.5", getBudgetStatus(budget.hotelRemaining).color)}>
@@ -125,8 +125,8 @@ export function DailyBudgetCard({ budget, dayNumber, budgetMode, className }: Da
           <span className="text-sm font-semibold text-foreground">${budget.foodEstimate.toFixed(0)}</span>
         </div>
 
-        {/* Food Remaining */}
-        {showRemaining && (
+        {/* Food Remaining — only when food was estimated today */}
+        {showRemaining && budget.foodEstimate > 0 && (
           <div className="flex items-center justify-end gap-1.5">
             <span className="text-xs text-muted-foreground">{formatRemaining(budget.foodRemaining).label}</span>
             <span className={cn("text-xs font-semibold flex items-center gap-0.5", getBudgetStatus(budget.foodRemaining).color)}>

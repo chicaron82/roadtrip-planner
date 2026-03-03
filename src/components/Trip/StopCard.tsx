@@ -203,6 +203,11 @@ export function StopCard({
         const fillType = stop?.details?.fillType;
         const cost = stop?.details?.fuelCost;
         const costStr = cost != null ? ` · ~$${cost.toFixed(0)}` : '';
+        const comboMealType = stop?.details?.comboMealType;
+        if (comboMealType) {
+          const mealLabel = comboMealType === 'dinner' ? 'Dinner' : 'Lunch';
+          return `Fuel + ${mealLabel}${costStr}`;
+        }
         return fillType === 'topup' ? `Top-Up${costStr}` : `Full Fill${costStr}`;
       })()
     : event.type === 'meal' ? (() => {

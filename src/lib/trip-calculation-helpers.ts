@@ -31,7 +31,12 @@ export function buildRoundTripSegments(
 
   const fullRoundTripSegments = [...outboundSegments, ...returnSegments];
   const totalRTMinutes = fullRoundTripSegments.reduce((sum, s) => sum + s.durationMinutes, 0);
-  const isRTDayTrip = totalRTMinutes <= settings.maxDriveHours * 60;
+  // A round trip is only a "day trip" if: (a) departure and return are on the same calendar date,
+  // AND (b) total driving time fits within maxDriveHours. Without (a), an overnight round trip
+  // (e.g. 4h+4h with a hotel night) would falsely inject a destination dwell event and corrupt
+  // Day 2's departure time.
+  const isSameDayReturn = !settings.returnDate || settings.returnDate === settings.departureDate;
+  const isRTDayTrip = isSameDayReturn && totalRTMinutes <= settings.maxDriveHours * 60;
   const segments = calculateArrivalTimes(
     fullRoundTripSegments,
     settings.departureDate,

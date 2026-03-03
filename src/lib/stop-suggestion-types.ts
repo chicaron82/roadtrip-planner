@@ -26,6 +26,8 @@ export interface SuggestedStop {
     hoursOnRoad?: number; // hours driven before this stop
     /** true when fuel stop doubles as a meal (stopped during lunch/dinner window) */
     comboMeal?: boolean;
+    /** 'lunch' | 'dinner' when comboMeal = true — used for labeling the stop card */
+    comboMealType?: 'lunch' | 'dinner';
   };
   /** Hub city name resolved at generation time (e.g. "Fargo, ND").
    *  When set, buildTimedTimeline uses this as the locationHint instead of

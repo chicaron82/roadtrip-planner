@@ -88,9 +88,13 @@ export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [],
       : [];
 
     // Only inject the destination dwell event for actual round-trip DAY TRIPS.
-    // Multi-day round trips (e.g. Dryden→Montreal 7-day) must NOT get this event —
-    // it would corrupt the timeline clock and produce bogus departure times on return days.
+    // Multi-day round trips (e.g. Dryden→Winnipeg 2-day or Dryden→Montreal 7-day)
+    // must NOT get this event — it corrupts the timeline clock and produces bogus
+    // departure times on return days.
+    // Guard: summary.days.length > 1 catches overnight trips where total driving time
+    // still fits under maxDriveHours (e.g. 4h+4h = 8h < 9h maxDrive → false positive).
     const isRTDayTrip = settings.isRoundTrip &&
+      (summary.days?.length ?? 0) <= 1 &&
       summary.totalDurationMinutes <= settings.maxDriveHours * 60;
     const destinationStayMinutes = isRTDayTrip ? (settings.dayTripDurationHours ?? 0) * 60 : 0;
 

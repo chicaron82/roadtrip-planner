@@ -68,7 +68,10 @@ export function printTrip(props: TripPrintViewProps): void {
       );
     // Only inject the destination dwell event for actual round-trip DAY TRIPS.
     // Multi-day round trips must NOT get this event (corrupts return-leg clock).
+    // Guard: summary.days.length > 1 catches overnight trips where total driving time
+    // still fits under maxDriveHours (e.g. 4h+4h = 8h < 9h → false positive).
     const isRTDayTrip = settings.isRoundTrip &&
+      (summary.days?.length ?? 0) <= 1 &&
       summary.totalDurationMinutes <= settings.maxDriveHours * 60;
     const destinationStayMinutes = isRTDayTrip ? (settings.dayTripDurationHours ?? 0) * 60 : 0;
 
