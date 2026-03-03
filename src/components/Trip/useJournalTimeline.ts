@@ -145,6 +145,18 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
   const formatDate = (date: Date) =>
     date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
 
+  // Reset all entries back to 'planned' so the journey can be re-driven.
+  // Notes and photos are preserved — only arrival status is cleared.
+  const resetAllStops = () => {
+    const resetEntries = journal.entries.map(e => ({
+      ...e,
+      status: 'planned' as const,
+      actualArrival: undefined,
+    }));
+    onUpdateJournal({ ...journal, entries: resetEntries, updatedAt: new Date() });
+    showToast({ message: '↺ Trip reset — ready to drive again', type: 'success' });
+  };
+
   return {
     startTime,
     dayStartMap,
@@ -164,5 +176,6 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
     handleOpenQuickCapture,
     formatTime,
     formatDate,
+    resetAllStops,
   };
 }

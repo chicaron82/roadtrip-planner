@@ -36,6 +36,7 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
     handleOpenQuickCapture,
     formatTime,
     formatDate,
+    resetAllStops,
   } = useJournalTimeline({ summary, settings, journal, onUpdateJournal });
 
   const currentSegment = summary.segments[currentStopIndex];
@@ -49,8 +50,19 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
             <BookOpen className="h-5 w-5 text-purple-600" />
             <h3 className="font-bold text-purple-900">{journal.metadata.title}</h3>
           </div>
-          <div className="text-sm font-medium text-purple-700">
-            {visitedCount}/{totalStops} stops
+          <div className="flex items-center gap-2">
+            <div className="text-sm font-medium text-purple-700">
+              {visitedCount}/{totalStops} stops
+            </div>
+            {visitedCount > 0 && (
+              <button
+                onClick={resetAllStops}
+                title="Reset all stops to re-drive the journey"
+                className="text-xs text-purple-400 hover:text-purple-600 transition-colors px-1.5 py-0.5 rounded hover:bg-purple-100"
+              >
+                ↺ reset
+              </button>
+            )}
           </div>
         </div>
 
