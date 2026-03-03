@@ -12,7 +12,7 @@
  * 💚 My Experience Engine
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { PlanningStep } from '../../hooks/useWizard';
 
 // ── Types ───────────────────────────────────────────────────────────────────
@@ -86,40 +86,39 @@ export function CarTrack(props: CarTrackProps) {
       );
 
   // Animate car smoothly — track the displayed position so we can transition.
-  const [displayPct, setDisplayPct] = useState(targetPct);
-  const prevTargetRef = useRef(targetPct);
-
-  useEffect(() => {
-    if (prevTargetRef.current !== targetPct) {
-      prevTargetRef.current = targetPct;
-      setDisplayPct(targetPct);
-    }
-  }, [targetPct]);
+  const displayPct = targetPct;
 
   // ── Window slide animation (trip mode pagination) ──
   const [sliding, setSliding] = useState(false);
-  const prevWindowRef = useRef(windowStops ? windowStops[0] : '');
+  const [prevWindow, setPrevWindow] = useState(windowStops ? windowStops[0] : '');
+
+  if (windowStops && windowStops[0] !== prevWindow) {
+    setPrevWindow(windowStops[0]);
+    setSliding(true);
+  }
+
   useEffect(() => {
-    if (!windowStops) return;
-    if (prevWindowRef.current !== windowStops[0]) {
-      prevWindowRef.current = windowStops[0];
-      setSliding(true);
+    if (sliding) {
       const id = setTimeout(() => setSliding(false), 500);
       return () => clearTimeout(id);
     }
-  }, [windowStops]);
+  }, [sliding]);
 
   // ── Arrival bounce (car just reached a stop) ──
   const [arrived, setArrived] = useState(false);
-  const prevStep = useRef(currentStep);
+  const [prevStep, setPrevStep] = useState(currentStep);
+
+  if (isWizard && currentStep !== prevStep) {
+    setPrevStep(currentStep);
+    setArrived(true);
+  }
+
   useEffect(() => {
-    if (isWizard && prevStep.current !== currentStep) {
-      prevStep.current = currentStep;
-      setArrived(true);
+    if (arrived) {
       const id = setTimeout(() => setArrived(false), 700);
       return () => clearTimeout(id);
     }
-  }, [isWizard, currentStep]);
+  }, [arrived]);
 
   // ── Render ───────────────────────────────────────────────────────────────
 
