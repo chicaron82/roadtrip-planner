@@ -13,6 +13,7 @@ import { printTrip } from '../Trip/TripPrintView';
 import { generateEstimate } from '../../lib/estimate-service';
 import { generateTripOverview } from '../../lib/trip-analyzer';
 import { BudgetBar } from '../Trip/BudgetBar';
+import { TripBudgetHealth } from '../Trip/TripBudgetHealth';
 import { DifficultyBadge } from '../Trip/DifficultyBadge';
 import { TripArrivalHero } from '../Trip/TripArrivalHero';
 import { JournalFullscreenOverlay } from '../Trip/JournalFullscreenOverlay';
@@ -266,6 +267,15 @@ export function Step3Content({
           {/* Budget bar — shown in plan view when breakdown is available */}
           {viewMode !== 'journal' && summary.costBreakdown && (
             <BudgetBar breakdown={summary.costBreakdown} settings={settings} />
+          )}
+
+          {/* Budget health — per-category delta, only in plan-to-budget mode */}
+          {viewMode !== 'journal' && settings.budgetMode === 'plan-to-budget' && summary.costBreakdown && (
+            <TripBudgetHealth
+              budget={settings.budget}
+              breakdown={summary.costBreakdown}
+              currency={settings.currency}
+            />
           )}
 
           <TripTimelineView
