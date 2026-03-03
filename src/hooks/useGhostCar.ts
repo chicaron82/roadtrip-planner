@@ -17,7 +17,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import type { TripSummary, TripSettings, Location } from '../types';
+import type { TripSummary, TripSettings } from '../types';
 import type { SuggestedStop } from '../lib/stop-suggestions';
 import { buildTimedTimeline } from '../lib/trip-timeline';
 import type { TimedEvent } from '../lib/trip-timeline';
@@ -110,8 +110,7 @@ const IDLE_STATE: GhostCarState = {
 export function useGhostCar(
   summary: TripSummary | null,
   settings: TripSettings,
-  suggestions: SuggestedStop[],
-  locations: Location[],
+  suggestions: SuggestedStop[]
 ): UseGhostCarResult {
   const [state, setState] = useState<GhostCarState>(IDLE_STATE);
   const timeShiftMsRef = useRef<number>(0); // ms offset applied after anchorAt()
@@ -218,10 +217,16 @@ export function useGhostCar(
 
   // ── Tick every 30s + immediate compute on data change ──
   useEffect(() => {
-    computeState();
-    if (events.length === 0) return;
+    // Avoid synchronous setState in effect body (cascading render warning)
+    const initId = setTimeout(computeState, 0);
+    if (events.length === 0) {
+      return () => clearTimeout(initId);
+    }
     const id = setInterval(computeState, TICK_MS);
-    return () => clearInterval(id);
+    return () => {
+      clearTimeout(initId);
+      clearInterval(id);
+    };
   }, [computeState, events.length]);
 
   // ── anchorAt: snap + re-anchor after "tap to arrive" ──

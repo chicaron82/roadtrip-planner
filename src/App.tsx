@@ -14,12 +14,11 @@ import {
   useWizard, useTripCalculation, useJournal, usePOI, useEagerRoute, useAddedStops,
   useStylePreset, useTripMode, useTripLoader, useMapInteractions, useURLHydration,
   usePlanningStepProps, useAppReset, useCalculateAndDiscover, useMapProps, useGhostCar,
-  type PlanningStep,
 } from './hooks';
 import { useArrivalSnap } from './hooks/useArrivalSnap';
 import { getHistory } from './lib/storage';
 import { getWeightedFuelEconomyL100km } from './lib/unit-conversions';
-import type { TripSummary, TripMode, POICategory } from './types';
+import type { TripSummary, POICategory } from './types';
 
 /**
  * App.tsx — Root orchestrator (MEE Redesign)
@@ -148,7 +147,7 @@ function AppContent() {
   }, [planningStep, calculateAndDiscover, wizardNext]);
 
   // Ghost car — time-based trip progress simulation
-  const ghostCar = useGhostCar(summary, settings, [], locations);
+  const ghostCar = useGhostCar(summary, settings, asSuggestedStops);
   // Arrival snap — re-anchors ghost car when journal 'Arrived' is tapped
   useArrivalSnap(ghostCar.anchorAt, !!summary && tripConfirmed);
 
