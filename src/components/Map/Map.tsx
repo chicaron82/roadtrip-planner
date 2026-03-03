@@ -5,7 +5,7 @@ import type { Location, POI, MarkerCategory, RouteSegment, TripDay } from '../..
 import type { StrategicFuelStop } from '../../lib/calculations';
 import type { FeasibilityStatus } from '../../lib/feasibility';
 import { haversineDistance, estimateDetourTime } from '../../lib/poi-ranking';
-import { formatDuration } from '../../lib/calculations';
+import { formatDuration, formatDistance } from '../../lib/calculations';
 import { AnimatedPolyline } from './AnimatedPolyline';
 import { POIPopup, type PopupDayOption } from './POIPopup';
 import { DayRouteLayer } from './DayRouteLayer';
@@ -45,9 +45,12 @@ interface MapProps {
   tripDays?: TripDay[];
   /** All route segments — used for click-to-inspect popup */
   routeSegments?: RouteSegment[];
+  /** Total distance + duration — drives the floating route summary pill */
+  routeTotals?: { distanceKm: number; durationMinutes: number };
+  units?: 'metric' | 'imperial';
 }
 
-export function Map({ locations, routeGeometry, pois, markerCategories, strategicFuelStops = [], addedPOIIds, dayOptions, onMapClick, onAddPOI, previewGeometry, tripMode, feasibilityStatus, alternateGeometries, tripDays, routeSegments }: MapProps) {
+export function Map({ locations, routeGeometry, pois, markerCategories, strategicFuelStops = [], addedPOIIds, dayOptions, onMapClick, onAddPOI, previewGeometry, tripMode, feasibilityStatus, alternateGeometries, tripDays, routeSegments, routeTotals, units = 'metric' }: MapProps) {
   const [tileStyle, setTileStyle] = useState<TileStyle>('street');
   const [clickedSegment, setClickedSegment] = useState<{
     lat: number;
@@ -87,6 +90,18 @@ export function Map({ locations, routeGeometry, pois, markerCategories, strategi
           </button>
         ))}
       </div>
+
+      {/* Route summary pill — appears after route calculation, fades in over animation */}
+      {routeTotals && routeGeometry && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none animate-in fade-in duration-700">
+          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full text-sm font-medium bg-black/65 text-white border border-white/15 backdrop-blur-sm shadow-lg whitespace-nowrap">
+            <span className="text-base leading-none">🛣️</span>
+            <span>{formatDistance(routeTotals.distanceKm, units)}</span>
+            <span className="opacity-35">·</span>
+            <span>{formatDuration(Math.round(routeTotals.durationMinutes))}</span>
+          </div>
+        </div>
+      )}
 
       <MapContainer
         center={[49.8951, -97.1384]}

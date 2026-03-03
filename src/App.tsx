@@ -171,6 +171,7 @@ function AppContent() {
     pois, markerCategories, tripActive, strategicFuelStops, addedPOIIds,
     mapDayOptions, handleMapClick, summary, handleAddPOIFromMap,
     previewGeometry, tripMode, routeStrategies, activeStrategyIndex, selectStrategy,
+    units: settings.units,
   });
 
   const canProceed = planningStep === 1 ? canProceedFromStep1 : canProceedFromStep2;

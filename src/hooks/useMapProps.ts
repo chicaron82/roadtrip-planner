@@ -22,6 +22,7 @@ interface UseMapPropsOptions {
   routeStrategies: RouteStrategy[];
   activeStrategyIndex: number;
   selectStrategy: (i: number) => void;
+  units?: 'metric' | 'imperial';
 }
 
 /**
@@ -53,5 +54,7 @@ export function useMapProps(o: UseMapPropsOptions): MapComponentProps {
       })),
     tripDays: o.summary?.days,
     routeSegments: o.summary?.segments,
+    routeTotals: o.summary ? { distanceKm: o.summary.totalDistanceKm, durationMinutes: o.summary.totalDurationMinutes } : undefined,
+    units: o.units,
   };
 }
