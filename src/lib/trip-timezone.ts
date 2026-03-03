@@ -19,14 +19,19 @@
 // Note: Saskatchewan stays on MST year-round (no DST); we can't distinguish
 // it from Alberta purely by longitude, so we use America/Regina for lng < -101.5
 // (rough SK boundary) and America/Edmonton west of that.
+//
+// Eastern/Atlantic boundary at -67.8° (≈ QC/NB border):
+//   All of Quebec (incl. Montreal -73.57°, QC City -71.2°) → America/Toronto
+//   New Brunswick (Fredericton -66.6°), Nova Scotia, PEI → America/Halifax
+// The old -75° boundary incorrectly gave Montreal → America/Halifax.
 export function lngToIANA(lng: number): string {
   if (lng < -141) return 'America/Anchorage';
   if (lng < -120) return 'America/Vancouver';
   if (lng < -110) return 'America/Edmonton';
   if (lng < -101.5) return 'America/Regina';   // Saskatchewan (no DST)
   if (lng < -90)  return 'America/Winnipeg';
-  if (lng < -75)  return 'America/Toronto';
-  if (lng < -60)  return 'America/Halifax';
+  if (lng < -67.8) return 'America/Toronto';   // ON + QC (Eastern Time)
+  if (lng < -60)  return 'America/Halifax';    // NB, NS, PEI (Atlantic Time)
   return 'America/St_Johns';
 }
 
@@ -81,17 +86,17 @@ export function parseLocalDateInTZ(dateStr: string, timeStr: string, iana: strin
   const [year, month, day] = dateStr.split('-').map(Number);
   const [hours, minutes] = timeStr.split(':').map(Number);
 
-  // Step 1: create a UTC instant treating the wall-clock time as if it were UTC.
-  const asUTC = Date.UTC(year, month - 1, day, hours, minutes);
-  const tempDate = new Date(asUTC);
-
-  // Step 2: find what the target TZ would display for this UTC instant.
-  const parts = new Intl.DateTimeFormat('en-CA', {
+  const fmtOpts: Intl.DateTimeFormatOptions = {
     timeZone: iana,
     year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', hour12: false,
-  }).formatToParts(tempDate);
+  };
 
+  // Step 1: create a UTC instant treating the wall-clock time as if it were UTC.
+  const asUTC = Date.UTC(year, month - 1, day, hours, minutes);
+
+  // Step 2: find what the target TZ would display for this UTC instant.
+  const parts = new Intl.DateTimeFormat('en-CA', fmtOpts).formatToParts(new Date(asUTC));
   const pobj = Object.fromEntries(parts.map(p => [p.type, p.value]));
   const h = pobj.hour === '24' ? 0 : Number(pobj.hour);
   const displayedUTC = Date.UTC(Number(pobj.year), Number(pobj.month) - 1, Number(pobj.day), h, Number(pobj.minute));
@@ -100,7 +105,23 @@ export function parseLocalDateInTZ(dateStr: string, timeStr: string, iana: strin
   // offset > 0  = TZ is behind UTC  (CST: asUTC(9) – displayed(3) = +6h)
   // offset < 0  = TZ is ahead of UTC (unlikely for North American routes)
   const offsetMs = asUTC - displayedUTC;
-  return new Date(asUTC + offsetMs);
+  const candidate = new Date(asUTC + offsetMs);
+
+  // Step 4: DST-transition-day correction.
+  // If departure is after the DST flip (e.g. 6 AM on spring-forward Sunday), Step 1
+  // samples the pre-flip offset (midnight CST) and returns an hour late.
+  // Verify by checking what `candidate` actually shows — if it's off, nudge by the diff.
+  const parts2 = new Intl.DateTimeFormat('en-CA', fmtOpts).formatToParts(candidate);
+  const p2 = Object.fromEntries(parts2.map(p => [p.type, p.value]));
+  const h2 = p2.hour === '24' ? 0 : Number(p2.hour);
+  const displayedMinutes2 = h2 * 60 + Number(p2.minute);
+  const wantedMinutes = hours * 60 + minutes;
+  const dstDiffMs = (wantedMinutes - displayedMinutes2) * 60 * 1000;
+  // Only adjust for clock-shift differences of exactly ±1 h (DST only; ignore multi-hour anomalies).
+  if (Math.abs(dstDiffMs) === 3_600_000) {
+    return new Date(candidate.getTime() + dstDiffMs);
+  }
+  return candidate;
 }
 
 // ── Format a UTC Date in a specific timezone for display ─────────────────────
