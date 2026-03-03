@@ -11,7 +11,11 @@
 
 import type { RouteSegment, TripSettings, TripDay, ProcessedSegment } from '../types';
 import type { SuggestedStop } from './stop-suggestions';
-import { lngToIANA, normalizeToIANA, parseLocalDateInTZ, formatTimeInZone, formatDateInZone } from './trip-timezone';
+import { lngToIANA, normalizeToIANA, parseLocalDateInTZ, formatDateInZone } from './trip-timezone';
+import { stopTypeToEventType, classifyStops } from './trip-timeline-helpers';
+
+// Re-export formatting utilities — many consumers import these from trip-timeline.
+export { formatTime, formatDuration } from './trip-timeline-helpers';
 
 export type TimedEventType =
   | 'departure'
@@ -64,36 +68,6 @@ export interface TimedEvent {
   originalIndex?: number;
 }
 
-/**
- * Format a Date as "9:00 AM" / "12:15 PM" in the given IANA timezone.
- * Falls back to browser local time when no timezone provided (legacy).
- */
-export const formatTime = (d: Date, ianaTimezone?: string): string =>
-  formatTimeInZone(d, ianaTimezone);
-
-/**
- * Format a duration in minutes as "1h 15min" / "45 min"
- */
-export const formatDuration = (minutes: number): string => {
-  const m = Math.round(minutes);
-  if (m < 60) return `${m} min`;
-  const h = Math.floor(m / 60);
-  const rem = m % 60;
-  return rem === 0 ? `${h}h` : `${h}h ${rem}min`;
-};
-
-/**
- * Map a SuggestedStop type to a TimedEventType.
- */
-const stopTypeToEventType = (type: SuggestedStop['type']): TimedEventType => {
-  switch (type) {
-    case 'fuel': return 'fuel';
-    case 'meal': return 'meal';
-    case 'rest': return 'rest';
-    case 'overnight': return 'overnight';
-    default: return 'rest';
-  }
-};
 
 
 /**
@@ -461,74 +435,18 @@ export function buildTimedTimeline(
     const driveEndTime = new Date(currentTime.getTime() + segMin * 60 * 1000);
 
     // ── Classify all non-emitted suggestions for this segment ────────────
-    //
-    // Two modes:
-    //   Day-filtering (useDayFiltering): filter by dayNumber, classify by time.
-    //     Stops whose estimatedTime falls after this sub-segment's window are
-    //     deferred to a later sub-segment (same day, multi-segment days).
-    //   Legacy (no tripDays): classify by afterSegmentIndex + time window.
-
-    const boundaryBefore: SuggestedStop[] = [];
-    const midDrive: SuggestedStop[] = [];
-    const boundaryAfter: SuggestedStop[] = [];
-
-    // Is this the last sub-segment for the current day?
-    // Used to catch remaining day stops that didn't match any earlier sub-segment.
     const isLastDaySegment = (i === iterSegments.length - 1) || dayStartMap.has(i + 1);
-
-    for (const s of suggestions) {
-      if (s.dismissed || emittedIds.has(s.id)) continue;
-
-      // Check if this stop belongs to the current segment's time window
-      const hasMidDriveTime = s.estimatedTime &&
-        s.estimatedTime.getTime() > driveStartTime.getTime() + 60_000 &&
-        s.estimatedTime.getTime() < driveEndTime.getTime() - 60_000;
-
-      if (useDayFiltering) {
-        // Day-based filtering: only consider stops for the current day.
-        if (s.dayNumber !== undefined && s.dayNumber !== currentDayNumber) continue;
-
-        // Defer stops whose time falls after this sub-segment's window to a
-        // later sub-segment in the same day. On the last sub-segment of the day,
-        // accept everything remaining so no stops are orphaned.
-        const isAfterThisSegment = s.estimatedTime &&
-          s.estimatedTime.getTime() > driveEndTime.getTime() + 60_000;
-        if (isAfterThisSegment && !isLastDaySegment) continue;
-
-        // Overnight is always boundary-after (end of day). Everything else
-        // with a valid mid-drive time is mid-drive.
-        if (s.type !== 'overnight' && hasMidDriveTime) {
-          midDrive.push(s);
-        } else {
-          boundaryAfter.push(s);
-        }
-      } else {
-        // Original afterSegmentIndex-based classification (simple day trips)
-        const isMidDriveForThisSegment =
-          (s.type === 'fuel' || s.type === 'rest' || s.type === 'meal') &&
-          Math.floor(s.afterSegmentIndex) === i - 1;
-
-        if (hasMidDriveTime || isMidDriveForThisSegment) {
-          midDrive.push(s);
-          continue;
-        }
-
-        const flooredIdx = Math.floor(s.afterSegmentIndex);
-        if (flooredIdx === i - 1) {
-          boundaryBefore.push(s);
-        } else if (flooredIdx === i) {
-          const isEnRouteFuel = s.id.includes('enroute');
-          if (isEnRouteFuel && i + 1 < iterSegments.length) {
-            // Deferred to next segment's midDrive classification
-          } else {
-            boundaryAfter.push(s);
-          }
-        }
-      }
-    }
-
-    // Sort mid-drive by estimated time
-    midDrive.sort((a, b) => (a.estimatedTime?.getTime() ?? 0) - (b.estimatedTime?.getTime() ?? 0));
+    const { boundaryBefore, midDrive, boundaryAfter } = classifyStops({
+      suggestions,
+      emittedIds,
+      driveStartTime,
+      driveEndTime,
+      useDayFiltering,
+      currentDayNumber,
+      i,
+      iterSegmentsLength: iterSegments.length,
+      isLastDaySegment,
+    });
 
     // ── Pre-segment boundary stops ────────────────────────────────────────
     const hasEnRouteForThisSeg = midDrive.some(s => s.type === 'fuel');

@@ -11,15 +11,16 @@ A full-featured road trip planner built for people who actually drive. Plan rout
 ### Planning (Estimate & Plan Modes)
 
 - **3-step wizard** — Route → Vehicle → Results. Each step builds on the last.
-- **Interactive map** — Leaflet + OpenStreetMap with animated route drawing. Click the map to add stops directly.
+- **Interactive map** — Leaflet + OpenStreetMap with animated route drawing. Click the map to add stops directly. A floating pill shows total distance and drive time as soon as the route loads.
 - **Multi-stop routing** — Drag-and-drop waypoints, add/remove stops freely, powered by OSRM.
 - **Smart cost estimation** — Fuel cost from your actual vehicle's L/100km, real gas prices, and route distance. Hotel, meals, and misc broken out by day.
 - **Regional cost profiles** — Gas and hotel prices vary by province/state. The budgeter knows the difference between Manitoba and California.
-- **Day-by-day budget tracking** — Trip auto-split into driving days based on your max daily drive hours.
+- **Day-by-day budget tracking** — Trip auto-split into driving days based on your max daily drive hours. Dual-source fuel model: at-the-pump strategic stop costs are primary; per-km math is only used for the leg after the last fill.
 - **Budget profiles** — Frugal / Balanced / Comfort presets, each with different assumptions for meals, hotels, and spending style. Full per-day override support.
 - **Driver rotation** — Assigns segments fairly across multiple drivers. Rotates at fuel stops; falls back to time-based even split.
 - **Route options** — Avoid tolls, border avoidance mode (stay in-country), scenic routing.
-- **Feasibility banners** — Context-aware warnings for punishing drive days, departure time issues, and multi-driver pacing suggestions. Multi-day trips get per-day analysis, not a single-day panic banner.
+- **Feasibility banners** — Context-aware warnings for punishing drive days, departure time issues, and multi-driver pacing suggestions. Multi-day trips get per-day analysis, not a single-day panic banner. Each warning has an × button to acknowledge it session-wide; acknowledged warnings reset if trip parameters change.
+- **Smart refinements** — Adjusting traveler count or driver count shows a delta comparison against the previous plan (distance, cost, drive time) directly in the trip summary.
 - **Weather per segment** — Pulls forecast data for each destination.
 
 ### Smart Stop Engine
@@ -31,6 +32,7 @@ The stop suggestion system simulates the full drive in real-time to place stops 
 - **Rest break scheduling** — Scheduled based on continuous hours on road, respecting your stop frequency preference (Minimal / Balanced / Frequent).
 - **Meal stop detection** — Flags breakfast / lunch / dinner windows based on time of day. Suppresses end-of-trip meal stops on round trips arriving home.
 - **Overnight split suggestions** — Detects when a leg is too long for a single day and proposes a split point.
+- **Combo stop transparency** — When a fuel stop is silently absorbed into a nearby meal stop, the card shows "⛽ filling up while we eat" so the stop count in the itinerary makes sense.
 - **Timezone-aware timing** — The simulation tracks timezone transitions along your route so stop times display in the correct local time.
 - **Destination grace zone** — Suppresses unnecessary fuel stops within 50 km of the final destination.
 
@@ -40,6 +42,9 @@ A self-learning cache of major highway corridor cities used by the stop engine a
 
 - **70+ pre-seeded cities** across Canadian and US corridors (Trans-Canada, I-94, I-90, I-75, I-95, BC, Ontario, Western US, Texas Triangle)
 - **Runtime discovery** — Analyzes live Overpass POI density (gas stations + hotels) near a location; auto-adds new hubs to the cache when detected
+- **Route pre-warming** — On first calculation, route waypoints are seeded as discovered hubs so subsequent lookups are instant
+- **Quality filtering** — Rejects administrative placeholders ("Unorganized Territory", "Unnamed") at both read and write to keep the cache useful
+- **Cross-tab sync** — Hubs discovered in one browser tab are immediately visible in other open tabs via a `storage` event listener
 - **LRU eviction** — In-memory singleton keeps lookups near-instant across a trip calculation; async localStorage persistence doesn't block the UI
 - **Three-tier resolution** — Cache hit → POI analysis → Nominatim fallback
 
@@ -47,10 +52,21 @@ A self-learning cache of major highway corridor cities used by the stop engine a
 
 A visual chronological timeline of the full trip — every drive leg, stop, fuel fill, meal break, rest, overnight stay, and timezone change laid out against real wall-clock times:
 
+- **Weather-reactive drive lines** — Each drive segment's connecting line picks up a colour gradient matching the forecast weather code (rain, snow, clear, etc.)
 - **Mid-drive stop splitting** — A fuel stop at the 2-hour mark of a 4-hour drive produces two drive segments with the stop between them
 - **Free day handling** — Overnight stops correctly advance the clock past free (non-driving) days
 - **Round-trip destination dwell** — Shows a destination event at the turnaround point with correct clock advance
+- **Ambient day/night mode** — The timeline border and background subtly shift between green (daytime) and indigo (overnight) as you scroll through the events
 - **Failsafe distribution** — When timestamp math breaks down on extreme multi-timezone routes, stops are evenly distributed via route geometry instead of clumping
+
+### Unified Journey Car 🚗
+
+An animated car tracks your position in real time as you drive the route in journal mode:
+
+- **Live car position** — Binary-search + lerp against the full route geometry, anchored to actual wall-clock time. The car smoothly moves along roads, not waypoints.
+- **Arrival snap** — When you mark a stop as arrived, the device's GPS location is recorded once and the car jumps to the actual road position rather than the planned stop pin.
+- **Parked car recap** — After the final stop is marked, the car settles into a "parked" state and a full trip recap card appears with highlights, budget variance, and a photo collage.
+- **Wizard vs. trip mode** — The car component is mode-aware: in wizard mode it shows a planning preview; in journal mode it tracks the live trip.
 
 ### Discovery Engine (POI Suggestions)
 
@@ -90,6 +106,8 @@ Load a challenge, set your starting city (auto-syncs from Step 1 or manually ove
 Confirm your plan to unlock a travel journal for the actual trip:
 
 - **Auto-tagged stops** — Journal entries linked to route segments automatically
+- **Fresh-start lifecycle** — Completing a trip through the wizard always starts a new journal. Mid-trip page reloads restore the in-progress journal so you can pick up exactly where you left off.
+- **Reset to re-drive** — The ↺ reset button clears all arrival statuses (preserving your notes and photos) so you can re-drive a familiar route and see the car move again.
 - **Photo captures** — Upload and caption photos at each stop
 - **GPS coordinates** — Auto-requests device location when logging a memory
 - **Quick Capture dialog** — Fast one-tap capture at any point in the journey
@@ -100,7 +118,7 @@ Confirm your plan to unlock a travel journal for the actual trip:
 
 - **Google Maps-style bottom sheet** — Draggable sheet that snaps between peek / half / full states. Map stays full-screen underneath.
 - **Trip stats in peek state** — Key numbers (distance, time, cost) visible without opening the sheet fully
-- **Touch-optimized** — Smooth swipe gestures, snap physics, no-scrollbar carousels
+- **Touch-optimized** — Smooth swipe gestures, snap physics, no-scrollbar carousels. Pull handle doesn't obscure content on portrait mobile.
 
 ### Other Features
 
@@ -155,17 +173,21 @@ npm run build
 src/
 ├── components/
 │   ├── Landing/          # Landing screen & mode selection
-│   ├── Map/              # Leaflet map, animated polyline, POI popups
+│   ├── Map/              # Leaflet map, animated polyline, POI popups, route pill
 │   ├── Settings/         # Route preferences, vehicle forms
 │   ├── Steps/            # Step 1/2/3 content panels
 │   ├── Trip/             # Core trip UI:
-│   │   ├── SmartTimeline        # Chronological trip timeline
+│   │   ├── SmartTimeline        # Chronological trip timeline (weather-reactive)
+│   │   ├── StopCard             # Individual timeline stop node (extracted from SmartTimeline)
 │   │   ├── ItineraryTimeline    # Day-by-day itinerary
 │   │   ├── JournalTimeline      # Journal mode view
+│   │   ├── JournalStopCard      # Per-stop journal entry editor
+│   │   ├── CarTrack             # Animated car — wizard preview + live trip modes
+│   │   ├── TripRecapCard        # End-of-trip parked car narrative recap
 │   │   ├── SmartSuggestions     # Mid-trip stop suggestions
 │   │   ├── DiscoveryPanel       # POI discovery UI
 │   │   ├── ChallengeCards       # Chicharon's Challenges
-│   │   ├── FeasibilityBanner    # Route health warnings
+│   │   ├── FeasibilityBanner    # Route health warnings (dismissible per-warning)
 │   │   ├── MobileBottomSheet    # Google Maps-style mobile sheet
 │   │   ├── BudgetInput          # Per-day budget breakdown
 │   │   └── ...
@@ -174,19 +196,22 @@ src/
 ├── contexts/             # TripContext — shared state
 ├── hooks/
 │   ├── useTripCalculation.ts   # Main calculation hook
-│   ├── useJournal.ts           # Journal session management
+│   ├── useJournal.ts           # Journal session management (lifecycle, restoration)
+│   ├── useGhostCar.ts          # Live car position (binary search + lerp + time anchor)
+│   ├── useArrivalSnap.ts       # GPS one-shot arrival recording
 │   ├── usePOI.ts               # POI discovery & ranking
 │   ├── useAddedStops.ts        # User-added waypoints
 │   └── ...
 └── lib/                  # Business logic
-    ├── hub-cache.ts            # Self-learning highway hub cache
+    ├── hub-cache.ts            # Self-learning highway hub cache (cross-tab sync)
     ├── hub-seed-data.ts        # 70+ pre-seeded highway corridor cities
     ├── route-geocoder.ts       # Route geometry interpolation + geocoding
     ├── trip-timeline.ts        # Smart Timeline event builder
+    ├── trip-timeline-helpers.ts # Pure utilities: formatTime, formatDuration, classifyStops
     ├── stop-suggestions/       # Stop simulation engine
     │   ├── generate.ts         # Main simulation loop
     │   ├── stop-checks.ts      # Fuel / rest / meal / overnight logic
-    │   └── consolidate.ts      # Stop deduplication
+    │   └── consolidate.ts      # Stop deduplication & combo merging
     ├── budget/                 # Budget calculation pipeline
     │   └── split-by-days.ts    # Day-splitting with timezone tracking
     ├── feasibility/            # Route feasibility analysis
@@ -198,6 +223,14 @@ src/
     ├── regional-costs.ts       # Province/state gas & hotel price data
     ├── driver-rotation.ts      # Multi-driver segment assignment
     └── calculations.ts         # Core math (fuel, cost, haversine, etc.)
+└── types/                # Domain-split TypeScript types
+    ├── index.ts                # Re-export barrel (163 consumers unchanged)
+    ├── core.ts                 # Location, Vehicle, TripSettings, budget primitives
+    ├── route.ts                # RouteSegment, TripDay, TripSummary, WeatherData
+    ├── poi.ts                  # POI, POISuggestion, ranking metadata
+    ├── journal.ts              # TripJournal, TripTemplate, JournalEntry
+    ├── adventure.ts            # AdventureConfig, AdventureDestination
+    └── challenge.ts            # TripChallenge, ChallengeDifficulty
 ```
 
 ---

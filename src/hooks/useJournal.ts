@@ -55,10 +55,16 @@ export function useJournal({
         const journal = await getActiveJournal();
         if (!journal) return;
 
-        const totalRealStops = journal.tripSummary.segments.filter(
-          s => !s.to.id?.startsWith('guard-'),
+        const realSegmentIndices = new Set(
+          journal.tripSummary.segments
+            .map((s, i) => ({ s, i }))
+            .filter(({ s }) => !s.to.id?.startsWith('guard-'))
+            .map(({ i }) => i),
+        );
+        const totalRealStops = realSegmentIndices.size;
+        const stopsVisited = journal.entries.filter(
+          e => realSegmentIndices.has(e.segmentIndex) && e.status === 'visited',
         ).length;
-        const stopsVisited = journal.entries.filter(e => e.status === 'visited').length;
 
         if (totalRealStops > 0 && stopsVisited >= totalRealStops) {
           // Trip complete — unset the active pointer so the wizard starts fresh.
