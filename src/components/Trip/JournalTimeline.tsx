@@ -6,6 +6,7 @@ import { QuickCaptureDialog } from './QuickCaptureDialog';
 import { JournalCompletionCard } from './JournalCompletionCard';
 import { useJournalTimeline } from './useJournalTimeline';
 import { cn } from '../../lib/utils';
+import { dispatchStopArrived } from '../../hooks/useArrivalSnap';
 
 interface JournalTimelineProps {
   summary: TripSummary;
@@ -99,7 +100,15 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
       {currentStopIndex < summary.segments.length && currentSegment && (
         <QuickArriveButton
           stopName={currentSegment.to.name.split(',')[0]}
-          onArrive={() => handleUpdateEntry(currentStopIndex, { status: 'visited', actualArrival: new Date() })}
+          onArrive={() => {
+            handleUpdateEntry(currentStopIndex, { status: 'visited', actualArrival: new Date() });
+            dispatchStopArrived({
+              segmentIndex: currentStopIndex,
+              toName: currentSegment.to.name.split(',')[0],
+              toLat: currentSegment.to.lat,
+              toLng: currentSegment.to.lng,
+            });
+          }}
         />
       )}
 

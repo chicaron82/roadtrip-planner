@@ -16,6 +16,7 @@ import {
   usePlanningStepProps, useAppReset, useCalculateAndDiscover, useMapProps, useGhostCar,
   type PlanningStep,
 } from './hooks';
+import { useArrivalSnap } from './hooks/useArrivalSnap';
 import { getHistory } from './lib/storage';
 import { getWeightedFuelEconomyL100km } from './lib/unit-conversions';
 import type { TripSummary, TripMode, POICategory } from './types';
@@ -154,6 +155,8 @@ function AppContent() {
 
   // Ghost car — time-based trip progress simulation
   const ghostCar = useGhostCar(summary, settings, [], locations);
+  // Arrival snap — re-anchors ghost car when journal 'Arrived' is tapped
+  useArrivalSnap(ghostCar.anchorAt, !!summary && tripConfirmed);
 
   const { resetTrip, handleSelectMode } = useAppReset({
     setLocations, setSummary, resetPOIs, resetWizard, clearStops, clearTripCalculation,

@@ -14,6 +14,7 @@ import { shareStop } from '../../lib/share-utils';
 import type { JournalEntry, JournalPhoto, RouteSegment } from '../../types';
 import { Button } from '../UI/Button';
 import { cn } from '../../lib/utils';
+import { dispatchStopArrived } from '../../hooks/useArrivalSnap';
 
 interface JournalStopCardProps {
   segment: RouteSegment;
@@ -54,6 +55,12 @@ export function JournalStopCard({
     onUpdateEntry({
       status: 'visited',
       actualArrival: new Date(),
+    });
+    dispatchStopArrived({
+      segmentIndex,
+      toName: segment.to.name.split(',')[0],
+      toLat: segment.to.lat,
+      toLng: segment.to.lng,
     });
   };
 
