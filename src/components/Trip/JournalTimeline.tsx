@@ -3,7 +3,7 @@ import type { TripSummary, TripSettings, TripJournal } from '../../types';
 import { JournalStopCard, QuickArriveButton } from './JournalStopCard';
 import { DayHeader } from './DayHeader';
 import { QuickCaptureDialog } from './QuickCaptureDialog';
-import { JournalCompletionCard } from './JournalCompletionCard';
+import { TripRecapCard } from './TripRecapCard';
 import { useJournalTimeline } from './useJournalTimeline';
 import { cn } from '../../lib/utils';
 import { dispatchStopArrived } from '../../hooks/useArrivalSnap';
@@ -267,9 +267,9 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
         })}
       </div>
 
-      {/* Trip Complete */}
+      {/* Trip Complete — rich recap souvenir */}
       {visitedCount === totalStops && (
-        <JournalCompletionCard
+        <TripRecapCard
           journal={journal}
           summary={summary}
           settings={settings}
