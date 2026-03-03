@@ -158,7 +158,18 @@ export function splitTripByDays(
     // we still stop at the destination. "No sleep limits" ≠ "skip Toronto entirely."
     // Short round trips (≤24h) with beast mode ARE day trips — blast through and back.
     const beastModeDayTrip = settings.beastMode && totalRoundTripMinutes <= 24 * 60;
-    const isRoundTripDayTrip = totalRoundTripMinutes <= effectiveMaxDriveMinutes || beastModeDayTrip;
+    // If the user has set a multi-day date range, ALWAYS stop at the destination —
+    // even if the total drive time would technically fit in a single day.
+    // Without this guard, setting maxDriveHours=16h on a ~14h round trip (e.g.
+    // Winnipeg → Thunder Bay) makes the whole trip look like a "day trip", which
+    // skips the destination overnight and dumps the leftover nights back at origin.
+    const calendarDays = (settings.returnDate && settings.departureDate)
+      ? Math.max(1, Math.round(
+          (new Date(settings.returnDate + 'T00:00:00').getTime() -
+           new Date(settings.departureDate + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24)) + 1)
+      : 1;
+    const isRoundTripDayTrip = (totalRoundTripMinutes <= effectiveMaxDriveMinutes || beastModeDayTrip)
+      && calendarDays <= 1;
 
     if (
       !insertedFreeDays &&
