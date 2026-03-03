@@ -39,8 +39,11 @@ export function DayHeader({
 
   const formatTime = (isoString: string): string => {
     const date = new Date(isoString);
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
+    // Round to nearest 15 minutes for display — no one plans to arrive at 11:13 exactly.
+    const roundedMs = Math.round(date.getTime() / (15 * 60 * 1000)) * (15 * 60 * 1000);
+    const rounded = new Date(roundedMs);
+    const hours = rounded.getHours();
+    const minutes = rounded.getMinutes();
     const period = hours >= 12 ? 'PM' : 'AM';
     const displayHours = hours % 12 || 12;
     return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;

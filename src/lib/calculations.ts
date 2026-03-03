@@ -115,13 +115,11 @@ export function calculateArrivalTimes(
   let currentTime = initialDateTime;
 
   return segments.map((segment, index) => {
-    // At the round-trip midpoint, advance the clock appropriately before the return leg.
+    // At the round-trip midpoint, advance the clock for multi-day trips (next morning).
+    // Day-trip dwell is handled as stopDuration on the last outbound segment (index
+    // roundTripMidpoint - 1) so finalizeTripDay can include it in stopTimeMinutes.
     if (roundTripMidpoint !== undefined && index === roundTripMidpoint) {
-      if (dayTripDwellMinutes !== undefined) {
-        // Day trip: just add the scheduled dwell time (0 = immediate turnaround).
-        // The return leg departs from the same day, not the next morning.
-        currentTime = new Date(currentTime.getTime() + dayTripDwellMinutes * 60 * 1000);
-      } else {
+      if (dayTripDwellMinutes === undefined) {
         // Multi-day trip: reset to next morning at departure hour.
         const [hours, minutes] = departureTime.split(':').map(Number);
         const nextDay = new Date(currentTime);
@@ -129,6 +127,8 @@ export function calculateArrivalTimes(
         nextDay.setHours(hours, minutes, 0, 0);
         currentTime = nextDay;
       }
+      // Day-trip case: currentTime was already advanced by the last outbound
+      // segment's stopDuration (= dayTripDwellMinutes). No action needed here.
     }
 
     // Departure time for this segment is the current time
@@ -137,8 +137,16 @@ export function calculateArrivalTimes(
     // Add driving duration
     const arrivalTime = new Date(currentTime.getTime() + segment.durationMinutes * 60000);
 
-    // Get stop duration for this segment (defaults to 0 if not set)
-    const stopDuration = segment.stopDuration ?? STOP_DURATIONS[segment.stopType ?? 'drive'];
+    // Get stop duration for this segment.
+    // Special case: the last outbound segment of a day-trip round trip stores the
+    // destination dwell time as its stopDuration so the day's arrivalTime accounts
+    // for it (e.g. 4h at Pinawa shows Arrive 3:13 PM, not 11:13 AM).
+    const stopDuration =
+      roundTripMidpoint !== undefined &&
+      index === roundTripMidpoint - 1 &&
+      dayTripDwellMinutes !== undefined
+        ? dayTripDwellMinutes
+        : (segment.stopDuration ?? STOP_DURATIONS[segment.stopType ?? 'drive']);
 
     // Next segment starts after the stop
     currentTime = new Date(arrivalTime.getTime() + stopDuration * 60000);

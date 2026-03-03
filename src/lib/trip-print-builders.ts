@@ -22,8 +22,10 @@ export function formatDistance(km: number, units: 'metric' | 'imperial'): string
 }
 
 export function formatTimeFromISO(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  // Round to nearest 15 minutes — no one plans to arrive at 15:13 exactly.
+  const ms = new Date(iso).getTime();
+  const rounded = new Date(Math.round(ms / (15 * 60 * 1000)) * (15 * 60 * 1000));
+  return rounded.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }).replace(/\s?am/, ' AM').replace(/\s?pm/, ' PM');
 }
 
 export function getDriverForSegment(
