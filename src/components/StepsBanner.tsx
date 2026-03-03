@@ -11,6 +11,7 @@
 import { useState, useEffect } from 'react';
 import type { TripMode } from '../types';
 import type { PlanningStep } from '../hooks/useWizard';
+import type { GhostCarState } from '../hooks/useGhostCar';
 import { CarTrack } from './UI/CarTrack';
 
 // ── Taglines ────────────────────────────────────────────────────────────────
@@ -42,6 +43,8 @@ interface StepsBannerProps {
   setShowModeSwitcher: React.Dispatch<React.SetStateAction<boolean>>;
   modeSwitcherRef: React.RefObject<HTMLDivElement | null>;
   onSwitchMode: (mode: TripMode) => void;
+  /** When set, CarTrack switches to trip mode showing ghost car progress */
+  ghostCar?: GhostCarState | null;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -56,6 +59,7 @@ export function StepsBanner({
   setShowModeSwitcher,
   modeSwitcherRef,
   onSwitchMode,
+  ghostCar,
 }: StepsBannerProps) {
   const mode = MODE_CONFIG[tripMode];
 
@@ -180,16 +184,25 @@ export function StepsBanner({
         </div>
       </div>
 
-      {/* ── Row 2: Car Track ── */}
+      {/* ── Row 2: Car Track — wizard during planning, trip once confirmed ── */}
       <div className="relative z-10 mt-3">
-        <CarTrack
-          mode="wizard"
-          currentStep={currentStep}
-          completedSteps={completedSteps}
-          isCalculating={isCalculating}
-          onStepClick={onStepClick}
-          canNavigateTo={canNavigateTo}
-        />
+        {ghostCar?.windowStops ? (
+          <CarTrack
+            mode="trip"
+            windowStops={ghostCar.windowStops}
+            progressPct={ghostCar.progressPct}
+            pending={!ghostCar.tripStarted}
+          />
+        ) : (
+          <CarTrack
+            mode="wizard"
+            currentStep={currentStep}
+            completedSteps={completedSteps}
+            isCalculating={isCalculating}
+            onStepClick={onStepClick}
+            canNavigateTo={canNavigateTo}
+          />
+        )}
       </div>
     </div>
   );

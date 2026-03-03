@@ -13,7 +13,7 @@ import { TripProvider, useTripContext } from './contexts';
 import {
   useWizard, useTripCalculation, useJournal, usePOI, useEagerRoute, useAddedStops,
   useStylePreset, useTripMode, useTripLoader, useMapInteractions, useURLHydration,
-  usePlanningStepProps, useAppReset, useCalculateAndDiscover, useMapProps,
+  usePlanningStepProps, useAppReset, useCalculateAndDiscover, useMapProps, useGhostCar,
   type PlanningStep,
 } from './hooks';
 import { getHistory } from './lib/storage';
@@ -152,6 +152,9 @@ function AppContent() {
     else setTripMode(mode);
   }, [setTripMode, setShowAdventureMode]);
 
+  // Ghost car — time-based trip progress simulation
+  const ghostCar = useGhostCar(summary, settings, [], locations);
+
   const { resetTrip, handleSelectMode } = useAppReset({
     setLocations, setSummary, resetPOIs, resetWizard, clearStops, clearTripCalculation,
     setActiveChallenge, setTripOrigin, setTripConfirmed, setTripMode, setShowAdventureMode,
@@ -232,6 +235,7 @@ function AppContent() {
                 setShowModeSwitcher={setShowModeSwitcher}
                 modeSwitcherRef={modeSwitcherRef}
                 onSwitchMode={handleSwitchMode}
+                ghostCar={summary && planningStep === 3 && tripConfirmed ? ghostCar : null}
               />
               <WizardContent
                 planningStep={planningStep}
