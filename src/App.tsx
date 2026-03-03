@@ -44,6 +44,7 @@ function AppContent() {
     showModeSwitcher, setShowModeSwitcher,
     modeSwitcherRef,
     tripActive, setTripActive,
+    handleSwitchMode,
   } = useTripMode();
 
   // Style preset (travel style / hotel+meal defaults)
@@ -146,13 +147,6 @@ function AppContent() {
     if (planningStep === 2) calculateAndDiscover(); else wizardNext();
   }, [planningStep, calculateAndDiscover, wizardNext]);
 
-  const handleStepClick = useCallback((step: PlanningStep) => goToStep(step), [goToStep]);
-
-  const handleSwitchMode = useCallback((mode: TripMode) => {
-    if (mode === 'adventure') { setTripMode('adventure'); setShowAdventureMode(true); }
-    else setTripMode(mode);
-  }, [setTripMode, setShowAdventureMode]);
-
   // Ghost car — time-based trip progress simulation
   const ghostCar = useGhostCar(summary, settings, [], locations);
   // Arrival snap — re-anchors ghost car when journal 'Arrived' is tapped
@@ -233,7 +227,7 @@ function AppContent() {
                 completedSteps={completedSteps}
                 tripMode={tripMode}
                 isCalculating={isCalculating}
-                onStepClick={handleStepClick}
+                onStepClick={goToStep}
                 showModeSwitcher={showModeSwitcher}
                 setShowModeSwitcher={setShowModeSwitcher}
                 modeSwitcherRef={modeSwitcherRef}

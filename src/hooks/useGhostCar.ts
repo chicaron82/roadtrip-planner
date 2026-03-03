@@ -66,7 +66,7 @@ function formatETA(date: Date): string {
 }
 
 /** Binary search: last index in sorted array where predicate is true */
-function binarySearchLast<T>(arr: T[], pred: (v: T) => boolean): number {
+export function binarySearchLast<T>(arr: T[], pred: (v: T) => boolean): number {
   let lo = 0, hi = arr.length - 1, result = -1;
   while (lo <= hi) {
     const mid = (lo + hi) >> 1;
@@ -77,7 +77,7 @@ function binarySearchLast<T>(arr: T[], pred: (v: T) => boolean): number {
 }
 
 /** Lerp distanceFromOriginKm at effectiveNow using sorted timedEvents */
-function interpolateKm(events: TimedEvent[], effectiveNowMs: number): number {
+export function interpolateKm(events: TimedEvent[], effectiveNowMs: number): number {
   if (events.length === 0) return 0;
   const last = events[events.length - 1];
   if (effectiveNowMs >= last.arrivalTime.getTime()) return last.distanceFromOriginKm;

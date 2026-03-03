@@ -12,6 +12,7 @@ interface UseTripModeReturn {
   tripActive: boolean;
   setTripActive: (active: boolean) => void;
   handleContinueSavedTrip: () => void;
+  handleSwitchMode: (mode: TripMode) => void;
 }
 
 export function useTripMode(): UseTripModeReturn {
@@ -37,6 +38,11 @@ export function useTripMode(): UseTripModeReturn {
     setTripMode('plan');
   }, []);
 
+  const handleSwitchMode = useCallback((mode: TripMode) => {
+    if (mode === 'adventure') { setTripMode('adventure'); setShowAdventureMode(true); }
+    else setTripMode(mode);
+  }, [setTripMode, setShowAdventureMode]);
+
   return {
     tripMode,
     setTripMode,
@@ -48,5 +54,6 @@ export function useTripMode(): UseTripModeReturn {
     tripActive,
     setTripActive,
     handleContinueSavedTrip,
+    handleSwitchMode,
   };
 }
