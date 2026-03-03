@@ -256,7 +256,14 @@ export function buildTimedTimeline(
       // header's Departure field). Falls back to settings.departureTime.
       const plannedDeparture = nextDrivingDate ? drivingDayDepartures.get(nextDrivingDate) : undefined;
       if (plannedDeparture) {
-        currentTime = new Date(plannedDeparture);
+        // split-by-days.ts stores departureTime using browser-local setHours() —
+        // e.g. "9 AM" in CST gets saved as T15:00Z. Re-interpret the intended
+        // wall-clock hour in the ROUTE timezone (EST) so Day 2+ arrivals display
+        // correctly: T14:00Z = 9 AM EST, not T15:00Z displayed as 10 AM EST.
+        const stored = new Date(plannedDeparture);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const timeStr = `${pad(stored.getHours())}:${pad(stored.getMinutes())}`;
+        currentTime = parseLocalDateInTZ(nextDrivingDate, timeStr, activeTimezone);
       } else {
         // Fallback: derive next morning from settings.departureTime in active timezone
         const [dH, dM] = settings.departureTime.split(':').map(Number);
@@ -357,7 +364,11 @@ export function buildTimedTimeline(
       // departure (or later), so the `>` guard makes this a no-op.
       const plannedDep = drivingDayDepartures.get(newDay.date);
       if (plannedDep) {
-        const depTime = new Date(plannedDep);
+        // Re-interpret wall-clock time in route timezone (see overnight handler).
+        const stored = new Date(plannedDep);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const timeStr = `${pad(stored.getHours())}:${pad(stored.getMinutes())}`;
+        const depTime = parseLocalDateInTZ(newDay.date, timeStr, activeTimezone);
         if (depTime > currentTime) currentTime = depTime;
       } else {
         const [dH, dM] = settings.departureTime.split(':').map(Number);

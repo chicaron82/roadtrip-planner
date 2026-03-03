@@ -42,6 +42,31 @@ const isFuel = (e: TimedEvent): boolean => e.type === 'fuel';
 const isMeal = (e: TimedEvent): boolean => e.type === 'meal';
 
 /**
+ * Merge consecutive drive events produced when a fuel stop is absorbed
+ * mid-route. Without this, the timeline shows two back-to-back drive
+ * connectors with nothing between them.
+ */
+function mergeAdjacentDrives(events: TimedEvent[]): TimedEvent[] {
+  const merged: TimedEvent[] = [];
+  for (const ev of events) {
+    const prev = merged[merged.length - 1];
+    if (ev.type === 'drive' && prev?.type === 'drive') {
+      merged[merged.length - 1] = {
+        ...prev,
+        departureTime: ev.departureTime,
+        durationMinutes: prev.durationMinutes + ev.durationMinutes,
+        segmentDistanceKm: (prev.segmentDistanceKm ?? 0) + (ev.segmentDistanceKm ?? 0),
+        segmentDurationMinutes:
+          (prev.segmentDurationMinutes ?? 0) + (ev.segmentDurationMinutes ?? 0),
+      };
+    } else {
+      merged.push(ev);
+    }
+  }
+  return merged;
+}
+
+/**
  * Scans `events` for fuel+meal pairs and merges them.
  * Returns a new event array — never mutates the input.
  */
@@ -109,10 +134,13 @@ export function applyComboOptimization(
     result[i] = merged;
     consumed.add(fuelIdx);
 
-    // Rebuild downstream timestamps: remove fuel drive + fuel stop time
+    // Rebuild downstream timestamps: remove fuel drive + fuel stop time.
+    // Stop at day-boundary departure events — morning departure times are
+    // anchored by the budget engine and must not drift with combo savings.
     const timeRecoveredMs = (driveMinutesBetween + fuelEvent.durationMinutes) * 60 * 1000;
     for (let k = fuelIdx + 1; k < result.length; k++) {
       if (consumed.has(k)) continue;
+      if (result[k].type === 'departure' && result[k].id !== 'departure') break;
       result[k] = {
         ...result[k],
         arrivalTime: new Date(result[k].arrivalTime.getTime() - timeRecoveredMs),
@@ -189,6 +217,7 @@ export function applyComboOptimization(
 
     for (let k = flexIdx + 1; k < result.length; k++) {
       if (consumed.has(k)) continue;
+      if (result[k].type === 'departure' && result[k].id !== 'departure') break;
       result[k] = {
         ...result[k],
         arrivalTime: new Date(result[k].arrivalTime.getTime() - timeRecoveredMs),
@@ -197,7 +226,7 @@ export function applyComboOptimization(
     }
   }
 
-  return result.filter((_, i) => !consumed.has(i));
+  return mergeAdjacentDrives(result.filter((_, i) => !consumed.has(i)));
 }
 
 /**
