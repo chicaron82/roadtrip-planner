@@ -705,6 +705,181 @@
   color: rgba(249, 115, 22, 0.85);
 }
 
+/* ─── CarTrack — unified journey progress car ────────────── */
+
+.car-track-root {
+  position: relative;
+  width: 100%;
+  padding: 6px 0 14px;
+  user-select: none;
+}
+
+/* Rail container — the horizontal track */
+.car-track-rail {
+  position: relative;
+  width: 100%;
+  height: 20px;
+  /* Extra horizontal padding so dots at 0% / 100% aren't clipped */
+  box-sizing: border-box;
+}
+
+/* Background rail line */
+.car-track-rail-bg {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1.5px;
+  transform: translateY(-50%);
+  background: rgba(245, 240, 232, 0.1);
+  border-radius: 2px;
+}
+
+/* Orange progress fill */
+.car-track-rail-fill {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  height: 1.5px;
+  transform: translateY(-50%);
+  background: linear-gradient(90deg, #f97316, #ea580c);
+  border-radius: 2px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 6px rgba(249, 115, 22, 0.4);
+}
+
+/* Stop button — invisible hit-target, children provide visuals */
+.car-track-stop {
+  position: absolute;
+  top: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translate(-50%, -50%);
+  background: none;
+  border: none;
+  padding: 0;
+  gap: 4px;
+  cursor: default;
+}
+
+.car-track-stop.clickable {
+  cursor: pointer;
+}
+
+/* Dot */
+.car-track-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(245, 240, 232, 0.18);
+  transition: all 0.4s ease;
+  flex-shrink: 0;
+}
+
+.car-track-stop.done .car-track-dot {
+  background: rgba(249, 115, 22, 0.5);
+  width: 8px;
+  height: 8px;
+}
+
+.car-track-stop.active .car-track-dot {
+  background: #f97316;
+  width: 10px;
+  height: 10px;
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.7);
+}
+
+/* Label — sits below the dot, offset from negative translateY */
+.car-track-label {
+  position: absolute;
+  top: calc(50% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-family: 'DM Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(245, 240, 232, 0.3);
+  transition: color 0.3s ease;
+  pointer-events: none;
+}
+
+.car-track-stop.active .car-track-label,
+.car-track-stop.done .car-track-label {
+  color: rgba(249, 115, 22, 0.75);
+}
+
+/* The car emoji */
+.car-track-car {
+  position: absolute;
+  top: 50%;
+  font-size: 14px;
+  line-height: 1;
+  transform: translate(-50%, -72%);
+  pointer-events: none;
+  filter: drop-shadow(0 1px 4px rgba(249, 115, 22, 0.3));
+}
+
+/* Idle wiggle while calculating */
+@keyframes car-calculating {
+  0%   { transform: translate(-50%, -72%) rotate(0deg); }
+  20%  { transform: translate(calc(-50% + 3px), -72%) rotate(3deg); }
+  40%  { transform: translate(calc(-50% - 3px), -72%) rotate(-3deg); }
+  60%  { transform: translate(calc(-50% + 2px), -72%) rotate(2deg); }
+  80%  { transform: translate(calc(-50% - 1px), -72%) rotate(-2deg); }
+  100% { transform: translate(-50%, -72%) rotate(0deg); }
+}
+
+.car-track-car.calculating {
+  animation: car-calculating 0.8s ease-in-out infinite;
+}
+
+/* Arrival bounce */
+@keyframes car-arrive {
+  0%   { transform: translate(-50%, -72%) scale(1);    }
+  30%  { transform: translate(-50%, -85%) scale(1.25); }
+  55%  { transform: translate(-50%, -65%) scale(0.9);  }
+  75%  { transform: translate(-50%, -78%) scale(1.1);  }
+  100% { transform: translate(-50%, -72%) scale(1);    }
+}
+
+.car-track-car.arrived {
+  animation: car-arrive 0.65s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+/* Pre-trip pulse */
+@keyframes car-pending {
+  0%, 100% { opacity: 0.4; }
+  50%       { opacity: 0.9; }
+}
+
+.car-track-car.pending {
+  animation: car-pending 1.8s ease-in-out infinite;
+}
+
+/* Window slide animation (trip pagination) */
+@keyframes track-slide-in {
+  from { opacity: 0; transform: translateX(18px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.car-track-sliding .car-track-label {
+  animation: track-slide-in 0.45s ease forwards;
+}
+
+/* Status text below the track */
+.car-track-status {
+  margin-top: 14px;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: rgba(245, 240, 232, 0.3);
+  text-align: center;
+  text-transform: uppercase;
+}
+
 /* ─── CTA + outline buttons ──────────────────────────────── */
 
 .mee-cta-button {

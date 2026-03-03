@@ -11,6 +11,7 @@
 import { useState, useEffect } from 'react';
 import type { TripMode } from '../types';
 import type { PlanningStep } from '../hooks/useWizard';
+import { CarTrack } from './UI/CarTrack';
 
 // ── Taglines ────────────────────────────────────────────────────────────────
 
@@ -19,14 +20,6 @@ const TAGLINES = [
   'Every road leads somewhere worth going.',
   'The drive is part of the story.',
   'Some trips change you.',
-];
-
-// ── Step config ────────────────────────────────────────────────────────────
-
-const STEP_CONFIG = [
-  { number: 1 as const, title: 'Route'   },
-  { number: 2 as const, title: 'Vehicle' },
-  { number: 3 as const, title: 'Results' },
 ];
 
 // ── Mode config ────────────────────────────────────────────────────────────
@@ -187,44 +180,16 @@ export function StepsBanner({
         </div>
       </div>
 
-      {/* ── Row 2: Pill Step Dots ── */}
-      <div className="relative z-10 flex items-center gap-2 mt-4">
-        {STEP_CONFIG.map((step, index) => {
-          const isActive    = step.number === currentStep;
-          const isCompleted = completedSteps.includes(step.number);
-          const isClickable = canNavigateTo(step.number) && !isCalculating;
-
-          const dotClass = [
-            'mee-step-dot',
-            isActive ? 'active' : '',
-            isCompleted && !isActive ? 'done' : '',
-          ].filter(Boolean).join(' ');
-
-          return (
-            <div key={step.number} className="flex items-center gap-2">
-              <button
-                onClick={() => isClickable && onStepClick(step.number)}
-                disabled={!isClickable}
-                className="flex items-center gap-1.5"
-                style={{ cursor: isClickable ? 'pointer' : 'default' }}
-              >
-                <div className={dotClass} />
-                <span className={`mee-step-label ${isActive ? 'active' : ''}`}>
-                  {step.title}
-                </span>
-              </button>
-
-              {index < STEP_CONFIG.length - 1 && (
-                <div style={{
-                  width: 20,
-                  height: 1,
-                  background: 'rgba(245,240,232,0.1)',
-                  flexShrink: 0,
-                }} />
-              )}
-            </div>
-          );
-        })}
+      {/* ── Row 2: Car Track ── */}
+      <div className="relative z-10 mt-3">
+        <CarTrack
+          mode="wizard"
+          currentStep={currentStep}
+          completedSteps={completedSteps}
+          isCalculating={isCalculating}
+          onStepClick={onStepClick}
+          canNavigateTo={canNavigateTo}
+        />
       </div>
     </div>
   );
