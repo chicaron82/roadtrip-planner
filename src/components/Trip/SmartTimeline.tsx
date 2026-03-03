@@ -87,12 +87,19 @@ export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [],
       ? generateSmartStops(summary.segments, createStopConfig(vehicle, settings, summary.fullGeometry), summary.days)
       : [];
 
+    // Only inject the destination dwell event for actual round-trip DAY TRIPS.
+    // Multi-day round trips (e.g. Dryden→Montreal 7-day) must NOT get this event —
+    // it would corrupt the timeline clock and produce bogus departure times on return days.
+    const isRTDayTrip = settings.isRoundTrip &&
+      summary.totalDurationMinutes <= settings.maxDriveHours * 60;
+    const destinationStayMinutes = isRTDayTrip ? (settings.dayTripDurationHours ?? 0) * 60 : 0;
+
     const raw = buildTimedTimeline(
       summary.segments,
       allSuggestions,
       settings,
       summary.roundTripMidpoint,
-      (settings.dayTripDurationHours ?? 0) * 60,
+      destinationStayMinutes,
       summary.days,
     );
     return applyComboOptimization(raw);

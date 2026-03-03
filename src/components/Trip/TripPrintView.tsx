@@ -66,12 +66,18 @@ export function printTrip(props: TripPrintViewProps): void {
         createStopConfig(vehicle, settings, summary.fullGeometry),
         summary.days,
       );
+    // Only inject the destination dwell event for actual round-trip DAY TRIPS.
+    // Multi-day round trips must NOT get this event (corrupts return-leg clock).
+    const isRTDayTrip = settings.isRoundTrip &&
+      summary.totalDurationMinutes <= settings.maxDriveHours * 60;
+    const destinationStayMinutes = isRTDayTrip ? (settings.dayTripDurationHours ?? 0) * 60 : 0;
+
     const raw = buildTimedTimeline(
       summary.segments,
       allSuggestions,
       settings,
       summary.roundTripMidpoint,
-      (settings.dayTripDurationHours ?? 0) * 60,
+      destinationStayMinutes,
       summary.days,
     );
     timedEvents = applyComboOptimization(raw);
