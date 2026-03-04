@@ -98,3 +98,30 @@
 - SmartTimeline drive line now weather-reactive (sky blue = clear, indigo = thunderstorm)
 - `data-ambient` hooks on departure/overnight nodes for future cinematic pass
 
+---
+
+## Architectural Watchlist (identified 2026-03-03)
+
+Items that are not broken today but are known future drift vectors.
+Address when a related feature is next touched — not as standalone refactors.
+
+### TODO: Split trip-print-builders.ts by responsibility
+**Priority: LOW — address when next major print feature lands**
+`src/lib/trip-print-builders.ts` is ~400 lines and growing.
+Currently owns: time/number formatting, event bucketing, day HTML assembly,
+budget string building, hotel card, segment HTML, and the top-level envelope.
+This breadth makes it a natural place for one-off fixes that breed print-only bugs.
+- Suggested split: `trip-print-formatters.ts` (time, distance, currency) / `trip-print-sections.ts` (HTML builders)
+- Trigger: next time the file exceeds 450 lines or a print-only bug is traced here
+
+### TODO: Day arrival time derived independently from the event chain
+**Priority: LOW — watch when combo-stop optimization or stop insertion evolves**
+`src/lib/budget/day-builder.ts` computes `totals.arrivalTime` as:
+  `departure + driveTimeMinutes + stopTimeMinutes`
+The timeline event chain (`buildTimedTimeline`) computes arrival independently
+from the actual sequence of timed events including combo savings, inserted breaks, etc.
+If either path evolves without updating the other, day-header arrival times will drift
+from the last timed event in that day's timeline.
+- Long-term ideal: `totals.arrivalTime` sourced from final timed event in the day
+- Trigger: next time combo-stop optimization changes stop durations meaningfully
+
