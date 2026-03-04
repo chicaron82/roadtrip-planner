@@ -215,6 +215,14 @@ export function buildDayHTML(
 ): string {
   const dayType = day.dayType || 'planned';
 
+  // Derive dep/arr times from canonical TimedEvent[] — same source as the rendered
+  // timeline events, so header and timeline always agree (Bugs 2+3).
+  const dayEvents = dayType === 'planned' && timedEvents.length > 0
+    ? timedEvents.filter(e => formatDateInZone(e.arrivalTime, e.timezone ?? 'UTC') === day.date)
+    : [];
+  const depEvent = dayEvents.find(e => e.type === 'departure');
+  const arrEvent = dayEvents.find(e => e.type === 'overnight' || e.type === 'arrival');
+
   // Hotel info
   let hotelHTML = '';
   if (day.overnight) {
@@ -242,15 +250,7 @@ export function buildDayHTML(
 
   // Build timeline
   let timelineHTML = '';
-  if (timedEvents.length > 0 && dayType === 'planned') {
-    // Bucket events by their local calendar date in the event's own timezone.
-    // Using toDateString() was browser-local, causing wrong-day placement on
-    // timezone-crossing trips and near-midnight arrivals.
-    // day.date is already a canonical 'YYYY-MM-DD' string in the route timezone.
-    const dayEvents = timedEvents.filter(e => {
-      const eventDate = formatDateInZone(e.arrivalTime, e.timezone ?? 'UTC');
-      return eventDate === day.date;
-    });
+  if (dayEvents.length > 0) {
     timelineHTML = dayEvents.map((event, i) => buildEventHTML(event, units, i === 0)).join('');
   } else if (dayType === 'planned' && day.segments.length > 0) {
     timelineHTML = day.segments.map((seg, i) => {
@@ -292,15 +292,28 @@ export function buildDayHTML(
     </div>
   `;
 
-  const routeLabel = day.route || (dayType === 'free' ? 'Free Day' : dayType === 'flexible' ? 'Flexible Day' : '—');
-  // Derive display timezone from the day's departure city longitude — same
-  // source the timeline engine uses, so header times match timeline event times.
+  // Fall back to day.totals when no events available (e.g. free/flexible days).
   const depTz = day.segments[0]?.from.lng != null ? lngToIANA(day.segments[0].from.lng) : undefined;
-  const sameTime = day.totals.departureTime === day.totals.arrivalTime;
+  const depTimeStr = depEvent
+    ? formatTime(depEvent.arrivalTime, depEvent.timezone)
+    : formatTimeFromISO(day.totals.departureTime, depTz);
+  const arrTimeStr = arrEvent
+    ? formatTime(arrEvent.arrivalTime, arrEvent.timezone)
+    : formatTimeFromISO(day.totals.arrivalTime, depTz);
+  const sameTime = depTimeStr === arrTimeStr;
+
+  // Route label: prefer departure event's locationHint (carries correct overnight hub city)
+  // over day.route which may still reference the original origin on transit-split trips.
+  const routeFromCity = depEvent?.locationHint;
+  const routeToCity = day.segments.at(-1)?.to.name;
+  const routeLabel = (routeFromCity && routeToCity)
+    ? `${routeFromCity} → ${routeToCity}`
+    : day.route || (dayType === 'free' ? 'Free Day' : dayType === 'flexible' ? 'Flexible Day' : '—');
+
   const statsLine = dayType !== 'free'
     ? `${formatDistance(day.totals.distanceKm, units)} •
        ${formatDriveTime(day.totals.driveTimeMinutes)} driving •
-       Departure: ${formatTimeFromISO(day.totals.departureTime, depTz)}${sameTime ? '' : ` • Arrival: ${formatTimeFromISO(day.totals.arrivalTime, depTz)}`}`
+       Departure: ${depTimeStr}${sameTime ? '' : ` • Arrival: ${arrTimeStr}`}`
     : 'Rest day — no driving';
 
   return `

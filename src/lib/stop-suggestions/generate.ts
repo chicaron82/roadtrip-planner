@@ -147,6 +147,7 @@ export function generateSmartStops(
           details: { hoursOnRoad: state.totalDrivingToday },
           dayNumber: prevDrivingDay.dayNumber,
           accepted: true, // User already filled in hotel data — don't show as pending suggestion
+          hubName: overnight.location.name,
         });
       }
     }
@@ -160,6 +161,9 @@ export function generateSmartStops(
     const arrivalSug = checkArrivalWindow(state, segment, index, config, daysWithHotel);
     if (arrivalSug) {
       arrivalSug.afterSegmentIndex += (segOrigIdx - index);
+      // Overnight fires before this segment — current position is segment.from
+      const fromHub = findHubInWindow(segment.from.lat, segment.from.lng, 40);
+      if (fromHub) arrivalSug.hubName = fromHub.name;
       suggestions.push(arrivalSug);
     }
 
@@ -340,6 +344,9 @@ export function generateSmartStops(
     );
     if (overnightSug) {
       overnightSug.afterSegmentIndex += (segOrigIdx - index);
+      // Overnight fires after driving this segment — current position is segment.to
+      const toHub = findHubInWindow(segment.to.lat, segment.to.lng, 40);
+      if (toHub) overnightSug.hubName = toHub.name;
       suggestions.push(overnightSug);
     }
   });

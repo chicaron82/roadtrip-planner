@@ -378,13 +378,17 @@ export function buildTimedTimeline(
       }
 
       // Resolve a clean departure location name.
-      // Prefer the previous segment's TO name (same physical point, usually hub-resolved).
-      // Strip unsnapped "CityA → CityB" patterns and "(transit)" labels from fallback names.
+      // Priority: overnight suggestion's hubName (has the real stop city) >
+      // previous segment's TO name > fallback to seg.from with transit cleanup.
+      const prevOvernight = suggestions.find(
+        s => s.type === 'overnight' && s.dayNumber === newDay.dayNumber - 1
+      );
       const prevSeg = i > 0 ? iterSegments[i - 1] : null;
       const prevToClean = prevSeg?.to.name &&
         !prevSeg.to.name.includes('(transit)') &&
         !prevSeg.to.name.includes(' → ');
-      let departLocation = prevToClean ? prevSeg!.to.name : seg.from.name;
+      let departLocation = prevOvernight?.hubName
+        ?? (prevToClean ? prevSeg!.to.name : seg.from.name);
       if (departLocation.includes(' → ')) departLocation = departLocation.split(' → ')[0].trim();
       departLocation = departLocation.replace(/\s*\(transit\)/, '');
 
