@@ -321,6 +321,231 @@
   }
 }
 
+/* ══════════════════════════════════════════════════════════
+   LANDING ROUTE SCENE (lrs-*)
+   Diagonal map route — replaces signpost
+   ══════════════════════════════════════════════════════════ */
+
+.lrs-container {
+  position: relative;
+  width: 100%;
+  height: clamp(280px, 32vh, 380px);
+  align-self: stretch;
+}
+
+/* Mode tint — world shifts colour with your choice */
+.lrs-tint {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transition: background 0.7s ease;
+  z-index: 0;
+}
+
+.lrs-svg-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.lrs-svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Pulse ring — active waypoint breathing */
+@keyframes lrs-pulse {
+  0%   { transform: scale(1);   opacity: 0.25; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+.lrs-pulse-ring {
+  animation: lrs-pulse 2.2s ease-out infinite;
+}
+
+/* ── Description panel — lower-right glass card ── */
+.lrs-desc-panel {
+  position: absolute;
+  bottom: 16px;
+  right: 20px;
+  width: clamp(200px, 26vw, 280px);
+  background: rgba(14, 11, 7, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 16px 18px;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  z-index: 10;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.lrs-desc-panel.lrs-desc-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.lrs-desc-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 100px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  margin-bottom: 10px;
+  font-family: 'DM Mono', monospace;
+}
+
+.lrs-desc-heading {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(17px, 1.8vw, 22px);
+  font-weight: 700;
+  color: #f8faff;
+  line-height: 1.2;
+  margin: 0 0 6px;
+  white-space: pre-line;
+}
+
+.lrs-desc-sub {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.5;
+  margin: 0 0 10px;
+}
+
+.lrs-desc-stats {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.lrs-desc-stats li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.lrs-desc-stats li::before {
+  content: '';
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--lrs-dot, #f97316);
+  flex-shrink: 0;
+}
+
+.lrs-desc-cta {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: filter 0.2s ease, transform 0.2s ease;
+  margin-bottom: 8px;
+}
+
+.lrs-desc-cta:hover {
+  filter: brightness(1.2);
+  transform: translateY(-1px);
+}
+
+.lrs-desc-hint {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.18);
+  text-align: center;
+  margin: 0;
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.05em;
+}
+
+/* ── Short viewports (landscape phone) — compact everything ── */
+@media (max-height: 520px) {
+  /* Route scene — shorter container */
+  .lrs-container {
+    height: clamp(180px, 44vh, 240px);
+  }
+  /* Panel — pin to top, narrow so waypoints stay visible */
+  .lrs-desc-panel {
+    top: 8px;
+    bottom: auto;
+    padding: 10px 14px;
+    width: clamp(180px, 22vw, 220px);
+  }
+  .lrs-desc-stats {
+    display: none;
+  }
+  .lrs-desc-heading {
+    font-size: 15px;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .lrs-desc-sub {
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+  .lrs-desc-hint {
+    font-size: 9px;
+  }
+
+  /* Hero — compress to fit above route scene */
+  .landing-hero-title {
+    font-size: clamp(22px, 3.8vw, 30px) !important;
+    margin-bottom: 8px !important;
+  }
+  .landing-hero-eyebrow {
+    margin-bottom: 6px !important;
+  }
+  .landing-hero-session {
+    margin-bottom: 6px !important;
+  }
+
+  /* Footer — hide to reclaim space */
+  .landing-footer {
+    display: none !important;
+  }
+}
+
+/* ── Mobile portrait — SVG stacks above description ── */
+@media (max-width: 640px) {
+  .lrs-container {
+    height: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .lrs-svg-wrap {
+    position: relative;
+    inset: unset;
+    height: 190px;
+    flex-shrink: 0;
+  }
+
+  .lrs-desc-panel {
+    position: relative;
+    bottom: unset;
+    right: unset;
+    width: 100%;
+    border-radius: 0 0 14px 14px;
+    border-top: 0;
+    margin-top: 0;
+  }
+}
+
 /* ── Reduced motion ── */
 @media (prefers-reduced-motion: reduce) {
   .landing-aurora,
@@ -336,9 +561,11 @@
   .landing-mode-card:hover {
     transform: none;
   }
-  /* Signpost scene */
-  [style*="road-dash"],
-  [style*="sign-hint-pulse"] {
+  /* Route scene */
+  .lrs-pulse-ring {
     animation: none !important;
+  }
+  .lrs-desc-panel {
+    transition: opacity 0.1s ease !important;
   }
 }

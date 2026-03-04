@@ -16,7 +16,7 @@ export function LandingHeroSection({
   onExitStart,
 }: Props) {
   return (
-    <div style={{ textAlign: 'center', maxWidth: '600px' }}>
+    <div className="landing-hero-root" style={{ textAlign: 'center', maxWidth: '600px' }}>
 
       {/* Eyebrow with heartbeat orb */}
       <div
@@ -99,7 +99,7 @@ export function LandingHeroSection({
 
       {/* Continue Saved Trip */}
       {hasSavedTrip && onContinueSavedTrip && !hasActiveSession && (
-        <div style={{ marginBottom: '24px' }}>
+        <div className="landing-hero-session" style={{ marginBottom: '24px' }}>
           <p style={{
             fontFamily: "'DM Mono', monospace",
             fontSize: '11px',
@@ -141,7 +141,7 @@ export function LandingHeroSection({
 
       {/* Active Session Resume */}
       {hasActiveSession && onResumeSession && (
-        <div style={{ marginBottom: '24px' }}>
+        <div className="landing-hero-session" style={{ marginBottom: '24px' }}>
           <p style={{
             fontFamily: "'DM Mono', monospace",
             fontSize: '11px',

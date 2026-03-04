@@ -15,7 +15,7 @@ import type { TripMode } from '../../types';
 import { ROUTE_DOTS } from './mode-config';
 import { LandingHeroSection } from './LandingHeroSection';
 import { LandingFooter } from './LandingFooter';
-import { SignpostScene } from './SignpostScene';
+import { LandingRouteScene } from './LandingRouteScene';
 import './landing.css';
 
 interface LandingScreenProps {
@@ -24,9 +24,10 @@ interface LandingScreenProps {
   onContinueSavedTrip?: () => void;
   hasActiveSession?: boolean;
   onResumeSession?: () => void;
+  lastDestination?: string;
 }
 
-export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip, hasActiveSession, onResumeSession }: LandingScreenProps) {
+export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip, hasActiveSession, onResumeSession, lastDestination }: LandingScreenProps) {
   const [isExiting, setIsExiting] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [activeDot, setActiveDot] = useState(0);
@@ -98,8 +99,8 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip,
           onResumeSession={onResumeSession}
           onExitStart={(fn) => { setIsExiting(true); setTimeout(fn, 600); }}
         />
-        {/* Signpost scene — road + directional sign + description panel */}
-        <SignpostScene onSelectMode={handleSelect} />
+        {/* Route scene — diagonal map route with waypoints */}
+        <LandingRouteScene onSelectMode={handleSelect} lastDestination={lastDestination} />
 
         <LandingFooter activeDot={activeDot} />
 </div>

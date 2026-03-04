@@ -208,6 +208,7 @@ function AppContent() {
           onContinueSavedTrip={() => setTripMode('plan')}
           hasActiveSession={hasActiveSession}
           onResumeSession={handleResumeSession}
+          lastDestination={(() => { const segs = history[0]?.segments; return segs && segs.length > 0 ? segs[segs.length - 1].to.name : undefined; })()}
         />
       )}
 
