@@ -21,8 +21,10 @@ export interface JournalPhoto {
 // Journal entry for a specific stop
 export interface JournalEntry {
   id: string;
-  stopId: string; // Links to segment/stop in itinerary
-  segmentIndex: number; // Which segment this entry is for
+  stopId: string; // Canonical stable anchor: segment.to.id (geographic location ID).
+                  // Entries are looked up by this first; segmentIndex is a secondary hint
+                  // that may drift if waypoints are inserted/removed before this stop.
+  segmentIndex: number; // Position hint — kept for ordering and backward compat
 
   // User content
   photos: JournalPhoto[];

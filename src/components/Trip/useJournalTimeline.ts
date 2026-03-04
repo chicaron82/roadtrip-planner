@@ -56,7 +56,10 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
   const currentStopIndex = useMemo(() => {
     for (let i = 0; i < summary.segments.length; i++) {
       if (summary.segments[i].to.id?.startsWith('guard-')) continue;
-      const entry = journal.entries.find(e => e.segmentIndex === i);
+      const waypointId = summary.segments[i].to.id;
+      const entry = journal.entries.find(e =>
+        (waypointId && e.stopId === waypointId) || e.segmentIndex === i
+      );
       if (!entry || entry.status !== 'visited') return i;
     }
     return summary.segments.length - 1;
@@ -72,15 +75,35 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
     ),
     [summary.segments],
   );
+  // Stable waypoint IDs for the same real stops — progress survives index shifts.
+  const realWaypointIds = useMemo(
+    () => new Set(
+      summary.segments
+        .filter(s => s.to.id && !s.to.id.startsWith('guard-'))
+        .map(s => s.to.id!)
+    ),
+    [summary.segments],
+  );
   const totalStops = realSegmentIndices.size;
   const visitedCount = journal.entries.filter(
-    e => realSegmentIndices.has(e.segmentIndex) && e.status === 'visited'
+    e => e.status === 'visited' &&
+      (realWaypointIds.has(e.stopId) || realSegmentIndices.has(e.segmentIndex))
   ).length;
   const progressPercent = totalStops > 0 ? Math.round((visitedCount / totalStops) * 100) : 0;
 
-  // Get or create entry for a segment
-  const getEntry = (segmentIndex: number): JournalEntry | undefined =>
-    journal.entries.find(e => e.segmentIndex === segmentIndex);
+  // Get or create entry for a segment.
+  // Looks up by stopId (stable geographic ID) first, falls back to segmentIndex
+  // for entries created before this pattern was enforced.
+  const getEntry = (segmentIndex: number): JournalEntry | undefined => {
+    const waypointId = summary.segments[segmentIndex]?.to.id;
+    if (waypointId) {
+      return (
+        journal.entries.find(e => e.stopId === waypointId) ??
+        journal.entries.find(e => e.segmentIndex === segmentIndex)
+      );
+    }
+    return journal.entries.find(e => e.segmentIndex === segmentIndex);
+  };
 
   // Update an entry
   const handleUpdateEntry = (segmentIndex: number, updates: Partial<JournalEntry>) => {
@@ -91,8 +114,10 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
     if (existingEntry) {
       newEntry = { ...existingEntry, ...updates, updatedAt: new Date() };
     } else {
+      // Use stopId as the deterministic entry id — stable across route edits,
+      // no timestamp required (duplicate calls naturally resolve to the same id).
       newEntry = {
-        id: `entry-${segmentIndex}-${Date.now()}`,
+        id: `entry-${segment.to.id}`,
         stopId: segment.to.id,
         segmentIndex,
         photos: [],
