@@ -11,7 +11,7 @@ import type { TimedEvent } from './trip-timeline';
 import { formatDriveTime } from './driver-rotation';
 import { formatCurrencySimple as formatCurrency } from './calculations';
 import { formatTime, formatDuration } from './trip-timeline';
-import { formatTimeInZone, lngToIANA } from './trip-timezone';
+import { formatTimeInZone, lngToIANA, formatDateInZone } from './trip-timezone';
 import { KM_TO_MILES } from './constants';
 import { PRINT_STYLES } from './trip-print-styles';
 
@@ -243,8 +243,14 @@ export function buildDayHTML(
   // Build timeline
   let timelineHTML = '';
   if (timedEvents.length > 0 && dayType === 'planned') {
-    const dayDate = new Date(day.totals.departureTime).toDateString();
-    const dayEvents = timedEvents.filter(e => e.arrivalTime.toDateString() === dayDate);
+    // Bucket events by their local calendar date in the event's own timezone.
+    // Using toDateString() was browser-local, causing wrong-day placement on
+    // timezone-crossing trips and near-midnight arrivals.
+    // day.date is already a canonical 'YYYY-MM-DD' string in the route timezone.
+    const dayEvents = timedEvents.filter(e => {
+      const eventDate = formatDateInZone(e.arrivalTime, e.timezone ?? 'UTC');
+      return eventDate === day.date;
+    });
     timelineHTML = dayEvents.map((event, i) => buildEventHTML(event, units, i === 0)).join('');
   } else if (dayType === 'planned' && day.segments.length > 0) {
     timelineHTML = day.segments.map((seg, i) => {
@@ -271,16 +277,18 @@ export function buildDayHTML(
   const notesHTML = day.notes ? `<div class="day-notes">📝 ${day.notes}</div>` : '';
 
   const b = day.budget;
+  // Consistent planning language — all values are estimates, not actuals.
+  // Avoids the PDF speaking two accounting dialects (stop-level costs vs daily budgets).
   const budgetHTML = `
     <div class="budget-row">
-      💰 <strong>Daily Budget:</strong>
-      ⛽ ${formatCurrency(b.gasUsed)} gas
-      • 🏨 ${formatCurrency(b.hotelCost)} hotel
-      • 🍽️ ${formatCurrency(b.foodEstimate)} food
-      • Total: <strong>${formatCurrency(b.dayTotal)}</strong>
+      💰 <strong>Day Estimate:</strong>
+      ⛽ ${formatCurrency(b.gasUsed)} fuel est.
+      • 🏨 ${formatCurrency(b.hotelCost)} hotel est.
+      • 🍽️ ${formatCurrency(b.foodEstimate)} meals est.
+      • Est. total: <strong>${formatCurrency(b.dayTotal)}</strong>
       &nbsp;|&nbsp;
-      ${b.gasRemaining < 0 ? `Gas over by: ${formatCurrency(Math.abs(b.gasRemaining))}` : `Gas remaining: ${formatCurrency(b.gasRemaining)}`}
-      • ${b.hotelRemaining < 0 ? `Hotel over by: ${formatCurrency(Math.abs(b.hotelRemaining))}` : `Hotel remaining: ${formatCurrency(b.hotelRemaining)}`}
+      ${b.gasRemaining < 0 ? `Fuel over by: ${formatCurrency(Math.abs(b.gasRemaining))}` : `Fuel under: ${formatCurrency(b.gasRemaining)}`}
+      • ${b.hotelRemaining < 0 ? `Hotel over by: ${formatCurrency(Math.abs(b.hotelRemaining))}` : `Hotel under: ${formatCurrency(b.hotelRemaining)}`}
     </div>
   `;
 
