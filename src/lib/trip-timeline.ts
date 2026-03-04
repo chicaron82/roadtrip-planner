@@ -263,7 +263,7 @@ export function buildTimedTimeline(
         const stored = new Date(plannedDeparture);
         const pad = (n: number) => String(n).padStart(2, '0');
         const timeStr = `${pad(stored.getHours())}:${pad(stored.getMinutes())}`;
-        currentTime = parseLocalDateInTZ(nextDrivingDate, timeStr, activeTimezone);
+        currentTime = parseLocalDateInTZ(nextDrivingDate!, timeStr, activeTimezone);
       } else {
         // Fallback: derive next morning from settings.departureTime in active timezone
         const [dH, dM] = settings.departureTime.split(':').map(Number);
