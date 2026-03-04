@@ -123,6 +123,11 @@ export interface TripJournal {
   // Budget tracking
   budgetActuals: BudgetActual[];
 
+  // Stop override state — accept/dismiss/duration edits from the editable itinerary.
+  // Persisted here so they survive refresh and are inherited by journal sessions.
+  // Keyed by SuggestedStop.id (e.g. 'fuel-2', 'overnight-1').
+  stopOverrides?: Record<string, { accepted?: boolean; dismissed?: boolean; duration?: number }>;
+
   // Metadata
   metadata: {
     title: string; // "Vancouver to Banff Adventure"

@@ -9,7 +9,7 @@ import { StartNode, GasStopNode, SuggestedStopNode, WaypointNode } from './Timel
 import { DaySection } from './DaySection';
 import { DriverStatsPanel } from './DriverStatsPanel';
 import { OvernightEditor } from './OvernightEditor';
-import { useTimelineData } from './useTimelineData';
+import { useTimelineData, type StopOverrides } from './useTimelineData';
 import { TripHeaderSummary } from './TripHeaderSummary';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
 
@@ -40,6 +40,10 @@ interface ItineraryTimelineProps {
   onDismissPOI?: (poiId: string) => void;
   // Map-added stops (pre-accepted SuggestedStops from useAddedStops)
   externalStops?: SuggestedStop[];
+  /** Seed from journal — hydrates accept/dismiss/duration state on load. */
+  initialStopOverrides?: StopOverrides;
+  /** Called whenever accept/dismiss/duration changes — caller persists to journal. */
+  onStopOverridesChange?: (overrides: StopOverrides) => void;
 }
 
 export function ItineraryTimeline({
@@ -65,6 +69,8 @@ export function ItineraryTimeline({
   onAddPOI,
   onDismissPOI,
   externalStops,
+  initialStopOverrides,
+  onStopOverridesChange,
 }: ItineraryTimelineProps) {
   const {
     startTime,
@@ -84,7 +90,7 @@ export function ItineraryTimeline({
     setEditingActivity,
     editingOvernight,
     setEditingOvernight,
-  } = useTimelineData({ summary, settings, vehicle, days, externalStops });
+  } = useTimelineData({ summary, settings, vehicle, days, externalStops, initialOverrides: initialStopOverrides, onStopOverridesChange });
 
   // Collapsible days state — for trips with 5+ days, allow collapse/expand
   const [collapsedDays, setCollapsedDays] = useState<Set<number>>(new Set());

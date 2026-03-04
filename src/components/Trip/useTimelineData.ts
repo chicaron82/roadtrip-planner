@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import type { TripSummary, TripSettings, Vehicle, TripDay, Activity, OvernightStop } from '../../types';
 import { generateSmartStops, createStopConfig, type SuggestedStop } from '../../lib/stop-suggestions';
 import { assignDrivers, extractFuelStopIndices } from '../../lib/driver-rotation';
@@ -9,17 +9,23 @@ import { flattenDrivingSegments } from '../../lib/flatten-driving-segments';
 
 export type { SimulationItem };
 
+export type StopOverrides = Record<string, { accepted?: boolean; dismissed?: boolean; duration?: number }>;
+
 interface UseTimelineDataParams {
   summary: TripSummary;
   settings: TripSettings;
   vehicle?: Vehicle;
   days?: TripDay[];
   externalStops?: SuggestedStop[];
+  /** Pre-load override state from a saved journal (hydrates once on mount/journal-load). */
+  initialOverrides?: StopOverrides;
+  /** Called on every accept/dismiss/duration change so the caller can persist to journal. */
+  onStopOverridesChange?: (overrides: StopOverrides) => void;
 }
 
 // ---------------------------------------------------------------------------
 
-export function useTimelineData({ summary, settings, vehicle, days, externalStops }: UseTimelineDataParams) {
+export function useTimelineData({ summary, settings, vehicle, days, externalStops, initialOverrides, onStopOverridesChange }: UseTimelineDataParams) {
   // Parse departure in the origin's timezone (not browser local)
   const startTime = useMemo(() => {
     const originLng = summary.segments[0]?.from.lng;
@@ -100,8 +106,17 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
   }, [summary.segments, summary.fullGeometry, vehicle, settings, days]);
 
   // Per-stop user overrides (kept separate so baseSuggestions can regenerate)
-  const [userOverrides, setUserOverrides] = useState<Record<string, { accepted?: boolean; dismissed?: boolean; duration?: number }>>({});
+  const [userOverrides, setUserOverrides] = useState<StopOverrides>({});
 
+  // Hydrate overrides from journal once — when the journal async-loads after mount.
+  // The ref prevents overwriting any in-session changes the user has already made.
+  const overridesHydrated = useRef(false);
+  useEffect(() => {
+    if (!overridesHydrated.current && initialOverrides && Object.keys(initialOverrides).length > 0) {
+      overridesHydrated.current = true;
+      setUserOverrides(initialOverrides);
+    }
+  }, [initialOverrides]);
   // Merged: base suggestions with any user overrides applied on top
   const stopSuggestions = useMemo(() =>
     baseSuggestions.map(s => {
@@ -118,17 +133,22 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
   );
 
   const handleAccept = (stopId: string, customDuration?: number) => {
-    setUserOverrides(prev => ({
-      ...prev,
-      [stopId]: { ...prev[stopId], accepted: true, ...(customDuration !== undefined ? { duration: customDuration } : {}) },
-    }));
+    setUserOverrides(prev => {
+      const next = {
+        ...prev,
+        [stopId]: { ...prev[stopId], accepted: true, ...(customDuration !== undefined ? { duration: customDuration } : {}) },
+      };
+      onStopOverridesChange?.(next);
+      return next;
+    });
   };
 
   const handleDismiss = (stopId: string) => {
-    setUserOverrides(prev => ({
-      ...prev,
-      [stopId]: { ...prev[stopId], dismissed: true },
-    }));
+    setUserOverrides(prev => {
+      const next = { ...prev, [stopId]: { ...prev[stopId], dismissed: true } };
+      onStopOverridesChange?.(next);
+      return next;
+    });
   };
 
   // Filter active suggestions (not dismissed) + merge map-added stops
@@ -292,6 +312,7 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
   }, [days]);
 
   return {
+    userOverrides,
     startTime,
     pacingSuggestions,
     pacingSuggestionsByDay,

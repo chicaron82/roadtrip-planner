@@ -21,6 +21,7 @@ import type {
   Activity,
 } from '../../types';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
+import type { StopOverrides } from './useTimelineData';
 import type { ViewMode } from './JournalModeToggle';
 import { SmartTimeline } from './SmartTimeline';
 import { JournalTimeline } from './JournalTimeline';
@@ -41,6 +42,8 @@ export interface TripTimelineViewProps {
   tripMode: TripMode;
   onStartJournal: (title?: string) => void;
   onUpdateJournal: (journal: TripJournal) => void;
+  /** Propagated up from ItineraryTimeline — saved back into the journal so overrides survive refresh. */
+  onStopOverridesChange?: (overrides: StopOverrides) => void;
 
   // Itinerary callbacks
   onUpdateStopType: (segmentIndex: number, stopType: StopType) => void;
@@ -74,6 +77,7 @@ export function TripTimelineView({
   tripMode,
   onStartJournal,
   onUpdateJournal,
+  onStopOverridesChange,
   onUpdateStopType,
   onUpdateDayNotes,
   onUpdateDayTitle,
@@ -141,6 +145,11 @@ export function TripTimelineView({
           settings={settings}
           vehicle={vehicle}
           days={summary.days}
+          initialStopOverrides={activeJournal?.stopOverrides}
+          onStopOverridesChange={overrides => {
+            if (activeJournal) onUpdateJournal({ ...activeJournal, stopOverrides: overrides });
+            onStopOverridesChange?.(overrides);
+          }}
           onUpdateStopType={onUpdateStopType}
           onUpdateDayNotes={onUpdateDayNotes}
           onUpdateDayTitle={onUpdateDayTitle}
