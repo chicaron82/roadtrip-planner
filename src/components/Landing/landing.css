@@ -11,10 +11,12 @@
 .landing-screen {
   position: absolute;
   inset: 0;
-  background: transparent;   /* Map always shows through from beneath */
+  background: transparent; /* Map always shows through from beneath */
   overflow: hidden;
-  font-family: 'Sora', 'DM Sans', system-ui, sans-serif;
-  transition: opacity 0.6s ease, transform 0.6s ease;
+  font-family: "Sora", "DM Sans", system-ui, sans-serif;
+  transition:
+    opacity 0.6s ease,
+    transform 0.6s ease;
   z-index: 50;
 }
 
@@ -32,8 +34,34 @@
 
 /* ── Warm aurora — orange tint instead of cold green/blue/amber ── */
 @keyframes landing-aurora {
-  0%, 100% { transform: translateX(-5%) translateY(-5%) scale(1.1); }
-  50% { transform: translateX(5%) translateY(5%) scale(1); }
+  0%,
+  100% {
+    transform: translateX(-5%) translateY(-5%) scale(1.1);
+  }
+  50% {
+    transform: translateX(5%) translateY(5%) scale(1);
+  }
+}
+
+/* ── Road center-line march ── */
+@keyframes road-dash {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -24;
+  } /* dasharray (14) + gap (10) = 24 */
+}
+
+/* ── Inactive sign arm hint pulse ── */
+@keyframes sign-hint-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 .landing-aurora {
@@ -51,15 +79,21 @@
 
 /* ── Card entrance ── */
 @keyframes landing-card-entrance {
-  from { opacity: 0; transform: translateY(24px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ── Mode cards — warm glass matching planner panel ── */
 .landing-mode-card {
   position: relative;
-  background: rgba(14, 11, 7, 0.60);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(14, 11, 7, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
   padding: clamp(20px, 2.5vh, 32px) clamp(18px, 2vw, 28px);
   cursor: pointer;
@@ -72,7 +106,7 @@
 }
 
 .landing-mode-card::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: 20px;
@@ -83,10 +117,10 @@
 
 .landing-mode-card:hover {
   transform: translateY(-6px) scale(1.02);
-  border-color: var(--card-border, rgba(255,255,255,0.2));
+  border-color: var(--card-border, rgba(255, 255, 255, 0.2));
   box-shadow:
-    0 20px 60px var(--card-shadow, rgba(0,0,0,0.4)),
-    0 0 0 1px var(--card-border, rgba(255,255,255,0.15));
+    0 20px 60px var(--card-shadow, rgba(0, 0, 0, 0.4)),
+    0 0 0 1px var(--card-border, rgba(255, 255, 255, 0.15));
 }
 
 .landing-mode-card:hover::before {
@@ -97,9 +131,15 @@
   transform: translateY(-2px) scale(0.99);
 }
 
-.landing-card-1 { animation-delay: 0.3s; }
-.landing-card-2 { animation-delay: 0.45s; }
-.landing-card-3 { animation-delay: 0.6s; }
+.landing-card-1 {
+  animation-delay: 0.3s;
+}
+.landing-card-2 {
+  animation-delay: 0.45s;
+}
+.landing-card-3 {
+  animation-delay: 0.6s;
+}
 
 /* ── Tag badge ── */
 .landing-mode-tag {
@@ -112,14 +152,14 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   margin-bottom: clamp(10px, 1.5vh, 20px);
-  font-family: 'DM Mono', monospace;
+  font-family: "DM Mono", monospace;
 }
 
 /* ── Card heading ── */
 .landing-mode-heading {
   font-size: clamp(18px, 2.2vw, 28px);
   font-weight: 800;
-  color: #F8FAFF;
+  color: #f8faff;
   line-height: 1.15;
   margin: 0 0 8px;
   white-space: pre-line;
@@ -153,7 +193,7 @@
 }
 
 .landing-mode-stats li::before {
-  content: '';
+  content: "";
   width: 4px;
   height: 4px;
   border-radius: 50%;
@@ -174,13 +214,13 @@
   cursor: pointer;
   transition: all 0.2s ease;
   background: var(--cta-bg, rgba(249, 115, 22, 0.15));
-  color: var(--cta-color, #FDBA74);
+  color: var(--cta-color, #fdba74);
   position: relative;
   overflow: hidden;
 }
 
 .landing-mode-cta::after {
-  content: ' →';
+  content: " →";
 }
 
 .landing-mode-card:hover .landing-mode-cta {
@@ -189,8 +229,14 @@
 
 /* ── Hero text entrance ── */
 @keyframes landing-hero-entrance {
-  from { opacity: 0; transform: translateY(-16px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .landing-hero-eyebrow {
@@ -210,8 +256,12 @@
 
 /* ── Footer entrance ── */
 @keyframes landing-footer-entrance {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .landing-footer {
@@ -285,5 +335,10 @@
   }
   .landing-mode-card:hover {
     transform: none;
+  }
+  /* Signpost scene */
+  [style*="road-dash"],
+  [style*="sign-hint-pulse"] {
+    animation: none !important;
   }
 }

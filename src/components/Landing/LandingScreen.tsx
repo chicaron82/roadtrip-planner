@@ -12,9 +12,10 @@
  */
 import { useState, useEffect } from 'react';
 import type { TripMode } from '../../types';
-import { MODE_CONFIG, MODE_ORDER, ROUTE_DOTS } from './mode-config';
+import { ROUTE_DOTS } from './mode-config';
 import { LandingHeroSection } from './LandingHeroSection';
 import { LandingFooter } from './LandingFooter';
+import { SignpostScene } from './SignpostScene';
 import './landing.css';
 
 interface LandingScreenProps {
@@ -26,7 +27,6 @@ interface LandingScreenProps {
 }
 
 export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip, hasActiveSession, onResumeSession }: LandingScreenProps) {
-  const [hoveredMode, setHoveredMode] = useState<TripMode | null>(null);
   const [isExiting, setIsExiting] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [activeDot, setActiveDot] = useState(0);
@@ -98,90 +98,8 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip,
           onResumeSession={onResumeSession}
           onExitStart={(fn) => { setIsExiting(true); setTimeout(fn, 600); }}
         />
-        {/* Mode cards */}
-        <div
-          className="landing-cards-grid"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '16px',
-            width: '100%',
-            maxWidth: '900px',
-          }}
-        >
-          {MODE_ORDER.map((mode, index) => {
-            const config = MODE_CONFIG[mode];
-            return (
-              <div
-                key={mode}
-                className={`landing-mode-card landing-card-${index + 1}`}
-                style={{
-                  '--card-glow': `radial-gradient(ellipse at 50% 0%, ${config.glowColor} 0%, transparent 70%)`,
-                  '--card-border': config.borderColor,
-                  '--card-shadow': config.glowColor,
-                  '--stat-color': config.accentColor,
-                  '--cta-bg': `${config.accentColor}22`,
-                  '--cta-color': config.tagColor,
-                  '--cta-hover-bg': `${config.accentColor}33`,
-                } as React.CSSProperties}
-                onMouseEnter={() => setHoveredMode(mode)}
-                onMouseLeave={() => setHoveredMode(null)}
-                onClick={() => handleSelect(mode)}
-                tabIndex={0}
-                role="button"
-                aria-label={`${config.tag}: ${config.description}`}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleSelect(mode);
-                  }
-                }}
-              >
-                {/* Card accent line */}
-                <div style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: '20%',
-                  right: '20%',
-                  height: '2px',
-                  background: `linear-gradient(to right, transparent, ${config.accentColor}, transparent)`,
-                  borderRadius: '0 0 2px 2px',
-                  opacity: hoveredMode === mode ? 1 : 0.4,
-                  transition: 'opacity 0.3s ease',
-                }} />
-
-                {/* Tag */}
-                <div
-                  className="landing-mode-tag"
-                  style={{
-                    background: `${config.accentColor}18`,
-                    color: config.tagColor,
-                    border: `1px solid ${config.accentColor}40`,
-                  }}
-                >
-                  <span>{config.icon}</span>
-                  {config.tag}
-                </div>
-
-                {/* Heading */}
-                <h2 className="landing-mode-heading">{config.heading}</h2>
-
-                {/* Sub */}
-                <p className="landing-mode-sub">{config.sub}</p>
-
-                {/* Stats */}
-                <ul className="landing-mode-stats">
-                  {config.stats.map((stat) => (
-                    <li key={stat}>{stat}</li>
-                  ))}
-                </ul>
-
-                {/* CTA */}
-                <button className="landing-mode-cta">{config.cta}</button>
-              </div>
-            );
-          })}
-        </div>
+        {/* Signpost scene — road + directional sign + description panel */}
+        <SignpostScene onSelectMode={handleSelect} />
 
         <LandingFooter activeDot={activeDot} />
 </div>

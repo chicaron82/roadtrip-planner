@@ -182,28 +182,6 @@ export function LandingHeroSection({
         </div>
       )}
 
-      {/* Lifecycle indicator */}
-      <div className="landing-lifecycle" style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '10px',
-        fontFamily: "'DM Mono', monospace",
-        fontSize: '10px',
-        color: 'rgba(255,255,255,0.25)',
-        letterSpacing: '0.12em',
-      }}>
-        {['DISCOVER', 'VALIDATE', 'BUILD', 'REFINE'].map((step, i) => (
-          <span key={step}>
-            {i > 0 && <span style={{ opacity: 0.3, marginRight: '10px' }}>→</span>}
-            <span style={{ opacity: 0.5 }}>{step}</span>
-          </span>
-        ))}
-        <span style={{ opacity: 0.3 }}>→</span>
-        <span style={{ color: '#f97316', textShadow: '0 0 8px rgba(249, 115, 22, 0.5)' }}>
-          COMMIT
-        </span>
-      </div>
     </div>
   );
 }
