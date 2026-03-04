@@ -11,6 +11,7 @@ import type { TimedEvent } from './trip-timeline';
 import { formatDriveTime } from './driver-rotation';
 import { formatCurrencySimple as formatCurrency } from './calculations';
 import { formatTime, formatDuration } from './trip-timeline';
+import { formatTimeInZone, lngToIANA } from './trip-timezone';
 import { KM_TO_MILES } from './constants';
 import { PRINT_STYLES } from './trip-print-styles';
 
@@ -21,10 +22,11 @@ export function formatDistance(km: number, units: 'metric' | 'imperial'): string
   return `${km.toFixed(0)} km`;
 }
 
-export function formatTimeFromISO(iso: string): string {
+export function formatTimeFromISO(iso: string, tz?: string): string {
   // Round to nearest 15 minutes — no one plans to arrive at 15:13 exactly.
   const ms = new Date(iso).getTime();
   const rounded = new Date(Math.round(ms / (15 * 60 * 1000)) * (15 * 60 * 1000));
+  if (tz) return formatTimeInZone(rounded, tz);
   return rounded.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }).replace(/\s?am/, ' AM').replace(/\s?pm/, ' PM');
 }
 
@@ -283,11 +285,14 @@ export function buildDayHTML(
   `;
 
   const routeLabel = day.route || (dayType === 'free' ? 'Free Day' : dayType === 'flexible' ? 'Flexible Day' : '—');
+  // Derive display timezone from the day's departure city longitude — same
+  // source the timeline engine uses, so header times match timeline event times.
+  const depTz = day.segments[0]?.from.lng != null ? lngToIANA(day.segments[0].from.lng) : undefined;
   const sameTime = day.totals.departureTime === day.totals.arrivalTime;
   const statsLine = dayType !== 'free'
     ? `${formatDistance(day.totals.distanceKm, units)} •
        ${formatDriveTime(day.totals.driveTimeMinutes)} driving •
-       Departure: ${formatTimeFromISO(day.totals.departureTime)}${sameTime ? '' : ` • Arrival: ${formatTimeFromISO(day.totals.arrivalTime)}`}`
+       Departure: ${formatTimeFromISO(day.totals.departureTime, depTz)}${sameTime ? '' : ` • Arrival: ${formatTimeFromISO(day.totals.arrivalTime, depTz)}`}`
     : 'Rest day — no driving';
 
   return `

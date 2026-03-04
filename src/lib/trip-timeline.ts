@@ -161,7 +161,7 @@ export function buildTimedTimeline(
     if (wpName) return wpName;  // named waypoint always wins
     if (hubName) return `near ${hubName}`;
     const rounded = Math.round(km / 5) * 5;
-    return `~${rounded} km from ${originName}`;
+    return `~${rounded} km into trip`;
   };
 
   /**

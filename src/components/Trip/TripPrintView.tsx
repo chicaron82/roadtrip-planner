@@ -87,7 +87,15 @@ export function printTrip(props: TripPrintViewProps): void {
   }
 
   const origin = summary.segments[0]?.from.name || 'Origin';
-  const destination = summary.segments[summary.segments.length - 1]?.to.name || 'Destination';
+  // For round trips: title should reflect the primary destination (where you went),
+  // not the final endpoint (which loops back to origin — produces "Dryden → Dryden").
+  // Use the segment at roundTripMidpoint as the turnaround city.
+  const midSeg = summary.roundTripMidpoint != null
+    ? summary.segments[summary.roundTripMidpoint - 1]
+    : null;
+  const destination = midSeg?.to.name
+    || summary.segments[summary.segments.length - 1]?.to.name
+    || 'Destination';
   const tripTitle = `${origin} → ${destination}`;
 
   const html = buildPrintHTML(tripTitle, summary, settings, days, driverRotation, timedEvents);

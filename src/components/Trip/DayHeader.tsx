@@ -4,6 +4,7 @@ import type { TripDay, DayType, AccommodationType } from '../../types';
 import { cn } from '../../lib/utils';
 import { DayTypeToggle, DayTypeBadge } from './FlexibleDay';
 import { Input } from '../UI/Input';
+import { formatTimeInZone, lngToIANA } from '../../lib/trip-timezone';
 
 interface DayHeaderProps {
   day: TripDay;
@@ -42,11 +43,10 @@ export function DayHeader({
     // Round to nearest 15 minutes for display — no one plans to arrive at 11:13 exactly.
     const roundedMs = Math.round(date.getTime() / (15 * 60 * 1000)) * (15 * 60 * 1000);
     const rounded = new Date(roundedMs);
-    const hours = rounded.getHours();
-    const minutes = rounded.getMinutes();
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const displayHours = hours % 12 || 12;
-    return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+    // Use the departure city's timezone so DayHeader and timeline events agree.
+    // Derived from the first segment's longitude — same source as trip-timeline.ts.
+    const depTz = day.segments[0]?.from.lng != null ? lngToIANA(day.segments[0].from.lng) : undefined;
+    return formatTimeInZone(rounded, depTz);
   };
 
   const getAccommodationMeta = (type?: AccommodationType): { emoji: string; label: string } => {
