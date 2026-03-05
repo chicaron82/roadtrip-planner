@@ -17,7 +17,7 @@
 import { haversineDistance } from './poi-ranking';
 import type { TimedEvent } from './trip-timeline';
 import type { POISuggestion } from '../types';
-import { resolveHubName } from './hub-cache';
+import { resolveHubName, cacheDiscoveredHub } from './hub-cache';
 import { NOMINATIM_BASE_URL } from './constants';
 
 // ─── Rate limiting ────────────────────────────────────────────────────────────
@@ -220,6 +220,19 @@ export async function resolveStopTowns(
 
     if (town) {
       result.set(event.id, town);
+      // Persist Nominatim-resolved towns to the hub cache so they're available
+      // on the next calculation run (e.g. splitLongSegments, generateSmartStops).
+      // Without this, towns only discovered via Nominatim stay in-memory and the
+      // itinerary route labels can't resolve transit split-point cities.
+      cacheDiscoveredHub({
+        name: town,
+        lat: pos.lat,
+        lng: pos.lng,
+        radius: 25,
+        poiCount: 1,
+        discoveredAt: new Date().toISOString(),
+        source: 'discovered',
+      });
     }
   }
 
