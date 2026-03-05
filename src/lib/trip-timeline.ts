@@ -158,7 +158,7 @@ export function buildTimedTimeline(
    */
   const makeLocationHint = (km: number, wpName?: string, hubName?: string): string => {
     if (km < 20) return wpName ?? originName;
-    if (wpName) return wpName;  // named waypoint always wins
+    if (wpName && !/unorganized/i.test(wpName)) return wpName;
     if (hubName && !/unorganized/i.test(hubName)) return `near ${hubName}`;
     const rounded = Math.round(km / 5) * 5;
     return `~${rounded} km into trip`;
@@ -364,17 +364,16 @@ export function buildTimedTimeline(
       // departure (or later), so the `>` guard makes this a no-op.
       const plannedDep = drivingDayDepartures.get(newDay.date);
       if (plannedDep) {
-        // Re-interpret wall-clock time in route timezone (see overnight handler).
-        const stored = new Date(plannedDep);
-        const pad = (n: number) => String(n).padStart(2, '0');
-        const timeStr = `${pad(stored.getHours())}:${pad(stored.getMinutes())}`;
-        const depTime = parseLocalDateInTZ(newDay.date, timeStr, activeTimezone);
+        // split-by-days.ts now stores departure as a timezone-correct UTC instant
+        // via parseLocalDateInTZ — use it directly instead of extracting hours with
+        // browser-local getHours() (which drifts when browser TZ ≠ route TZ).
+        const depTime = new Date(plannedDep);
         if (depTime > currentTime) currentTime = depTime;
       } else {
-        const [dH, dM] = settings.departureTime.split(':').map(Number);
-        const nextDate = new Date(newDay.date + 'T00:00:00');
-        nextDate.setHours(dH ?? 9, dM ?? 0, 0, 0);
-        if (nextDate > currentTime) currentTime = nextDate;
+        // No planned departure from budget engine — use settings.departureTime
+        // interpreted in the active route timezone (not browser-local setHours).
+        const depTime = parseLocalDateInTZ(newDay.date, settings.departureTime, activeTimezone);
+        if (depTime > currentTime) currentTime = depTime;
       }
 
       // Resolve a clean departure location name.
