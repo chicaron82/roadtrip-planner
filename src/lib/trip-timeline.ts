@@ -159,7 +159,7 @@ export function buildTimedTimeline(
   const makeLocationHint = (km: number, wpName?: string, hubName?: string): string => {
     if (km < 20) return wpName ?? originName;
     if (wpName) return wpName;  // named waypoint always wins
-    if (hubName) return `near ${hubName}`;
+    if (hubName && !/unorganized/i.test(hubName)) return `near ${hubName}`;
     const rounded = Math.round(km / 5) * 5;
     return `~${rounded} km into trip`;
   };
@@ -546,9 +546,15 @@ export function buildTimedTimeline(
       // single OSRM segment was split into sub-segments (_transitPart=true) and
       // the names happen to match across the boundary. For genuine route waypoints
       // (original segments, or named sub-segment endpoints) always emit.
+      //
+      // Exception: NEVER suppress at day boundaries. The itinerary rendering
+      // depends on waypoint events at each day-start flatIndex to trigger
+      // DaySection cards. Without this, Days 2+ on multi-day transit trips
+      // silently vanish from the ItineraryTimeline.
       const nextSeg = iterSegments[i + 1];
       const isTransitBoundary = seg._transitPart && nextSeg?.from?.name === seg.to.name;
-      if (nextSeg && !isTransitBoundary) {
+      const isDayBoundary = dayStartMap.has(i) || dayStartMap.has(i + 1);
+      if (nextSeg && (!isTransitBoundary || isDayBoundary)) {
         events.push({
           id: `waypoint-${i}`,
           type: 'waypoint',

@@ -6,8 +6,11 @@ import { getTimezoneOffset, getTimezoneName } from './timezone';
 import { TRIP_CONSTANTS } from '../trip-constants';
 import { getHotelMultiplier } from '../regional-costs';
 import { findHubInWindow } from '../hub-cache';
+import { lngToIANA, parseLocalDateInTZ } from '../trip-timezone';
 
 // ---------------------------------------------------------------------------
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
 
 /**
  * Compute the ideal departure hour for a transit day so the crew arrives by
@@ -281,9 +284,15 @@ export function splitTripByDays(
 
       // Set up for the return leg — next morning after free days
       dayNumber++;
-      currentDate = new Date(new Date(days[days.length - 1].date + 'T09:00:00').getTime() + 24 * 60 * 60 * 1000);
       const returnLegHours = getNextDayDriveMinutes(processedSegments, i, maxDriveMinutes) / 60;
-      currentDate.setHours(computeSmartDepartureHour(settings, returnLegHours), 0, 0, 0);
+      const returnDepHour = computeSmartDepartureHour(settings, returnLegHours);
+      // Departure city for the return leg = destination (segment[i].from).
+      const returnDepTz = lngToIANA(processedSegments[i].from.lng);
+      const returnDateStr = (() => {
+        const d = new Date(new Date(days[days.length - 1].date + 'T09:00:00').getTime() + 24 * 60 * 60 * 1000);
+        return d.toISOString().split('T')[0];
+      })();
+      currentDate = parseLocalDateInTZ(returnDateStr, `${pad2(returnDepHour)}:00`, returnDepTz);
       currentDay = createEmptyDay(dayNumber, currentDate);
       currentDay.totals.departureTime = currentDate.toISOString(); // Auto-computed return leg departure
       currentDayDriveMinutes = 0;
@@ -356,14 +365,31 @@ export function splitTripByDays(
       // Try the smart departure hour on the same calendar day as arrival.
       // Use how much driving is actually left (not the max) so short final legs get later starts.
       const nextDayHours = getNextDayDriveMinutes(processedSegments, i, maxDriveMinutes) / 60;
-      const nextDayCandidate = new Date(estimatedDayArrival);
-      nextDayCandidate.setHours(computeSmartDepartureHour(settings, nextDayHours), 0, 0, 0);
+      const depHour = computeSmartDepartureHour(settings, nextDayHours);
+
+      // Resolve the departure city's timezone from the overnight stop location.
+      // Using the route timezone (not browser-local) prevents a 1-hour drift when
+      // the browser timezone ≠ departure city timezone (e.g. user in CST, day starts in EST).
+      const overnightSeg = currentDay.segments[currentDay.segments.length - 1];
+      const depTz = overnightSeg ? lngToIANA(overnightSeg.to.lng) : undefined;
+
+      // Build candidate departure in the route timezone using Intl-based parsing.
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const arrivalDateStr = estimatedDayArrival.toISOString().split('T')[0];
+      const depTimeStr = `${pad(depHour)}:00`;
+      let nextDayCandidate = depTz
+        ? parseLocalDateInTZ(arrivalDateStr, depTimeStr, depTz)
+        : (() => { const d = new Date(estimatedDayArrival); d.setHours(depHour, 0, 0, 0); return d; })();
+
       // Guard: departure must be ≥ MIN_REST_HOURS after estimated arrival.
       const earliestDeparture = new Date(estimatedDayArrival.getTime() + MIN_REST_HOURS * 60 * 60 * 1000);
       if (nextDayCandidate < earliestDeparture) {
         // Not enough rest this day — push to the next calendar day at the smart hour.
-        nextDayCandidate.setDate(nextDayCandidate.getDate() + 1);
-        nextDayCandidate.setHours(computeSmartDepartureHour(settings, nextDayHours), 0, 0, 0);
+        const nextDateObj = new Date(nextDayCandidate.getTime() + 24 * 60 * 60 * 1000);
+        const nextDateStr = nextDateObj.toISOString().split('T')[0];
+        nextDayCandidate = depTz
+          ? parseLocalDateInTZ(nextDateStr, depTimeStr, depTz)
+          : (() => { nextDateObj.setHours(depHour, 0, 0, 0); return nextDateObj; })();
       }
       currentDate = nextDayCandidate;
       currentDay = createEmptyDay(dayNumber, currentDate);
@@ -430,7 +456,11 @@ export function splitTripByDays(
       // Easiest is to force it to the next calendar morning.
       currentDate.setDate(currentDate.getDate() + 1);
       const overnightNextDayHours = getNextDayDriveMinutes(processedSegments, i + 1, maxDriveMinutes) / 60;
-      currentDate.setHours(computeSmartDepartureHour(settings, overnightNextDayHours), 0, 0, 0); // Smart: based on remaining drive hours
+      const overnightDepHour = computeSmartDepartureHour(settings, overnightNextDayHours);
+      // Use the overnight stop's timezone (not browser-local) for the departure time.
+      const overnightDepTz = lngToIANA(segment.to.lng);
+      const overnightDateStr = currentDate.toISOString().split('T')[0];
+      currentDate = parseLocalDateInTZ(overnightDateStr, `${pad2(overnightDepHour)}:00`, overnightDepTz);
 
       currentDay = createEmptyDay(dayNumber, currentDate);
       currentDay.totals.departureTime = currentDate.toISOString();

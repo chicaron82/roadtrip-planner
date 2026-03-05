@@ -1,6 +1,7 @@
 import type { RouteSegment, TripDay, TripSettings } from '../../types';
 import type { ProcessedSegment } from './segment-processor';
 import type { StrategicFuelStop } from '../fuel-stops';
+import { findHubInWindow } from '../hub-cache';
 
 /**
  * Round a value UP to the nearest increment.
@@ -85,7 +86,13 @@ export function finalizeTripDay(
   // Un-snapped transit split-points use the format "CityA → CityB (transit)".
   //   As a FROM name: take CityA (the source — directionally correct)
   //   As a TO name:   take CityB (the destination — avoids "Winnipeg → Winnipeg")
-  const cleanFrom = (n: string): string => {
+  const cleanFrom = (n: string, seg?: ProcessedSegment): string => {
+    // For transit sub-segments at unnamed split points, resolve the actual city
+    // from the hub cache rather than showing "En route from [distant origin]".
+    if (n.includes('(transit)') && seg) {
+      const hub = findHubInWindow(seg.from.lat, seg.from.lng, 40);
+      if (hub) return hub.name;
+    }
     if (n.includes('(transit)')) {
       const name = n.replace(/\s*\(transit\)\s*$/, '');
       const arrow = name.indexOf(' → ');
@@ -97,7 +104,12 @@ export function finalizeTripDay(
     const arrow = name.indexOf(' → ');
     return arrow >= 0 ? name.substring(0, arrow).trim() : name;
   };
-  const cleanTo = (n: string): string => {
+  const cleanTo = (n: string, seg?: ProcessedSegment): string => {
+    // Same hub resolution for the TO side of transit sub-segments.
+    if (n.includes('(transit)') && seg) {
+      const hub = findHubInWindow(seg.to.lat, seg.to.lng, 40);
+      if (hub) return hub.name;
+    }
     if (n.includes('(transit)')) {
       const name = n.replace(/\s*\(transit\)\s*$/, '');
       const arrow = name.indexOf(' → ');
@@ -109,8 +121,10 @@ export function finalizeTripDay(
     const arrow = name.indexOf(' → ');
     return arrow >= 0 ? name.substring(arrow + 3).trim() : name;
   };
-  const firstStop = cleanFrom(day.segments[0].from.name);
-  const lastStop = cleanTo(day.segments[day.segments.length - 1].to.name);
+  const firstSeg = day.segments[0] as ProcessedSegment | undefined;
+  const lastSeg = day.segments[day.segments.length - 1] as ProcessedSegment | undefined;
+  const firstStop = cleanFrom(day.segments[0].from.name, firstSeg);
+  const lastStop = cleanTo(day.segments[day.segments.length - 1].to.name, lastSeg);
   day.route = `${firstStop} → ${lastStop}`;
 
   // Calculate totals
