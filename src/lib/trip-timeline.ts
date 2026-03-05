@@ -13,6 +13,7 @@ import type { RouteSegment, TripSettings, TripDay, ProcessedSegment } from '../t
 import type { SuggestedStop } from './stop-suggestions';
 import { lngToIANA, normalizeToIANA, parseLocalDateInTZ, formatDateInZone } from './trip-timezone';
 import { stopTypeToEventType, classifyStops } from './trip-timeline-helpers';
+import { findHubInWindow } from './hub-cache';
 
 // Re-export formatting utilities — many consumers import these from trip-timeline.
 export { formatTime, formatDuration } from './trip-timeline-helpers';
@@ -383,7 +384,13 @@ export function buildTimedTimeline(
         !prevSeg.to.name.includes('(transit)') &&
         !prevSeg.to.name.includes(' → ');
       let departLocation = prevOvernight?.hubName
-        ?? (prevToClean ? prevSeg!.to.name : seg.from.name);
+        ?? (prevToClean ? prevSeg!.to.name : null);
+      // Hub cache fallback: transit sub-segments have names like "Dryden → Montreal (transit)"
+      // which aren't real cities. Ask the hub cache for the nearest known city instead.
+      if (!departLocation || departLocation.includes('(transit)') || departLocation.includes(' → ')) {
+        const fromHub = findHubInWindow(seg.from.lat, seg.from.lng, 40);
+        departLocation = fromHub?.name ?? departLocation ?? seg.from.name;
+      }
       if (departLocation.includes(' → ')) departLocation = departLocation.split(' → ')[0].trim();
       departLocation = departLocation.replace(/\s*\(transit\)/, '');
 

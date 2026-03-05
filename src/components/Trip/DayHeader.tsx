@@ -38,15 +38,18 @@ export function DayHeader({
     return `${hours}h ${mins}m`;
   };
 
-  const formatTime = (isoString: string): string => {
+  // Departure city TZ (first segment FROM) and arrival city TZ (last segment TO).
+  // When a route crosses a timezone boundary (e.g. CST→EST), departure and arrival
+  // must each display in their own local timezone to match the PDF.
+  const depTz = day.segments[0]?.from.lng != null ? lngToIANA(day.segments[0].from.lng) : undefined;
+  const arrTz = day.segments.at(-1)?.to.lng != null ? lngToIANA(day.segments.at(-1)!.to.lng) : depTz;
+
+  const formatTime = (isoString: string, tz?: string): string => {
     const date = new Date(isoString);
     // Round to nearest 15 minutes for display — no one plans to arrive at 11:13 exactly.
     const roundedMs = Math.round(date.getTime() / (15 * 60 * 1000)) * (15 * 60 * 1000);
     const rounded = new Date(roundedMs);
-    // Use the departure city's timezone so DayHeader and timeline events agree.
-    // Derived from the first segment's longitude — same source as trip-timeline.ts.
-    const depTz = day.segments[0]?.from.lng != null ? lngToIANA(day.segments[0].from.lng) : undefined;
-    return formatTimeInZone(rounded, depTz);
+    return formatTimeInZone(rounded, tz ?? depTz);
   };
 
   const getAccommodationMeta = (type?: AccommodationType): { emoji: string; label: string } => {
@@ -149,7 +152,7 @@ export function DayHeader({
             )}
             {dayType !== 'free' && day.totals.arrivalTime && (
               <div className="flex items-center gap-1 text-blue-600 font-medium">
-                <span>Arrive {formatTime(day.totals.arrivalTime)}</span>
+                <span>Arrive {formatTime(day.totals.arrivalTime, arrTz)}</span>
               </div>
             )}
           </div>
