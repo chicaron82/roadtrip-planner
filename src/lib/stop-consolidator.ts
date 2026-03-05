@@ -135,11 +135,12 @@ export function applyComboOptimization(
     consumed.add(fuelIdx);
 
     // Rebuild downstream timestamps: remove fuel drive + fuel stop time.
-    // Stop at day-boundary departure events — morning departure times are
-    // anchored by the budget engine and must not drift with combo savings.
+    // Stop at day-boundary departure events and overnight stops — both anchor
+    // the day boundary and must not drift with combo savings.
     const timeRecoveredMs = (driveMinutesBetween + fuelEvent.durationMinutes) * 60 * 1000;
     for (let k = fuelIdx + 1; k < result.length; k++) {
       if (consumed.has(k)) continue;
+      if (result[k].type === 'overnight') break;
       if (result[k].type === 'departure' && result[k].id !== 'departure') break;
       result[k] = {
         ...result[k],
@@ -217,6 +218,7 @@ export function applyComboOptimization(
 
     for (let k = flexIdx + 1; k < result.length; k++) {
       if (consumed.has(k)) continue;
+      if (result[k].type === 'overnight') break;
       if (result[k].type === 'departure' && result[k].id !== 'departure') break;
       result[k] = {
         ...result[k],
