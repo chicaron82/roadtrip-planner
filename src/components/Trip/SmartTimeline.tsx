@@ -43,7 +43,7 @@ function applyTownHints(
   if (townMap.size === 0) return events;
   return events.map(event => {
     const town = townMap.get(event.id);
-    if (!town) return event;
+    if (!town || /unorganized/i.test(town)) return event;
     return { ...event, locationHint: `near ${town}` };
   });
 }

@@ -110,7 +110,7 @@ export async function reverseGeocodeTown(
 
     let townName: string | null = null;
 
-    if (directName) {
+    if (directName && !/unorganized/i.test(directName)) {
       townName = directName;
     } else {
       // Fallback: county/district — strip "Unorganized " prefix and " District"/" County"

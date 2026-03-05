@@ -20,6 +20,9 @@ import { addToHistory } from '../lib/storage';
 import { serializeStateToURL } from '../lib/url';
 import { validateTripInputs } from '../lib/validate-inputs';
 import { buildStrategyUpdate } from '../lib/trip-strategy-selector';
+import { buildTimedTimeline } from '../lib/trip-timeline';
+import { applyComboOptimization } from '../lib/stop-consolidator';
+import { formatDateInZone } from '../lib/trip-timezone';
 
 /**
  * Project simulation fuel stops onto the map pin shape.
@@ -209,18 +212,42 @@ export function useTripCalculation({
         tripDays,
       );
 
-      // Patch each day's arrival time to include smart-stop durations (fuel, rest, meal).
-      // finalizeTripDay only counts segment.stopDuration in stopTimeMinutes, missing the
-      // SuggestedStop durations that the SmartTimeline clock accumulates.
+      // Build canonical timed timeline — same engine the PDF and SmartTimeline use.
+      // This is the SINGLE source of truth for departure/arrival times and route labels.
+      // Replaces the old manual stop-duration patching which drifted from the simulation.
+      const timedRaw = buildTimedTimeline(
+        tripSummary.segments,
+        smartStopsForPatch,
+        settings,
+        roundTripMidpoint,
+        0,
+        tripDays,
+      );
+      const canonicalEvents = applyComboOptimization(timedRaw);
+
+      // Patch each driving day's totals from canonical events.
       for (const day of tripDays) {
-        if (!day.totals.arrivalTime || day.segments.length === 0) continue;
-        const dayStopMinutes = smartStopsForPatch
-          .filter(s => s.dayNumber === day.dayNumber && s.type !== 'overnight' && !s.dismissed)
-          .reduce((sum, s) => sum + s.duration, 0);
-        if (dayStopMinutes > 0) {
-          const adjustedArrival = new Date(day.totals.arrivalTime);
-          adjustedArrival.setMinutes(adjustedArrival.getMinutes() + dayStopMinutes);
-          day.totals.arrivalTime = adjustedArrival.toISOString();
+        if (day.segments.length === 0) continue;
+
+        // Filter events belonging to this calendar day (timezone-aware).
+        const dayEvents = canonicalEvents.filter(
+          e => formatDateInZone(e.arrivalTime, e.timezone ?? 'UTC') === day.date
+        );
+
+        const depEvent = dayEvents.find(e => e.type === 'departure');
+        const arrEvent = dayEvents.find(e => e.type === 'overnight' || e.type === 'arrival');
+
+        // Overwrite departure/arrival with simulation truth.
+        if (depEvent) day.totals.departureTime = depEvent.arrivalTime.toISOString();
+        if (arrEvent) day.totals.arrivalTime = arrEvent.arrivalTime.toISOString();
+
+        // Route label: departure event carries the hub-resolved overnight city.
+        // Last segment TO cleaned of transit markers for the destination side.
+        if (depEvent) {
+          let toCity = day.segments.at(-1)?.to.name ?? '';
+          toCity = toCity.replace(/\s*\(transit\)\s*$/, '');
+          if (toCity.includes(' → ')) toCity = toCity.split(' → ').pop()!.trim();
+          if (toCity) day.route = `${depEvent.locationHint} → ${toCity}`;
         }
       }
 
