@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Camera,
   PenLine,
@@ -40,6 +40,8 @@ export function JournalStopCard({
   const [notesValue, setNotesValue] = useState(entry?.notes || '');
   const [shareStatus, setShareStatus] = useState<'idle' | 'sharing' | 'copied'>('idle');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const shareTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(shareTimerRef.current), []);
 
   const hasArrived = entry?.status === 'visited';
   const isHighlight = entry?.isHighlight || false;
@@ -99,7 +101,7 @@ export function JournalStopCard({
     const result = await shareStop(stopName, entry?.notes, firstPhoto);
     if (result === 'copied') {
       setShareStatus('copied');
-      setTimeout(() => setShareStatus('idle'), 2500);
+      shareTimerRef.current = setTimeout(() => setShareStatus('idle'), 2500);
     } else {
       setShareStatus('idle');
     }

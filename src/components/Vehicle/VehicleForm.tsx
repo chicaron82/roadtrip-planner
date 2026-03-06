@@ -6,7 +6,7 @@
  * fuel economy inputs, and the auto-populate effect.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { Vehicle, UnitSystem } from '../../types';
 import { Input } from '../UI/Input';
@@ -36,6 +36,8 @@ export function VehicleForm({ vehicle, setVehicle, units, setUnits }: VehicleFor
   const [isHybrid, setIsHybrid] = useState(false);
   const [isEV, setIsEV] = useState(false);
   const [justAutoPopulated, setJustAutoPopulated] = useState(false);
+  const autoPopTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(autoPopTimerRef.current), []);
 
   // Load default vehicle on mount
   useEffect(() => {
@@ -87,7 +89,7 @@ export function VehicleForm({ vehicle, setVehicle, units, setUnits }: VehicleFor
 
         // Trigger animation
         setJustAutoPopulated(true);
-        setTimeout(() => setJustAutoPopulated(false), 1000);
+        autoPopTimerRef.current = setTimeout(() => setJustAutoPopulated(false), 1000);
       }
     }
   }, [vehicle.make, vehicle.model, isHybrid, isCustomMake, isCustomModel, setVehicle, units]);

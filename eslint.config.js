@@ -29,7 +29,7 @@ export default defineConfig([
     },
   },
   {
-    // App.tsx orchestrator — freeze at current size, goal is <300 lines.
+    // App.tsx orchestrator — hard cap 320 lines (target <300).
     // TODO: extract more hooks/controllers until this file hits the 300-line target.
     // See CLAUDE.md for the architectural rules this enforces.
     files: ['src/App.tsx'],

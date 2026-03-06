@@ -18,7 +18,7 @@ export async function createJournal(
   origin?: import('../../types').TripOrigin
 ): Promise<TripJournal> {
   const db = await openDB();
-  const id = `journal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const id = `journal-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 
   const journal: TripJournal = {
     id,

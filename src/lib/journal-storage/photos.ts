@@ -55,7 +55,7 @@ export async function createPhotoFromFile(
   const dataUrl = await compressPhoto(file);
 
   return {
-    id: `photo-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    id: `photo-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
     dataUrl,
     caption,
     timestamp: new Date(),

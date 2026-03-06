@@ -55,6 +55,24 @@ interface PresetPayload {
   d?: string;  // description (optional)
 }
 
+/** Encode to UTF-8-safe base64 so preset names with emoji/accents share reliably. */
+const toBase64 = (str: string): string => {
+  const bytes = new TextEncoder().encode(str);
+  const binStr = Array.from(bytes, b => String.fromCodePoint(b)).join('');
+  return btoa(binStr);
+};
+
+/** Decode UTF-8-safe base64, with fallback to plain atob for legacy share links. */
+const fromBase64 = (encoded: string): string => {
+  try {
+    const binStr = atob(encoded);
+    const bytes = Uint8Array.from(binStr, c => c.codePointAt(0)!);
+    return new TextDecoder().decode(bytes);
+  } catch {
+    return atob(encoded);
+  }
+};
+
 export const encodePreset = (preset: StylePreset): string => {
   const payload: PresetPayload = {
     v: 1,
@@ -66,7 +84,7 @@ export const encodePreset = (preset: StylePreset): string => {
     d: preset.description,
   };
   try {
-    return btoa(JSON.stringify(payload));
+    return toBase64(JSON.stringify(payload));
   } catch {
     return '';
   }
@@ -74,7 +92,7 @@ export const encodePreset = (preset: StylePreset): string => {
 
 export const decodePreset = (encoded: string): StylePreset | null => {
   try {
-    const payload = JSON.parse(atob(encoded)) as PresetPayload;
+    const payload = JSON.parse(fromBase64(encoded)) as PresetPayload;
     if (payload.v !== 1 || !payload.id || !payload.n) return null;
     return {
       id: payload.id,

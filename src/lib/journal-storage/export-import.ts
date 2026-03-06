@@ -71,7 +71,7 @@ export async function importJournalFromJSON(json: string): Promise<TripJournal> 
   const parsed = JSON.parse(json) as TripJournal;
 
   // Generate new ID to avoid conflicts
-  parsed.id = `journal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  parsed.id = `journal-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
   parsed.createdAt = new Date();
   parsed.updatedAt = new Date();
 

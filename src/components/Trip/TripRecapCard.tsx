@@ -11,7 +11,7 @@
  * 💚 My Experience Engine
  */
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { TripJournal, TripSummary, TripSettings } from '../../types';
 import { exportJournalAsHTML, exportJournalAsTemplate } from '../../lib/journal-export';
 
@@ -44,6 +44,8 @@ function calendarDays(start: string, end: string): number {
 
 export function TripRecapCard({ journal, summary, settings, totalStops }: TripRecapCardProps) {
   const [shareState, setShareState] = useState<'idle' | 'copying' | 'copied'>('idle');
+  const shareTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(shareTimerRef.current), []);
 
   const origin      = summary.segments[0]?.from.name.split(',')[0] ?? 'Start';
   const destination = summary.segments.at(-1)?.to.name.split(',')[0] ?? 'End';
@@ -76,7 +78,7 @@ export function TripRecapCard({ journal, summary, settings, totalStops }: TripRe
       } else {
         await navigator.clipboard.writeText(text);
         setShareState('copied');
-        setTimeout(() => setShareState('idle'), 2500);
+        shareTimerRef.current = setTimeout(() => setShareState('idle'), 2500);
         return;
       }
     } catch {
