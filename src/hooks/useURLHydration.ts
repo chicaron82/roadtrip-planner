@@ -37,7 +37,15 @@ export function useURLHydration({
       if (parsedState.locations) setLocations(parsedState.locations);
       if (parsedState.vehicle) setVehicle(parsedState.vehicle);
       if (parsedState.settings) setSettings(parsedState.settings);
-      if (parsedState.locations?.some(l => l.name)) {
+      // Only jump to the map step when the URL carries a real calculable route:
+      // at least 2 stops, with origin and destination both having valid coordinates.
+      const locs = parsedState.locations;
+      const hasValidRoute =
+        locs &&
+        locs.length >= 2 &&
+        locs[0].lat !== 0 && locs[0].lng !== 0 &&
+        locs[locs.length - 1].lat !== 0 && locs[locs.length - 1].lng !== 0;
+      if (hasValidRoute) {
         markStepComplete(1);
         markStepComplete(2);
         markStepComplete(3);
