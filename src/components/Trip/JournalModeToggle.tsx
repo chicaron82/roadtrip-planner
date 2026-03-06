@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { Map, BookOpen, Lock } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { TripMode } from '../../types';
@@ -162,9 +162,8 @@ export function StartJournalCTA({ onStart, className, defaultName, tripMode = 'p
         className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 placeholder:text-muted-foreground/40 mb-4"
         style={{
           borderColor: `${accentColor}40`,
-          // @ts-expect-error CSS custom property
           '--tw-ring-color': `${accentColor}60`,
-        }}
+        } as CSSProperties}
         onKeyDown={e => {
           if (e.key === 'Enter') onStart(name.trim() || undefined);
         }}

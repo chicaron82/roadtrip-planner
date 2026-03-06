@@ -47,10 +47,10 @@ export const getFavorites = (): SavedLocation[] => {
 
 export const toggleFavorite = (location: Location) => {
   let favorites = getFavorites();
-  const exists = favorites.find(f => f.name === location.name); // Simple dup check by name for now
-  
+  const exists = favorites.find(f => f.name === location.name && f.lat === location.lat && f.lng === location.lng);
+
   if (exists) {
-    favorites = favorites.filter(f => f.name !== location.name);
+    favorites = favorites.filter(f => !(f.name === location.name && f.lat === location.lat && f.lng === location.lng));
   } else {
     favorites.push({ ...location, isFavorite: true });
   }

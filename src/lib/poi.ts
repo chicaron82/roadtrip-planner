@@ -96,14 +96,10 @@ export async function searchNearbyPOIs(lat: number, lng: number, category: POICa
         const viewbox = `${lng-offset},${lat+offset},${lng+offset},${lat-offset}`;
         
         const response = await fetch(
-            `${NOMINATIM_BASE_URL}/search?q=${encodeURIComponent(query)}&format=json&limit=10&viewbox=${viewbox}&bounded=1&addressdetails=1`,
-            {
-                headers: {
-                    'User-Agent': 'RoadTripPlanner/1.0',
-                },
-            }
+            `${NOMINATIM_BASE_URL}/search?q=${encodeURIComponent(query)}&format=json&limit=10&viewbox=${viewbox}&bounded=1&addressdetails=1`
         );
-        
+        if (!response.ok) return [];
+
         const data: NominatimResult[] = await response.json();
         
         return data.map(item => ({

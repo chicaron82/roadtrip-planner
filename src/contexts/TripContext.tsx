@@ -5,6 +5,7 @@ import { createContext, useContext, useState, useCallback, useEffect, useRef, ty
 import type { Location, Vehicle, TripSettings, TripSummary, TripBudget, Activity, TripDay } from '../types';
 import { DEFAULT_BUDGET } from '../lib/budget';
 import { getDefaultVehicleId, getGarage, loadSettingsDefaults, saveSettingsDefaults } from '../lib/storage';
+import { formatLocalYMD } from '../lib/utils';
 import { getFuelPriceDefault } from '../lib/regional-costs';
 
 // ==================== DEFAULT VALUES ====================
@@ -31,7 +32,7 @@ export const DEFAULT_SETTINGS: TripSettings = {
   numDrivers: 1,
   budgetMode: 'open',
   budget: DEFAULT_BUDGET,
-  departureDate: new Date().toISOString().split('T')[0],
+  departureDate: formatLocalYMD(),
   departureTime: '09:00',
   returnDate: '',
   arrivalDate: '',

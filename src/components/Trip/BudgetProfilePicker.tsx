@@ -9,7 +9,7 @@ import {
   setDefaultBudgetProfile,
   getLastTripBudget,
 } from '../../lib/storage';
-import { cn } from '../../lib/utils';
+import { cn, formatLocalYMD } from '../../lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../UI/Dialog';
 import { Input } from '../UI/Input';
 import { Label } from '../UI/Label';
@@ -298,7 +298,7 @@ export function SaveProfileDialog({
         lastTripDate: new Date().toISOString(),
       },
       createdFrom: tripName
-        ? { tripName, tripDate: new Date().toISOString().split('T')[0] }
+        ? { tripName, tripDate: formatLocalYMD() }
         : undefined,
     };
 

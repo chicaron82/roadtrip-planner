@@ -19,7 +19,7 @@ interface UseMapInteractionsReturn {
   handleMapClick: (lat: number, lng: number) => Promise<void>;
   handleAddPOIFromMap: (poi: POI, afterSegmentIndex?: number) => void;
   openInGoogleMaps: () => void;
-  copyShareLink: (shareUrl: string | null) => void;
+  copyShareLink: (shareUrl: string | null) => Promise<void>;
 }
 
 export function useMapInteractions({
@@ -35,7 +35,7 @@ export function useMapInteractions({
     const filtered = geometry.filter(coord =>
       coord && Array.isArray(coord) && coord.length === 2 &&
       typeof coord[0] === 'number' && typeof coord[1] === 'number' &&
-      !isNaN(coord[0]) && !isNaN(coord[1]) && coord[0] !== 0 && coord[1] !== 0
+      !isNaN(coord[0]) && !isNaN(coord[1]) && !(coord[0] === 0 && coord[1] === 0)
     );
     return filtered.length >= 2 ? filtered as [number, number][] : null;
   }, [summary]);
@@ -104,10 +104,13 @@ export function useMapInteractions({
     window.open(url, '_blank');
   }, [locations]);
 
-  const copyShareLink = useCallback((shareUrl: string | null) => {
-    if (shareUrl) {
-      navigator.clipboard.writeText(shareUrl);
+  const copyShareLink = useCallback(async (shareUrl: string | null) => {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
       showToast({ message: 'Link copied — send it.', type: 'success' });
+    } catch {
+      showToast({ message: 'Could not copy link.', type: 'error' });
     }
   }, []);
 

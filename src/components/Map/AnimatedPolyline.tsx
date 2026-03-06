@@ -25,7 +25,7 @@ export function AnimatedPolyline({
       pos => pos && Array.isArray(pos) && pos.length === 2 &&
       typeof pos[0] === 'number' && typeof pos[1] === 'number' &&
       !isNaN(pos[0]) && !isNaN(pos[1]) &&
-      pos[0] !== 0 && pos[1] !== 0 // Also filter out [0,0] coordinates
+      !(pos[0] === 0 && pos[1] === 0) // Filter out [0,0] sentinel coordinates
     );
 
     // Reset and start animation when positions change.

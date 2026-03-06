@@ -5,7 +5,7 @@ import { findAdventureDestinations, calculateMaxDistance } from '../../lib/adven
 import { LocationSearchInput } from './LocationSearchInput';
 import { AdventureFormPanel } from './AdventureFormPanel';
 import { AdventureResultsPanel } from './AdventureResultsPanel';
-import { cn } from '../../lib/utils';
+import { cn, formatLocalYMD } from '../../lib/utils';
 
 // Settings to carry over when selecting a destination
 export interface AdventureSelection {
@@ -52,7 +52,7 @@ export function AdventureMode({
 
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  const [departureDate, setDepartureDate] = useState(tomorrow.toISOString().split('T')[0]);
+  const [departureDate, setDepartureDate] = useState(formatLocalYMD(tomorrow));
   const [departureTime, setDepartureTime] = useState('09:00');
 
   const [destinations, setDestinations] = useState<AdventureDestination[]>([]);

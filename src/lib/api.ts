@@ -89,9 +89,9 @@ export async function searchLocations(query: string): Promise<Partial<Location>[
   // ── Nominatim fallback (exact) ──────────────────────────────────────────
   try {
     const response = await fetch(
-      `${NOMINATIM_BASE_URL}/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1`,
-      { headers: { 'User-Agent': 'MyExperienceEngine/1.0' } }
+      `${NOMINATIM_BASE_URL}/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1`
     );
+    if (!response.ok) return [];
     const data: NominatimResult[] = await response.json();
     return data.map(item => ({
       id: crypto.randomUUID(),

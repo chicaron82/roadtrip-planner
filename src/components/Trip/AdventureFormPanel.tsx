@@ -3,7 +3,7 @@ import type { Location, TripPreference } from '../../types';
 import { Button } from '../UI/Button';
 import { Input } from '../UI/Input';
 import { Label } from '../UI/Label';
-import { cn } from '../../lib/utils';
+import { cn, formatLocalYMD } from '../../lib/utils';
 
 interface AdventureFormPanelProps {
   budget: number;
@@ -102,7 +102,7 @@ export function AdventureFormPanel({
             type="date"
             value={departureDate}
             onChange={(e) => onDepartureDateChange(e.target.value)}
-            min={new Date().toISOString().split('T')[0]}
+            min={formatLocalYMD()}
             className="text-sm"
           />
         </div>

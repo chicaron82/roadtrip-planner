@@ -56,6 +56,7 @@ export async function fetchWeather(lat: number, lng: number, date?: string): Pro
         }
 
         const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`);
+        if (!response.ok) return null;
         const data = await response.json();
 
         if (!data.daily || !data.daily.time || data.daily.time.length === 0) {
