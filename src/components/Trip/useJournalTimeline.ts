@@ -21,13 +21,17 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
     [settings.departureDate, settings.departureTime],
   );
 
-  // Build map: segmentIndex → TripDay for the first segment of each driving day
+  // Build map: segmentIndex → TripDay[] for days starting at each segment.
+  // Multiple driving days can share the same original segment index when
+  // splitLongSegments splits a single OSRM segment into multi-day sub-segments
+  // (e.g. Dryden → Montreal: Day 1 and Day 2 both reference segment 0).
   const dayStartMap = useMemo(() => {
-    const map = new Map<number, TripDay>();
+    const map = new Map<number, TripDay[]>();
     if (summary.days) {
       for (const day of summary.days) {
         if (day.segmentIndices.length > 0) {
-          map.set(day.segmentIndices[0], day);
+          const idx = day.segmentIndices[0];
+          map.set(idx, [...(map.get(idx) ?? []), day]);
         }
       }
     }

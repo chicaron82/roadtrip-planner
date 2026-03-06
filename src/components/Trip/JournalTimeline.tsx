@@ -147,16 +147,20 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
         {/* Stop Cards */}
         {summary.segments.map((segment, index) => {
           const isGuard = segment.to.id?.startsWith('guard-');
-          const dayHeader = dayStartMap.get(index);
+          const dayHeaders = dayStartMap.get(index) ?? [];
 
           if (isGuard) {
-            return dayHeader ? (
-              <DayHeader
-                key={`day-${dayHeader.dayNumber}`}
-                day={dayHeader}
-                isFirst={dayHeader.dayNumber === 1}
-                className="mb-6"
-              />
+            return dayHeaders.length > 0 ? (
+              <div key={`guard-days-${index}`}>
+                {dayHeaders.map(day => (
+                  <DayHeader
+                    key={`day-${day.dayNumber}`}
+                    day={day}
+                    isFirst={day.dayNumber === 1}
+                    className="mb-6"
+                  />
+                ))}
+              </div>
             ) : null;
           }
 
@@ -169,9 +173,9 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
 
           return (
             <div key={`stop-${index}`}>
-              {dayHeader && (
-                <DayHeader day={dayHeader} isFirst={dayHeader.dayNumber === 1} className="mb-6" />
-              )}
+              {dayHeaders.map(day => (
+                <DayHeader key={`day-${day.dayNumber}`} day={day} isFirst={day.dayNumber === 1} className="mb-6" />
+              ))}
 
               {/* Inline Add Memory Button */}
               <div className="flex gap-4 mb-3">
