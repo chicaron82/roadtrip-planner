@@ -149,12 +149,19 @@ export function useTripCalculation({
       const tripSummary = calculateTripCosts(routeData.segments, vehicle, settings);
       tripSummary.fullGeometry = routeData.fullGeometry;
 
-      // Fetch weather for each segment
-      const segmentsWithWeather = await Promise.all(
+      // Fetch weather for each segment — allSettled so one slow/failed request
+      // doesn't block the whole pipeline; 5 s timeout per request.
+      const weatherResults = await Promise.allSettled(
         tripSummary.segments.map(async (seg) => {
-          const weather = await fetchWeather(seg.to.lat, seg.to.lng, settings.departureDate);
+          const weather = await fetchWeather(
+            seg.to.lat, seg.to.lng, settings.departureDate,
+            AbortSignal.timeout(5000),
+          );
           return { ...seg, weather: weather || undefined };
         })
+      );
+      const segmentsWithWeather = weatherResults.map((r, i) =>
+        r.status === 'fulfilled' ? r.value : { ...tripSummary.segments[i] }
       );
 
       // Calculate arrival times for each segment

@@ -35,7 +35,7 @@ export function getWeatherEmoji(code: number): string {
 
 const weatherCache = new Map<string, WeatherData>();
 
-export async function fetchWeather(lat: number, lng: number, date?: string): Promise<WeatherData | null> {
+export async function fetchWeather(lat: number, lng: number, date?: string, signal?: AbortSignal): Promise<WeatherData | null> {
     // Round to 1 decimal place (~11km resolution) to group nearby stops into the same cache entry
     const cacheKey = `${Math.round(lat * 10) / 10},${Math.round(lng * 10) / 10}|${date || 'none'}`;
     if (weatherCache.has(cacheKey)) {
@@ -55,7 +55,7 @@ export async function fetchWeather(lat: number, lng: number, date?: string): Pro
             params.append('end_date', date);
         }
 
-        const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`);
+        const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`, { signal });
         if (!response.ok) return null;
         const data = await response.json();
 
