@@ -41,15 +41,22 @@ export function LocationSearchInput({ value, onSelect, placeholder, className }:
     if (text.length < 2) {
       setResults([]);
       setIsOpen(false);
+      setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
     timeoutRef.current = window.setTimeout(async () => {
-      const locations = await searchLocations(text);
-      setResults(locations);
-      setIsOpen(locations.length > 0);
-      setIsLoading(false);
+      try {
+        const locations = await searchLocations(text);
+        setResults(locations);
+        setIsOpen(locations.length > 0);
+      } catch {
+        setResults([]);
+        setIsOpen(false);
+      } finally {
+        setIsLoading(false);
+      }
     }, 300);
   };
 

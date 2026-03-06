@@ -51,11 +51,11 @@ interface TooltipContentProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const TooltipContent = React.forwardRef<HTMLDivElement, TooltipContentProps>(
   ({ className, sideOffset = 4, side = "top", children, ...props }, ref) => {
-    const positionStyles: Record<string, string> = {
-      top: `bottom-full left-1/2 -translate-x-1/2 mb-[${sideOffset}px]`,
-      bottom: `top-full left-1/2 -translate-x-1/2 mt-[${sideOffset}px]`,
-      left: `right-full top-1/2 -translate-y-1/2 mr-[${sideOffset}px]`,
-      right: `left-full top-1/2 -translate-y-1/2 ml-[${sideOffset}px]`,
+    const positionMap: Record<string, React.CSSProperties> = {
+      top:    { bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: sideOffset },
+      bottom: { top: '100%', left: '50%', transform: 'translateX(-50%)', marginTop: sideOffset },
+      left:   { right: '100%', top: '50%', transform: 'translateY(-50%)', marginRight: sideOffset },
+      right:  { left: '100%', top: '50%', transform: 'translateY(-50%)', marginLeft: sideOffset },
     };
 
     return (
@@ -64,9 +64,9 @@ const TooltipContent = React.forwardRef<HTMLDivElement, TooltipContentProps>(
         role="tooltip"
         className={cn(
           "absolute z-50 hidden peer-hover:block overflow-hidden rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground animate-in fade-in-0 zoom-in-95 whitespace-nowrap",
-          positionStyles[side],
           className
         )}
+        style={positionMap[side]}
         {...props}
       >
         {children}

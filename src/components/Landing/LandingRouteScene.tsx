@@ -148,7 +148,7 @@ export function LandingRouteScene({ onSelectMode, lastDestination }: Props) {
                 aria-pressed={isActive}
                 aria-label={mc.cta}
                 onClick={() => selectMode(mode)}
-                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && selectMode(mode)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectMode(mode); } }}
                 style={{ cursor: 'pointer', outline: 'none' }}
               >
                 {/* Hit area */}
