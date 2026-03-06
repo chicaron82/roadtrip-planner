@@ -56,7 +56,6 @@ export function AdventureMode({
   const [departureTime, setDepartureTime] = useState('09:00');
 
   const [destinations, setDestinations] = useState<AdventureDestination[]>([]);
-  const [_maxReachableKm, setMaxReachableKm] = useState(0);
   const [isCalculating, setIsCalculating] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
@@ -69,7 +68,6 @@ export function AdventureMode({
           origin, budget, days, travelers, preferences, accommodationType, isRoundTrip, fuelCostPerKm,
         });
         setDestinations(result.destinations);
-        setMaxReachableKm(result.maxReachableKm);
         setHasSearched(true);
       } catch (error) {
         console.error('Adventure search failed:', error);
