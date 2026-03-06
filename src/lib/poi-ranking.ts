@@ -11,6 +11,19 @@ const WEIGHTS = {
 // Maximum acceptable detour (minutes)
 const MAX_DETOUR_MINUTES = 30;
 
+/** Return fractional hour (0–23.99) in a specific IANA timezone, or fall back to local. */
+function getLocalTod(date: Date, tz?: string): number {
+  if (tz) {
+    const parts = new Intl.DateTimeFormat('en', {
+      hour: 'numeric', minute: 'numeric', hourCycle: 'h23', timeZone: tz,
+    }).formatToParts(date);
+    const h = parseInt(parts.find(p => p.type === 'hour')?.value ?? '0', 10);
+    const m = parseInt(parts.find(p => p.type === 'minute')?.value ?? '0', 10);
+    return h + m / 60;
+  }
+  return date.getHours() + date.getMinutes() / 60;
+}
+
 // Corridor distance thresholds
 const CORRIDOR_THRESHOLDS = {
   quick: 5,      // Within 5km - minimal detour
@@ -273,10 +286,11 @@ function rankPOI(
 
   // Time-of-day demotion: places visited before 07:00 or after 19:30 are less
   // useful (closed or after dark). Apply a -25pt penalty to discourage them.
+  // Use the segment's IANA timezone so cross-timezone routes (e.g. EST user
+  // planning a PST itinerary) score against destination local time, not browser time.
   if (estimatedArrivalTime) {
-    const h = estimatedArrivalTime.getHours();
-    const m = estimatedArrivalTime.getMinutes();
-    const tod = h + m / 60;
+    const segTz = segments[nearestSegmentIndex]?.timezone;
+    const tod = getLocalTod(estimatedArrivalTime, segTz);
     if (tod < 7 || tod > 19.5) {
       rankingScore = Math.max(0, rankingScore - 25);
     }
