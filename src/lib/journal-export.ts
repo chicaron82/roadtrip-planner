@@ -1,5 +1,6 @@
 import type { TripJournal, TripSummary, TripSettings } from '../types';
 import { showToast } from './toast';
+import { escapeHtml } from './utils';
 
 /**
  * Export the trip journal as a downloadable HTML file.
@@ -9,7 +10,7 @@ export function exportJournalAsHTML(journal: TripJournal, summary: TripSummary):
 <!DOCTYPE html>
 <html>
 <head>
-  <title>${journal.metadata.title}</title>
+  <title>${escapeHtml(journal.metadata.title)}</title>
   <style>
     body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
     h1 { color: #2563eb; }
@@ -19,10 +20,10 @@ export function exportJournalAsHTML(journal: TripJournal, summary: TripSummary):
   </style>
 </head>
 <body>
-  <h1>🚗 ${journal.metadata.title}</h1>
+  <h1>🚗 ${escapeHtml(journal.metadata.title)}</h1>
   <p><strong>Distance:</strong> ${journal.tripSummary.totalDistanceKm.toFixed(1)} km |
      <strong>Duration:</strong> ${(journal.tripSummary.totalDurationMinutes / 60).toFixed(1)} hours</p>
-  <p><strong>Travelers:</strong> ${journal.metadata.travelers?.join(', ') || 'Unknown'}</p>
+  <p><strong>Travelers:</strong> ${escapeHtml(journal.metadata.travelers?.join(', ') || 'Unknown')}</p>
 
   <h2>Journey Highlights</h2>
   ${journal.entries.map(e => {
@@ -31,8 +32,8 @@ export function exportJournalAsHTML(journal: TripJournal, summary: TripSummary):
       ? `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin: 15px 0;">
           ${e.photos.map(p => `
             <div>
-              <img src="${p.dataUrl}" alt="${p.caption || 'Photo'}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" />
-              ${p.caption ? `<p style="font-size: 12px; color: #6b7280; margin-top: 4px; text-align: center;">${p.caption}</p>` : ''}
+              <img src="${p.dataUrl}" alt="${escapeHtml(p.caption || 'Photo')}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" />
+              ${p.caption ? `<p style="font-size: 12px; color: #6b7280; margin-top: 4px; text-align: center;">${escapeHtml(p.caption)}</p>` : ''}
             </div>
           `).join('')}
          </div>`
@@ -40,11 +41,11 @@ export function exportJournalAsHTML(journal: TripJournal, summary: TripSummary):
 
     return `
     <div class="stop ${e.isHighlight ? 'highlight' : ''}">
-      <h3>${stop?.name || 'Unknown'}</h3>
+      <h3>${escapeHtml(stop?.name || 'Unknown')}</h3>
       ${e.rating ? `<div class="rating">${'⭐'.repeat(e.rating)}</div>` : ''}
       ${photosHTML}
-      ${e.notes ? `<p>${e.notes}</p>` : ''}
-      ${e.isHighlight ? `<p><strong>✨ ${e.highlightReason}</strong></p>` : ''}
+      ${e.notes ? `<p>${escapeHtml(e.notes)}</p>` : ''}
+      ${e.isHighlight ? `<p><strong>✨ ${escapeHtml(e.highlightReason || '')}</strong></p>` : ''}
       <p><em>Status: ${e.status}</em></p>
     </div>`;
   }).join('')}
@@ -60,12 +61,12 @@ export function exportJournalAsHTML(journal: TripJournal, summary: TripSummary):
     return `
     <div style="border-left: 3px solid #a855f7; padding-left: 15px; margin: 15px 0;">
       <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-        <strong>${qc.autoTaggedLocation || 'Quick Memory'}</strong>
-        ${qc.category ? `<span style="font-size: 11px; background: #f3e8ff; color: #7c3aed; padding: 2px 6px; border-radius: 9999px;">${qc.category}</span>` : ''}
+        <strong>${escapeHtml(qc.autoTaggedLocation || 'Quick Memory')}</strong>
+        ${qc.category ? `<span style="font-size: 11px; background: #f3e8ff; color: #7c3aed; padding: 2px 6px; border-radius: 9999px;">${escapeHtml(qc.category)}</span>` : ''}
         ${mapsLink ? `<a href="${mapsLink}" style="font-size: 11px; color: #2563eb;">📍 View on Maps</a>` : ''}
       </div>
-      ${qc.photo ? `<img src="${qc.photo.dataUrl}" alt="${qc.photo.caption || 'Memory'}" style="width: 100%; max-width: 400px; height: 200px; object-fit: cover; border-radius: 8px; margin-bottom: 6px;" />` : ''}
-      ${qc.photo?.caption ? `<p style="margin: 4px 0; color: #374151;">${qc.photo.caption}</p>` : ''}
+      ${qc.photo ? `<img src="${qc.photo.dataUrl}" alt="${escapeHtml(qc.photo.caption || 'Memory')}" style="width: 100%; max-width: 400px; height: 200px; object-fit: cover; border-radius: 8px; margin-bottom: 6px;" />` : ''}
+      ${qc.photo?.caption ? `<p style="margin: 4px 0; color: #374151;">${escapeHtml(qc.photo.caption)}</p>` : ''}
       ${qc.gpsCoords ? `<p style="font-size: 11px; color: #9ca3af;">GPS: ${qc.gpsCoords.lat.toFixed(5)}, ${qc.gpsCoords.lng.toFixed(5)}</p>` : ''}
     </div>`;
   }).join('')}
@@ -89,7 +90,12 @@ export function exportJournalAsHTML(journal: TripJournal, summary: TripSummary):
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `roadtrip-journal-${journal.metadata.title.replace(/\s+/g, '-').toLowerCase()}.html`;
+  const safeTitle = journal.metadata.title
+    .replace(/[<>:"/\\|?*\x00-\x1f]/g, '')
+    .replace(/\s+/g, '-')
+    .toLowerCase()
+    .slice(0, 100) || 'untitled';
+  link.download = `roadtrip-journal-${safeTitle}.html`;
   link.click();
   URL.revokeObjectURL(url);
 
@@ -181,7 +187,12 @@ export function exportJournalAsTemplate(journal: TripJournal, summary: TripSumma
   const url = URL.createObjectURL(dataBlob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `trip-template-${journal.metadata.title.replace(/\s+/g, '-').toLowerCase()}.json`;
+  const safeName = journal.metadata.title
+    .replace(/[<>:"/\\|?*\x00-\x1f]/g, '')
+    .replace(/\s+/g, '-')
+    .toLowerCase()
+    .slice(0, 100) || 'untitled';
+  link.download = `trip-template-${safeName}.json`;
   link.click();
   URL.revokeObjectURL(url);
 

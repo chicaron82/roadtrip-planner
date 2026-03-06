@@ -34,10 +34,14 @@ export function showToast({ message, type = 'success', duration = 3000 }: ToastO
   // Create toast element
   const toast = document.createElement('div');
   toast.className = `${TOAST_COLORS[type]} text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-in slide-in-from-right-full pointer-events-auto transition-all duration-300 max-w-md`;
-  toast.innerHTML = `
-    <span class="text-xl">${TOAST_ICONS[type]}</span>
-    <span class="font-medium">${message}</span>
-  `;
+  const iconSpan = document.createElement('span');
+  iconSpan.className = 'text-xl';
+  iconSpan.textContent = TOAST_ICONS[type];
+  const msgSpan = document.createElement('span');
+  msgSpan.className = 'font-medium';
+  msgSpan.textContent = message;
+  toast.appendChild(iconSpan);
+  toast.appendChild(msgSpan);
 
   container.appendChild(toast);
 
@@ -45,7 +49,7 @@ export function showToast({ message, type = 'success', duration = 3000 }: ToastO
   setTimeout(() => {
     toast.classList.add('animate-out', 'slide-out-to-right-full');
     setTimeout(() => {
-      container?.removeChild(toast);
+      if (container?.contains(toast)) container.removeChild(toast);
       // Clean up container if empty
       if (container?.children.length === 0) {
         container.remove();
