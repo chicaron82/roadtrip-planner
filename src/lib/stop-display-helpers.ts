@@ -56,7 +56,7 @@ export function createStopConfig(
   return {
     tankSizeLitres,
     fuelEconomyL100km,
-    maxDriveHoursPerDay: settings.maxDriveHours,
+    maxDriveHoursPerDay: settings.beastMode ? 24 : settings.maxDriveHours,
     numDrivers: settings.numDrivers,
     departureTime: new Date(`${settings.departureDate}T${settings.departureTime}`),
     gasPrice: settings.gasPrice,

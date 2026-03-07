@@ -148,13 +148,21 @@ export function checkOvernightStop(
     return null;
   }
 
+  // If arriving before standard check-in time (3 PM), add a heads-up note.
+  const CHECK_IN_HOUR = 15;
+  const arrivalHour = arrivalTime.getHours();
+  const arrivalTimeStr = arrivalTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  const checkInNote = arrivalHour < CHECK_IN_HOUR
+    ? ` Arriving around ${arrivalTimeStr} — standard hotel check-in is 3 PM, so call ahead for early check-in or explore the area until your room is ready.`
+    : '';
+
   let suggestion: SuggestedStop | null = null;
   if (!daysWithHotel.has(state.currentDayNumber)) {
     const maxHoursText = config.maxDriveHoursPerDay === 1 ? '1 hour' : `${config.maxDriveHoursPerDay} hours`;
     suggestion = {
       id: `overnight-${index}`,
       type: 'overnight',
-      reason: `You've reached your daily driving limit (${state.totalDrivingToday.toFixed(1)} hours driven, max ${maxHoursText}/day). Find a hotel, get dinner, and recharge for tomorrow.`,
+      reason: `You've reached your daily driving limit (${state.totalDrivingToday.toFixed(1)} hours driven, max ${maxHoursText}/day). Find a hotel, get dinner, and recharge for tomorrow.${checkInNote}`,
       afterSegmentIndex: index,
       estimatedTime: new Date(arrivalTime),
       duration: 8 * 60,

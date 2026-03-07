@@ -62,6 +62,9 @@ function getNextDayDriveMinutes(
 /** Minimum hours of rest guaranteed between estimated Day-N arrival and Day-(N+1) departure. */
 const MIN_REST_HOURS = TRIP_CONSTANTS.rest.minHours;
 
+/** Beast mode daily driving cap — long but not infinite. */
+const BEAST_MODE_DAILY_HOURS = 24;
+
 // ---------------------------------------------------------------------------
 
 /**
@@ -256,7 +259,10 @@ export function splitTripByDays(
             // Use effectiveMaxDriveMinutes (includes 1h grace) to match the actual
             // day-splitting logic — otherwise the estimate is more pessimistic than
             // reality, and we over-insert free days.
-            const returnDrivingDays = Math.max(1, Math.ceil(returnTotalMinutes / effectiveMaxDriveMinutes));
+            const returnEffectiveMax = (settings.beastMode && (settings.returnBeastMode ?? false))
+              ? BEAST_MODE_DAILY_HOURS * 60 + TRIP_CONSTANTS.dayOverflow.toleranceHours * 60
+              : effectiveMaxDriveMinutes;
+            const returnDrivingDays = Math.max(1, Math.ceil(returnTotalMinutes / returnEffectiveMax));
 
             return Math.max(0, totalTripDays - outboundCalendarDays - returnDrivingDays);
           })()
@@ -318,7 +324,10 @@ export function splitTripByDays(
 
       // Set up for the return leg — next morning after free days
       dayNumber++;
-      const returnLegHours = getNextDayDriveMinutes(processedSegments, i, maxDriveMinutes) / 60;
+      const returnMaxMinutes = (settings.beastMode && (settings.returnBeastMode ?? false))
+        ? BEAST_MODE_DAILY_HOURS * 60
+        : maxDriveMinutes;
+      const returnLegHours = getNextDayDriveMinutes(processedSegments, i, returnMaxMinutes) / 60;
       const returnDepHour = computeSmartDepartureHour(settings, returnLegHours);
       // Departure city for the return leg = destination (segment[i].from).
       const returnDepTz = lngToIANA(processedSegments[i].from.lng);
@@ -340,25 +349,25 @@ export function splitTripByDays(
     }
 
     const segmentDriveMinutes = segment.durationMinutes;
-    const wouldExceedMaxDrive = currentDayDriveMinutes + segmentDriveMinutes > effectiveMaxDriveMinutes;
     // We also trigger a new day *after* this segment if it's an explicit overnight stop
     const isOvernightStop = segment.stopType === 'overnight';
 
-    // Check if we need to start a new day (max drive hours exceeded)
-    // However, if the CURRENT segment is an overnight stop, we add it to THIS day, and then force a new day AFTER.
-    // The overnight belongs to the day you drove — you check in at end of Day 1, so Day 1 pays for it.
-    // Beast mode bypasses the drive-time cap entirely — the user accepts the fatigue risk.
-    //
-    // Hub-snap: before splitting, check if extending the day by one segment would
-    // land at a real city (hub). Humans prefer to push an extra hour to reach
-    // Thunder Bay rather than stop at an anonymous highway km marker.
     // Directional beast mode: outbound always uses settings.beastMode; return leg
-    // additionally requires settings.returnBeastMode to bypass the drive-time cap.
+    // additionally requires settings.returnBeastMode. Beast mode now caps at 24h/day —
+    // long drives still need a real overnight stop, just a bigger one.
     const isReturnLeg = roundTripMidpoint !== undefined && segment._originalIndex >= roundTripMidpoint;
     const effectiveBeastMode = settings.beastMode && (!isReturnLeg || (settings.returnBeastMode ?? false));
 
+    // Per-leg daily driving cap: beast mode uses 24h, normal mode uses the user's setting.
+    const effectiveDailyMax = effectiveBeastMode ? BEAST_MODE_DAILY_HOURS * 60 : maxDriveMinutes;
+    const effectiveDailyMaxWithTolerance = effectiveDailyMax + TRIP_CONSTANTS.dayOverflow.toleranceHours * 60;
+    const wouldExceedDailyMax = currentDayDriveMinutes + segmentDriveMinutes > effectiveDailyMaxWithTolerance;
+
+    // Hub-snap: before splitting, check if extending the day by one segment would
+    // land at a real city (hub). Humans prefer to push an extra hour to reach
+    // Thunder Bay rather than stop at an anonymous highway km marker.
     let hubSnapExtend = false;
-    if (wouldExceedMaxDrive && currentDay.segments.length > 0 && !isOvernightStop && !effectiveBeastMode) {
+    if (wouldExceedDailyMax && currentDay.segments.length > 0 && !isOvernightStop) {
       const lastSeg = currentDay.segments[currentDay.segments.length - 1];
       const currentEndNearHub = findHubInWindow(lastSeg.to.lat, lastSeg.to.lng, 60);
       if (!currentEndNearHub && segmentDriveMinutes <= 90) {
@@ -368,7 +377,7 @@ export function splitTripByDays(
         }
       }
     }
-    if (wouldExceedMaxDrive && currentDay.segments.length > 0 && !isOvernightStop && !effectiveBeastMode && !hubSnapExtend) {
+    if (wouldExceedDailyMax && currentDay.segments.length > 0 && !isOvernightStop && !hubSnapExtend) {
       // Assign overnight — driver stops at end of this driving day.
       if (!currentDay.overnight) {
         const lastSeg = currentDay.segments[currentDay.segments.length - 1];
@@ -405,7 +414,7 @@ export function splitTripByDays(
       const estimatedDayArrival = new Date(currentDate.getTime() + currentDayDriveMinutes * 60 * 1000);
       // Try the smart departure hour on the same calendar day as arrival.
       // Use how much driving is actually left (not the max) so short final legs get later starts.
-      const nextDayHours = getNextDayDriveMinutes(processedSegments, i, maxDriveMinutes) / 60;
+      const nextDayHours = getNextDayDriveMinutes(processedSegments, i, effectiveDailyMax) / 60;
       const depHour = computeSmartDepartureHour(settings, nextDayHours);
 
       // Resolve the departure city's timezone from the overnight stop location.
