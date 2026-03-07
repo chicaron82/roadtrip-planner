@@ -349,3 +349,41 @@ describe('splitTripByDays — tolerance buffer (1h grace)', () => {
     expect(days[0].totals.driveTimeMinutes).toBe(510);
   });
 });
+
+// ── 10. Rest guard — return leg must not depart too soon after outbound arrival ─
+
+describe('splitTripByDays — return leg rest guard', () => {
+  it('pushes return departure to next day when outbound arrives too late for 7h rest', () => {
+    // Outbound: 9 AM departure, 12h drive → arrives ~9 PM (21:00).
+    // 7h rest → earliest return departure is 4 AM next day.
+    // Without the guard the return leg would start immediately, creating a
+    // 1h45m-rest scenario. With the guard, the return day must be a new date.
+    const outbound = makeSegment({ from: WINNIPEG, to: TORONTO, distanceKm: 2200, durationMinutes: 720 });
+    const returnSeg = makeSegment({ from: TORONTO, to: WINNIPEG, distanceKm: 2200, durationMinutes: 720 });
+    const allSegments = [outbound, returnSeg];
+
+    const settings = makeSettings({
+      maxDriveHours: 12,
+      isRoundTrip: true,
+      departureDate: '2025-08-16',
+      // No returnDate — triggers the no-return-date path where the guard matters most
+      returnDate: '',
+    });
+    const days = splitTripByDays(allSegments, settings, '2025-08-16', '09:00', 1);
+
+    const drivingDays = days.filter(d => d.segments.length > 0);
+    // Must be at least 2 driving days (outbound + return)
+    expect(drivingDays.length).toBeGreaterThanOrEqual(2);
+
+    // Find outbound and return driving days
+    const outboundDay = drivingDays[0];
+    const returnDay = drivingDays[drivingDays.length - 1];
+
+    const arrivalMs = new Date(outboundDay.totals.arrivalTime).getTime();
+    const returnDepMs = new Date(returnDay.totals.departureTime).getTime();
+    const restHours = (returnDepMs - arrivalMs) / (1000 * 60 * 60);
+
+    // Must have at least 7h of rest between outbound arrival and return departure
+    expect(restHours).toBeGreaterThanOrEqual(7);
+  });
+});

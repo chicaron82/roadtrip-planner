@@ -736,3 +736,35 @@ describe('analyzeDateWindow — trip overflow', () => {
     expect(w!.suggestion).not.toContain('h to cover'); // no specific hours hint
   });
 });
+
+// ==================== TESTS: analyzeDateWindow — round trip, no return date ====================
+
+describe('analyzeDateWindow — round trip without return date', () => {
+  it('fires a warning when isRoundTrip is true but no returnDate is set', () => {
+    const summary = makeSummary([]);
+    const settings = makeSettings({ isRoundTrip: true, returnDate: '' });
+
+    const result = analyzeFeasibility(summary, settings);
+    const w = result.warnings.find(w => w.category === 'date-window');
+
+    expect(w).toBeDefined();
+    expect(w!.severity).toBe('warning');
+    expect(w!.message).toContain('no time at destination');
+  });
+
+  it('returns early — no additional date-window warnings when round trip has no return date', () => {
+    // Even with many driving days, only the single no-return-date warning should fire.
+    const days = [1, 2, 3].map(n => makeDay({
+      dayNumber: n,
+      totals: { distanceKm: 500, driveTimeMinutes: 480, stopTimeMinutes: 30,
+        departureTime: `2025-08-${15 + n}T09:00:00`, arrivalTime: `2025-08-${15 + n}T17:00:00` },
+    }));
+    const summary = makeSummary(days);
+    const settings = makeSettings({ isRoundTrip: true, returnDate: '', departureDate: '2025-08-16' });
+
+    const result = analyzeFeasibility(summary, settings);
+    const dateWindowWarnings = result.warnings.filter(w => w.category === 'date-window');
+
+    expect(dateWindowWarnings).toHaveLength(1);
+  });
+});
