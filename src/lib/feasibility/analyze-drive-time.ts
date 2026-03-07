@@ -159,7 +159,7 @@ export function analyzeDriverFatigue(
   // Multi-driver under-utilization hint
   // If the user has set up team driving but kept the max daily limit at solo levels,
   // nudge them to unlock the real benefit of having multiple drivers.
-  if (!settings.beastMode && settings.numDrivers >= TRIP_CONSTANTS.feasibility.minDriversForRotation && settings.maxDriveHours <= 8) {
+  if (settings.numDrivers >= TRIP_CONSTANTS.feasibility.minDriversForRotation && settings.maxDriveHours <= 8) {
     const suggestedHours = settings.numDrivers === 2 ? 12 : 16;
     warnings.push({
       category: 'driver',
@@ -167,24 +167,6 @@ export function analyzeDriverFatigue(
       message: `${settings.numDrivers} drivers — you could safely drive up to ${suggestedHours}h/day`,
       detail: `Your daily limit is ${settings.maxDriveHours}h, which is the recommended max for a solo driver. With ${settings.numDrivers} drivers rotating, you can push to ${suggestedHours}h/day and reduce transit days.`,
       suggestion: `Increase "Max Drive Hours" to ${suggestedHours}h in Settings to cut driving days and get more time at your destination.`,
-    });
-  }
-
-  // Beast mode warnings — driver-count-aware
-  if (settings.beastMode) {
-    const { numDrivers } = settings;
-    const beastWarning =
-      numDrivers <= 1
-        ? { severity: 'critical' as const, message: '🔥 Beast mode with 1 driver: extreme fatigue risk', detail: 'Driving past your max limit with a single driver is dangerous. Fatigue is a leading cause of road accidents on long hauls.', suggestion: 'Add at least one more driver, or split the trip with overnight stops.' }
-        : numDrivers === 2
-        ? { severity: 'warning' as const, message: '🔥 Beast mode: 2-driver relay — doable with rotation', detail: 'Two drivers rotating can handle extended drives, but plan regular handoffs every 3–4 hours.', suggestion: 'Schedule driver swap stops at fuel breaks to stay sharp.' }
-        : numDrivers === 3
-        ? { severity: 'info' as const, message: '🔥 Beast mode: 3 drivers — good rotation coverage', detail: 'Three drivers gives solid rotation with ~8h shifts each on a 24h push.', suggestion: 'Coordinate handoffs so each driver gets adequate rest between shifts.' }
-        : { severity: 'info' as const, message: `🔥 Beast mode: ${numDrivers} drivers — buddy system rotation`, detail: `${numDrivers} drivers enables relay driving with roughly ${Math.round(24 / numDrivers)}h shifts. Keep pairs awake together for safety.`, suggestion: 'Use a buddy system — one driver, one co-pilot awake at all times.' };
-
-    warnings.push({
-      category: 'driver',
-      ...beastWarning,
     });
   }
 

@@ -62,9 +62,6 @@ function getNextDayDriveMinutes(
 /** Minimum hours of rest guaranteed between estimated Day-N arrival and Day-(N+1) departure. */
 const MIN_REST_HOURS = TRIP_CONSTANTS.rest.minHours;
 
-/** Beast mode daily driving cap — long but not infinite. */
-const BEAST_MODE_DAILY_HOURS = 24;
-
 // ---------------------------------------------------------------------------
 
 /**
@@ -160,10 +157,6 @@ export function splitTripByDays(
     // we skip the forced overnight so the user doesn't get an unwanted hotel stop.
     // e.g. Toronto → Ottawa → Toronto is ~9h22m driving, which fits in a 10h day.
     const totalRoundTripMinutes = processedSegments.reduce((sum, s) => sum + s.durationMinutes, 0);
-    // Beast mode bypasses per-day drive limits, but for long round trips (>24h total)
-    // we still stop at the destination. "No sleep limits" ≠ "skip Toronto entirely."
-    // Short round trips (≤24h) with beast mode ARE day trips — blast through and back.
-    const beastModeDayTrip = settings.beastMode && totalRoundTripMinutes <= 24 * 60;
     // If the user has set a multi-day date range, ALWAYS stop at the destination —
     // even if the total drive time would technically fit in a single day.
     // Without this guard, setting maxDriveHours=16h on a ~14h round trip (e.g.
@@ -174,8 +167,7 @@ export function splitTripByDays(
           (new Date(settings.returnDate + 'T00:00:00').getTime() -
            new Date(settings.departureDate + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24)) + 1)
       : 1;
-    const isRoundTripDayTrip = (totalRoundTripMinutes <= effectiveMaxDriveMinutes || beastModeDayTrip)
-      && calendarDays <= 1;
+    const isRoundTripDayTrip = totalRoundTripMinutes <= effectiveMaxDriveMinutes && calendarDays <= 1;
 
     if (
       !insertedFreeDays &&
@@ -212,7 +204,6 @@ export function splitTripByDays(
         currentDayDriveMinutes = 0;
       }
 
-      // Beast mode continuous drives may span multiple calendar days (e.g. 41h outbound).
       // Use snapshotted drive minutes (before reset above) + departure time to get true arrival.
       const outboundArrivalMs = currentDate.getTime() + outboundDriveMinutesSnapshot * 60 * 1000;
       // Use LOCAL date (not UTC .toISOString) so calendar math matches the user's experience.
@@ -259,10 +250,7 @@ export function splitTripByDays(
             // Use effectiveMaxDriveMinutes (includes 1h grace) to match the actual
             // day-splitting logic — otherwise the estimate is more pessimistic than
             // reality, and we over-insert free days.
-            const returnEffectiveMax = (settings.beastMode && (settings.returnBeastMode ?? false))
-              ? BEAST_MODE_DAILY_HOURS * 60 + TRIP_CONSTANTS.dayOverflow.toleranceHours * 60
-              : effectiveMaxDriveMinutes;
-            const returnDrivingDays = Math.max(1, Math.ceil(returnTotalMinutes / returnEffectiveMax));
+            const returnDrivingDays = Math.max(1, Math.ceil(returnTotalMinutes / effectiveMaxDriveMinutes));
 
             return Math.max(0, totalTripDays - outboundCalendarDays - returnDrivingDays);
           })()
@@ -324,10 +312,7 @@ export function splitTripByDays(
 
       // Set up for the return leg — next morning after free days
       dayNumber++;
-      const returnMaxMinutes = (settings.beastMode && (settings.returnBeastMode ?? false))
-        ? BEAST_MODE_DAILY_HOURS * 60
-        : maxDriveMinutes;
-      const returnLegHours = getNextDayDriveMinutes(processedSegments, i, returnMaxMinutes) / 60;
+      const returnLegHours = getNextDayDriveMinutes(processedSegments, i, maxDriveMinutes) / 60;
       const returnDepHour = computeSmartDepartureHour(settings, returnLegHours);
       // Departure city for the return leg = destination (segment[i].from).
       const returnDepTz = lngToIANA(processedSegments[i].from.lng);
@@ -352,16 +337,7 @@ export function splitTripByDays(
     // We also trigger a new day *after* this segment if it's an explicit overnight stop
     const isOvernightStop = segment.stopType === 'overnight';
 
-    // Directional beast mode: outbound always uses settings.beastMode; return leg
-    // additionally requires settings.returnBeastMode. Beast mode now caps at 24h/day —
-    // long drives still need a real overnight stop, just a bigger one.
-    const isReturnLeg = roundTripMidpoint !== undefined && segment._originalIndex >= roundTripMidpoint;
-    const effectiveBeastMode = settings.beastMode && (!isReturnLeg || (settings.returnBeastMode ?? false));
-
-    // Per-leg daily driving cap: beast mode uses 24h, normal mode uses the user's setting.
-    const effectiveDailyMax = effectiveBeastMode ? BEAST_MODE_DAILY_HOURS * 60 : maxDriveMinutes;
-    const effectiveDailyMaxWithTolerance = effectiveDailyMax + TRIP_CONSTANTS.dayOverflow.toleranceHours * 60;
-    const wouldExceedDailyMax = currentDayDriveMinutes + segmentDriveMinutes > effectiveDailyMaxWithTolerance;
+    const wouldExceedDailyMax = currentDayDriveMinutes + segmentDriveMinutes > effectiveMaxDriveMinutes;
 
     // Hub-snap: before splitting, check if extending the day by one segment would
     // land at a real city (hub). Humans prefer to push an extra hour to reach
@@ -414,7 +390,7 @@ export function splitTripByDays(
       const estimatedDayArrival = new Date(currentDate.getTime() + currentDayDriveMinutes * 60 * 1000);
       // Try the smart departure hour on the same calendar day as arrival.
       // Use how much driving is actually left (not the max) so short final legs get later starts.
-      const nextDayHours = getNextDayDriveMinutes(processedSegments, i, effectiveDailyMax) / 60;
+      const nextDayHours = getNextDayDriveMinutes(processedSegments, i, maxDriveMinutes) / 60;
       const depHour = computeSmartDepartureHour(settings, nextDayHours);
 
       // Resolve the departure city's timezone from the overnight stop location.

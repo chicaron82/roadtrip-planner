@@ -1,7 +1,6 @@
 import { Clock } from 'lucide-react';
 import type { TripSettings } from '../../types';
 import { Label } from '../UI/Label';
-import { Switch } from '../UI/Switch';
 
 interface DrivingPreferencesSectionProps {
   settings: TripSettings;
@@ -189,51 +188,6 @@ export function DrivingPreferencesSection({ settings, setSettings }: DrivingPref
           })()}
         </p>
       </div>
-      {/* Beast Mode */}
-      <div className={`mt-4 rounded-lg border transition-colors ${settings.beastMode ? 'bg-amber-500/10 border-amber-500/40' : 'bg-muted/20 border-border'}`}>
-        <div className="flex items-center justify-between p-3">
-          <div className="flex items-center gap-2">
-            <span className="text-base">🔥</span>
-            <div>
-              <Label className="cursor-pointer font-medium text-sm" htmlFor="beast-mode">
-                Beast Mode
-              </Label>
-              <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-                {settings.beastMode ? 'Drive-time cap bypassed — relay team only' : 'Override the overnight cap for marathon drives'}
-              </p>
-            </div>
-          </div>
-          <Switch
-            id="beast-mode"
-            checked={settings.beastMode ?? false}
-            onCheckedChange={(checked) => setSettings(prev => ({
-              ...prev,
-              beastMode: checked,
-              returnBeastMode: checked ? prev.returnBeastMode : false,
-            }))}
-          />
-        </div>
-
-        {/* Directional beast mode — only on round trips */}
-        {settings.beastMode && settings.isRoundTrip && (
-          <div className="flex items-center justify-between px-3 pb-3 pt-2 border-t border-amber-500/20">
-            <div>
-              <p className="text-xs font-medium">🛣️ Return leg too?</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                {settings.returnBeastMode
-                  ? 'Full beast both ways — marathon relay each direction.'
-                  : 'Outbound only — blast there, cruise back.'}
-              </p>
-            </div>
-            <Switch
-              id="beast-return"
-              checked={settings.returnBeastMode ?? false}
-              onCheckedChange={(checked) => setSettings(prev => ({ ...prev, returnBeastMode: checked }))}
-            />
-          </div>
-        )}
-      </div>
-
       {/* Fuel Price */}
       <div className="mt-3 flex items-center justify-between p-3 rounded-lg border bg-muted/20">
         <div className="flex items-center gap-2">
