@@ -50,7 +50,6 @@ export const DEFAULT_SETTINGS: TripSettings = {
   tripPreferences: [],
   targetArrivalHour: 21,
   dayTripDurationHours: 0,
-  beastMode: false,
 };
 
 // ==================== CONTEXT TYPE ====================

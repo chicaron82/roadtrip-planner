@@ -132,7 +132,9 @@ export function assignDrivers(
 
   return {
     assignments,
-    stats: Array.from(statsMap.values()),
+    // Only include drivers who actually drove — with fewer segments than drivers,
+    // trailing drivers get 0 minutes and showing them is misleading.
+    stats: Array.from(statsMap.values()).filter(s => s.segmentCount > 0),
     rotationPoints: actualRotationPoints,
   };
 }

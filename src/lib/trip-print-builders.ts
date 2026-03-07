@@ -232,7 +232,15 @@ export function buildDayHTML(
           const eMs = e.arrivalTime.getTime();
           return eMs >= depMs - 60_000 && eMs <= arrMs + 60_000;
         }
-        return formatDateInZone(e.arrivalTime, e.timezone ?? 'UTC') === day.date;
+        const matchesDate = formatDateInZone(e.arrivalTime, e.timezone ?? 'UTC') === day.date;
+        // When a previous day arrives after midnight (e.g. Day 1 arrives 3:15 AM Mar 8) and
+        // the current day departs the same morning (e.g. Day 2 departs 5:00 AM Mar 8), both
+        // share the same calendar date. Guard: only include events at or after this day's
+        // departure so the previous day's overnight stop doesn't appear at the top of Day 2.
+        if (matchesDate && depMs !== null) {
+          return e.arrivalTime.getTime() >= depMs - 60_000;
+        }
+        return matchesDate;
       })
     : [];
   const depEvent = dayEvents.find(e => e.type === 'departure');

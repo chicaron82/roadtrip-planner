@@ -90,6 +90,19 @@ export function analyzeDateWindow(
 ): FeasibilityWarning[] {
   const warnings: FeasibilityWarning[] = [];
 
+  // Round trip without return date — no time at destination is planned.
+  // Surface this before the calendar math (which requires both dates).
+  if (settings.isRoundTrip && !settings.returnDate) {
+    warnings.push({
+      category: 'date-window',
+      severity: 'warning',
+      message: 'Round trip with no return date — no time at destination',
+      detail: 'Without a return date the itinerary turns around immediately after arriving. You\'ll have no free days to explore your destination.',
+      suggestion: 'Set a return date to plan time at your destination. A good starting point: departure date + driving days there + desired stay + driving days back.',
+    });
+    return warnings;
+  }
+
   // Only meaningful when both dates are set (round-trip or fixed-end one-way).
   if (!settings.departureDate || !settings.returnDate) return warnings;
 

@@ -121,7 +121,7 @@ const SETTINGS_DEFAULTS_KEYS: (keyof TripSettings)[] = [
   'units', 'currency', 'maxDriveHours', 'numTravelers', 'numDrivers',
   'gasPrice', 'hotelPricePerNight', 'mealPricePerDay',
   'budgetMode', 'routePreference', 'stopFrequency',
-  'beastMode', 'includeStartingLocation',
+  'includeStartingLocation',
 ];
 
 export const saveSettingsDefaults = (settings: TripSettings): void => {

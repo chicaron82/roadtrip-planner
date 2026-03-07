@@ -125,14 +125,6 @@ export interface TripSettings {
   /** Hours spent at the destination before heading home on a round-trip day trip.
    *  0 = drive through with no scheduled stop. Shown in Smart Timeline as "Time at [Destination]". */
   dayTripDurationHours: number;
-  /** Beast mode: bypass forced overnight stops imposed by maxDriveHours.
-   *  Intended for multi-driver relay teams or emergency drives. Feasibility
-   *  engine will warn based on driver count. */
-  beastMode?: boolean;
-  /** Directional beast mode for round trips: when true, the return leg uses
-   *  normal drive-time limits even if outbound beast mode is active. Allows
-   *  "blast there, cruise back" routing. Only effective when isRoundTrip && beastMode. */
-  returnBeastMode?: boolean;
   /** Privacy: when false, template exports strip the starting location so
    *  the user's home address isn't embedded in shared templates. Default: true. */
   includeStartingLocation?: boolean;

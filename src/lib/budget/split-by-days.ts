@@ -323,6 +323,20 @@ export function splitTripByDays(
         return d.toISOString().split('T')[0];
       })();
       currentDate = parseLocalDateInTZ(returnDateStr, `${pad2(returnDepHour)}:00`, returnDepTz);
+
+      // Guard: return departure must be ≥ MIN_REST_HOURS after outbound arrival.
+      // Without a return date the computed departure can land before minimum rest
+      // (e.g. arrive LA at 3:15 AM, smart-departure = 5:00 AM = only 1h45m rest).
+      const outboundArrivalDate = new Date(outboundArrivalMs);
+      const earliestReturnDep = new Date(outboundArrivalDate.getTime() + MIN_REST_HOURS * 60 * 60 * 1000);
+      if (currentDate < earliestReturnDep) {
+        const nextReturnDateStr = (() => {
+          const d = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000);
+          return d.toISOString().split('T')[0];
+        })();
+        currentDate = parseLocalDateInTZ(nextReturnDateStr, `${pad2(returnDepHour)}:00`, returnDepTz);
+      }
+
       currentDay = createEmptyDay(dayNumber, currentDate);
       currentDay.totals.departureTime = currentDate.toISOString(); // Auto-computed return leg departure
       currentDayDriveMinutes = 0;

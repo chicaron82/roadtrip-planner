@@ -87,7 +87,6 @@ export function makeSettings(overrides: Partial<TripSettings> = {}): TripSetting
     tripPreferences: [],
     targetArrivalHour: 21,
     dayTripDurationHours: 0,
-    beastMode: false,
     includeStartingLocation: true,
     ...overrides,
   };

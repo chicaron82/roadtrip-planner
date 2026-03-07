@@ -116,7 +116,7 @@ describe('assignDrivers', () => {
     const result = assignDrivers([], 2, []);
 
     expect(result.assignments).toHaveLength(0);
-    expect(result.stats).toHaveLength(2);
+    expect(result.stats).toHaveLength(0); // no segments → no driver drove anything
     expect(result.rotationPoints).toHaveLength(0);
   });
 
