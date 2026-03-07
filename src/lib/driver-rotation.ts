@@ -136,11 +136,16 @@ export function assignDrivers(
  * Works with the ItineraryTimeline simulation output.
  */
 export function extractFuelStopIndices(
-  simulationItems: Array<{ type: string; index?: number }>,
+  simulationItems: Array<{ type: string; index?: number; suggestedStop?: { type: string } }>,
 ): number[] {
   const indices: number[] = [];
   for (let i = 0; i < simulationItems.length; i++) {
-    if (simulationItems[i].type === 'gas') {
+    const item = simulationItems[i];
+    // Handle both legacy 'gas' type and current 'suggested' type with a fuel suggestedStop.
+    // buildSimulationItems emits type='suggested' for fuel events (type='gas' is legacy).
+    const isFuelStop = item.type === 'gas' ||
+      (item.type === 'suggested' && item.suggestedStop?.type === 'fuel');
+    if (isFuelStop) {
       // The fuel stop happens before the next waypoint — find the next 'stop' item
       for (let j = i + 1; j < simulationItems.length; j++) {
         if (simulationItems[j].type === 'stop' && typeof simulationItems[j].index === 'number') {

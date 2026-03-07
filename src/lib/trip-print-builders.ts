@@ -215,10 +215,25 @@ export function buildDayHTML(
 ): string {
   const dayType = day.dayType || 'planned';
 
+  // Detect beast mode days that span multiple calendar dates (e.g. Sun → Wed continuous drive).
+  // A simple calendar-date filter drops all fuel stops on Mon/Tue for a Sunday-start beast day.
+  // When the day spans > 24h, use a time-range filter instead of date equality.
+  const depMs = day.totals.departureTime ? new Date(day.totals.departureTime).getTime() : null;
+  const arrMs = day.totals.arrivalTime ? new Date(day.totals.arrivalTime).getTime() : null;
+  const isMultiDayDrive = depMs !== null && arrMs !== null && arrMs - depMs > 24 * 3600 * 1000;
+
   // Derive dep/arr times from canonical TimedEvent[] — same source as the rendered
   // timeline events, so header and timeline always agree (Bugs 2+3).
   const dayEvents = dayType === 'planned' && timedEvents.length > 0
-    ? timedEvents.filter(e => formatDateInZone(e.arrivalTime, e.timezone ?? 'UTC') === day.date)
+    ? timedEvents.filter(e => {
+        if (isMultiDayDrive && depMs !== null && arrMs !== null) {
+          // Time-range filter: include all events within this day's continuous driving window.
+          // Captures Monday/Tuesday fuel stops that calendar-date equality would drop.
+          const eMs = e.arrivalTime.getTime();
+          return eMs >= depMs - 60_000 && eMs <= arrMs + 60_000;
+        }
+        return formatDateInZone(e.arrivalTime, e.timezone ?? 'UTC') === day.date;
+      })
     : [];
   const depEvent = dayEvents.find(e => e.type === 'departure');
   const arrEvent = dayEvents.find(e => e.type === 'overnight' || e.type === 'arrival');
@@ -316,10 +331,21 @@ export function buildDayHTML(
        Departure: ${depTimeStr}${sameTime ? '' : ` • Arrival: ${arrTimeStr}`}`
     : 'Rest day — no driving';
 
+  // For beast mode days spanning multiple calendar dates, show a date range in the header
+  // so readers know "Day 1 — Sun, Mar 8" actually runs through Wednesday.
+  const dateLabel = (() => {
+    if (!isMultiDayDrive || !arrMs) return day.dateFormatted;
+    const arrDate = new Date(arrMs);
+    const arrFormatted = arrDate.toLocaleDateString('en-US', {
+      weekday: 'short', month: 'short', day: 'numeric',
+    });
+    return `${day.dateFormatted} – ${arrFormatted}`;
+  })();
+
   return `
     <div class="day-section">
       <div class="day-header">
-        <h2>🗓️ Day ${day.dayNumber} — ${day.dateFormatted}</h2>
+        <h2>🗓️ Day ${day.dayNumber} — ${dateLabel}</h2>
         ${day.title ? `<div class="day-title">🚗 ${day.title}</div>` : ''}
         <div class="day-route">Route: ${routeLabel}</div>
         <div class="day-stats">${statsLine}</div>

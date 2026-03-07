@@ -262,6 +262,20 @@ export function useTripCalculation({
               e.arrivalTime.getTime() <= nextDepMs
             )
             .at(-1);
+
+          // Beast mode fallback: no overnight fires during a continuous drive, and
+          // the trip-wide arrival event only fires at the end of the return leg.
+          // The last waypoint in the window is the day-boundary event emitted at the
+          // outbound destination, carrying the true wall-clock arrival time.
+          if (!arrEvent) {
+            arrEvent = canonicalEvents
+              .filter(e =>
+                e.type === 'waypoint' &&
+                e.arrivalTime.getTime() > depMs &&
+                e.arrivalTime.getTime() <= nextDepMs
+              )
+              .at(-1);
+          }
         }
 
         // Overwrite departure/arrival with simulation truth.

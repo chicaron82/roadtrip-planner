@@ -374,8 +374,13 @@ export function buildTimedTimeline(
       }
 
       // Resolve a clean departure location name.
-      // Priority: overnight suggestion's hubName (has the real stop city) >
-      // previous segment's TO name > fallback to seg.from with transit cleanup.
+      // Priority: emitted overnight event's locationHint > suggestion hubName > prev segment TO.
+      //
+      // prevOvernight?.hubName is set by findHubInWindow(segment.to) in generate.ts, but the
+      // overnight *card* resolves the city via resolveWaypointName (proximity to sub-segment
+      // endpoints). These two lookups can disagree (e.g. "Rochester, MN" vs "Albert Lea, MN"
+      // for a split point in southern Minnesota). Using the emitted event's locationHint keeps
+      // the "Depart X" label on the next day in sync with "Overnight X" on the previous day.
       const prevOvernight = suggestions.find(
         s => s.type === 'overnight' && s.dayNumber === newDay.dayNumber - 1
       );
@@ -383,8 +388,25 @@ export function buildTimedTimeline(
       const prevToClean = prevSeg?.to.name &&
         !prevSeg.to.name.includes('(transit)') &&
         !prevSeg.to.name.includes(' → ');
-      let departLocation = prevOvernight?.hubName
+      const prevOvernightEvent = [...events].reverse().find(e => e.type === 'overnight');
+
+      // Free-day gap fallback: when the previous driving day was followed by free days
+      // (no overnight suggestion or event exists for those days), use the free day's
+      // recorded overnight location — that IS the canonical destination city.
+      // e.g. "Toronto, ON" from the Vancouver→Toronto beast mode followed by 2 Toronto free days.
+      const prevFreeDayLocation = (() => {
+        if (!tripDays) return null;
+        const lastFreeDay = [...tripDays]
+          .filter(d => d.dayType === 'free' && d.dayNumber < newDay.dayNumber && d.overnight)
+          .at(-1);
+        return lastFreeDay?.overnight?.location?.name ?? null;
+      })();
+
+      const rawOvernight = prevOvernightEvent?.locationHint?.replace(/^near\s+/, '')
+        ?? prevOvernight?.hubName
+        ?? prevFreeDayLocation
         ?? (prevToClean ? prevSeg!.to.name : null);
+      let departLocation = rawOvernight ?? null;
       // Hub cache fallback: transit sub-segments have names like "Dryden → Montreal (transit)"
       // which aren't real cities. Ask the hub cache for the nearest known city instead.
       if (!departLocation || departLocation.includes('(transit)') || departLocation.includes(' → ')) {
