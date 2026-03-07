@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useLayoutEffect } from 'react';
+import { useRef, useState, useLayoutEffect } from 'react';
 import { StepsBanner } from './components/StepsBanner';
 import { WizardContent } from './components/WizardContent';
 import { Map } from './components/Map/Map';
@@ -14,19 +14,14 @@ import {
   useWizard, useTripCalculation, useJournal, usePOI, useEagerRoute, useAddedStops,
   useStylePreset, useTripMode, useTripLoader, useMapInteractions, useURLHydration,
   usePlanningStepProps, useAppReset, useCalculateAndDiscover, useMapProps, useGhostCar,
+  useAppCallbacks,
 } from './hooks';
 import { useArrivalSnap } from './hooks/useArrivalSnap';
 import { getHistory } from './lib/storage';
 import { getWeightedFuelEconomyL100km } from './lib/unit-conversions';
-import type { TripSummary, POICategory } from './types';
+import type { TripSummary } from './types';
 
-/**
- * App.tsx — Root orchestrator (MEE Redesign)
- * Full-bleed map + floating glass panel. Hook layers:
- * L1 (independent) → L2 (calc, wizard) → L3 (loader, journal, map, URL)
- * 💚 My Experience Engine
- */
-
+/** App.tsx — Root orchestrator. Full-bleed map + floating glass panel. 💚 My Experience Engine */
 function AppContent() {
   const { locations, setLocations, vehicle, setVehicle, settings, setSettings, summary, setSummary } = useTripContext();
 
@@ -131,20 +126,14 @@ function AppContent() {
     setAdaptiveDefaults,
   });
 
-  // ==================== DERIVED / LOCAL CALLBACKS ====================
-
-  const error = poiError || calcError;
-  const clearError = useCallback(() => { clearPOIError(); clearCalcError(); }, [clearPOIError, clearCalcError]);
-  const copyShareLink = useCallback(() => triggerCopyShareLink(shareUrl), [triggerCopyShareLink, shareUrl]);
-
-  const handleToggleCategory = useCallback((id: POICategory) => {
-    const loc = locations.find(l => l.type === 'destination' && l.lat !== 0) || locations[0];
-    toggleCategory(id, loc.lat !== 0 ? loc : null, validRouteGeometry);
-  }, [locations, toggleCategory, validRouteGeometry]);
-
-  const goToNextStep = useCallback(() => {
-    if (planningStep === 2) calculateAndDiscover(); else wizardNext();
-  }, [planningStep, calculateAndDiscover, wizardNext]);
+  const { error, clearError, copyShareLink, handleToggleCategory, goToNextStep, handleResumeSession } =
+    useAppCallbacks({
+      poiError, calcError, clearPOIError, clearCalcError,
+      triggerCopyShareLink, shareUrl,
+      locations, toggleCategory, validRouteGeometry,
+      planningStep, calculateAndDiscover, wizardNext,
+      setTripMode,
+    });
 
   // Ghost car — time-based trip progress simulation
   const ghostCar = useGhostCar(summary, settings, asSuggestedStops);
@@ -155,11 +144,6 @@ function AppContent() {
     setLocations, setSummary, resetPOIs, resetWizard, clearStops, clearTripCalculation,
     setActiveChallenge, setTripOrigin, setTripConfirmed, setTripMode, setShowAdventureMode,
   });
-
-  const handleResumeSession = useCallback(() => {
-    setTripMode('plan');
-    if (planningStep === 3 && locations.length >= 2) calculateAndDiscover();
-  }, [setTripMode, planningStep, locations.length, calculateAndDiscover]);
 
   // ==================== RENDER ====================
 

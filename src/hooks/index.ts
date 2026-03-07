@@ -14,3 +14,4 @@ export { useAppReset } from './useAppReset';
 export { useCalculateAndDiscover } from './useCalculateAndDiscover';
 export { useMapProps } from './useMapProps';
 export { useGhostCar, type GhostCarState } from './useGhostCar';
+export { useAppCallbacks } from './useAppCallbacks';

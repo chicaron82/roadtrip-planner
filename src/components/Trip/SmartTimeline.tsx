@@ -136,9 +136,9 @@ export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [],
           setIsResolvingTowns(false);
         }
       })
-      .catch(() => {
+      .catch((err) => {
         setIsResolvingTowns(false);
-        /* network error — keep generic hints */
+        console.warn('[town-resolve] Network error — keeping generic hints', err);
       });
 
     return () => {

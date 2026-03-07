@@ -465,7 +465,9 @@ export function useTripCalculation({
 
       snapFuelStopsToStations(refreshedFuelStops).then(snapped => {
         setStrategicFuelStops(snapped);
-      }).catch(() => {});
+      }).catch((err) => {
+        console.warn('[fuel-snap] Overpass unavailable — keeping simulation-interpolated positions', err);
+      });
     },
     [localSummary, settings, vehicle, locations, onSummaryChange]
   );
