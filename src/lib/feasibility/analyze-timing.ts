@@ -108,14 +108,39 @@ export function analyzeDateWindow(
   const freeDays = totalCalendarDays - transitDays;
 
   if (freeDays < 0) {
-    // More transit days than calendar days — physically impossible.
+    // More transit days than calendar days — the route is longer than the date window.
     const extraDaysNeeded = Math.abs(freeDays);
+
+    // Find the longest pair of consecutive transit days — this is the binding leg
+    // that was split by the driving limit. Its combined time tells us the minimum
+    // max drive hours that would absorb the overflow (one leg → one day).
+    const transitDaysList = days.filter(d => d.segments.length > 0 && d.dayType !== 'free');
+    let maxPairMinutes = 0;
+    for (let i = 0; i < transitDaysList.length - 1; i++) {
+      const pair = transitDaysList[i].totals.driveTimeMinutes + transitDaysList[i + 1].totals.driveTimeMinutes;
+      maxPairMinutes = Math.max(maxPairMinutes, pair);
+    }
+
+    // Effective max = maxHours * 60 + 60 (1h grace). To fit the leg in one day:
+    // maxHours ≥ (pairMinutes − 60) / 60. Round up to nearest 0.5h for a clean value.
+    const rawNeededHours = (maxPairMinutes - 60) / 60;
+    const minMaxHours = maxPairMinutes > 0 && rawNeededHours > settings.maxDriveHours
+      ? Math.ceil(rawNeededHours * 2) / 2
+      : null;
+    const legLabel = maxPairMinutes > 0
+      ? `${Math.floor(maxPairMinutes / 60)}h ${maxPairMinutes % 60}m`
+      : null;
+
     warnings.push({
       category: 'date-window',
       severity: 'critical',
-      message: `Trip doesn't fit — need ${extraDaysNeeded} more day${extraDaysNeeded > 1 ? 's' : ''}`,
-      detail: `${transitDays} driving days needed but only ${totalCalendarDays} calendar day${totalCalendarDays > 1 ? 's' : ''} between departure and return.`,
-      suggestion: buildDateWindowSuggestion(settings, extraDaysNeeded),
+      message: `Trip extended to ${days.length} days — your plan allows ${totalCalendarDays}`,
+      detail: legLabel
+        ? `The longest leg is ~${legLabel} of driving, which exceeds your ${settings.maxDriveHours}h limit and forces an extra overnight. Routing estimates can differ slightly from other navigation apps.`
+        : `${transitDays} driving days needed but only ${totalCalendarDays} calendar day${totalCalendarDays > 1 ? 's' : ''} in your date range.`,
+      suggestion: minMaxHours
+        ? `Increase max drive hours to ${minMaxHours}h to cover the longest leg in one day — or extend your return date by ${extraDaysNeeded} day${extraDaysNeeded > 1 ? 's' : ''}.`
+        : buildDateWindowSuggestion(settings, extraDaysNeeded),
     });
   } else if (freeDays === 0) {
     // Same-day round trip (1 calendar day): "0 free days" is the expected and

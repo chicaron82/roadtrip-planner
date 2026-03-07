@@ -648,3 +648,91 @@ describe('analyzeDriveTime — reduce-hours hint on non-Day-1 close-to-limit day
     }
   });
 });
+
+// ==================== TESTS: analyzeDateWindow overflow ====================
+
+describe('analyzeDateWindow — trip overflow', () => {
+  // Simulate a route like Seattle→LA round trip: 4 transit days × 9h 8m each.
+  // User planned 3 calendar days but the route needs 4 (leg is ~18h 16m,
+  // which exceeds the 17h max + 1h grace = 18h effective).
+  const makeTransitDay = (n: number, driveMinutes = 548) => makeDay({
+    dayNumber: n,
+    totals: {
+      distanceKm: 900,
+      driveTimeMinutes: driveMinutes,
+      stopTimeMinutes: 30,
+      departureTime: `2025-08-${15 + n}T09:00:00`,
+      arrivalTime: `2025-08-${15 + n}T18:00:00`,
+    },
+  });
+
+  it('fires a critical warning when computed days exceed the planned date window', () => {
+    const days = [1, 2, 3, 4].map(n => makeTransitDay(n));
+    const summary = makeSummary(days);
+    const settings = makeSettings({
+      maxDriveHours: 17,
+      departureDate: '2025-08-16',
+      returnDate: '2025-08-18', // 3 calendar days
+    });
+
+    const result = analyzeFeasibility(summary, settings);
+    const w = result.warnings.find(w => w.category === 'date-window' && w.severity === 'critical');
+
+    expect(w).toBeDefined();
+    expect(w!.message).toContain('4 days');
+    expect(w!.message).toContain('3');
+  });
+
+  it('includes the specific min max hours needed in the suggestion', () => {
+    // maxPairMinutes = 548 + 548 = 1096 min
+    // rawNeededHours = (1096 - 60) / 60 = 17.267
+    // minMaxHours = ceil(17.267 * 2) / 2 = 17.5
+    const days = [1, 2, 3, 4].map(n => makeTransitDay(n));
+    const summary = makeSummary(days);
+    const settings = makeSettings({
+      maxDriveHours: 17,
+      departureDate: '2025-08-16',
+      returnDate: '2025-08-18',
+    });
+
+    const result = analyzeFeasibility(summary, settings);
+    const w = result.warnings.find(w => w.category === 'date-window' && w.severity === 'critical');
+
+    expect(w!.suggestion).toContain('17.5h');
+  });
+
+  it('includes the leg drive time in the detail message', () => {
+    // maxPairMinutes = 1096 min → 18h 16m
+    const days = [1, 2, 3, 4].map(n => makeTransitDay(n));
+    const summary = makeSummary(days);
+    const settings = makeSettings({
+      maxDriveHours: 17,
+      departureDate: '2025-08-16',
+      returnDate: '2025-08-18',
+    });
+
+    const result = analyzeFeasibility(summary, settings);
+    const w = result.warnings.find(w => w.category === 'date-window' && w.severity === 'critical');
+
+    expect(w!.detail).toContain('18h 16m');
+  });
+
+  it('falls back to generic suggestion when max hours already covers the binding leg', () => {
+    // maxPairMinutes = 1096, rawNeeded = 17.27h, but maxDriveHours = 20 > 17.27
+    // → minMaxHours is null → generic suggestion
+    const days = [1, 2, 3, 4].map(n => makeTransitDay(n));
+    const summary = makeSummary(days);
+    const settings = makeSettings({
+      maxDriveHours: 20,
+      departureDate: '2025-08-16',
+      returnDate: '2025-08-18',
+      numDrivers: 3,
+    });
+
+    const result = analyzeFeasibility(summary, settings);
+    const w = result.warnings.find(w => w.category === 'date-window' && w.severity === 'critical');
+
+    expect(w).toBeDefined();
+    expect(w!.suggestion).not.toContain('h to cover'); // no specific hours hint
+  });
+});
