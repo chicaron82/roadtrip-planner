@@ -233,16 +233,36 @@ export function useTripCalculation({
       const canonicalEvents = applyComboOptimization(timedRaw);
 
       // Patch each driving day's totals from canonical events.
+      //
+      // Departure events always fire on the day's calendar date (day.date), so date
+      // equality works for finding them. Arrival events for beast mode days may land
+      // on a later calendar date (e.g. depart Mar 6, arrive Mar 8 after 41h).
+      // Solution: date-match for departure; temporal-range for arrival (everything
+      // between this departure and the next departure event in the list).
       for (const day of tripDays) {
         if (day.segments.length === 0) continue;
 
-        // Filter events belonging to this calendar day (timezone-aware).
-        const dayEvents = canonicalEvents.filter(
-          e => formatDateInZone(e.arrivalTime, e.timezone ?? 'UTC') === day.date
+        const depEvent = canonicalEvents.find(
+          e => e.type === 'departure' && formatDateInZone(e.arrivalTime, e.timezone ?? 'UTC') === day.date
         );
 
-        const depEvent = dayEvents.find(e => e.type === 'departure');
-        const arrEvent = dayEvents.find(e => e.type === 'overnight' || e.type === 'arrival');
+        let arrEvent: (typeof canonicalEvents)[0] | undefined;
+        if (depEvent) {
+          const depMs = depEvent.arrivalTime.getTime();
+          // Find the first departure event that fires strictly after this one.
+          const nextDepMs = canonicalEvents.find(
+            e => e.type === 'departure' && e.arrivalTime.getTime() > depMs
+          )?.arrivalTime.getTime() ?? Infinity;
+
+          // Last overnight/arrival event in the window [this departure, next departure).
+          arrEvent = canonicalEvents
+            .filter(e =>
+              (e.type === 'overnight' || e.type === 'arrival') &&
+              e.arrivalTime.getTime() > depMs &&
+              e.arrivalTime.getTime() <= nextDepMs
+            )
+            .at(-1);
+        }
 
         // Overwrite departure/arrival with simulation truth.
         if (depEvent) day.totals.departureTime = depEvent.arrivalTime.toISOString();

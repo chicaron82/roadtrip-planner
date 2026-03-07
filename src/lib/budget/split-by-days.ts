@@ -181,6 +181,10 @@ export function splitTripByDays(
       segment._originalIndex === roundTripMidpoint &&
       (i === 0 || processedSegments[i - 1]._originalIndex < roundTripMidpoint)
     ) {
+      // Snapshot drive minutes BEFORE finalizing the day resets them to 0.
+      // Used below to compute actual outbound arrival time for beast mode date math.
+      const outboundDriveMinutesSnapshot = currentDayDriveMinutes;
+
       // Finalize outbound's last day — assign overnight at the destination.
       // Night 1 belongs to Day 1's budget (the day you drove, not the free day after).
       if (currentDay && currentDay.segments.length > 0) {
@@ -195,7 +199,7 @@ export function splitTripByDays(
           };
         }
 
-        finalizeTripDay(currentDay, gasRemaining, hotelRemaining, foodRemaining, settings);
+        finalizeTripDay(currentDay, gasRemaining, hotelRemaining, foodRemaining, settings, fuelStops);
         labelTransitDay(currentDay, segments);
         gasRemaining = currentDay.budget.gasRemaining;
         hotelRemaining = currentDay.budget.hotelRemaining;
@@ -205,14 +209,43 @@ export function splitTripByDays(
         currentDayDriveMinutes = 0;
       }
 
+      // Beast mode continuous drives may span multiple calendar days (e.g. 41h outbound).
+      // Use snapshotted drive minutes (before reset above) + departure time to get true arrival.
+      const outboundArrivalMs = currentDate.getTime() + outboundDriveMinutesSnapshot * 60 * 1000;
+      // Use LOCAL date (not UTC .toISOString) so calendar math matches the user's experience.
+      // e.g. arriving 11:32 PM PST on Mar 7 is "Mar 7" locally even though UTC shows "Mar 8".
+      const _arrivalLocalDate = new Date(outboundArrivalMs);
+      const outboundArrivalDateStr = [
+        _arrivalLocalDate.getFullYear(),
+        String(_arrivalLocalDate.getMonth() + 1).padStart(2, '0'),
+        String(_arrivalLocalDate.getDate()).padStart(2, '0'),
+      ].join('-');
+      const outboundArrivalBase = new Date(outboundArrivalDateStr + 'T09:00:00');
+
+      // If the drive arrives before noon local time (e.g. beast mode arrives ~1:30 AM),
+      // the arrival day itself is a rest day — free days start ON the arrival date.
+      // For normal trips arriving in the afternoon/evening, free days start the NEXT day.
+      const arrivalHour = new Date(outboundArrivalMs).getHours();
+      const arrivalDayIsFree = arrivalHour < 12 && outboundArrivalDateStr > (settings.departureDate ?? '');
+      // How many calendar dates did the outbound leg consume?
+      // Beast mode may span 2+ calendar dates while only counting as 1 "driving day".
+      // We count the span excluding the arrival day when it's free (group is resting there).
+      const departureDateMidnight = new Date((settings.departureDate ?? outboundArrivalDateStr) + 'T00:00:00');
+      const arrivalDateMidnight = new Date(outboundArrivalDateStr + 'T00:00:00');
+      const calendarDaySpan = Math.round((arrivalDateMidnight.getTime() - departureDateMidnight.getTime()) / (1000 * 60 * 60 * 24));
+      // If the arrival day is free, we don't count it as an "outbound day" — it belongs to free days.
+      // If not free (arrived evening), the arrival day is the last outbound day.
+      const outboundCalendarDays = arrivalDayIsFree ? calendarDaySpan : Math.max(days.length, calendarDaySpan + 1);
+
+      // Offset for free day indexing: 0 if arrival day is free (start there), 1 if not (start next day).
+      const freeDayOffset = arrivalDayIsFree ? 0 : 1;
+
       // Free days: only when a returnDate is explicitly set and there are
       // calendar days to spare between outbound and return driving days.
       const freeDaysCount = (settings.returnDate && settings.departureDate)
         ? (() => {
-            const departureDateObj = new Date(settings.departureDate + 'T00:00:00');
             const returnDateObj = new Date(settings.returnDate + 'T00:00:00');
-            const totalTripDays = Math.max(1, Math.round((returnDateObj.getTime() - departureDateObj.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-            const outboundDrivingDays = days.length;
+            const totalTripDays = Math.max(1, Math.round((returnDateObj.getTime() - departureDateMidnight.getTime()) / (1000 * 60 * 60 * 24)) + 1);
 
             // Estimate return driving days from remaining segment durations.
             // Don't assume return = outbound (timing differences can change day count).
@@ -225,7 +258,7 @@ export function splitTripByDays(
             // reality, and we over-insert free days.
             const returnDrivingDays = Math.max(1, Math.ceil(returnTotalMinutes / effectiveMaxDriveMinutes));
 
-            return Math.max(0, totalTripDays - outboundDrivingDays - returnDrivingDays);
+            return Math.max(0, totalTripDays - outboundCalendarDays - returnDrivingDays);
           })()
         : 0;
 
@@ -239,8 +272,9 @@ export function splitTripByDays(
 
         for (let j = 0; j < freeDaysCount; j++) {
           dayNumber++;
-          const lastDay = days[days.length - 1];
-          const freeDate = new Date(new Date(lastDay.date + 'T09:00:00').getTime() + 24 * 60 * 60 * 1000);
+          // Anchor to actual arrival date. freeDayOffset=0 when arrival day is free (beast mode
+          // arrives early morning), freeDayOffset=1 when arriving evening (normal trips).
+          const freeDate = new Date(outboundArrivalBase.getTime() + (j + freeDayOffset) * 24 * 60 * 60 * 1000);
           const freeDay = createEmptyDay(dayNumber, freeDate);
           freeDay.route = `📍 ${destName}`;
           freeDay.dayType = 'free';
@@ -289,7 +323,9 @@ export function splitTripByDays(
       // Departure city for the return leg = destination (segment[i].from).
       const returnDepTz = lngToIANA(processedSegments[i].from.lng);
       const returnDateStr = (() => {
-        const d = new Date(new Date(days[days.length - 1].date + 'T09:00:00').getTime() + 24 * 60 * 60 * 1000);
+        // Return departs the morning after the last free day (or the morning after arrival
+        // when there are no free days). freeDayOffset aligns with the free-day anchor logic above.
+        const d = new Date(outboundArrivalBase.getTime() + (freeDaysCount + freeDayOffset) * 24 * 60 * 60 * 1000);
         return d.toISOString().split('T')[0];
       })();
       currentDate = parseLocalDateInTZ(returnDateStr, `${pad2(returnDepHour)}:00`, returnDepTz);
@@ -316,8 +352,13 @@ export function splitTripByDays(
     // Hub-snap: before splitting, check if extending the day by one segment would
     // land at a real city (hub). Humans prefer to push an extra hour to reach
     // Thunder Bay rather than stop at an anonymous highway km marker.
+    // Directional beast mode: outbound always uses settings.beastMode; return leg
+    // additionally requires settings.returnBeastMode to bypass the drive-time cap.
+    const isReturnLeg = roundTripMidpoint !== undefined && segment._originalIndex >= roundTripMidpoint;
+    const effectiveBeastMode = settings.beastMode && (!isReturnLeg || (settings.returnBeastMode ?? false));
+
     let hubSnapExtend = false;
-    if (wouldExceedMaxDrive && currentDay.segments.length > 0 && !isOvernightStop && !settings.beastMode) {
+    if (wouldExceedMaxDrive && currentDay.segments.length > 0 && !isOvernightStop && !effectiveBeastMode) {
       const lastSeg = currentDay.segments[currentDay.segments.length - 1];
       const currentEndNearHub = findHubInWindow(lastSeg.to.lat, lastSeg.to.lng, 60);
       if (!currentEndNearHub && segmentDriveMinutes <= 90) {
@@ -327,7 +368,7 @@ export function splitTripByDays(
         }
       }
     }
-    if (wouldExceedMaxDrive && currentDay.segments.length > 0 && !isOvernightStop && !settings.beastMode && !hubSnapExtend) {
+    if (wouldExceedMaxDrive && currentDay.segments.length > 0 && !isOvernightStop && !effectiveBeastMode && !hubSnapExtend) {
       // Assign overnight — driver stops at end of this driving day.
       if (!currentDay.overnight) {
         const lastSeg = currentDay.segments[currentDay.segments.length - 1];

@@ -19,7 +19,9 @@ const KEYS = {
 const checkStorageVersion = () => {
   const currentVersion = localStorage.getItem(KEYS.VERSION);
   if (!currentVersion || parseInt(currentVersion) < STORAGE_VERSION) {
-    localStorage.setItem(KEYS.VERSION, STORAGE_VERSION.toString());
+    try {
+      localStorage.setItem(KEYS.VERSION, STORAGE_VERSION.toString());
+    } catch { /* private browsing — ignore */ }
   }
 };
 
@@ -52,13 +54,21 @@ export const saveBudgetProfile = (profile: SavedBudgetProfile): SavedBudgetProfi
     profiles.push(updated);
   }
 
-  localStorage.setItem(KEYS.BUDGET_PROFILES, JSON.stringify(profiles));
+  try {
+    localStorage.setItem(KEYS.BUDGET_PROFILES, JSON.stringify(profiles));
+  } catch (e) {
+    console.warn('Failed to save budget profile', e);
+  }
   return profiles;
 };
 
 export const removeBudgetProfile = (id: string): SavedBudgetProfile[] => {
   const profiles = getBudgetProfiles().filter(p => p.id !== id);
-  localStorage.setItem(KEYS.BUDGET_PROFILES, JSON.stringify(profiles));
+  try {
+    localStorage.setItem(KEYS.BUDGET_PROFILES, JSON.stringify(profiles));
+  } catch (e) {
+    console.warn('Failed to remove budget profile', e);
+  }
 
   // Clear default if we removed it
   if (localStorage.getItem(KEYS.DEFAULT_BUDGET_PROFILE) === id) {
@@ -73,8 +83,12 @@ export const setDefaultBudgetProfile = (id: string): void => {
     ...p,
     isDefault: p.id === id,
   }));
-  localStorage.setItem(KEYS.BUDGET_PROFILES, JSON.stringify(profiles));
-  localStorage.setItem(KEYS.DEFAULT_BUDGET_PROFILE, id);
+  try {
+    localStorage.setItem(KEYS.BUDGET_PROFILES, JSON.stringify(profiles));
+    localStorage.setItem(KEYS.DEFAULT_BUDGET_PROFILE, id);
+  } catch (e) {
+    console.warn('Failed to save default budget profile', e);
+  }
 };
 
 export const getDefaultBudgetProfile = (): SavedBudgetProfile | null => {
@@ -114,7 +128,11 @@ export const updateBudgetProfileStats = (id: string, tripName: string): void => 
         lastTripDate: new Date().toISOString(),
       },
     };
-    localStorage.setItem(KEYS.BUDGET_PROFILES, JSON.stringify(profiles));
+    try {
+      localStorage.setItem(KEYS.BUDGET_PROFILES, JSON.stringify(profiles));
+    } catch (e) {
+      console.warn('Failed to update budget profile stats', e);
+    }
   }
 };
 
@@ -152,5 +170,9 @@ export const saveLastTripBudget = (
     budget,
     numTravelers,
   };
-  localStorage.setItem(KEYS.LAST_TRIP_BUDGET, JSON.stringify(lastTrip));
+  try {
+    localStorage.setItem(KEYS.LAST_TRIP_BUDGET, JSON.stringify(lastTrip));
+  } catch (e) {
+    console.warn('Failed to save last trip budget', e);
+  }
 };

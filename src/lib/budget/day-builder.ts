@@ -26,7 +26,14 @@ export function labelTransitDay(day: TripDay, originalSegments: RouteSegment[]):
   if (!lastPS?._transitPart) return;
   const destName = originalSegments[lastPS._originalIndex]?.to.name.split(',')[0].trim();
   if (destName) {
-    day.title = `In Transit to ${destName} (Day ${lastPS._transitPart.index + 1}/${lastPS._transitPart.total})`;
+    // Beast mode / marathon: all sub-segments driven in one continuous push.
+    // Showing "(Day 3/3)" when there's only 1 day card is misleading — use a
+    // continuous-drive label instead.
+    if (day.totals.driveTimeMinutes > 16 * 60) {
+      day.title = `Continuous Drive to ${destName}`;
+    } else {
+      day.title = `In Transit to ${destName} (Day ${lastPS._transitPart.index + 1}/${lastPS._transitPart.total})`;
+    }
   }
 }
 

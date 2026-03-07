@@ -8,11 +8,11 @@ interface TravelersSectionProps {
   setSettings: React.Dispatch<React.SetStateAction<TripSettings>>;
 }
 
-/** Default max drive hours per day based on driver count. */
+/** Default max drive hours per day based on driver count.
+ *  Each driver contributes 8h of capacity (one drives, others rest).
+ *  Capped at 24h — continuous relay ceiling. */
 function getDefaultDriveHours(numDrivers: number): number {
-  if (numDrivers >= 3) return 16;
-  if (numDrivers === 2) return 12;
-  return 8;
+  return Math.min(numDrivers * 8, 24);
 }
 
 export function TravelersSection({ settings, setSettings }: TravelersSectionProps) {
@@ -151,8 +151,8 @@ export function TravelersSection({ settings, setSettings }: TravelersSectionProp
         {settings.numDrivers === 1
           ? 'Solo driver? Recommended max 8 hours per day for safety.'
           : settings.numDrivers === 2
-          ? 'With 2 drivers, you can comfortably drive 12 hours by switching every 3 hours!'
-          : `${settings.numDrivers} drivers allows for team rotation - up to 16+ hours possible!`}
+          ? 'Co-pilot mode — 2 drivers unlocks up to 16h/day. One drives, one rests.'
+          : `${settings.numDrivers}-driver relay — up to ${Math.min(settings.numDrivers * 8, 24)}h/day. True marathon mode.`}
       </p>
     </div>
   );

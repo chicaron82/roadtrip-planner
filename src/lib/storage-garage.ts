@@ -17,7 +17,9 @@ const KEYS = {
 const checkStorageVersion = () => {
   const currentVersion = localStorage.getItem(KEYS.VERSION);
   if (!currentVersion || parseInt(currentVersion) < STORAGE_VERSION) {
-    localStorage.setItem(KEYS.VERSION, STORAGE_VERSION.toString());
+    try {
+      localStorage.setItem(KEYS.VERSION, STORAGE_VERSION.toString());
+    } catch { /* private browsing — ignore */ }
   }
 };
 
@@ -51,13 +53,21 @@ export const saveToGarage = (vehicle: SavedVehicle) => {
   } else {
     garage.push(updatedVehicle);
   }
-  localStorage.setItem(KEYS.GARAGE, JSON.stringify(garage));
+  try {
+    localStorage.setItem(KEYS.GARAGE, JSON.stringify(garage));
+  } catch (e) {
+    console.warn('Failed to save garage', e);
+  }
   return garage;
 };
 
 export const removeFromGarage = (id: string) => {
   const garage = getGarage().filter(v => v.id !== id);
-  localStorage.setItem(KEYS.GARAGE, JSON.stringify(garage));
+  try {
+    localStorage.setItem(KEYS.GARAGE, JSON.stringify(garage));
+  } catch (e) {
+    console.warn('Failed to save garage', e);
+  }
   return garage;
 };
 
@@ -72,8 +82,12 @@ export const setDefaultVehicleId = (id: string) => {
     ...v,
     isDefault: v.id === id
   }));
-  localStorage.setItem(KEYS.GARAGE, JSON.stringify(updated));
-  localStorage.setItem(KEYS.DEFAULT_VEHICLE, id);
+  try {
+    localStorage.setItem(KEYS.GARAGE, JSON.stringify(updated));
+    localStorage.setItem(KEYS.DEFAULT_VEHICLE, id);
+  } catch (e) {
+    console.warn('Failed to save default vehicle', e);
+  }
 };
 
 export const getDefaultVehicle = (): SavedVehicle | null => {

@@ -54,7 +54,11 @@ export const toggleFavorite = (location: Location) => {
   } else {
     favorites.push({ ...location, isFavorite: true });
   }
-  localStorage.setItem(KEYS.FAVORITES, JSON.stringify(favorites));
+  try {
+    localStorage.setItem(KEYS.FAVORITES, JSON.stringify(favorites));
+  } catch (e) {
+    console.warn('Failed to save favorites', e);
+  }
   return favorites;
 };
 
@@ -78,7 +82,11 @@ export const addToHistory = (summary: TripSummary) => {
 
     // Keep last 5
     const updated = [newEntry, ...history].slice(0, 5);
-    localStorage.setItem(KEYS.HISTORY, JSON.stringify(updated));
+    try {
+      localStorage.setItem(KEYS.HISTORY, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Failed to save trip history', e);
+    }
     return updated;
 };
 

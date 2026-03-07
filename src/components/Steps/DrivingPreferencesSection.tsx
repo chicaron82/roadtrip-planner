@@ -9,7 +9,7 @@ interface DrivingPreferencesSectionProps {
 }
 
 export function DrivingPreferencesSection({ settings, setSettings }: DrivingPreferencesSectionProps) {
-  const maxSlider = settings.numDrivers === 1 ? 10 : settings.numDrivers === 2 ? 16 : 20;
+  const maxSlider = Math.min(settings.numDrivers * 8, 24);
 
   return (
     <div className="border-t pt-4">
@@ -96,18 +96,28 @@ export function DrivingPreferencesSection({ settings, setSettings }: DrivingPref
           <div className="relative mt-1 flex justify-between text-[10px] text-muted-foreground">
             <span>1h</span>
             <span className="absolute" style={{ left: `${(8 - 1) / (maxSlider - 1) * 100}%`, transform: 'translateX(-50%)' }}>8h</span>
-            <span className="absolute" style={{ left: `${(12 - 1) / (maxSlider - 1) * 100}%`, transform: 'translateX(-50%)' }}>12h</span>
-            {settings.numDrivers > 2 && (
-              <span className="absolute" style={{ left: `${(16 - 1) / (20 - 1) * 100}%`, transform: 'translateX(-50%)' }}>16h</span>
+            {maxSlider >= 16 && (
+              <span className="absolute" style={{ left: `${(16 - 1) / (maxSlider - 1) * 100}%`, transform: 'translateX(-50%)' }}>16h</span>
             )}
-            <span>
-              {settings.numDrivers === 1 ? '10h' : settings.numDrivers === 2 ? '16h' : '20h'}
-            </span>
+            {maxSlider >= 24 && (
+              <span className="absolute" style={{ left: `${(24 - 1) / (maxSlider - 1) * 100}%`, transform: 'translateX(-50%)' }}>24h</span>
+            )}
+            <span>{maxSlider}h</span>
           </div>
         </div>
 
+        {/* Co-pilot advisory — shown when driver count unlocks extended hours */}
+        {settings.numDrivers >= 2 && (
+          <p className="text-xs mt-2 p-2 rounded-md border border-blue-500/30 bg-blue-500/10 text-blue-400">
+            🚗 Co-pilot mode — driver rotation active. Max {Math.min(settings.numDrivers * 8, 24)}h/day available.
+            {settings.maxDriveHours < Math.min(settings.numDrivers * 8, 24) && (
+              <span className="text-muted-foreground"> (You've set a lower limit — that's fine.)</span>
+            )}
+          </p>
+        )}
+
         {/* Dynamic Recommendation */}
-        <p className="info-banner-blue text-xs mt-3 p-2 rounded-md border">
+        <p className="info-banner-blue text-xs mt-2 p-2 rounded-md border">
           {settings.numDrivers === 1 &&
             settings.maxDriveHours <= 8 &&
             '✨ Recommended: 8 hours max for safe solo driving.'}
@@ -120,17 +130,17 @@ export function DrivingPreferencesSection({ settings, setSettings }: DrivingPref
             '🛑 Solo driver limit exceeded. Consider adding a second driver or splitting into multi-day trip.'}
           {settings.numDrivers === 2 &&
             settings.maxDriveHours <= 12 &&
-            '✨ Perfect! With 2 drivers, swap every 3-4 hours for optimal alertness.'}
+            '✨ With 2 drivers, swap every 3-4 hours for optimal alertness.'}
           {settings.numDrivers === 2 &&
             settings.maxDriveHours > 12 &&
             settings.maxDriveHours <= 16 &&
-            '⚡ Extended driving (12-16h). Ensure both drivers are well-rested!'}
+            '⚡ Extended co-pilot drive (12-16h). Ensure both drivers are well-rested!'}
           {settings.numDrivers >= 3 &&
-            settings.maxDriveHours <= 12 &&
-            '✨ Team driving! Rotate every 2-3 hours for maximum comfort.'}
+            settings.maxDriveHours <= 16 &&
+            '✨ Team rotation! Swap every 2-3 hours for maximum comfort.'}
           {settings.numDrivers >= 3 &&
-            settings.maxDriveHours > 12 &&
-            '🚀 Marathon mode! Ensure proper rotation and rest breaks.'}
+            settings.maxDriveHours > 16 &&
+            '🚀 Marathon relay mode! True continuous drive — ensure proper rotation.'}
         </p>
       </div>
 
@@ -180,23 +190,48 @@ export function DrivingPreferencesSection({ settings, setSettings }: DrivingPref
         </p>
       </div>
       {/* Beast Mode */}
-      <div className={`mt-4 flex items-center justify-between p-3 rounded-lg border transition-colors ${settings.beastMode ? 'bg-amber-500/10 border-amber-500/40' : 'bg-muted/20 border-border'}`}>
-        <div className="flex items-center gap-2">
-          <span className="text-base">🔥</span>
-          <div>
-            <Label className="cursor-pointer font-medium text-sm" htmlFor="beast-mode">
-              Beast Mode
-            </Label>
-            <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-              {settings.beastMode ? 'Drive-time cap bypassed — relay team only' : 'Override the overnight cap for marathon drives'}
-            </p>
+      <div className={`mt-4 rounded-lg border transition-colors ${settings.beastMode ? 'bg-amber-500/10 border-amber-500/40' : 'bg-muted/20 border-border'}`}>
+        <div className="flex items-center justify-between p-3">
+          <div className="flex items-center gap-2">
+            <span className="text-base">🔥</span>
+            <div>
+              <Label className="cursor-pointer font-medium text-sm" htmlFor="beast-mode">
+                Beast Mode
+              </Label>
+              <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                {settings.beastMode ? 'Drive-time cap bypassed — relay team only' : 'Override the overnight cap for marathon drives'}
+              </p>
+            </div>
           </div>
+          <Switch
+            id="beast-mode"
+            checked={settings.beastMode ?? false}
+            onCheckedChange={(checked) => setSettings(prev => ({
+              ...prev,
+              beastMode: checked,
+              returnBeastMode: checked ? prev.returnBeastMode : false,
+            }))}
+          />
         </div>
-        <Switch
-          id="beast-mode"
-          checked={settings.beastMode ?? false}
-          onCheckedChange={(checked) => setSettings(prev => ({ ...prev, beastMode: checked }))}
-        />
+
+        {/* Directional beast mode — only on round trips */}
+        {settings.beastMode && settings.isRoundTrip && (
+          <div className="flex items-center justify-between px-3 pb-3 pt-2 border-t border-amber-500/20">
+            <div>
+              <p className="text-xs font-medium">🛣️ Return leg too?</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {settings.returnBeastMode
+                  ? 'Full beast both ways — marathon relay each direction.'
+                  : 'Outbound only — blast there, cruise back.'}
+              </p>
+            </div>
+            <Switch
+              id="beast-return"
+              checked={settings.returnBeastMode ?? false}
+              onCheckedChange={(checked) => setSettings(prev => ({ ...prev, returnBeastMode: checked }))}
+            />
+          </div>
+        )}
       </div>
 
       {/* Fuel Price */}
