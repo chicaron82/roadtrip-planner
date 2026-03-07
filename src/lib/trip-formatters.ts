@@ -9,11 +9,11 @@
 import { KM_TO_MILES } from './constants';
 import { formatTimeInZone, normalizeToIANA } from './trip-timezone';
 
-export function formatDistance(km: number, units: 'metric' | 'imperial'): string {
+export function formatDistance(km: number, units: 'metric' | 'imperial', precision: number = 1): string {
   if (units === 'imperial') {
-    return `${(km * KM_TO_MILES).toFixed(1)} mi`;
+    return `${(km * KM_TO_MILES).toFixed(precision)} mi`;
   }
-  return `${km.toFixed(1)} km`;
+  return `${km.toFixed(precision)} km`;
 }
 
 export function formatCurrency(amount: number, currency: 'CAD' | 'USD'): string {

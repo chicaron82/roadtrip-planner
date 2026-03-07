@@ -1,5 +1,6 @@
 import type { TripDay } from '../../types';
 import type { FeasibilityStatus, FeasibilityWarning } from './types';
+import { formatDuration as formatDurationCanonical } from '../trip-formatters';
 
 export function calculateTotalBudgetUsed(days: TripDay[]): number {
   return days.reduce((sum, d) => sum + d.budget.dayTotal, 0);
@@ -11,13 +12,8 @@ export function deriveStatus(warnings: FeasibilityWarning[]): FeasibilityStatus 
   return 'on-track';
 }
 
-export function formatDuration(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = Math.round(minutes % 60);
-  if (h === 0) return `${m}m`;
-  if (m === 0) return `${h}h`;
-  return `${h}h ${m}m`;
-}
+/** Delegates to the canonical formatter in trip-formatters.ts. */
+export const formatDuration = formatDurationCanonical;
 
 export function formatTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });

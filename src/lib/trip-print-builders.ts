@@ -9,18 +9,16 @@ import type { TripSummary, TripSettings, TripDay, RouteSegment } from '../types'
 import type { DriverRotationResult } from './driver-rotation';
 import type { TimedEvent } from './trip-timeline';
 import { formatDriveTime } from './driver-rotation';
-import { formatCurrencySimple as formatCurrency } from './calculations';
+import { formatCurrencySimple as formatCurrency, formatDistance as formatDistanceFull } from './calculations';
 import { formatTime, formatDuration } from './trip-timeline';
 import { formatTimeInZone, lngToIANA, formatDateInZone } from './trip-timezone';
-import { KM_TO_MILES } from './constants';
 import { PRINT_STYLES } from './trip-print-styles';
 
 // ── Formatting helpers ────────────────────────────────────────────────────────
 
-export function formatDistance(km: number, units: 'metric' | 'imperial'): string {
-  if (units === 'imperial') return `${(km * KM_TO_MILES).toFixed(0)} mi`;
-  return `${km.toFixed(0)} km`;
-}
+/** Print-view distance: whole numbers (no decimal) for cleaner printouts. */
+const formatDistance = (km: number, units: 'metric' | 'imperial') =>
+  formatDistanceFull(km, units, 0);
 
 export function formatTimeFromISO(iso: string, tz?: string): string {
   // Round to nearest 15 minutes — no one plans to arrive at 15:13 exactly.
