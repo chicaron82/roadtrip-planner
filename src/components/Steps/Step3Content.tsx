@@ -21,6 +21,7 @@ import { TripBottomActions } from '../Trip/TripBottomActions';
 import { RecentTrips } from '../Trip/RecentTrips';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
 import type { PlanningStep } from '../../hooks';
+import type { TimedEvent } from '../../lib/trip-timeline';
 import { useTripContext } from '../../contexts/TripContext';
 
 interface Step3ContentProps {
@@ -54,6 +55,7 @@ interface Step3ContentProps {
   onDismissPOI: (poiId: string) => void;
   onGoToStep: (step: PlanningStep) => void;
   externalStops?: SuggestedStop[];
+  precomputedEvents?: TimedEvent[];
   tripConfirmed: boolean;
   addedStopCount: number;
   onConfirmTrip: () => void;
@@ -92,6 +94,7 @@ export function Step3Content({
   onDismissPOI,
   onGoToStep,
   externalStops,
+  precomputedEvents,
   tripConfirmed,
   addedStopCount,
   onConfirmTrip,
@@ -208,7 +211,7 @@ export function Step3Content({
               </Button>
             )}
             {summary && (
-              <Button size="sm" variant="outline" className="gap-1" onClick={() => printTrip({ summary, settings, vehicle })}>
+              <Button size="sm" variant="outline" className="gap-1" onClick={() => printTrip({ summary, settings, vehicle, precomputedEvents })}>
                 <Printer className="h-3 w-3" /> Print
               </Button>
             )}
@@ -359,6 +362,7 @@ export function Step3Content({
             settings={settings}
             vehicle={vehicle}
             shareUrl={shareUrl}
+            precomputedEvents={precomputedEvents}
             onOpenGoogleMaps={onOpenGoogleMaps}
             onCopyShareLink={onCopyShareLink}
           />

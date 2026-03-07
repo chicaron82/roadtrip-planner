@@ -307,17 +307,17 @@ export function splitTripByDays(
           const hotelCost = roomsNeeded * getHotelMultiplier(destination?.name ?? '') * settings.hotelPricePerNight;
           const foodCost = settings.mealPricePerDay * settings.numTravelers;
 
-          hotelRemaining -= hotelCost;
-          foodRemaining -= foodCost;
-
           const roundedHotel = ceilToNearest(hotelCost, 5);
           const roundedFood = ceilToNearest(foodCost, 5);
+          hotelRemaining -= roundedHotel;
+          foodRemaining -= roundedFood;
+
           freeDay.budget = {
             gasUsed: 0,
             hotelCost: roundedHotel,
             foodEstimate: roundedFood,
             miscCost: 0,
-            dayTotal: ceilToNearest(roundedHotel + roundedFood, 10),
+            dayTotal: roundedHotel + roundedFood,
             gasRemaining: Math.round(gasRemaining * 100) / 100,
             hotelRemaining: Math.round(hotelRemaining * 100) / 100,
             foodRemaining: Math.round(foodRemaining * 100) / 100,
@@ -593,17 +593,17 @@ export function splitTripByDays(
         const hotelCost = roomsNeeded * getHotelMultiplier(destination?.name ?? '') * settings.hotelPricePerNight;
         const foodCost = settings.mealPricePerDay * settings.numTravelers;
 
-        hotelRemaining -= hotelCost;
-        foodRemaining -= foodCost;
-
         const roundedHotel2 = ceilToNearest(hotelCost, 5);
         const roundedFood2 = ceilToNearest(foodCost, 5);
+        hotelRemaining -= roundedHotel2;
+        foodRemaining -= roundedFood2;
+
         freeDay.budget = {
           gasUsed: 0,
           hotelCost: roundedHotel2,
           foodEstimate: roundedFood2,
           miscCost: 0,
-          dayTotal: ceilToNearest(roundedHotel2 + roundedFood2, 10),
+          dayTotal: roundedHotel2 + roundedFood2,
           gasRemaining: Math.round(gasRemaining * 100) / 100,
           hotelRemaining: Math.round(hotelRemaining * 100) / 100,
           foodRemaining: Math.round(foodRemaining * 100) / 100,

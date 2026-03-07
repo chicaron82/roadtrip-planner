@@ -8,24 +8,21 @@ export function calculateCostBreakdown(
   days: TripDay[],
   numTravelers: number,
 ): CostBreakdown {
+  // Day-level values are already ceiled by day-builder (ceilToNearest $5).
+  // Just sum — no re-ceiling to avoid compounding upward drift.
   const fuel = days.reduce((sum, d) => sum + d.budget.gasUsed, 0);
   const accommodation = days.reduce((sum, d) => sum + d.budget.hotelCost, 0);
   const meals = days.reduce((sum, d) => sum + d.budget.foodEstimate, 0);
   const misc = days.reduce((sum, d) => sum + d.budget.miscCost, 0);
-
-  const roundedFuel = ceilToNearest(fuel, 5);
-  const roundedAccommodation = ceilToNearest(accommodation, 5);
-  const roundedMeals = ceilToNearest(meals, 5);
-  const roundedMisc = ceilToNearest(misc, 5);
-  const roundedTotal = ceilToNearest(roundedFuel + roundedAccommodation + roundedMeals + roundedMisc, 10);
+  const total = fuel + accommodation + meals + misc;
 
   return {
-    fuel: roundedFuel,
-    accommodation: roundedAccommodation,
-    meals: roundedMeals,
-    misc: roundedMisc,
-    total: roundedTotal,
-    perPerson: numTravelers > 0 ? ceilToNearest(roundedTotal / numTravelers, 5) : roundedTotal,
+    fuel,
+    accommodation,
+    meals,
+    misc,
+    total,
+    perPerson: numTravelers > 0 ? ceilToNearest(total / numTravelers, 5) : total,
   };
 }
 

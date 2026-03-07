@@ -228,10 +228,10 @@ export function finalizeTripDay(
     hotelCost: roundedHotel,
     foodEstimate: roundedFood,
     miscCost: 0,
-    dayTotal: ceilToNearest(roundedGas + roundedHotel + roundedFood, 10),
-    gasRemaining: Math.round((gasRemaining - gasUsed) * 100) / 100,
-    hotelRemaining: Math.round((hotelRemaining - hotelCost) * 100) / 100,
-    foodRemaining: Math.round((foodRemaining - foodEstimate) * 100) / 100,
+    dayTotal: roundedGas + roundedHotel + roundedFood,
+    gasRemaining: Math.round((gasRemaining - roundedGas) * 100) / 100,
+    hotelRemaining: Math.round((hotelRemaining - roundedHotel) * 100) / 100,
+    foodRemaining: Math.round((foodRemaining - roundedFood) * 100) / 100,
   };
 }
 

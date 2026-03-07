@@ -29,6 +29,9 @@ interface TripPrintViewProps {
    *  suggestions (with user accept/dismiss state), and the PDF
    *  renders exactly what the user sees. */
   activeSuggestions?: SuggestedStop[];
+  /** Pre-computed timed events from the canonical timeline.
+   *  Skips the entire buildTimedTimeline rebuild when provided. */
+  precomputedEvents?: TimedEvent[];
 }
 
 
@@ -56,10 +59,12 @@ export function printTrip(props: TripPrintViewProps): void {
     driverRotation = assignDrivers(flatSegments, settings.numDrivers, fuelIndices);
   }
 
-  // Build timed events — use caller's suggestions when available (single source of truth),
-  // otherwise regenerate fresh (backwards compatible for callers that don't pass suggestions).
+  // Use pre-computed events from the canonical timeline when available,
+  // otherwise rebuild from scratch (backwards compatible).
   let timedEvents: TimedEvent[] = [];
-  if (vehicle) {
+  if (props.precomputedEvents) {
+    timedEvents = props.precomputedEvents;
+  } else if (vehicle) {
     const allSuggestions = props.activeSuggestions
       ?? generateSmartStops(
         summary.segments,

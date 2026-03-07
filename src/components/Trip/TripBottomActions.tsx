@@ -1,17 +1,19 @@
 import { Share2, Printer } from 'lucide-react';
 import { printTrip } from './TripPrintView';
 import type { TripSummary, TripSettings, Vehicle } from '../../types';
+import type { TimedEvent } from '../../lib/trip-timeline';
 
 interface Props {
   summary: TripSummary;
   settings: TripSettings;
   vehicle: Vehicle;
   shareUrl: string | null;
+  precomputedEvents?: TimedEvent[];
   onOpenGoogleMaps: () => void;
   onCopyShareLink: () => void;
 }
 
-export function TripBottomActions({ summary, settings, vehicle, shareUrl, onOpenGoogleMaps, onCopyShareLink }: Props) {
+export function TripBottomActions({ summary, settings, vehicle, shareUrl, precomputedEvents, onOpenGoogleMaps, onCopyShareLink }: Props) {
   return (
     <div
       className="flex items-center justify-center gap-2 pt-1 pb-0.5 flex-wrap"
@@ -38,7 +40,7 @@ export function TripBottomActions({ summary, settings, vehicle, shareUrl, onOpen
         </button>
       )}
       <button
-        onClick={() => printTrip({ summary, settings, vehicle })}
+        onClick={() => printTrip({ summary, settings, vehicle, precomputedEvents })}
         className="inline-flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-full transition-all"
         style={{ background: 'rgba(245,240,232,0.05)', border: '1px solid rgba(245,240,232,0.1)', color: 'rgba(245,240,232,0.45)' }}
       >

@@ -64,7 +64,7 @@ function AppContent() {
 
   // Trip calculation
   const {
-    isCalculating, error: calcError, shareUrl,
+    isCalculating, error: calcError, shareUrl, canonicalTimeline,
     strategicFuelStops, showOvernightPrompt, suggestedOvernightStop,
     dismissOvernightPrompt, calculateTrip,
     routeStrategies, activeStrategyIndex, selectStrategy,
@@ -174,6 +174,7 @@ function AppContent() {
     updateStopType, updateDayNotes, updateDayTitle, updateDayType, updateDayOvernight,
     poiSuggestions, poiInference, isLoadingPOIs, poiPartialResults, addPOI, addStop, dismissPOI,
     openInGoogleMaps, copyShareLink,
+    precomputedEvents: canonicalTimeline?.events,
   });
 
   return (

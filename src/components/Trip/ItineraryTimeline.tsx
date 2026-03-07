@@ -3,14 +3,14 @@ import { Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import type { TripSummary, TripSettings, Vehicle, StopType, TripDay, DayType, Activity, DayOption, OvernightStop, POISuggestion } from '../../types';
 import { SmartSuggestions } from './SmartSuggestions';
 import { SuggestedStopCard } from './SuggestedStopCard';
-import { DiscoveryPanel } from './DiscoveryPanel';
-import { ActivityEditor, ActivityBadge } from './ActivityEditor';
+import { ActivityBadge } from './ActivityEditor';
 import { StartNode, GasStopNode, SuggestedStopNode, WaypointNode } from './TimelineNode';
 import { DaySection } from './DaySection';
 import { DriverStatsPanel } from './DriverStatsPanel';
-import { OvernightEditor } from './OvernightEditor';
 import { useTimelineData, type StopOverrides } from './useTimelineData';
 import { TripHeaderSummary } from './TripHeaderSummary';
+import { DestinationDiscovery } from './DestinationDiscovery';
+import { TimelineDialogs, type EditingDayActivity } from './TimelineDialogs';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
 
 // ==================== PROPS ====================
@@ -113,11 +113,7 @@ export function ItineraryTimeline({
   const totalDays = drivingDays + freeDays;
 
   // Track the standalone activity currently being edited on a Free Day
-  const [editingDayActivity, setEditingDayActivity] = useState<{
-    dayNumber: number;
-    activityIndex: number;
-    activity?: Activity;
-  } | null>(null);
+  const [editingDayActivity, setEditingDayActivity] = useState<EditingDayActivity | null>(null);
 
   // Last stop's flat index — used for destination detection
   const lastStopFlatIndex = useMemo(() => {
@@ -363,114 +359,30 @@ export function ItineraryTimeline({
       )}
 
       {/* Destination Discovery */}
-      {onAddPOI && onDismissPOI && (poiSuggestions?.length || isLoadingPOIs) && (() => {
-        const segs = summary.segments;
-        const originName = segs[0]?.from.name;
-        const lastSegTo = segs[segs.length - 1]?.to.name;
-        const isRoundTrip = !!(originName && lastSegTo && originName === lastSegTo);
-        const roundTripMidpoint = summary.roundTripMidpoint;
-        const destinationName = isRoundTrip
-          ? segs[Math.ceil(segs.length / 2) - 1]?.to.name || 'Destination'
-          : lastSegTo || 'Destination';
-
-        const alongWaySuggestions = (poiSuggestions || []).filter(
-          p => p.bucket === 'along-way'
-        );
-        const destinationSuggestions = (poiSuggestions || []).filter(
-          p => p.bucket === 'destination' && p.category !== 'gas'
-        );
-        return (
-          <>
-            {(alongWaySuggestions.length > 0 || isLoadingPOIs) && (
-              <DiscoveryPanel
-                title="Cool Stops Along the Way"
-                suggestions={alongWaySuggestions}
-                isLoading={!!isLoadingPOIs}
-                onAdd={onAddPOI}
-                onDismiss={onDismissPOI}
-                partialResults={poiPartialResults}
-                roundTripMidpoint={roundTripMidpoint}
-                className="mt-4"
-              />
-            )}
-            {(destinationSuggestions.length > 0 || isLoadingPOIs) && (
-              <DiscoveryPanel
-                title={`Things to Do in ${destinationName}`}
-                suggestions={destinationSuggestions}
-                isLoading={!!isLoadingPOIs}
-                onAdd={onAddPOI}
-                onDismiss={onDismissPOI}
-                partialResults={poiPartialResults}
-                className="mt-4"
-              />
-            )}
-          </>
-        );
-      })()}
-
-      {/* Activity Editor Dialog */}
-      {editingActivity && onUpdateActivity && (
-        <ActivityEditor
-          open={true}
-          onOpenChange={(open) => !open && setEditingActivity(null)}
-          activity={editingActivity.activity}
-          locationName={editingActivity.locationName}
-          onSave={(activity) => {
-            onUpdateActivity(editingActivity.segmentIndex, activity);
-            setEditingActivity(null);
-          }}
-          onRemove={editingActivity.activity ? () => {
-            onUpdateActivity(editingActivity.segmentIndex, undefined);
-            setEditingActivity(null);
-          } : undefined}
+      {onAddPOI && onDismissPOI && (poiSuggestions?.length || isLoadingPOIs) && (
+        <DestinationDiscovery
+          summary={summary}
+          poiSuggestions={poiSuggestions}
+          isLoadingPOIs={isLoadingPOIs}
+          poiPartialResults={poiPartialResults}
+          onAddPOI={onAddPOI}
+          onDismissPOI={onDismissPOI}
         />
       )}
 
-      {/* Overnight Hotel Editor Dialog */}
-      {editingOvernight && onUpdateOvernight && (
-        <OvernightEditor
-          open={true}
-          onOpenChange={(open) => !open && setEditingOvernight(null)}
-          overnight={editingOvernight.overnight}
-          onSave={(overnight) => {
-            onUpdateOvernight(editingOvernight.dayNumber, overnight);
-            setEditingOvernight(null);
-          }}
-        />
-      )}
-
-      {/* Standalone Activity Editor Dialog (for Free Days) */}
-      {editingDayActivity && onAddDayActivity && onUpdateDayActivity && (
-        <ActivityEditor
-          open={true}
-          onOpenChange={(open) => !open && setEditingDayActivity(null)}
-          activity={editingDayActivity.activity}
-          locationName={`Day ${editingDayActivity.dayNumber} Activity`}
-          isStandalone={true}
-          onSave={(activity) => {
-            if (editingDayActivity.activityIndex === -1) {
-              // -1 means it's a new activity
-              if (onAddDayActivity) {
-                // To support adding, we actually need an onAdd... function that accepts an Activity
-                // Currently onAddDayActivity only accepts a dayNumber.
-                // We'll fix this in the next pass if necessary, but for now we expect a 2nd arg.
-                // Wait, our context *does* expect 2 args: `addDayActivity: (dayNumber: number, activity: Activity) => void`
-                // We need to ensure the prop passed down to ItineraryTimeline allows this.
-                // The current prop signature is `onAddDayActivity?: (dayNumber: number) => void;` which is wrong.
-                // We'll type-cast it for a second until we fix the interface in a subsequent tool call.
-                onAddDayActivity(editingDayActivity.dayNumber, activity);
-              }
-            } else {
-              onUpdateDayActivity(editingDayActivity.dayNumber, editingDayActivity.activityIndex, activity);
-            }
-            setEditingDayActivity(null);
-          }}
-          onRemove={editingDayActivity.activity && onRemoveDayActivity ? () => {
-            onRemoveDayActivity(editingDayActivity.dayNumber, editingDayActivity.activityIndex);
-            setEditingDayActivity(null);
-          } : undefined}
-        />
-      )}
+      <TimelineDialogs
+        editingActivity={editingActivity}
+        onUpdateActivity={onUpdateActivity}
+        setEditingActivity={setEditingActivity}
+        editingOvernight={editingOvernight}
+        onUpdateOvernight={onUpdateOvernight}
+        setEditingOvernight={setEditingOvernight}
+        editingDayActivity={editingDayActivity}
+        onAddDayActivity={onAddDayActivity}
+        onUpdateDayActivity={onUpdateDayActivity}
+        onRemoveDayActivity={onRemoveDayActivity}
+        setEditingDayActivity={setEditingDayActivity}
+      />
     </div>
   );
 }

@@ -12,6 +12,7 @@ import type { TemplateImportResult } from '../../lib/url';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
 import type { PlanningStep } from '../../hooks/useWizard';
 import type { StopType, DayType, OvernightStop } from '../../types';
+import type { TimedEvent } from '../../lib/trip-timeline';
 
 interface PlanningStepContentProps {
   planningStep: PlanningStep;
@@ -42,6 +43,7 @@ interface PlanningStepContentProps {
   tripConfirmed: boolean;
   addedStopCount: number;
   externalStops: SuggestedStop[];
+  precomputedEvents?: TimedEvent[];
   history: TripSummary[];
   shareUrl: string | null;
   // Step 3 — calc
@@ -107,6 +109,7 @@ export function PlanningStepContent(p: PlanningStepContentProps) {
       poiSuggestions={p.poiSuggestions} poiInference={p.poiInference} isLoadingPOIs={p.isLoadingPOIs}
       poiPartialResults={p.poiPartialResults}
       history={p.history} shareUrl={p.shareUrl}
+      precomputedEvents={p.precomputedEvents}
       onOpenGoogleMaps={p.onOpenGoogleMaps}
       onCopyShareLink={p.onCopyShareLink}
       onStartJournal={p.onStartJournal}
