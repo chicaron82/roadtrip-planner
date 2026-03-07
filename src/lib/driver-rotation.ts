@@ -8,8 +8,8 @@
  * 1. Start with driver 1
  * 2. Rotate at fuel stops when present (natural swap points)
  * 3. Fallback: if fuel stops are too infrequent to create rotations,
- *    generate time-based rotation points by splitting total drive time
- *    evenly across all drivers
+ *    generate time-based rotation points — Driver 1 (primary) takes
+ *    the first stint and absorbs any remainder; others split evenly
  * 4. Round-robin through all drivers at each rotation point
  * 5. Track cumulative driving time per driver for fairness stats
  */
@@ -41,23 +41,29 @@ export interface DriverRotationResult {
 /**
  * Generate time-based rotation indices by splitting total drive time evenly.
  * Used as a fallback when fuel stops are too infrequent to create rotations.
+ *
+ * Driver 1 is treated as primary: non-primary drivers each get floor(total/N) minutes,
+ * and Driver 1 absorbs the remainder. For perfectly divisible totals the split is equal;
+ * for any remainder Driver 1 drives slightly more (first and longest stint).
  */
 function buildTimeBasedRotationIndices(
   segments: RouteSegment[],
   numDrivers: number,
 ): number[] {
   const totalMinutes = segments.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
-  const targetPerDriver = totalMinutes / numDrivers;
+  const nonPrimaryShare = Math.floor(totalMinutes / numDrivers);
+  // Driver 1 takes the first stint (total minus what the others split evenly).
+  const primaryShare = totalMinutes - (numDrivers - 1) * nonPrimaryShare;
 
   const indices: number[] = [];
   let accumulated = 0;
-  let nextTarget = targetPerDriver;
+  let nextTarget = primaryShare; // first rotation: after Driver 1's stint
 
   for (let i = 0; i < segments.length - 1; i++) {
     accumulated += segments[i].durationMinutes || 0;
     if (accumulated >= nextTarget && indices.length < numDrivers - 1) {
       indices.push(i);
-      nextTarget += targetPerDriver;
+      nextTarget += nonPrimaryShare;
     }
   }
 
