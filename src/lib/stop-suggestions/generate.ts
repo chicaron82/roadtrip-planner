@@ -124,6 +124,15 @@ export function generateSmartStops(
     // `index` (flat processedSegment position) is used only for drivingDayStartMap lookups.
     const segOrigIdx = segment._originalIndex;
 
+    // Skip overnight and arrival-window checks for transit sub-segments not followed by a
+    // real driving-day boundary. Covers two cases:
+    // 1. Beast mode intermediates: sub-segs share a single driving day — skipping prevents
+    //    currentDayNumber from incrementing for every ~8h sub-segment, which would corrupt
+    //    dayNumber tags on en-route stops in the last sub-segment (dropped by classifyStops).
+    // 2. Final transit sub-segment: no day boundary follows the destination — skipping
+    //    prevents a spurious pre-destination overnight suggestion.
+    const skipOvernightChecks = !!segment._transitPart && !drivingDayStartMap.has(index + 1);
+
     // When crossing a day boundary, synthesize an overnight stop from TripDay
     // overnight data if the auto-generator would have been suppressed by daysWithHotel.
     // This covers round-trip destinations where the outbound leg fits within
@@ -158,7 +167,9 @@ export function generateSmartStops(
     // Arrival window check (pre-segment: would arriving too late?)
     // Note: checkArrivalWindow handles timezone shift internally via getTimezoneShiftHours,
     // so it correctly accounts for the crossing even before applyTimezoneShift fires below.
-    const arrivalSug = checkArrivalWindow(state, segment, index, config, daysWithHotel);
+    const arrivalSug = skipOvernightChecks
+      ? null
+      : checkArrivalWindow(state, segment, index, config, daysWithHotel);
     if (arrivalSug) {
       arrivalSug.afterSegmentIndex += (segOrigIdx - index);
       // Overnight fires before this segment — current position is segment.from
@@ -338,16 +349,23 @@ export function generateSmartStops(
       state.costSinceLastFill += segment.fuelCost ?? 0;
     }
 
-    // Overnight stop check (uses strict "final segment" check, not grace zone)
-    const overnightSug = checkOvernightStop(
-      state, index, config, daysWithHotel, arrivalTime, isFinalSegment
-    );
-    if (overnightSug) {
-      overnightSug.afterSegmentIndex += (segOrigIdx - index);
-      // Overnight fires after driving this segment — current position is segment.to
-      const toHub = findHubInWindow(segment.to.lat, segment.to.lng, 40);
-      if (toHub) overnightSug.hubName = toHub.name;
-      suggestions.push(overnightSug);
+    // Overnight stop check (uses strict "final segment" check, not grace zone).
+    // Skipped for transit sub-segments without a following day boundary — beast mode
+    // internal splits and the final destination arrival. Skipping preserves
+    // currentDayNumber so en-route stop dayNumber tags stay correct.
+    if (skipOvernightChecks) {
+      state.currentTime = arrivalTime;
+    } else {
+      const overnightSug = checkOvernightStop(
+        state, index, config, daysWithHotel, arrivalTime, isFinalSegment
+      );
+      if (overnightSug) {
+        overnightSug.afterSegmentIndex += (segOrigIdx - index);
+        // Overnight fires after driving this segment — current position is segment.to
+        const toHub = findHubInWindow(segment.to.lat, segment.to.lng, 40);
+        if (toHub) overnightSug.hubName = toHub.name;
+        suggestions.push(overnightSug);
+      }
     }
   });
 
