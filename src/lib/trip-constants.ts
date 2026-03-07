@@ -41,9 +41,18 @@ export const TRIP_CONSTANTS = {
    *  stopping at a highway km marker. Without this, an 8h30m day (510 min) gets
    *  split into two 4h15m days, doubling the trip length. */
   dayOverflow: {
-    /** Fixed hours of grace beyond maxDriveHours before forcing a new day.
-     *  1 hour is reasonable — especially with multiple drivers sharing the load. */
+    /** Base hours of grace beyond maxDriveHours before forcing a new day. */
     toleranceHours: 1,
+    /** Extra minutes when 2+ drivers share the load (swap reduces fatigue). */
+    multiDriverBonusMinutes: 30,
+    /** Extra minutes on the last leg to avoid an unnecessary overnight. */
+    lastLegBonusMinutes: 30,
+    /** Minutes lost after fatigueDayThreshold consecutive driving days. */
+    fatiguePenaltyMinutes: 15,
+    /** Consecutive driving days before fatigue penalty kicks in. */
+    fatigueDayThreshold: 3,
+    /** Hard cap on total tolerance — prevents double-stacking from creating unreasonable days. */
+    maxToleranceMinutes: 90,
   },
 
   /** Budget analysis thresholds */
@@ -56,15 +65,31 @@ export const TRIP_CONSTANTS = {
 
   /**
    * OSRM routing corrections
-   * The public OSRM demo server uses conservative road speeds (~15% faster than
-   * real-world travel). Multiply raw durations by this factor to align with
-   * typical Google Maps / real-drive times.
+   *
+   * The public OSRM demo server uses conservative speed profiles that
+   * produce LONGER driving times than typical real-world travel — roughly
+   * 15% slower than Google Maps or what most drivers actually experience.
+   *
+   * Multiply raw OSRM durations by this factor (0.85) to bring them in
+   * line with real-world expectations.
+   *
+   * Example: OSRM says Winnipeg → Regina = 6h56m.
+   *          × 0.85 = 5h54m, close to Google Maps' ~5h50m.
+   *
+   * Calibrated against Google Maps for Canadian prairie / Trans-Canada
+   * routes. May need regional adjustment for mountainous or urban routes.
    */
   routing: {
     osrmDurationFactor: 0.85,
   },
 
-  /** Stop suggestion and consolidation parameters */
+  /**
+   * Stop suggestion and consolidation parameters
+   *
+   * These thresholds govern when fuel/meal/rest stops are placed along the route.
+   * They are tuned for trust, not precision — users won't follow the exact schedule,
+   * but the suggestions should feel plausible and road-trip-savvy.
+   */
   stops: {
     /** Time window (ms) within which nearby stops are merged. */
     mergeWindowMs: 60 * 60 * 1000,
@@ -106,6 +131,20 @@ export const TRIP_CONSTANTS = {
       balanced: 3.5,
       aggressive: 4.5,
     } as const,
+  },
+
+  /**
+   * Fuel tank level thresholds (fraction of tankSizeLitres).
+   * Used by the stop simulation engine to decide when to suggest refuelling.
+   *
+   *   critical — Tank is dangerously low. Always trigger a stop, even near destination.
+   *   low      — Tank is getting low. Trigger a comfort stop before options get sparse.
+   *   full     — Tank is essentially full. Suppress unnecessary "refuel now" suggestions.
+   */
+  fuelLevels: {
+    critical: 0.15,
+    low: 0.35,
+    full: 0.98,
   },
 
 } as const;

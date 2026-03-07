@@ -137,7 +137,9 @@ export function fireAndForgetOvernightSnap(
         if (idx < 0) continue;
 
         const day = enriched[idx];
-        const firstFrom = day.segments[0]?.from.name ?? '';
+        // Preserve the hub-resolved FROM name from simulation (write #2)
+        // instead of re-reading raw segment names that may have transit markers.
+        const firstFrom = day.route?.split(' \u2192 ')[0] ?? day.segments[0]?.from.name ?? '';
         const clonedSegments = [...day.segments];
 
         if (clonedSegments.length > 0) {
@@ -182,7 +184,10 @@ export function fireAndForgetOvernightSnap(
                 name: snap.name,
               },
             };
-            const nextLastTo = nextCloned[nextCloned.length - 1]?.to.name ?? 'Destination';
+            // Preserve the hub-resolved TO name from simulation (write #2)
+            // instead of re-reading raw segment names.
+            const nextLastTo = nextDay.route?.split(' \u2192 ').slice(1).join(' \u2192 ')
+              ?? nextCloned[nextCloned.length - 1]?.to.name ?? 'Destination';
             enriched[idx + 1] = {
               ...nextDay,
               route: `${snap.name} \u2192 ${nextLastTo}`,
@@ -200,7 +205,7 @@ export function fireAndForgetOvernightSnap(
         onSummaryChange(updatedSummary);
       }
     })
-    .catch(() => {
-      // Silently keep geometry-interpolated positions if Overpass is unavailable
+    .catch((err) => {
+      console.warn('[overnight-snap] Overpass unavailable — keeping geometry-interpolated positions', err);
     });
 }

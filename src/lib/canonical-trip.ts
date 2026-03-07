@@ -6,14 +6,8 @@
  * hero, overnight logic — should derive their display data from this shape,
  * not by independently re-deriving data from TripSummary + TimedEvent[].
  *
- * ⚠️  NO MIGRATION YET.
- *     Existing code continues to use TripSummary and TimedEvent directly.
- *     These types name the target shape for the upcoming useTripCalculation
- *     extraction and the print/itinerary alignment pass.
- *     Adopt incrementally: itinerary first, then print, then ghost car.
- *
  * Migration path:
- *   1. useTripCalculation.ts produces CanonicalTripTimeline alongside TripSummary
+ *   1. ✅ useTripCalculation.ts produces CanonicalTripTimeline alongside TripSummary
  *   2. ItineraryTimeline switches to ItineraryInput (days + summary)
  *   3. trip-print-builders switches to PrintInput (days + summary + inputs)
  *   4. useGhostCar switches to GhostCarInput (events)

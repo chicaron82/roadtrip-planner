@@ -7,6 +7,7 @@
 import type { RouteSegment } from '../../types';
 import type { SuggestedStop, StopSuggestionConfig } from '../stop-suggestion-types';
 import type { SimState } from './types';
+import { TRIP_CONSTANTS } from '../trip-constants';
 
 /**
  * Check if a fuel stop is needed before this segment.
@@ -27,16 +28,16 @@ export function checkFuelStop(
 ): { suggestion: SuggestedStop | null; stopTimeAddedMs: number } {
   const fuelNeeded = segment.fuelNeededLitres ?? (segment.distanceKm / 100) * config.fuelEconomyL100km;
 
-  const wouldRunCriticallyLow = (state.currentFuel - fuelNeeded) < (config.tankSizeLitres * 0.15);
+  const wouldRunCriticallyLow = (state.currentFuel - fuelNeeded) < (config.tankSizeLitres * TRIP_CONSTANTS.fuelLevels.critical);
   const exceededSafeRange = state.distanceSinceLastFill >= safeRangeKm;
   const comfortRefuelDue = state.hoursSinceLastFill >= state.comfortRefuelHours && index > 0;
-  const tankLow = state.currentFuel <= (config.tankSizeLitres * 0.35) && index > 0;
+  const tankLow = state.currentFuel <= (config.tankSizeLitres * TRIP_CONSTANTS.fuelLevels.low) && index > 0;
 
   if (isFinalSegment && !wouldRunCriticallyLow) {
     return { suggestion: null, stopTimeAddedMs: 0 };
   }
 
-  if (state.currentFuel >= config.tankSizeLitres * 0.98) {
+  if (state.currentFuel >= config.tankSizeLitres * TRIP_CONSTANTS.fuelLevels.full) {
     return { suggestion: null, stopTimeAddedMs: 0 };
   }
 

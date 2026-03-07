@@ -7,6 +7,7 @@
  */
 
 import { KM_TO_MILES } from './constants';
+import { formatTimeInZone, normalizeToIANA } from './trip-timezone';
 
 export function formatDistance(km: number, units: 'metric' | 'imperial'): string {
   if (units === 'imperial') {
@@ -37,16 +38,13 @@ export function formatDuration(minutes: number): string {
 
 /**
  * Format time for display with optional timezone abbreviation.
+ * Uses Intl-based formatting so the time is correct in the route's timezone,
+ * not the browser's timezone.
  */
 export function formatTime(isoString: string, timezoneAbbr?: string): string {
   const date = new Date(isoString);
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
-  const period = hours >= 12 ? 'PM' : 'AM';
-  const displayHours = hours % 12 || 12;
-  const displayMinutes = minutes.toString().padStart(2, '0');
-
-  const timeStr = `${displayHours}:${displayMinutes} ${period}`;
+  const iana = timezoneAbbr ? normalizeToIANA(timezoneAbbr) : undefined;
+  const timeStr = formatTimeInZone(date, iana);
   return timezoneAbbr ? `${timeStr} ${timezoneAbbr}` : timeStr;
 }
 

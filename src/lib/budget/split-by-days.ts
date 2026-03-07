@@ -59,6 +59,35 @@ function getNextDayDriveMinutes(
   return accumulated;
 }
 
+/**
+ * Context-aware overflow tolerance for day splitting.
+ *  - 2+ drivers can swap, reducing fatigue → extra 30 min
+ *  - Last leg of the trip → extra 30 min (avoid unnecessary overnight)
+ *  - 3+ consecutive driving days → lose 15 min (accumulated fatigue)
+ */
+function getOverflowToleranceMinutes(
+  settings: TripSettings,
+  isLastLeg: boolean,
+  completedDays: TripDay[],
+): number {
+  const { dayOverflow } = TRIP_CONSTANTS;
+  const base = dayOverflow.toleranceHours * 60;
+  const driverBonus = settings.numDrivers >= 2 ? dayOverflow.multiDriverBonusMinutes : 0;
+  const lastLegBonus = isLastLeg ? dayOverflow.lastLegBonusMinutes : 0;
+  // Count consecutive driving days (current day + completed non-free days from tail)
+  let streak = 1;
+  for (let j = completedDays.length - 1; j >= 0; j--) {
+    if (completedDays[j].dayType === 'free') break;
+    streak++;
+  }
+  const fatiguePenalty = streak >= dayOverflow.fatigueDayThreshold
+    ? dayOverflow.fatiguePenaltyMinutes : 0;
+  return Math.min(
+    dayOverflow.maxToleranceMinutes,
+    base + driverBonus + lastLegBonus - fatiguePenalty,
+  );
+}
+
 /** Minimum hours of rest guaranteed between estimated Day-N arrival and Day-(N+1) departure. */
 const MIN_REST_HOURS = TRIP_CONSTANTS.rest.minHours;
 
@@ -351,7 +380,10 @@ export function splitTripByDays(
     // We also trigger a new day *after* this segment if it's an explicit overnight stop
     const isOvernightStop = segment.stopType === 'overnight';
 
-    const wouldExceedDailyMax = currentDayDriveMinutes + segmentDriveMinutes > effectiveMaxDriveMinutes;
+    // Context-aware overflow: adapts to driver count, last leg, and fatigue.
+    const remainingMinutes = processedSegments.slice(i + 1).reduce((sum, s) => sum + s.durationMinutes, 0);
+    const contextTolerance = getOverflowToleranceMinutes(settings, remainingMinutes <= maxDriveMinutes, days);
+    const wouldExceedDailyMax = currentDayDriveMinutes + segmentDriveMinutes > maxDriveMinutes + contextTolerance;
 
     // Hub-snap: before splitting, check if extending the day by one segment would
     // land at a real city (hub). Humans prefer to push an extra hour to reach

@@ -27,6 +27,10 @@ interface UseTimelineDataParams {
 
 export function useTimelineData({ summary, settings, vehicle, days, externalStops, initialOverrides, onStopOverridesChange }: UseTimelineDataParams) {
   // Parse departure in the origin's timezone (not browser local)
+  const originTimezone = useMemo(() => {
+    const originLng = summary.segments[0]?.from.lng;
+    return originLng !== undefined ? lngToIANA(originLng) : undefined;
+  }, [summary.segments]);
   const startTime = useMemo(() => {
     const originLng = summary.segments[0]?.from.lng;
     if (originLng !== undefined) {
@@ -314,6 +318,7 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
   return {
     userOverrides,
     startTime,
+    originTimezone,
     pacingSuggestions,
     pacingSuggestionsByDay,
     activeSuggestions,

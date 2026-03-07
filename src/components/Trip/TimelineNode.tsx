@@ -2,6 +2,7 @@ import { Clock, Fuel, MapPin, Trophy, Edit3 } from 'lucide-react';
 import type { RouteSegment, StopType, Activity } from '../../types';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
 import { formatTime as formatTimeWithTz, STOP_LABELS } from '../../lib/calculations';
+import { formatTimeInZone } from '../../lib/trip-timezone';
 import { StopDurationPicker } from './StopDurationPicker';
 import { ActivityBadge } from './ActivityEditor';
 
@@ -9,6 +10,7 @@ import { ActivityBadge } from './ActivityEditor';
 
 interface GasStopNodeProps {
   arrivalTime: Date;
+  timezone?: string;
   cost?: number;
   litres?: number;
   priority?: 'critical' | 'recommended' | 'optional';
@@ -16,6 +18,7 @@ interface GasStopNodeProps {
 
 interface SuggestedStopNodeProps {
   arrivalTime: Date;
+  timezone?: string;
   stop: SuggestedStop;
 }
 
@@ -32,8 +35,8 @@ interface WaypointNodeProps {
 
 // ==================== HELPERS ====================
 
-const formatTime = (date: Date) =>
-  date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const formatTime = (date: Date, ianaTimezone?: string) =>
+  formatTimeInZone(date, ianaTimezone);
 
 const formatDate = (date: Date) =>
   date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
@@ -87,7 +90,7 @@ const FUEL_PRIORITY_STYLES = {
 
 // ==================== GAS STOP NODE ====================
 
-export function GasStopNode({ arrivalTime, cost, litres, priority = 'recommended' }: GasStopNodeProps) {
+export function GasStopNode({ arrivalTime, timezone, cost, litres, priority = 'recommended' }: GasStopNodeProps) {
   const s = FUEL_PRIORITY_STYLES[priority];
 
   return (
@@ -112,7 +115,7 @@ export function GasStopNode({ arrivalTime, cost, litres, priority = 'recommended
             </div>
           </div>
           <div className={`mt-2 text-xs flex items-center gap-2 ${s.footerText} border-t ${s.footerBorder} pt-2`}>
-            <Clock className="h-3 w-3" /> +15 min stop • {formatTime(arrivalTime)}
+            <Clock className="h-3 w-3" /> +15 min stop • {formatTime(arrivalTime, timezone)}
           </div>
         </div>
       </div>
@@ -147,7 +150,7 @@ const STOP_TYPE_ICONS: Record<string, React.ReactNode> = {
   overnight: <>🏨</>,
 };
 
-export function SuggestedStopNode({ arrivalTime, stop }: SuggestedStopNodeProps) {
+export function SuggestedStopNode({ arrivalTime, timezone, stop }: SuggestedStopNodeProps) {
   const iconStyle = STOP_TYPE_STYLES[stop.type] || STOP_TYPE_STYLES.rest;
   const cardStyle = STOP_TYPE_CARD[stop.type] || STOP_TYPE_CARD.rest;
 
@@ -176,7 +179,7 @@ export function SuggestedStopNode({ arrivalTime, stop }: SuggestedStopNodeProps)
             )}
           </div>
           <div className={`mt-2 text-xs flex items-center gap-2 border-t pt-2 ${cardStyle.footer}`}>
-            <Clock className="h-3 w-3" /> +{stop.duration} min • {formatTime(arrivalTime)}
+            <Clock className="h-3 w-3" /> +{stop.duration} min • {formatTime(arrivalTime, timezone)}
           </div>
         </div>
       </div>
@@ -317,10 +320,11 @@ export function WaypointNode({
 interface StartNodeProps {
   locationName: string;
   startTime: Date;
+  timezone?: string;
   isCalculatedDeparture?: boolean;
 }
 
-export function StartNode({ locationName, startTime, isCalculatedDeparture }: StartNodeProps) {
+export function StartNode({ locationName, startTime, timezone, isCalculatedDeparture }: StartNodeProps) {
   return (
     <div className="flex gap-4 mb-8">
       <div className="relative">
@@ -332,7 +336,7 @@ export function StartNode({ locationName, startTime, isCalculatedDeparture }: St
         <div className="text-xs font-bold text-green-600 uppercase tracking-wider mb-0.5">Start</div>
         <div className="font-bold text-xl">{locationName}</div>
         <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
-          <Clock className="h-3 w-3" /> {formatDate(startTime)} • {formatTime(startTime)}
+          <Clock className="h-3 w-3" /> {formatDate(startTime)} • {formatTime(startTime, timezone)}
           {isCalculatedDeparture && (
             <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold">CALCULATED</span>
           )}

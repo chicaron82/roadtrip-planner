@@ -222,7 +222,7 @@ export function generateSmartStops(
     const segFuelNeeded = segment.fuelNeededLitres
       ?? (segment.distanceKm / 100) * config.fuelEconomyL100km;
     const wouldRunCriticallyLow =
-      (state.currentFuel - segFuelNeeded) < (config.tankSizeLitres * 0.15);
+      (state.currentFuel - segFuelNeeded) < (config.tankSizeLitres * TRIP_CONSTANTS.fuelLevels.critical);
 
     // Hub lookup — priority order:
     // 1. segment.from (the actual stop location for inter-segment stops, index > 0).

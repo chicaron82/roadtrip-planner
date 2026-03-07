@@ -5,6 +5,8 @@ import { buildTimedTimeline } from './trip-timeline';
 export interface SimulationItem {
   type: 'gas' | 'stop' | 'suggested';
   arrivalTime: Date;
+  /** IANA timezone at this event's location (e.g. 'America/Toronto'). */
+  timezone?: string;
   cost?: number;
   litres?: number;
   segment?: TripSummary['segments'][number];
@@ -74,6 +76,7 @@ export function buildSimulationItems({
           items.push({
             type: 'suggested',
             arrivalTime: event.arrivalTime,
+            timezone: event.timezone,
             suggestedStop: stop,
           });
         }
@@ -86,6 +89,7 @@ export function buildSimulationItems({
             type: 'stop',
             segment: event.segment,
             arrivalTime: event.arrivalTime,
+            timezone: event.timezone,
             index: event.flatIndex,
             originalIndex: event.originalIndex ?? event.flatIndex,
           });

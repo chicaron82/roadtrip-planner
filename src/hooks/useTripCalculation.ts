@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import type { Location, Vehicle, TripSettings, TripSummary, RouteStrategy } from '../types';
+import type { Location, Vehicle, TripSettings, TripSummary, TripDay, RouteStrategy } from '../types';
 import { calculateRoute, fetchAllRouteStrategies } from '../lib/api';
 import {
   calculateTripCosts,
@@ -22,6 +22,7 @@ import { validateTripInputs } from '../lib/validate-inputs';
 import { buildStrategyUpdate } from '../lib/trip-strategy-selector';
 import { buildTimedTimeline } from '../lib/trip-timeline';
 import { applyComboOptimization } from '../lib/stop-consolidator';
+import type { CanonicalTripTimeline, CanonicalTripDay } from '../lib/canonical-trip';
 import { formatDateInZone } from '../lib/trip-timezone';
 
 /**
@@ -53,6 +54,37 @@ function projectFuelStopsFromSimulation(stops: SuggestedStop[]): StrategicFuelSt
     });
 }
 
+/**
+ * Group flat canonical events into per-day buckets paired with budget metadata.
+ * Each driving day's events span from its departure to the next day's departure.
+ * Free days (no segments) get an empty event list.
+ */
+function assembleCanonicalTimeline(
+  events: CanonicalTripTimeline['events'],
+  tripDays: TripDay[],
+  summary: TripSummary,
+  inputs: CanonicalTripTimeline['inputs'],
+): CanonicalTripTimeline {
+  const days: CanonicalTripDay[] = tripDays.map(day => {
+    if (day.segments.length === 0) return { meta: day, events: [] };
+    const dep = events.find(
+      e => e.type === 'departure' && formatDateInZone(e.arrivalTime, e.timezone ?? 'UTC') === day.date
+    );
+    if (!dep) return { meta: day, events: [] };
+    const depMs = dep.arrivalTime.getTime();
+    const nextDepMs = events.find(
+      e => e.type === 'departure' && e.arrivalTime.getTime() > depMs
+    )?.arrivalTime.getTime() ?? Infinity;
+    return {
+      meta: day,
+      events: events.filter(
+        e => e.arrivalTime.getTime() >= depMs && e.arrivalTime.getTime() < nextDepMs
+      ),
+    };
+  });
+  return { events, days, summary, inputs };
+}
+
 interface UseTripCalculationOptions {
   locations: Location[];
   vehicle: Vehicle;
@@ -67,6 +99,7 @@ interface UseTripCalculationReturn {
   error: string | null;
   shareUrl: string | null;
   strategicFuelStops: StrategicFuelStop[];
+  canonicalTimeline: CanonicalTripTimeline | null;
 
   // Route strategies (named alternatives: fastest / canada-only / scenic)
   routeStrategies: RouteStrategy[];
@@ -109,6 +142,7 @@ export function useTripCalculation({
 
   // Store summary locally for updateStopType
   const [localSummary, setLocalSummary] = useState<TripSummary | null>(null);
+  const [canonicalTimeline, setCanonicalTimeline] = useState<CanonicalTripTimeline | null>(null);
 
   // Abort controller for background overnight-stop geocoding.
   // Cancelled when a new calculation starts so stale results never overwrite.
@@ -292,6 +326,12 @@ export function useTripCalculation({
         }
       }
 
+      // ── Assemble canonical trip timeline ──────────────────────────────
+      setCanonicalTimeline(assembleCanonicalTimeline(
+        canonicalEvents, tripDays, tripSummary,
+        { locations: [...locations], vehicle, settings },
+      ));
+
       // Project fuel stops from simulation onto the map.
       // Each SuggestedStop of type 'fuel' now carries lat/lng (set in generate.ts).
       // OSM station snapping runs on these projected pins — same fire-and-forget
@@ -300,8 +340,8 @@ export function useTripCalculation({
       setStrategicFuelStops(projectedFuelStops);
       snapFuelStopsToStations(projectedFuelStops).then(snapped => {
         setStrategicFuelStops(snapped);
-      }).catch(() => {
-        // Silently keep simulation-interpolated positions if Overpass is unavailable
+      }).catch((err) => {
+        console.warn('[fuel-snap] Overpass unavailable — keeping simulation-interpolated positions', err);
       });
 
       checkAndSetOvernightPrompt(
@@ -354,6 +394,7 @@ export function useTripCalculation({
       const strategy = routeStrategies[index];
       if (!strategy || !localSummary) return;
       setActiveStrategyIndex(index);
+      setCanonicalTimeline(null); // Strategy swap: cleared until next full calculation
       const updatedSummary = buildStrategyUpdate(strategy, localSummary, vehicle, settings);
       setLocalSummary(updatedSummary);
       onSummaryChange(updatedSummary);
@@ -411,11 +452,22 @@ export function useTripCalculation({
       );
       const refreshedFuelStops = projectFuelStopsFromSimulation(refreshedSmartStops);
       setStrategicFuelStops(refreshedFuelStops);
+
+      // Rebuild canonical timeline so it stays in sync with the updated stops.
+      const refreshedTimeline = buildTimedTimeline(
+        segmentsWithTimes, refreshedSmartStops, settings,
+        roundTripMidpointRef.current, 0, updatedDays,
+      );
+      setCanonicalTimeline(assembleCanonicalTimeline(
+        applyComboOptimization(refreshedTimeline), updatedDays, updatedSummary,
+        { locations: [...locations], vehicle, settings },
+      ));
+
       snapFuelStopsToStations(refreshedFuelStops).then(snapped => {
         setStrategicFuelStops(snapped);
       }).catch(() => {});
     },
-    [localSummary, settings, vehicle, onSummaryChange]
+    [localSummary, settings, vehicle, locations, onSummaryChange]
   );
 
   // Generic day updater — updates a single day in summary.days
@@ -472,6 +524,7 @@ export function useTripCalculation({
     setRouteStrategies([]);
     setActiveStrategyIndex(0);
     setLocalSummary(null);
+    setCanonicalTimeline(null);
     setShareUrl(null);
     setError(null);
     setShowOvernightPrompt(false);
@@ -484,6 +537,7 @@ export function useTripCalculation({
     error,
     shareUrl,
     strategicFuelStops,
+    canonicalTimeline,
     routeStrategies,
     activeStrategyIndex,
     showOvernightPrompt,

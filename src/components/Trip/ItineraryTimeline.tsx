@@ -74,6 +74,7 @@ export function ItineraryTimeline({
 }: ItineraryTimelineProps) {
   const {
     startTime,
+    originTimezone,
     pacingSuggestions,
     pacingSuggestionsByDay,
     simulationItems,
@@ -172,6 +173,7 @@ export function ItineraryTimeline({
         <StartNode
           locationName={summary.segments[0]?.from.name || 'Origin'}
           startTime={startTime}
+          timezone={originTimezone}
           isCalculatedDeparture={settings.useArrivalTime}
         />
 
@@ -182,6 +184,7 @@ export function ItineraryTimeline({
               <GasStopNode
                 key={`gas-${idx}`}
                 arrivalTime={item.arrivalTime}
+                timezone={item.timezone}
                 cost={item.cost}
                 litres={item.litres}
                 priority={item.fuelPriority}
@@ -194,6 +197,7 @@ export function ItineraryTimeline({
               <SuggestedStopNode
                 key={`suggested-${idx}`}
                 arrivalTime={item.arrivalTime}
+                timezone={item.timezone}
                 stop={item.suggestedStop}
               />
             );
