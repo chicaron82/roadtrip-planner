@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyStopOverrides, resolveJournalEntryLocation } from './journal-trip-view';
+import { applyStopOverrides, buildJournalTimelineStops, resolveJournalEntryLocation } from './journal-trip-view';
 import { makeLocation, makeSegment, makeSummary } from '../test/fixtures';
 
 describe('journal-trip-view helpers', () => {
@@ -57,5 +57,41 @@ describe('journal-trip-view helpers', () => {
     expect(applied[0].accepted).toBe(true);
     expect(applied[0].duration).toBe(20);
     expect(applied[1].dismissed).toBe(true);
+  });
+
+  it('builds journal timeline stops from projected stop items instead of raw summary order', () => {
+    const guardSegment = makeSegment({
+      to: { ...makeLocation('Guard'), id: 'guard-border-hop' },
+      _originalIndex: 1,
+    });
+    const actualSegment = makeSegment({
+      to: { ...makeLocation('Actual Stop'), id: 'actual-stop' },
+      _originalIndex: 2,
+    });
+
+    const stops = buildJournalTimelineStops([
+      {
+        type: 'stop',
+        segment: guardSegment,
+        arrivalTime: new Date('2025-08-16T10:00:00Z'),
+        index: 1,
+        originalIndex: 1,
+      },
+      {
+        type: 'stop',
+        segment: actualSegment,
+        arrivalTime: new Date('2025-08-16T12:00:00Z'),
+        index: 3,
+        originalIndex: 2,
+      },
+    ]);
+
+    expect(stops).toEqual([
+      {
+        flatIndex: 3,
+        originalIndex: 2,
+        segment: actualSegment,
+      },
+    ]);
   });
 });

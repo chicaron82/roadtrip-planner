@@ -22,6 +22,8 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
     originTimezone,
     dayStartMap,
     freeDaysAfterSegment,
+    journalStops,
+    currentStop,
     currentStopIndex,
     totalStops,
     visitedCount,
@@ -39,8 +41,6 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
     formatDate,
     resetAllStops,
   } = useJournalTimeline({ summary, settings, journal, onUpdateJournal });
-
-  const currentSegment = summary.segments[currentStopIndex];
 
   return (
     <div className={cn('space-y-6', className)}>
@@ -110,16 +110,16 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
       </div>
 
       {/* Current Stop - Quick Arrive */}
-      {currentStopIndex < summary.segments.length && currentSegment && (
+      {currentStop && (
         <QuickArriveButton
-          stopName={currentSegment.to.name.split(',')[0]}
+          stopName={currentStop.segment.to.name.split(',')[0]}
           onArrive={() => {
             handleUpdateEntry(currentStopIndex, { status: 'visited', actualArrival: new Date() });
             dispatchStopArrived({
               segmentIndex: currentStopIndex,
-              toName: currentSegment.to.name.split(',')[0],
-              toLat: currentSegment.to.lat,
-              toLng: currentSegment.to.lng,
+              toName: currentStop.segment.to.name.split(',')[0],
+              toLat: currentStop.segment.to.lat,
+              toLng: currentStop.segment.to.lng,
             });
           }}
         />
@@ -138,7 +138,7 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
           </div>
           <div className="pt-1">
             <div className="text-xs font-bold text-green-600 uppercase tracking-wider mb-0.5">Start</div>
-            <div className="font-bold text-xl">{summary.segments[0]?.from.name || 'Origin'}</div>
+            <div className="font-bold text-xl">{journalStops[0]?.segment.from.name || summary.segments[0]?.from.name || 'Origin'}</div>
             <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
               <Clock className="h-3 w-3" /> {formatDate(startTime, originTimezone)} • {formatTime(startTime, originTimezone)}
             </div>
@@ -146,34 +146,18 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
         </div>
 
         {/* Stop Cards */}
-        {summary.segments.map((segment, index) => {
-          const isGuard = segment.to.id?.startsWith('guard-');
-          const dayHeaders = dayStartMap.get(index) ?? [];
-
-          if (isGuard) {
-            return dayHeaders.length > 0 ? (
-              <div key={`guard-days-${index}`}>
-                {dayHeaders.map(({ day, isFirst }) => (
-                  <DayHeader
-                    key={`day-${day.dayNumber}`}
-                    day={day}
-                    isFirst={isFirst}
-                    className="mb-6"
-                  />
-                ))}
-              </div>
-            ) : null;
-          }
-
-          const entry = getEntry(index);
-          const isDest = index === summary.segments.length - 1;
-          const isCurrent = index === currentStopIndex;
+        {journalStops.map((stop, renderIndex) => {
+          const { segment, flatIndex, originalIndex } = stop;
+          const dayHeaders = dayStartMap.get(flatIndex) ?? [];
+          const entry = getEntry(originalIndex);
+          const isDest = renderIndex === journalStops.length - 1;
+          const isCurrent = originalIndex === currentStopIndex;
           const isVisited = entry?.status === 'visited';
-          const afterFreeDays = freeDaysAfterSegment.get(index) || [];
-          const segmentCaptures = journal.quickCaptures.filter(qc => qc.autoTaggedSegment === index);
+          const afterFreeDays = freeDaysAfterSegment.get(flatIndex) || [];
+          const segmentCaptures = journal.quickCaptures.filter(qc => qc.autoTaggedSegment === originalIndex);
 
           return (
-            <div key={`stop-${index}`}>
+            <div key={`stop-${originalIndex}-${flatIndex}`}>
               {dayHeaders.map(({ day, isFirst }) => (
                 <DayHeader key={`day-${day.dayNumber}`} day={day} isFirst={isFirst} className="mb-6" />
               ))}
@@ -184,7 +168,7 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
                   <div className="w-0.5 h-6 bg-border" />
                 </div>
                 <button
-                  onClick={() => handleOpenQuickCapture(index, segment.to.name)}
+                  onClick={() => handleOpenQuickCapture(originalIndex, segment.to.name)}
                   className="flex-1 border-2 border-dashed border-purple-200 bg-purple-50/30 hover:bg-purple-50 hover:border-purple-300 rounded-lg px-3 py-2 transition-all group"
                 >
                   <div className="flex items-center justify-center gap-2 text-xs text-purple-600 font-medium">
@@ -242,7 +226,7 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
                       : 'bg-white text-muted-foreground border-slate-200'
                   )}>
                     {isDest ? <Trophy className="h-5 w-5" /> : isVisited ? '✓' : (
-                      <span className="font-mono text-xs font-bold">{index + 1}</span>
+                      <span className="font-mono text-xs font-bold">{renderIndex + 1}</span>
                     )}
                   </div>
                 </div>
@@ -262,12 +246,13 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
                   </div>
                   <JournalStopCard
                     segment={segment}
-                    segmentIndex={index}
+                    segmentIndex={originalIndex}
+                    displayIndex={renderIndex}
                     entry={entry}
                     displayTimezone={segment.timezone ?? segment.weather?.timezone}
-                    onUpdateEntry={(updates) => handleUpdateEntry(index, updates)}
-                    onAddPhoto={(photo) => handleAddPhoto(index, photo)}
-                    onRemovePhoto={(photoId) => handleRemovePhoto(index, photoId)}
+                    onUpdateEntry={(updates) => handleUpdateEntry(originalIndex, updates)}
+                    onAddPhoto={(photo) => handleAddPhoto(originalIndex, photo)}
+                    onRemovePhoto={(photoId) => handleRemovePhoto(originalIndex, photoId)}
                   />
                 </div>
               </div>

@@ -3,7 +3,7 @@ import type { TripSummary, TripSettings, TripJournal, JournalEntry, JournalPhoto
 import { showToast } from '../../lib/toast';
 import { formatDisplayDateInZone, formatTimeInZone, getTripStartTime, lngToIANA } from '../../lib/trip-timezone';
 import { buildAcceptedItineraryProjection } from '../../lib/accepted-itinerary-projection';
-import { buildJournalActiveSuggestions } from '../../lib/journal-trip-view';
+import { buildJournalActiveSuggestions, buildJournalTimelineStops } from '../../lib/journal-trip-view';
 
 interface UseJournalTimelineParams {
   summary: TripSummary;
@@ -46,44 +46,10 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
     activeSuggestions,
   }), [summary, settings, journal.vehicle, startTime, activeSuggestions]);
 
-  // Find current/next stop (first unvisited non-guard stop)
-  const currentStopIndex = useMemo(() => {
-    for (let i = 0; i < summary.segments.length; i++) {
-      if (summary.segments[i].to.id?.startsWith('guard-')) continue;
-      const waypointId = summary.segments[i].to.id;
-      const entry = journal.entries.find(e =>
-        (waypointId && e.stopId === waypointId) || e.segmentIndex === i
-      );
-      if (!entry || entry.status !== 'visited') return i;
-    }
-    return summary.segments.length - 1;
-  }, [summary.segments, journal.entries]);
-
-  // Calculate progress — exclude border-avoidance guard waypoints
-  const realSegmentIndices = useMemo(
-    () => new Set(
-      summary.segments
-        .map((s, i) => ({ s, i }))
-        .filter(({ s }) => !s.to.id?.startsWith('guard-'))
-        .map(({ i }) => i)
-    ),
-    [summary.segments],
+  const journalStops = useMemo(
+    () => buildJournalTimelineStops(journalProjection.simulationItems),
+    [journalProjection.simulationItems],
   );
-  // Stable waypoint IDs for the same real stops — progress survives index shifts.
-  const realWaypointIds = useMemo(
-    () => new Set(
-      summary.segments
-        .filter(s => s.to.id && !s.to.id.startsWith('guard-'))
-        .map(s => s.to.id!)
-    ),
-    [summary.segments],
-  );
-  const totalStops = realSegmentIndices.size;
-  const visitedCount = journal.entries.filter(
-    e => e.status === 'visited' &&
-      (realWaypointIds.has(e.stopId) || realSegmentIndices.has(e.segmentIndex))
-  ).length;
-  const progressPercent = totalStops > 0 ? Math.round((visitedCount / totalStops) * 100) : 0;
 
   // Get or create entry for a segment.
   // Looks up by stopId (stable geographic ID) first, falls back to segmentIndex
@@ -98,6 +64,34 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
     }
     return journal.entries.find(e => e.segmentIndex === segmentIndex);
   };
+
+  const currentStop = useMemo(() => {
+    for (const stop of journalStops) {
+      const waypointId = stop.segment.to.id;
+      const entry = journal.entries.find(e =>
+        (waypointId && e.stopId === waypointId) || e.segmentIndex === stop.originalIndex
+      );
+      if (!entry || entry.status !== 'visited') return stop;
+    }
+    return journalStops[journalStops.length - 1];
+  }, [journalStops, journal.entries]);
+
+  const currentStopIndex = currentStop?.originalIndex ?? Math.max(summary.segments.length - 1, 0);
+
+  const realSegmentIndices = useMemo(
+    () => new Set(journalStops.map(stop => stop.originalIndex)),
+    [journalStops],
+  );
+  const realWaypointIds = useMemo(
+    () => new Set(journalStops.map(stop => stop.segment.to.id).filter((id): id is string => Boolean(id))),
+    [journalStops],
+  );
+  const totalStops = journalStops.length;
+  const visitedCount = journal.entries.filter(
+    e => e.status === 'visited' &&
+      (realWaypointIds.has(e.stopId) || realSegmentIndices.has(e.segmentIndex))
+  ).length;
+  const progressPercent = totalStops > 0 ? Math.round((visitedCount / totalStops) * 100) : 0;
 
   // Update an entry
   const handleUpdateEntry = (segmentIndex: number, updates: Partial<JournalEntry>) => {
@@ -181,6 +175,8 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
     originTimezone,
     dayStartMap: journalProjection.dayStartMap,
     freeDaysAfterSegment: journalProjection.freeDaysAfterSegment,
+    journalStops,
+    currentStop,
     currentStopIndex,
     totalStops,
     visitedCount,

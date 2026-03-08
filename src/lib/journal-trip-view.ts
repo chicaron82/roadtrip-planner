@@ -1,7 +1,14 @@
-import type { JournalEntry, Location, TripSummary, Vehicle, TripDay, TripSettings } from '../types';
+import type { JournalEntry, Location, RouteSegment, TripSummary, Vehicle, TripDay, TripSettings } from '../types';
 import type { SuggestedStop } from './stop-suggestion-types';
 import type { StopOverrides } from '../components/Trip/timeline-data-types';
 import { createStopConfig, generateSmartStops } from './stop-suggestions';
+import type { SimulationItem } from './timeline-simulation';
+
+export interface JournalTimelineStop {
+  flatIndex: number;
+  originalIndex: number;
+  segment: RouteSegment;
+}
 
 export function resolveJournalEntryLocation(summary: TripSummary, entry: Pick<JournalEntry, 'stopId' | 'segmentIndex'>): Location | undefined {
   return summary.segments.find(segment => segment.to.id === entry.stopId)?.to
@@ -37,4 +44,17 @@ export function buildJournalActiveSuggestions(
   const baseSuggestions = generateSmartStops(summary.segments, config, days);
   const overridden = applyStopOverrides(baseSuggestions, stopOverrides);
   return overridden.filter(suggestion => !suggestion.dismissed);
+}
+
+export function buildJournalTimelineStops(simulationItems: SimulationItem[]): JournalTimelineStop[] {
+  return simulationItems.flatMap(item => {
+    if (item.type !== 'stop' || !item.segment || item.index === undefined) return [];
+    if (item.segment.to.id?.startsWith('guard-')) return [];
+
+    return [{
+      flatIndex: item.index,
+      originalIndex: item.originalIndex ?? item.index,
+      segment: item.segment,
+    }];
+  });
 }

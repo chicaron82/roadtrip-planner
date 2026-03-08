@@ -20,6 +20,7 @@ import { dispatchStopArrived } from '../../hooks/useArrivalSnap';
 interface JournalStopCardProps {
   segment: RouteSegment;
   segmentIndex: number;
+  displayIndex?: number;
   entry?: JournalEntry;
   displayTimezone?: string;
   onUpdateEntry: (entry: Partial<JournalEntry>) => void;
@@ -31,6 +32,7 @@ interface JournalStopCardProps {
 export function JournalStopCard({
   segment,
   segmentIndex,
+  displayIndex,
   entry,
   displayTimezone,
   onUpdateEntry,
@@ -132,7 +134,7 @@ export function JournalStopCard({
               hasArrived ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-500'
             )}
           >
-            {hasArrived ? <Check className="h-5 w-5" /> : segmentIndex + 1}
+            {hasArrived ? <Check className="h-5 w-5" /> : (displayIndex ?? segmentIndex) + 1}
           </div>
 
           <div>
