@@ -10,12 +10,9 @@
 
 import type { TripSummary, TripSettings, Vehicle } from '../../types';
 import type { DriverRotationResult } from '../../lib/driver-rotation';
-import type { SuggestedStop } from '../../lib/stop-suggestions';
 import { assignDrivers } from '../../lib/driver-rotation';
 import { showToast } from '../../lib/toast';
-import { generateSmartStops, createStopConfig } from '../../lib/stop-suggestions';
-import { buildTimedTimeline, type TimedEvent } from '../../lib/trip-timeline';
-import { applyComboOptimization } from '../../lib/stop-consolidator';
+import { type TimedEvent } from '../../lib/trip-timeline';
 import { buildPrintHTML } from '../../lib/trip-print-builders';
 
 // ==================== TYPES ====================
@@ -24,20 +21,24 @@ interface TripPrintViewProps {
   summary: TripSummary;
   settings: TripSettings;
   vehicle?: Vehicle;
-  /** When provided, use these instead of regenerating from scratch.
-   *  This is the single-source-of-truth link: the main UI computes
-   *  suggestions (with user accept/dismiss state), and the PDF
-   *  renders exactly what the user sees. */
-  activeSuggestions?: SuggestedStop[];
-  /** Pre-computed timed events from the canonical timeline.
-   *  Skips the entire buildTimedTimeline rebuild when provided. */
-  precomputedEvents?: TimedEvent[];
+  /** Canonical timed events from the main trip calculation.
+   *  Print must render from the same timeline the UI uses. */
+  precomputedEvents: TimedEvent[];
 }
 
 
 export function printTrip(props: TripPrintViewProps): void {
   const { summary, settings, vehicle } = props;
   const days = summary.days || [];
+
+  if (!props.precomputedEvents.length) {
+    showToast({
+      message: 'Print is unavailable until the trip timeline is ready.',
+      type: 'warning',
+      duration: 4000,
+    });
+    return;
+  }
 
   let driverRotation: DriverRotationResult | null = null;
   if (settings.numDrivers > 1) {
@@ -59,37 +60,7 @@ export function printTrip(props: TripPrintViewProps): void {
     driverRotation = assignDrivers(flatSegments, settings.numDrivers, fuelIndices);
   }
 
-  // Use pre-computed events from the canonical timeline when available,
-  // otherwise rebuild from scratch (backwards compatible).
-  let timedEvents: TimedEvent[] = [];
-  if (props.precomputedEvents) {
-    timedEvents = props.precomputedEvents;
-  } else if (vehicle) {
-    const allSuggestions = props.activeSuggestions
-      ?? generateSmartStops(
-        summary.segments,
-        createStopConfig(vehicle, settings, summary.fullGeometry),
-        summary.days,
-      );
-    // Only inject the destination dwell event for actual round-trip DAY TRIPS.
-    // Multi-day round trips must NOT get this event (corrupts return-leg clock).
-    // Guard: summary.days.length > 1 catches overnight trips where total driving time
-    // still fits under maxDriveHours (e.g. 4h+4h = 8h < 9h → false positive).
-    const isRTDayTrip = settings.isRoundTrip &&
-      (summary.days?.length ?? 0) <= 1 &&
-      summary.totalDurationMinutes <= settings.maxDriveHours * 60;
-    const destinationStayMinutes = isRTDayTrip ? (settings.dayTripDurationHours ?? 0) * 60 : 0;
-
-    const raw = buildTimedTimeline(
-      summary.segments,
-      allSuggestions,
-      settings,
-      summary.roundTripMidpoint,
-      destinationStayMinutes,
-      summary.days,
-    );
-    timedEvents = applyComboOptimization(raw);
-  }
+  const timedEvents = props.precomputedEvents;
 
   const origin = summary.segments[0]?.from.name || 'Origin';
   // For round trips: title should reflect the primary destination (where you went),

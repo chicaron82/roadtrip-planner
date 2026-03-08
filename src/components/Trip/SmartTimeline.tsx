@@ -25,6 +25,7 @@ interface SmartTimelineProps {
   summary: TripSummary;
   settings: TripSettings;
   vehicle?: Vehicle;
+  precomputedEvents?: TimedEvent[];
   poiSuggestions?: POISuggestion[];
   /** Unranked gas/hotel/restaurant corridor POIs for Tier-2 hub detection */
   poiInference?: POISuggestion[];
@@ -78,10 +79,14 @@ function DriveRow({ event }: { event: TimedEvent }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [], poiInference }: SmartTimelineProps) {
+export function SmartTimeline({ summary, settings, vehicle, precomputedEvents, poiSuggestions = [], poiInference }: SmartTimelineProps) {
   // ── Step 1: Build raw timeline (synchronous — renders immediately) ────────
   const rawEvents = useMemo(() => {
     if (!summary?.segments?.length) return [];
+
+    if (precomputedEvents && precomputedEvents.length > 0) {
+      return precomputedEvents;
+    }
 
     const allSuggestions = vehicle
       ? generateSmartStops(summary.segments, createStopConfig(vehicle, settings, summary.fullGeometry), summary.days)
@@ -107,7 +112,7 @@ export function SmartTimeline({ summary, settings, vehicle, poiSuggestions = [],
       summary.days,
     );
     return applyComboOptimization(raw);
-  }, [summary, settings, vehicle]);
+  }, [precomputedEvents, summary, settings, vehicle]);
 
   // ── Step 2: Async town resolution (updates labels after geocoding) ───────
   // Uses tiered resolution: hub cache → POI analysis → Nominatim

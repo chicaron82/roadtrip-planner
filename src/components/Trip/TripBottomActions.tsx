@@ -40,7 +40,7 @@ export function TripBottomActions({ summary, settings, vehicle, shareUrl, precom
         </button>
       )}
       <button
-        onClick={() => printTrip({ summary, settings, vehicle, precomputedEvents })}
+        onClick={() => printTrip({ summary, settings, vehicle, precomputedEvents: precomputedEvents ?? [] })}
         className="inline-flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-full transition-all"
         style={{ background: 'rgba(245,240,232,0.05)', border: '1px solid rgba(245,240,232,0.1)', color: 'rgba(245,240,232,0.45)' }}
       >

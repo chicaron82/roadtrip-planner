@@ -1,28 +1,24 @@
 import { useState, useMemo } from 'react';
-import { Share2, Printer, Maximize2, Minimize2, PenLine } from 'lucide-react';
 import type { Location, Vehicle, TripSettings, TripSummary, POISuggestion, TripJournal, StopType, DayType, OvernightStop, TripMode, TripChallenge } from '../../types';
 import { Button } from '../UI/Button';
 import { OvernightStopPrompt } from '../Trip/OvernightStopPrompt';
-import { JournalModeToggle, type ViewMode } from '../Trip/JournalModeToggle';
-import { TripTimelineView } from '../Trip/TripTimelineView';
-import { FeasibilityBanner } from '../Trip/FeasibilityBanner';
+import { type ViewMode } from '../Trip/JournalModeToggle';
 import { analyzeFeasibility } from '../../lib/feasibility';
-import { ConfirmTripCard } from '../Trip/ConfirmTripCard';
 import { EstimateBreakdown } from '../Trip/EstimateBreakdown';
-import { printTrip } from '../Trip/TripPrintView';
 import { generateEstimate } from '../../lib/estimate-service';
 import { generateTripOverview } from '../../lib/trip-analyzer';
-import { BudgetBar } from '../Trip/BudgetBar';
-import { TripBudgetHealth } from '../Trip/TripBudgetHealth';
-import { DifficultyBadge } from '../Trip/DifficultyBadge';
-import { TripArrivalHero } from '../Trip/TripArrivalHero';
-import { JournalFullscreenOverlay } from '../Trip/JournalFullscreenOverlay';
-import { TripBottomActions } from '../Trip/TripBottomActions';
-import { RecentTrips } from '../Trip/RecentTrips';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
 import type { PlanningStep } from '../../hooks';
 import type { TimedEvent } from '../../lib/trip-timeline';
+import type { CanonicalTripTimeline } from '../../lib/canonical-trip';
 import { useTripContext } from '../../contexts/TripContext';
+import { Step3Header } from './Step3Header';
+import { Step3HealthSection } from './Step3HealthSection';
+import { Step3TimelineSection } from './Step3TimelineSection';
+import { Step3CommitSection } from './Step3CommitSection';
+import { Step3HistorySection } from './Step3HistorySection';
+import { Step3EmptyState } from './Step3EmptyState';
+import type { Step3ArrivalInfo } from './step3-types';
 
 interface Step3ContentProps {
   summary: TripSummary | null;
@@ -56,6 +52,7 @@ interface Step3ContentProps {
   onGoToStep: (step: PlanningStep) => void;
   externalStops?: SuggestedStop[];
   precomputedEvents?: TimedEvent[];
+  canonicalTimeline?: CanonicalTripTimeline | null;
   tripConfirmed: boolean;
   addedStopCount: number;
   onConfirmTrip: () => void;
@@ -95,6 +92,7 @@ export function Step3Content({
   onGoToStep,
   externalStops,
   precomputedEvents,
+  canonicalTimeline,
   tripConfirmed,
   addedStopCount,
   onConfirmTrip,
@@ -123,123 +121,40 @@ export function Step3Content({
   );
 
   // Arrival hero: destination name + ETA
-  const arrivalInfo = useMemo(() => {
+  const arrivalInfo = useMemo<Step3ArrivalInfo | null>(() => {
     if (!summary) return null;
     const lastSeg = summary.segments.at(-1);
-    if (!lastSeg?.arrivalTime) return null;
-    const d = new Date(lastSeg.arrivalTime);
+    const canonicalArrival = precomputedEvents
+      ?.filter(event => event.type === 'arrival')
+      .at(-1);
+    const arrivalTime = canonicalArrival?.arrivalTime
+      ?? (lastSeg?.arrivalTime ? new Date(lastSeg.arrivalTime) : null);
+    if (!arrivalTime) return null;
+    const d = new Date(arrivalTime);
     if (isNaN(d.getTime())) return null;
     const time = d.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit', hour12: true });
     if (settings.isRoundTrip && summary.roundTripMidpoint) {
       const destSeg = summary.segments[summary.roundTripMidpoint - 1];
       return { dest: destSeg?.to.name ?? lastSeg.to.name, time, isRoundTrip: true as const };
     }
-    return { dest: lastSeg.to.name, time, isRoundTrip: false as const };
-  }, [summary, settings]);
-
-  // Expanded itinerary mode — show only the itinerary with full space
-  if (isExpanded && summary) {
-    return (
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Itinerary</h2>
-          <Button
-            size="sm"
-            variant="outline"
-            className="gap-1"
-            onClick={() => setIsExpanded(false)}
-          >
-            <Minimize2 className="h-3 w-3" /> Collapse
-          </Button>
-        </div>
-        <TripTimelineView
-          summary={summary}
-          settings={settings}
-          vehicle={vehicle}
-          viewMode={viewMode}
-          activeJournal={activeJournal}
-          activeChallenge={activeChallenge}
-          tripMode={tripMode}
-          onStartJournal={onStartJournal}
-          onUpdateJournal={onUpdateJournal}
-          onUpdateStopType={onUpdateStopType}
-          onUpdateDayNotes={onUpdateDayNotes}
-          onUpdateDayTitle={onUpdateDayTitle}
-          onUpdateDayType={onUpdateDayType}
-          onAddDayActivity={addDayActivity}
-          onUpdateDayActivity={updateDayActivity}
-          onRemoveDayActivity={removeDayActivity}
-          onUpdateOvernight={onUpdateOvernight}
-          poiSuggestions={poiSuggestions}
-          poiInference={poiInference}
-          isLoadingPOIs={isLoadingPOIs}
-          poiPartialResults={poiPartialResults}
-          onAddPOI={onAddPOI}
-          onDismissPOI={onDismissPOI}
-          externalStops={externalStops}
-        />
-      </div>
-    );
-  }
+    return { dest: lastSeg?.to.name ?? 'Destination', time, isRoundTrip: false as const };
+  }, [precomputedEvents, summary, settings]);
 
   return (
     <div className="space-y-4">
-      {/* Estimate Breakdown — shown in estimate mode */}
       {estimate && <EstimateBreakdown estimate={estimate} />}
 
-      <div className="flex flex-col gap-3">
-        <div className="flex justify-between items-center">
-          <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-lg font-semibold">Your Trip</h2>
-                {overview && <DifficultyBadge difficulty={overview.difficulty} />}
-              </div>
-            <p className="text-sm text-muted-foreground">Review your route and itinerary.</p>
-          </div>
-          <div className="flex gap-2">
-            {summary && (
-              <Button size="sm" variant="outline" className="gap-1" onClick={onOpenGoogleMaps}>
-                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
-                </svg>
-                Google Maps
-              </Button>
-            )}
-            {shareUrl && (
-              <Button size="sm" variant="outline" className="gap-1" onClick={onCopyShareLink}>
-                <Share2 className="h-3 w-3" /> Share
-              </Button>
-            )}
-            {summary && (
-              <Button size="sm" variant="outline" className="gap-1" onClick={() => printTrip({ summary, settings, vehicle, precomputedEvents })}>
-                <Printer className="h-3 w-3" /> Print
-              </Button>
-            )}
-          </div>
-        </div>
+      <Step3Header
+        summary={summary}
+        settings={settings}
+        vehicle={vehicle}
+        shareUrl={shareUrl}
+        difficulty={overview?.difficulty}
+        precomputedEvents={precomputedEvents}
+        onOpenGoogleMaps={onOpenGoogleMaps}
+        onCopyShareLink={onCopyShareLink}
+      />
 
-        {/* Trip Health — plan mode only, above the mode toggle */}
-        {summary && viewMode !== 'journal' && feasibility && (
-          <FeasibilityBanner
-            result={feasibility}
-            numTravelers={settings.numTravelers}
-            defaultCollapsed
-          />
-        )}
-
-        {/* Journal Mode Toggle */}
-        {summary && (
-          <JournalModeToggle
-            mode={viewMode}
-            onChange={setViewMode}
-            hasActiveJournal={!!activeJournal}
-            disabled={!tripConfirmed}
-            tripMode={tripMode}
-          />
-        )}
-      </div>
-
-      {/* Overnight Stop Prompt */}
       {showOvernightPrompt && suggestedOvernightStop && summary && (
         <OvernightStopPrompt
           suggestedLocation={suggestedOvernightStop}
@@ -264,27 +179,23 @@ export function Step3Content({
 
       {summary ? (
         <>
-          {/* Arrival hero — shown in plan view */}
-          {viewMode !== 'journal' && arrivalInfo && <TripArrivalHero arrivalInfo={arrivalInfo} />}
+          <Step3HealthSection
+            summary={summary}
+            settings={settings}
+            viewMode={viewMode}
+            tripMode={tripMode}
+            activeJournal={activeJournal}
+            tripConfirmed={tripConfirmed}
+            arrivalInfo={arrivalInfo}
+            feasibility={feasibility}
+            setViewMode={setViewMode}
+          />
 
-          {/* Budget bar — shown in plan view when breakdown is available */}
-          {viewMode !== 'journal' && summary.costBreakdown && (
-            <BudgetBar breakdown={summary.costBreakdown} settings={settings} />
-          )}
-
-          {/* Budget health — per-category delta, only in plan-to-budget mode */}
-          {viewMode !== 'journal' && settings.budgetMode === 'plan-to-budget' && summary.costBreakdown && (
-            <TripBudgetHealth
-              budget={settings.budget}
-              breakdown={summary.costBreakdown}
-              currency={settings.currency}
-            />
-          )}
-
-          <TripTimelineView
+          <Step3TimelineSection
             summary={summary}
             settings={settings}
             vehicle={vehicle}
+            canonicalTimeline={canonicalTimeline}
             viewMode={viewMode}
             activeJournal={activeJournal}
             activeChallenge={activeChallenge}
@@ -306,79 +217,33 @@ export function Step3Content({
             onAddPOI={onAddPOI}
             onDismissPOI={onDismissPOI}
             externalStops={externalStops}
+            isExpanded={isExpanded}
+            isJournalFullscreen={isJournalFullscreen}
+            setIsExpanded={setIsExpanded}
+            setIsJournalFullscreen={setIsJournalFullscreen}
           />
 
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-muted-foreground">
-              {viewMode === 'journal' ? 'Journal' : 'Itinerary'}
-            </h3>
-            {viewMode === 'journal' && activeJournal ? (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="gap-1 h-7 text-xs text-muted-foreground hover:text-foreground"
-                onClick={() => setIsJournalFullscreen(true)}
-              >
-                <PenLine className="h-3 w-3" /> Write
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="gap-1 h-7 text-xs text-muted-foreground hover:text-foreground"
-                onClick={() => setIsExpanded(true)}
-              >
-                <Maximize2 className="h-3 w-3" /> Expand
-              </Button>
-            )}
-          </div>
-
-          {/* Journal fullscreen overlay — covers full viewport on mobile for writing */}
-          {isJournalFullscreen && activeJournal && (
-            <JournalFullscreenOverlay
-              summary={summary}
-              settings={settings}
-              journal={activeJournal}
-              onUpdateJournal={onUpdateJournal}
-              onClose={() => setIsJournalFullscreen(false)}
-            />
-          )}
-
-          {/* Confirm Trip Card — shown in plan view */}
-          {viewMode === 'plan' && (
-            <ConfirmTripCard
-              confirmed={tripConfirmed}
-              addedStopCount={addedStopCount}
-              totalDays={summary.days?.length ?? 1}
-              onConfirm={onConfirmTrip}
-              onUnconfirm={onUnconfirmTrip}
-              onGoToJournal={() => setViewMode('journal')}
-            />
-          )}
-
-          {/* Bottom action row — export shortcuts so you don't scroll back up */}
-          <TripBottomActions
+          <Step3CommitSection
             summary={summary}
             settings={settings}
             vehicle={vehicle}
+            viewMode={viewMode}
+            tripConfirmed={tripConfirmed}
+            addedStopCount={addedStopCount}
             shareUrl={shareUrl}
             precomputedEvents={precomputedEvents}
+            onConfirmTrip={onConfirmTrip}
+            onUnconfirmTrip={onUnconfirmTrip}
+            onSetJournalMode={() => setViewMode('journal')}
             onOpenGoogleMaps={onOpenGoogleMaps}
             onCopyShareLink={onCopyShareLink}
           />
         </>
       ) : (
-        <div className="text-center py-12 text-muted-foreground">
-          <div className="mb-2">🗺️</div>
-          <p>No route calculated yet.</p>
-          <Button variant="link" onClick={() => onGoToStep(1)} className="mt-2">
-            Start Planning
-          </Button>
-        </div>
+        <Step3EmptyState onGoToStep={onGoToStep} />
       )}
 
-      {/* Recent Trips */}
-      <RecentTrips history={history} onLoadHistoryTrip={onLoadHistoryTrip} />
+      <Step3HistorySection history={history} onLoadHistoryTrip={onLoadHistoryTrip} />
     </div>
   );
 }

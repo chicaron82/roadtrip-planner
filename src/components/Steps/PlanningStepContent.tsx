@@ -13,6 +13,7 @@ import type { SuggestedStop } from '../../lib/stop-suggestions';
 import type { PlanningStep } from '../../hooks/useWizard';
 import type { StopType, DayType, OvernightStop } from '../../types';
 import type { TimedEvent } from '../../lib/trip-timeline';
+import type { CanonicalTripTimeline } from '../../lib/canonical-trip';
 
 interface PlanningStepContentProps {
   planningStep: PlanningStep;
@@ -44,6 +45,7 @@ interface PlanningStepContentProps {
   addedStopCount: number;
   externalStops: SuggestedStop[];
   precomputedEvents?: TimedEvent[];
+  canonicalTimeline?: CanonicalTripTimeline | null;
   history: TripSummary[];
   shareUrl: string | null;
   // Step 3 — calc
@@ -110,6 +112,7 @@ export function PlanningStepContent(p: PlanningStepContentProps) {
       poiPartialResults={p.poiPartialResults}
       history={p.history} shareUrl={p.shareUrl}
       precomputedEvents={p.precomputedEvents}
+      canonicalTimeline={p.canonicalTimeline}
       onOpenGoogleMaps={p.onOpenGoogleMaps}
       onCopyShareLink={p.onCopyShareLink}
       onStartJournal={p.onStartJournal}

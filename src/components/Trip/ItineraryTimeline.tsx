@@ -1,17 +1,15 @@
 import { useState, useMemo } from 'react';
-import { Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import type { TripSummary, TripSettings, Vehicle, StopType, TripDay, DayType, Activity, DayOption, OvernightStop, POISuggestion } from '../../types';
 import { SmartSuggestions } from './SmartSuggestions';
 import { SuggestedStopCard } from './SuggestedStopCard';
-import { ActivityBadge } from './ActivityEditor';
-import { StartNode, GasStopNode, SuggestedStopNode, WaypointNode } from './TimelineNode';
-import { DaySection } from './DaySection';
 import { DriverStatsPanel } from './DriverStatsPanel';
 import { useTimelineData, type StopOverrides } from './useTimelineData';
 import { TripHeaderSummary } from './TripHeaderSummary';
 import { DestinationDiscovery } from './DestinationDiscovery';
 import { TimelineDialogs, type EditingDayActivity } from './TimelineDialogs';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
+import { ItineraryTimelineBody } from './ItineraryTimelineBody';
 
 // ==================== PROPS ====================
 
@@ -160,198 +158,41 @@ export function ItineraryTimeline({
         </div>
       )}
 
-      {/* Timeline */}
-      <div className="space-y-0 pt-2 relative pb-12">
-        {/* Timeline Line (Background) */}
-        <div className="absolute left-[19px] top-4 bottom-0 w-0.5 bg-border -z-10"></div>
-
-        {/* Start Node */}
-        <StartNode
-          locationName={summary.segments[0]?.from.name || 'Origin'}
-          startTime={startTime}
-          timezone={originTimezone}
-          isCalculatedDeparture={settings.useArrivalTime}
-        />
-
-        {/* Simulation Items */}
-        {simulationItems.map((item, idx) => {
-          if (item.type === 'gas') {
-            return (
-              <GasStopNode
-                key={`gas-${idx}`}
-                arrivalTime={item.arrivalTime}
-                timezone={item.timezone}
-                cost={item.cost}
-                litres={item.litres}
-                priority={item.fuelPriority}
-              />
-            );
-          }
-
-          if (item.type === 'suggested' && item.suggestedStop) {
-            return (
-              <SuggestedStopNode
-                key={`suggested-${idx}`}
-                arrivalTime={item.arrivalTime}
-                timezone={item.timezone}
-                stop={item.suggestedStop}
-              />
-            );
-          }
-
-          if (item.segment && typeof item.index === 'number') {
-            const freeDaysAfter = freeDaysAfterSegment.get(item.index) ?? [];
-            const dayEntries = typeof item.index === 'number' ? (dayStartMap.get(item.index) ?? []) : [];
-            return (
-              <div key={`stop-${item.index}`}>
-                {dayEntries.map(({ day: entryDay, isFirst }) => {
-                  const isCollapsed = collapsedDays.has(entryDay.dayNumber);
-                  const dayTips = pacingSuggestionsByDay.get(entryDay.dayNumber) ?? [];
-                  const dayStops = pendingSuggestionsByDay.get(entryDay.dayNumber) ?? [];
-                  const hasCollapsibleContent = dayTips.length > 0 || dayStops.length > 0;
-
-                  return (
-                    <div key={`day-${entryDay.dayNumber}`} className="mb-4">
-                      <DaySection
-                        day={entryDay}
-                        isFirst={isFirst}
-                        editable={!!onUpdateDayType}
-                        budgetMode={settings.budgetMode}
-                        onDayTypeChange={onUpdateDayType}
-                        onAddDayActivity={
-                          onAddDayActivity ? () => {
-                            setEditingDayActivity({
-                              dayNumber: entryDay.dayNumber,
-                              activityIndex: -1, // -1 means new activity
-                            });
-                          } : undefined
-                        }
-                        onTitleChange={onUpdateDayTitle}
-                        onNotesChange={onUpdateDayNotes}
-                        onAddDayOption={onAddDayOption}
-                        onRemoveDayOption={onRemoveDayOption}
-                        onSelectDayOption={onSelectDayOption}
-                        overnightNights={overnightNightsByDay.get(entryDay.dayNumber)}
-                        onEditOvernight={onUpdateOvernight && entryDay.overnight ? (dayNum) => {
-                          const target = days?.find(d => d.dayNumber === dayNum);
-                          if (target?.overnight) {
-                            setEditingOvernight({ dayNumber: dayNum, overnight: target.overnight });
-                          }
-                        } : undefined}
-                      />
-
-                      {/* Collapse toggle for trips with 5+ days */}
-                      {totalDays >= 5 && hasCollapsibleContent && (
-                        <button
-                          type="button"
-                          onClick={() => toggleDayCollapse(entryDay.dayNumber)}
-                          className="ml-10 mt-1 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          {isCollapsed ? (
-                            <>
-                              <ChevronDown className="h-3 w-3" />
-                              <span>Show {dayTips.length + dayStops.length} suggestion{dayTips.length + dayStops.length !== 1 ? 's' : ''}</span>
-                            </>
-                          ) : (
-                            <>
-                              <ChevronUp className="h-3 w-3" />
-                              <span>Hide suggestions</span>
-                            </>
-                          )}
-                        </button>
-                      )}
-
-                      {/* Standalone Activities for this day */}
-                      {entryDay.plannedActivities && entryDay.plannedActivities.length > 0 && (
-                        <div className="ml-10 mt-4 flex flex-col gap-2">
-                          {entryDay.plannedActivities.map((act, idx) => (
-                            <ActivityBadge
-                              key={`standalone-act-${entryDay.dayNumber}-${idx}`}
-                              activity={act}
-                              onClick={onUpdateDayActivity ? () => {
-                                setEditingDayActivity({
-                                  dayNumber: entryDay.dayNumber,
-                                  activityIndex: idx,
-                                  activity: act,
-                                });
-                              } : undefined}
-                              className={onUpdateDayActivity ? 'cursor-pointer' : 'cursor-default'}
-                            />
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Collapsible content */}
-                      {!isCollapsed && (
-                        <>
-                          {/* Inline pacing tips for this day */}
-                          {dayTips.map((tip, tipIdx) => (
-                            <div
-                              key={`tip-${entryDay.dayNumber}-${tipIdx}`}
-                              className="ml-10 mt-2 flex items-start gap-2 p-2.5 rounded-lg border border-amber-500/20 bg-amber-500/10 text-sm"
-                            >
-                              <span className="text-amber-500 mt-0.5">💡</span>
-                              <span className="text-muted-foreground">{tip}</span>
-                            </div>
-                          ))}
-                          {/* Inline stop suggestions for this day */}
-                          {dayStops.map(stop => (
-                            <div key={stop.id} className="mt-2 ml-10">
-                              <SuggestedStopCard
-                                stop={stop}
-                                onAccept={handleAccept}
-                                onDismiss={handleDismiss}
-                              />
-                            </div>
-                          ))}
-                        </>
-                      )}
-                    </div>
-                  );
-                })}
-                <WaypointNode
-                  segment={item.segment}
-                  arrivalTime={item.arrivalTime}
-                  index={item.originalIndex ?? item.index}
-                  isDestination={item.index === lastStopFlatIndex}
-                  onUpdateStopType={onUpdateStopType}
-                  onEditActivity={onUpdateActivity ? (segIdx, activity, locName) => {
-                    setEditingActivity({ segmentIndex: segIdx, activity, locationName: locName });
-                  } : undefined}
-                  activity={item.segment.activity}
-                  assignedDriver={driverBySegment.get(item.originalIndex ?? item.index!)}
-                />
-                {freeDaysAfter.map(freeDay => (
-                  <div key={`free-day-${freeDay.dayNumber}`} className="mt-4">
-                    <DaySection
-                      day={freeDay}
-                      isFirst={false}
-                      editable={!!onUpdateDayType}
-                      budgetMode={settings.budgetMode}
-                      onDayTypeChange={onUpdateDayType}
-                      onAddDayActivity={
-                        onAddDayActivity ? () => {
-                          setEditingDayActivity({
-                            dayNumber: freeDay.dayNumber,
-                            activityIndex: -1, // -1 means new activity
-                          });
-                        } : undefined
-                      }
-                      onTitleChange={onUpdateDayTitle}
-                      onNotesChange={onUpdateDayNotes}
-                      onAddDayOption={onAddDayOption}
-                      onRemoveDayOption={onRemoveDayOption}
-                      onSelectDayOption={onSelectDayOption}
-                    />
-                  </div>
-                ))}
-              </div>
-            );
-          }
-
-          return null;
-        })}
-      </div>
+      <ItineraryTimelineBody
+        summary={summary}
+        settings={settings}
+        days={days}
+        startTime={startTime}
+        originTimezone={originTimezone}
+        simulationItems={simulationItems}
+        lastStopFlatIndex={lastStopFlatIndex}
+        dayStartMap={dayStartMap}
+        freeDaysAfterSegment={freeDaysAfterSegment}
+        pacingSuggestionsByDay={pacingSuggestionsByDay}
+        pendingSuggestionsByDay={pendingSuggestionsByDay}
+        overnightNightsByDay={overnightNightsByDay}
+        driverBySegment={driverBySegment}
+        totalDays={totalDays}
+        collapsedDays={collapsedDays}
+        toggleDayCollapse={toggleDayCollapse}
+        handleAccept={handleAccept}
+        handleDismiss={handleDismiss}
+        setEditingActivity={setEditingActivity}
+        setEditingOvernight={setEditingOvernight}
+        setEditingDayActivity={setEditingDayActivity}
+        onUpdateStopType={onUpdateStopType}
+        onUpdateActivity={onUpdateActivity}
+        onUpdateDayType={onUpdateDayType}
+        onAddDayActivity={onAddDayActivity}
+        onUpdateDayActivity={onUpdateDayActivity}
+        onRemoveDayActivity={onRemoveDayActivity}
+        onUpdateDayNotes={onUpdateDayNotes}
+        onUpdateDayTitle={onUpdateDayTitle}
+        onAddDayOption={onAddDayOption}
+        onRemoveDayOption={onRemoveDayOption}
+        onSelectDayOption={onSelectDayOption}
+        onUpdateOvernight={onUpdateOvernight}
+      />
 
       {/* Driver Stats (when multiple drivers) */}
       {driverRotation && driverRotation.stats.length > 1 && (

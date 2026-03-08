@@ -1,97 +1,48 @@
 import type { RouteSegment, TripDay, TripSettings } from '../../types';
 import type { StrategicFuelStop } from '../fuel-stops';
-import { splitLongSegments, type ProcessedSegment } from './segment-processor';
-import { createEmptyDay, finalizeTripDay, ceilToNearest, labelTransitDay } from './day-builder';
+import { splitLongSegments } from './segment-processor';
+import { createEmptyDay, finalizeTripDay, labelTransitDay } from './day-builder';
 import { getTimezoneOffset, getTimezoneName } from './timezone';
-import { TRIP_CONSTANTS } from '../trip-constants';
-import { getHotelMultiplier } from '../regional-costs';
 import { findHubInWindow } from '../hub-cache';
 import { lngToIANA, parseLocalDateInTZ } from '../trip-timezone';
+import {
+  type BudgetRemaining,
+  computeSmartDepartureHour,
+  createDefaultOvernight,
+  deriveBudgetRemaining,
+  formatHour,
+  getEffectiveMaxDriveMinutes,
+  getNextDayDriveMinutes,
+  getOverflowToleranceMinutes,
+} from './split-by-days-policies';
+import { buildNextDrivingDay } from './split-by-days-next-day';
+import { insertOneWayDestinationFreeDays, maybeInsertRoundTripMidpointDays } from './split-by-days-free-days';
 
-// ---------------------------------------------------------------------------
-
-const pad2 = (n: number) => String(n).padStart(2, '0');
-
-/**
- * Compute the ideal departure hour for a transit day so the crew arrives by
- * `settings.targetArrivalHour`, scaled to how much driving is *actually* left
- * for that specific day (not always the maximum).
- *
- * Full-day legs (≥75% of maxDriveHours): capped at 10 AM — can't dawdle.
- * Short final legs (<75%): allowed up to 6 PM — no sense waking at 5 AM for a 3h drive.
- *
- * Examples using the 9 PM default target:
- *   16h drive → clamp(21−16, 5, 10) =  5 AM → arrive 9 PM ✅
- *    8h drive → clamp(21− 8, 5, 10) = 10 AM → arrive 6 PM ✅
- *    3h drive → clamp(21− 3, 5, 18) =  6 PM → arrive 9 PM ✅ (was wrongly 5 AM)
- */
-function computeSmartDepartureHour(settings: TripSettings, actualDriveHours: number): number {
-  const { targetArrivalHour = 21, maxDriveHours } = settings;
-  const isFullDay = actualDriveHours >= maxDriveHours * TRIP_CONSTANTS.departure.fullDayThreshold;
-  const maxDeparture = isFullDay
-    ? TRIP_CONSTANTS.departure.maxHourFullDay
-    : TRIP_CONSTANTS.departure.maxHourShortLeg;
-  // Use Math.floor to ensure we depart early enough to arrive on time.
-  // Math.round could cause 30+ min late arrivals for fractional drive hours.
-  return Math.max(
-    TRIP_CONSTANTS.departure.minHour,
-    Math.min(maxDeparture, Math.floor(targetArrivalHour - actualDriveHours)),
-  );
-}
-
-/**
- * Look ahead from `fromIndex` in the processed segments array and accumulate
- * drive minutes for the *next* day — stopping when a new day boundary would
- * be triggered (accumulated + next segment > maxDriveMinutes) or when segments
- * run out. Used to compute the smart departure hour for the upcoming day.
- */
-function getNextDayDriveMinutes(
-  segments: ProcessedSegment[],
-  fromIndex: number,
-  maxDriveMinutes: number,
-): number {
-  let accumulated = 0;
-  for (let i = fromIndex; i < segments.length; i++) {
-    const m = segments[i].durationMinutes;
-    if (accumulated > 0 && accumulated + m > maxDriveMinutes) break;
-    accumulated += m;
-  }
-  return accumulated;
-}
-
-/**
- * Context-aware overflow tolerance for day splitting.
- *  - 2+ drivers can swap, reducing fatigue → extra 30 min
- *  - Last leg of the trip → extra 30 min (avoid unnecessary overnight)
- *  - 3+ consecutive driving days → lose 15 min (accumulated fatigue)
- */
-function getOverflowToleranceMinutes(
+function finalizeAndStoreDay(
+  day: TripDay,
+  days: TripDay[],
+  budget: BudgetRemaining,
   settings: TripSettings,
-  isLastLeg: boolean,
-  completedDays: TripDay[],
-): number {
-  const { dayOverflow } = TRIP_CONSTANTS;
-  const base = dayOverflow.toleranceHours * 60;
-  const driverBonus = settings.numDrivers >= 2 ? dayOverflow.multiDriverBonusMinutes : 0;
-  const lastLegBonus = isLastLeg ? dayOverflow.lastLegBonusMinutes : 0;
-  // Count consecutive driving days (current day + completed non-free days from tail)
-  let streak = 1;
-  for (let j = completedDays.length - 1; j >= 0; j--) {
-    if (completedDays[j].dayType === 'free') break;
-    streak++;
-  }
-  const fatiguePenalty = streak >= dayOverflow.fatigueDayThreshold
-    ? dayOverflow.fatiguePenaltyMinutes : 0;
-  return Math.min(
-    dayOverflow.maxToleranceMinutes,
-    base + driverBonus + lastLegBonus - fatiguePenalty,
+  originalSegments: RouteSegment[],
+  fuelStops?: StrategicFuelStop[],
+): BudgetRemaining {
+  finalizeTripDay(
+    day,
+    budget.gasRemaining,
+    budget.hotelRemaining,
+    budget.foodRemaining,
+    settings,
+    fuelStops,
   );
+  labelTransitDay(day, originalSegments);
+  days.push(day);
+
+  return {
+    gasRemaining: day.budget.gasRemaining,
+    hotelRemaining: day.budget.hotelRemaining,
+    foodRemaining: day.budget.foodRemaining,
+  };
 }
-
-/** Minimum hours of rest guaranteed between estimated Day-N arrival and Day-(N+1) departure. */
-const MIN_REST_HOURS = TRIP_CONSTANTS.rest.minHours;
-
-// ---------------------------------------------------------------------------
 
 /**
  * Split a trip into days based on max drive hours and overnight stops.
@@ -119,34 +70,10 @@ export function splitTripByDays(
   let currentDayDriveMinutes = 0;
   let currentDate = new Date(`${departureDate}T${departureTime}`);
   let dayNumber = 1;
-
-  // Initialize running budget totals.
-  // In 'flexible' allocation mode the per-category fields are 0 (the user hasn't
-  // allocated them manually), so derive from total × weight percentages instead.
-  // In 'manual' / 'plan-to-budget' mode the explicit per-category values are used.
-  const { budget } = settings;
-  const hasExplicitCategoryBudgets = budget.gas > 0 || budget.hotel > 0 || budget.food > 0;
-  // If we have explicit category budgets, use them directly
-  // Otherwise, if we have a total budget AND weights are defined, derive categories from the total
-  // (Note: flexible mode might have total=0, in which case categories stay 0 until tracked dynamically)
-  const gasRemaining0 = hasExplicitCategoryBudgets
-    ? budget.gas
-    : budget.total > 0 ? budget.total * budget.weights.gas / 100 : 0;
-  const hotelRemaining0 = hasExplicitCategoryBudgets
-    ? budget.hotel
-    : budget.total > 0 ? budget.total * budget.weights.hotel / 100 : 0;
-  const foodRemaining0 = hasExplicitCategoryBudgets
-    ? budget.food
-    : budget.total > 0 ? budget.total * budget.weights.food / 100 : 0;
-  let gasRemaining = gasRemaining0;
-  let hotelRemaining = hotelRemaining0;
-  let foodRemaining = foodRemaining0;
+  let budget = deriveBudgetRemaining(settings);
 
   const maxDriveMinutes = settings.maxDriveHours * 60;
-  // Allow days to slightly exceed maxDriveHours (1h grace).
-  // Humans push through 30-60 extra minutes to reach a real city; without this,
-  // an 8h30m pair of segments gets split into two 4h15m days, doubling the trip.
-  const effectiveMaxDriveMinutes = maxDriveMinutes + TRIP_CONSTANTS.dayOverflow.toleranceHours * 60;
+  const effectiveMaxDriveMinutes = getEffectiveMaxDriveMinutes(maxDriveMinutes);
 
   // Build cumulative km-start offsets per segment for geometry interpolation.
   const segKmStarts: number[] = [];
@@ -176,200 +103,30 @@ export function splitTripByDays(
 
   for (let i = 0; i < processedSegments.length; i++) {
     const segment = processedSegments[i];
+    const midpointResult = maybeInsertRoundTripMidpointDays({
+      processedSegments,
+      segmentIndex: i,
+      roundTripMidpoint,
+      originalSegments: segments,
+      settings,
+      maxDriveMinutes,
+      effectiveMaxDriveMinutes,
+      fuelStops,
+      days,
+      currentDay,
+      currentDayDriveMinutes,
+      currentDate,
+      dayNumber,
+      insertedFreeDays,
+      budget,
+    });
 
-    // === INSERT OVERNIGHT + FREE DAYS AT ROUND-TRIP MIDPOINT ===
-    // Use _originalIndex so we correctly detect the midpoint even when a long
-    // segment was split into multiple sub-segments by splitLongSegments.
-    //
-    // The overnight fires for round trips where the TOTAL driving time (both legs)
-    // exceeds maxDriveHours. If the round trip fits in a single day (day trip),
-    // we skip the forced overnight so the user doesn't get an unwanted hotel stop.
-    // e.g. Toronto → Ottawa → Toronto is ~9h22m driving, which fits in a 10h day.
-    const totalRoundTripMinutes = processedSegments.reduce((sum, s) => sum + s.durationMinutes, 0);
-    // If the user has set a multi-day date range, ALWAYS stop at the destination —
-    // even if the total drive time would technically fit in a single day.
-    // Without this guard, setting maxDriveHours=16h on a ~14h round trip (e.g.
-    // Winnipeg → Thunder Bay) makes the whole trip look like a "day trip", which
-    // skips the destination overnight and dumps the leftover nights back at origin.
-    const calendarDays = (settings.returnDate && settings.departureDate)
-      ? Math.max(1, Math.round(
-          (new Date(settings.returnDate + 'T00:00:00').getTime() -
-           new Date(settings.departureDate + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24)) + 1)
-      : 1;
-    const isRoundTripDayTrip = totalRoundTripMinutes <= effectiveMaxDriveMinutes && calendarDays <= 1;
-
-    if (
-      !insertedFreeDays &&
-      roundTripMidpoint !== undefined &&
-      !isRoundTripDayTrip &&
-      segment._originalIndex === roundTripMidpoint &&
-      (i === 0 || processedSegments[i - 1]._originalIndex < roundTripMidpoint)
-    ) {
-      // Snapshot drive minutes BEFORE finalizing the day resets them to 0.
-      // Used below to compute actual outbound arrival time for beast mode date math.
-      const outboundDriveMinutesSnapshot = currentDayDriveMinutes;
-
-      // Finalize outbound's last day — assign overnight at the destination.
-      // Night 1 belongs to Day 1's budget (the day you drove, not the free day after).
-      if (currentDay && currentDay.segments.length > 0) {
-        const lastSeg = currentDay.segments[currentDay.segments.length - 1];
-        if (!currentDay.overnight && lastSeg) {
-          const roomsNeeded = Math.ceil(settings.numTravelers / 2);
-          currentDay.overnight = {
-            location: lastSeg.to,
-            accommodationType: 'hotel',
-            cost: roomsNeeded * getHotelMultiplier(lastSeg.to.name) * settings.hotelPricePerNight,
-            roomsNeeded,
-          };
-        }
-
-        finalizeTripDay(currentDay, gasRemaining, hotelRemaining, foodRemaining, settings, fuelStops);
-        labelTransitDay(currentDay, segments);
-        gasRemaining = currentDay.budget.gasRemaining;
-        hotelRemaining = currentDay.budget.hotelRemaining;
-        foodRemaining = currentDay.budget.foodRemaining;
-        days.push(currentDay);
-        currentDay = null;
-        currentDayDriveMinutes = 0;
-      }
-
-      // Use snapshotted drive minutes (before reset above) + departure time to get true arrival.
-      const outboundArrivalMs = currentDate.getTime() + outboundDriveMinutesSnapshot * 60 * 1000;
-      // Use LOCAL date (not UTC .toISOString) so calendar math matches the user's experience.
-      // e.g. arriving 11:32 PM PST on Mar 7 is "Mar 7" locally even though UTC shows "Mar 8".
-      const _arrivalLocalDate = new Date(outboundArrivalMs);
-      const outboundArrivalDateStr = [
-        _arrivalLocalDate.getFullYear(),
-        String(_arrivalLocalDate.getMonth() + 1).padStart(2, '0'),
-        String(_arrivalLocalDate.getDate()).padStart(2, '0'),
-      ].join('-');
-      const outboundArrivalBase = new Date(outboundArrivalDateStr + 'T09:00:00');
-
-      // If the drive arrives before noon local time (e.g. beast mode arrives ~1:30 AM),
-      // the arrival day itself is a rest day — free days start ON the arrival date.
-      // For normal trips arriving in the afternoon/evening, free days start the NEXT day.
-      const arrivalHour = new Date(outboundArrivalMs).getHours();
-      const arrivalDayIsFree = arrivalHour < 12 && outboundArrivalDateStr > (settings.departureDate ?? '');
-      // How many calendar dates did the outbound leg consume?
-      // Beast mode may span 2+ calendar dates while only counting as 1 "driving day".
-      // We count the span excluding the arrival day when it's free (group is resting there).
-      const departureDateMidnight = new Date((settings.departureDate ?? outboundArrivalDateStr) + 'T00:00:00');
-      const arrivalDateMidnight = new Date(outboundArrivalDateStr + 'T00:00:00');
-      const calendarDaySpan = Math.round((arrivalDateMidnight.getTime() - departureDateMidnight.getTime()) / (1000 * 60 * 60 * 24));
-      // If the arrival day is free, we don't count it as an "outbound day" — it belongs to free days.
-      // If not free (arrived evening), the arrival day is the last outbound day.
-      const outboundCalendarDays = arrivalDayIsFree ? calendarDaySpan : Math.max(days.length, calendarDaySpan + 1);
-
-      // Offset for free day indexing: 0 if arrival day is free (start there), 1 if not (start next day).
-      const freeDayOffset = arrivalDayIsFree ? 0 : 1;
-
-      // Free days: only when a returnDate is explicitly set and there are
-      // calendar days to spare between outbound and return driving days.
-      const freeDaysCount = (settings.returnDate && settings.departureDate)
-        ? (() => {
-            const returnDateObj = new Date(settings.returnDate + 'T00:00:00');
-            const totalTripDays = Math.max(1, Math.round((returnDateObj.getTime() - departureDateMidnight.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-
-            // Estimate return driving days from remaining segment durations.
-            // Don't assume return = outbound (timing differences can change day count).
-            // slice(i) — segment[i] IS the first return sub-segment (the midpoint
-            // condition matched it), so it must be included in the return total.
-            const returnSegments = processedSegments.slice(i);
-            const returnTotalMinutes = returnSegments.reduce((sum, s) => sum + s.durationMinutes, 0);
-            // Use effectiveMaxDriveMinutes (includes 1h grace) to match the actual
-            // day-splitting logic — otherwise the estimate is more pessimistic than
-            // reality, and we over-insert free days.
-            const returnDrivingDays = Math.max(1, Math.ceil(returnTotalMinutes / effectiveMaxDriveMinutes));
-
-            return Math.max(0, totalTripDays - outboundCalendarDays - returnDrivingDays);
-          })()
-        : 0;
-
-      if (freeDaysCount > 0) {
-        // Destination is the last stop of the outbound leg
-        const lastOutboundDay = days[days.length - 1];
-        const destination = lastOutboundDay.segments.length > 0
-          ? lastOutboundDay.segments[lastOutboundDay.segments.length - 1].to
-          : null;
-        const destName = destination?.name || 'Destination';
-
-        for (let j = 0; j < freeDaysCount; j++) {
-          dayNumber++;
-          // Anchor to actual arrival date. freeDayOffset=0 when arrival day is free (beast mode
-          // arrives early morning), freeDayOffset=1 when arriving evening (normal trips).
-          const freeDate = new Date(outboundArrivalBase.getTime() + (j + freeDayOffset) * 24 * 60 * 60 * 1000);
-          const freeDay = createEmptyDay(dayNumber, freeDate);
-          freeDay.route = `📍 ${destName}`;
-          freeDay.dayType = 'free';
-          freeDay.title = `Day ${j + 1} at ${destName}`;
-
-          const roomsNeeded = Math.ceil(settings.numTravelers / 2);
-          const hotelCost = roomsNeeded * getHotelMultiplier(destination?.name ?? '') * settings.hotelPricePerNight;
-          const foodCost = settings.mealPricePerDay * settings.numTravelers;
-
-          const roundedHotel = ceilToNearest(hotelCost, 5);
-          const roundedFood = ceilToNearest(foodCost, 5);
-          hotelRemaining -= roundedHotel;
-          foodRemaining -= roundedFood;
-
-          freeDay.budget = {
-            gasUsed: 0,
-            hotelCost: roundedHotel,
-            foodEstimate: roundedFood,
-            miscCost: 0,
-            dayTotal: roundedHotel + roundedFood,
-            gasRemaining: Math.round(gasRemaining * 100) / 100,
-            hotelRemaining: Math.round(hotelRemaining * 100) / 100,
-            foodRemaining: Math.round(foodRemaining * 100) / 100,
-          };
-
-          if (destination) {
-            freeDay.overnight = {
-              location: destination,
-              accommodationType: 'hotel',
-              cost: roundedHotel,
-              roomsNeeded,
-            };
-          }
-
-          days.push(freeDay);
-          currentDate = freeDate;
-        }
-      }
-
-      insertedFreeDays = true;
-
-      // Set up for the return leg — next morning after free days
-      dayNumber++;
-      const returnLegHours = getNextDayDriveMinutes(processedSegments, i, maxDriveMinutes) / 60;
-      const returnDepHour = computeSmartDepartureHour(settings, returnLegHours);
-      // Departure city for the return leg = destination (segment[i].from).
-      const returnDepTz = lngToIANA(processedSegments[i].from.lng);
-      const returnDateStr = (() => {
-        // Return departs the morning after the last free day (or the morning after arrival
-        // when there are no free days). freeDayOffset aligns with the free-day anchor logic above.
-        const d = new Date(outboundArrivalBase.getTime() + (freeDaysCount + freeDayOffset) * 24 * 60 * 60 * 1000);
-        return d.toISOString().split('T')[0];
-      })();
-      currentDate = parseLocalDateInTZ(returnDateStr, `${pad2(returnDepHour)}:00`, returnDepTz);
-
-      // Guard: return departure must be ≥ MIN_REST_HOURS after outbound arrival.
-      // Without a return date the computed departure can land before minimum rest
-      // (e.g. arrive LA at 3:15 AM, smart-departure = 5:00 AM = only 1h45m rest).
-      const outboundArrivalDate = new Date(outboundArrivalMs);
-      const earliestReturnDep = new Date(outboundArrivalDate.getTime() + MIN_REST_HOURS * 60 * 60 * 1000);
-      if (currentDate < earliestReturnDep) {
-        const nextReturnDateStr = (() => {
-          const d = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000);
-          return d.toISOString().split('T')[0];
-        })();
-        currentDate = parseLocalDateInTZ(nextReturnDateStr, `${pad2(returnDepHour)}:00`, returnDepTz);
-      }
-
-      currentDay = createEmptyDay(dayNumber, currentDate);
-      currentDay.totals.departureTime = currentDate.toISOString(); // Auto-computed return leg departure
-      currentDayDriveMinutes = 0;
-    }
+    currentDay = midpointResult.currentDay;
+    currentDayDriveMinutes = midpointResult.currentDayDriveMinutes;
+    currentDate = midpointResult.currentDate;
+    dayNumber = midpointResult.dayNumber;
+    insertedFreeDays = midpointResult.insertedFreeDays;
+    budget = midpointResult.budget;
 
     // Start a new day if needed
     if (!currentDay) {
@@ -400,73 +157,29 @@ export function splitTripByDays(
       }
     }
     if (wouldExceedDailyMax && currentDay.segments.length > 0 && !isOvernightStop && !hubSnapExtend) {
-      // Assign overnight — driver stops at end of this driving day.
       if (!currentDay.overnight) {
         const lastSeg = currentDay.segments[currentDay.segments.length - 1];
         if (lastSeg) {
-          const roomsNeeded = Math.ceil(settings.numTravelers / 2);
-          currentDay.overnight = {
-            location: lastSeg.to,
-            accommodationType: 'hotel',
-            cost: roomsNeeded * getHotelMultiplier(lastSeg.to.name) * settings.hotelPricePerNight,
-            roomsNeeded,
-          };
+          currentDay.overnight = createDefaultOvernight(lastSeg.to, settings);
         }
       }
 
-      // Finalize current day
-      finalizeTripDay(currentDay, gasRemaining, hotelRemaining, foodRemaining, settings, fuelStops);
+      budget = finalizeAndStoreDay(currentDay, days, budget, settings, segments, fuelStops);
 
-      // Label transit days when the segment was split by splitLongSegments.
-      labelTransitDay(currentDay, segments);
-
-      // Update running totals for the NEXT day
-      gasRemaining = currentDay.budget.gasRemaining;
-      hotelRemaining = currentDay.budget.hotelRemaining;
-      foodRemaining = currentDay.budget.foodRemaining;
-
-      days.push(currentDay);
-
-      // Start new day — stamp auto-computed departure before any segments are added
-      dayNumber++;
-      // Estimate actual arrival time for this driving day (departure + accumulated drive time).
-      // This ensures the next-day departure always respects a minimum rest gap, even when
-      // Day 1 departs late and drives through the night (e.g. 10 PM → arrives 8 AM → must
-      // not depart 9 AM that same morning with only 1 h of rest).
-      const estimatedDayArrival = new Date(currentDate.getTime() + currentDayDriveMinutes * 60 * 1000);
-      // Try the smart departure hour on the same calendar day as arrival.
-      // Use how much driving is actually left (not the max) so short final legs get later starts.
-      const nextDayHours = getNextDayDriveMinutes(processedSegments, i, maxDriveMinutes) / 60;
-      const depHour = computeSmartDepartureHour(settings, nextDayHours);
-
-      // Resolve the departure city's timezone from the overnight stop location.
-      // Using the route timezone (not browser-local) prevents a 1-hour drift when
-      // the browser timezone ≠ departure city timezone (e.g. user in CST, day starts in EST).
-      const overnightSeg = currentDay.segments[currentDay.segments.length - 1];
-      const depTz = overnightSeg ? lngToIANA(overnightSeg.to.lng) : undefined;
-
-      // Build candidate departure in the route timezone using Intl-based parsing.
-      const pad = (n: number) => String(n).padStart(2, '0');
-      const arrivalDateStr = estimatedDayArrival.toISOString().split('T')[0];
-      const depTimeStr = `${pad(depHour)}:00`;
-      let nextDayCandidate = depTz
-        ? parseLocalDateInTZ(arrivalDateStr, depTimeStr, depTz)
-        : (() => { const d = new Date(estimatedDayArrival); d.setHours(depHour, 0, 0, 0); return d; })();
-
-      // Guard: departure must be ≥ MIN_REST_HOURS after estimated arrival.
-      const earliestDeparture = new Date(estimatedDayArrival.getTime() + MIN_REST_HOURS * 60 * 60 * 1000);
-      if (nextDayCandidate < earliestDeparture) {
-        // Not enough rest this day — push to the next calendar day at the smart hour.
-        const nextDateObj = new Date(nextDayCandidate.getTime() + 24 * 60 * 60 * 1000);
-        const nextDateStr = nextDateObj.toISOString().split('T')[0];
-        nextDayCandidate = depTz
-          ? parseLocalDateInTZ(nextDateStr, depTimeStr, depTz)
-          : (() => { nextDateObj.setHours(depHour, 0, 0, 0); return nextDateObj; })();
-      }
-      currentDate = nextDayCandidate;
-      currentDay = createEmptyDay(dayNumber, currentDate);
-      currentDay.totals.departureTime = currentDate.toISOString(); // Override segment chain time
-      currentDayDriveMinutes = 0;
+      const nextDay = buildNextDrivingDay({
+        currentDay,
+        currentDate,
+        currentDayDriveMinutes,
+        processedSegments,
+        segmentIndex: i,
+        maxDriveMinutes,
+        settings,
+        dayNumber,
+      });
+      currentDate = nextDay.currentDate;
+      currentDay = nextDay.currentDay;
+      currentDayDriveMinutes = nextDay.currentDayDriveMinutes;
+      dayNumber = nextDay.dayNumber;
     }
 
     // Add segment to current day
@@ -499,23 +212,8 @@ export function splitTripByDays(
 
     // Check for overnight stop type
     if (isOvernightStop) {
-      const roomsNeeded = Math.ceil(settings.numTravelers / 2);
-      currentDay.overnight = {
-        location: segment.to,
-        accommodationType: 'hotel',
-        cost: roomsNeeded * getHotelMultiplier(segment.to.name) * settings.hotelPricePerNight,
-        roomsNeeded,
-      };
-
-      // Finalize current day consisting of segments up to this overnight stop
-      finalizeTripDay(currentDay, gasRemaining, hotelRemaining, foodRemaining, settings, fuelStops);
-      labelTransitDay(currentDay, segments);
-
-      gasRemaining = currentDay.budget.gasRemaining;
-      hotelRemaining = currentDay.budget.hotelRemaining;
-      foodRemaining = currentDay.budget.foodRemaining;
-
-      days.push(currentDay);
+      currentDay.overnight = createDefaultOvernight(segment.to, settings);
+      budget = finalizeAndStoreDay(currentDay, days, budget, settings, segments, fuelStops);
 
       // Set up next day
       dayNumber++;
@@ -532,7 +230,7 @@ export function splitTripByDays(
       // Use the overnight stop's timezone (not browser-local) for the departure time.
       const overnightDepTz = lngToIANA(segment.to.lng);
       const overnightDateStr = currentDate.toISOString().split('T')[0];
-      currentDate = parseLocalDateInTZ(overnightDateStr, `${pad2(overnightDepHour)}:00`, overnightDepTz);
+      currentDate = parseLocalDateInTZ(overnightDateStr, formatHour(overnightDepHour), overnightDepTz);
 
       currentDay = createEmptyDay(dayNumber, currentDate);
       currentDay.totals.departureTime = currentDate.toISOString();
@@ -542,85 +240,18 @@ export function splitTripByDays(
 
   // Finalize last day
   if (currentDay && currentDay.segments.length > 0) {
-    finalizeTripDay(currentDay, gasRemaining, hotelRemaining, foodRemaining, settings, fuelStops);
-    labelTransitDay(currentDay, segments);
-    days.push(currentDay);
+    finalizeAndStoreDay(currentDay, days, budget, settings, segments, fuelStops);
   }
 
-  // Insert free days at destination for ONE-WAY trips only
-  // (Round trips handle free days at the midpoint above)
-  if (!insertedFreeDays && settings.returnDate && settings.departureDate && days.length > 0) {
-    const lastDrivingDay = days[days.length - 1];
-    const lastDriveDate = new Date(lastDrivingDay.date + 'T00:00:00');
-    const returnDate = new Date(settings.returnDate + 'T00:00:00');
-    const gapDays = Math.round((returnDate.getTime() - lastDriveDate.getTime()) / (1000 * 60 * 60 * 24));
-
-    if (gapDays > 1) {
-      // Determine destination name from the last segment's endpoint
-      const destination = lastDrivingDay.segments.length > 0
-        ? lastDrivingDay.segments[lastDrivingDay.segments.length - 1].to
-        : null;
-      const destName = destination?.name || 'Destination';
-
-      // Assign overnight to the last driving day if it doesn't have one yet.
-      // You arrive and check in that evening — Night 1 belongs to the day you drove.
-      if (!lastDrivingDay.overnight && destination) {
-        const roomsNeeded = Math.ceil(settings.numTravelers / 2);
-        const hotelCost = roomsNeeded * getHotelMultiplier(destination.name) * settings.hotelPricePerNight;
-        lastDrivingDay.overnight = {
-          location: destination,
-          accommodationType: 'hotel',
-          cost: hotelCost,
-          roomsNeeded,
-        };
-        // Re-finalize so the budget includes the hotel cost
-        hotelRemaining += lastDrivingDay.budget.hotelCost; // undo old
-        gasRemaining += lastDrivingDay.budget.gasUsed;
-        foodRemaining += lastDrivingDay.budget.foodEstimate;
-        finalizeTripDay(lastDrivingDay, gasRemaining, hotelRemaining, foodRemaining, settings, fuelStops);
-      }
-
-      for (let k = 1; k < gapDays; k++) {
-        dayNumber++;
-        const freeDate = new Date(lastDriveDate.getTime() + k * 24 * 60 * 60 * 1000);
-        const freeDay = createEmptyDay(dayNumber, freeDate);
-        freeDay.route = `📍 ${destName}`;
-        freeDay.dayType = 'free';
-        freeDay.title = k === 1 ? 'Explore!' : `Day ${k} at ${destName}`;
-
-        // Budget: food + hotel for free days (no gas)
-        const roomsNeeded = Math.ceil(settings.numTravelers / 2);
-        const hotelCost = roomsNeeded * getHotelMultiplier(destination?.name ?? '') * settings.hotelPricePerNight;
-        const foodCost = settings.mealPricePerDay * settings.numTravelers;
-
-        const roundedHotel2 = ceilToNearest(hotelCost, 5);
-        const roundedFood2 = ceilToNearest(foodCost, 5);
-        hotelRemaining -= roundedHotel2;
-        foodRemaining -= roundedFood2;
-
-        freeDay.budget = {
-          gasUsed: 0,
-          hotelCost: roundedHotel2,
-          foodEstimate: roundedFood2,
-          miscCost: 0,
-          dayTotal: roundedHotel2 + roundedFood2,
-          gasRemaining: Math.round(gasRemaining * 100) / 100,
-          hotelRemaining: Math.round(hotelRemaining * 100) / 100,
-          foodRemaining: Math.round(foodRemaining * 100) / 100,
-        };
-
-        if (destination) {
-          freeDay.overnight = {
-            location: destination,
-            accommodationType: 'hotel',
-            cost: roundedHotel2,
-            roomsNeeded,
-          };
-        }
-
-        days.push(freeDay);
-      }
-    }
+  if (!insertedFreeDays) {
+    const oneWayResult = insertOneWayDestinationFreeDays({
+      settings,
+      fuelStops,
+      dayNumber,
+      days,
+      budget,
+    });
+    dayNumber = oneWayResult.dayNumber;
   }
 
   return days;

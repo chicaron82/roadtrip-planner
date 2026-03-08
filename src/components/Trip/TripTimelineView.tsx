@@ -21,6 +21,7 @@ import type {
   Activity,
 } from '../../types';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
+import type { CanonicalTripTimeline } from '../../lib/canonical-trip';
 import type { StopOverrides } from './useTimelineData';
 import type { ViewMode } from './JournalModeToggle';
 import { SmartTimeline } from './SmartTimeline';
@@ -34,6 +35,7 @@ export interface TripTimelineViewProps {
   summary: TripSummary;
   settings: TripSettings;
   vehicle: Vehicle;
+  canonicalTimeline?: CanonicalTripTimeline | null;
   viewMode: ViewMode;
 
   // Journal
@@ -71,6 +73,7 @@ export function TripTimelineView({
   summary,
   settings,
   vehicle,
+  canonicalTimeline,
   viewMode,
   activeJournal,
   activeChallenge,
@@ -118,6 +121,7 @@ export function TripTimelineView({
           summary={summary}
           settings={settings}
           vehicle={vehicle}
+          precomputedEvents={canonicalTimeline?.events}
           poiSuggestions={poiSuggestions}
           poiInference={poiInference}
         />

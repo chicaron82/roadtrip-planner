@@ -19,6 +19,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { TripSummary, TripSettings } from '../types';
 import type { SuggestedStop } from '../lib/stop-suggestions';
+import type { GhostCarInput } from '../lib/canonical-trip';
 import { buildTimedTimeline } from '../lib/trip-timeline';
 import type { TimedEvent } from '../lib/trip-timeline';
 
@@ -108,6 +109,7 @@ const IDLE_STATE: GhostCarState = {
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useGhostCar(
+  ghostCarInput: GhostCarInput | null,
   summary: TripSummary | null,
   settings: TripSettings,
   suggestions: SuggestedStop[]
@@ -127,15 +129,17 @@ export function useGhostCar(
 
     const accepted = suggestions.filter(s => s.accepted);
 
-    const events = buildTimedTimeline(
-      summary.segments,
-      accepted,
-      settings,
-      summary.roundTripMidpoint,
-      undefined,
-      summary.days,
-      startTime,
-    );
+    const events = ghostCarInput?.events?.length
+      ? ghostCarInput.events
+      : buildTimedTimeline(
+          summary.segments,
+          accepted,
+          settings,
+          summary.roundTripMidpoint,
+          undefined,
+          summary.days,
+          startTime,
+        );
 
     // Waypoint names from segments (origin + each segment's destination)
     const segs = summary.segments;
@@ -145,7 +149,7 @@ export function useGhostCar(
     for (const s of segs) { cum += s.distanceKm; kms.push(cum); }
 
     return { events, waypointNames: names, waypointKms: kms, totalKm: cum };
-  }, [summary, settings, suggestions]);
+  }, [ghostCarInput, summary, settings, suggestions]);
 
   // ── Compute state from current clock ──
   const computeState = useCallback(() => {

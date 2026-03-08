@@ -1,0 +1,1 @@
+export type StopOverrides = Record<string, { accepted?: boolean; dismissed?: boolean; duration?: number }>;

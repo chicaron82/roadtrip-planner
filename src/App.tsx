@@ -136,7 +136,7 @@ function AppContent() {
     });
 
   // Ghost car — time-based trip progress simulation
-  const ghostCar = useGhostCar(summary, settings, asSuggestedStops);
+  const ghostCar = useGhostCar(canonicalTimeline, summary, settings, asSuggestedStops);
   // Arrival snap — re-anchors ghost car when journal 'Arrived' is tapped
   useArrivalSnap(ghostCar.anchorAt, !!summary && tripConfirmed);
 
@@ -175,6 +175,7 @@ function AppContent() {
     poiSuggestions, poiInference, isLoadingPOIs, poiPartialResults, addPOI, addStop, dismissPOI,
     openInGoogleMaps, copyShareLink,
     precomputedEvents: canonicalTimeline?.events,
+    canonicalTimeline,
   });
 
   return (
