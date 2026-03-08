@@ -115,6 +115,23 @@ export function checkAndSetOvernightPrompt(
   }
 }
 
+function usesSyntheticTransitDeparture(nextDay: TripDay): boolean {
+  const firstSegment = nextDay.segments[0];
+  if (!firstSegment) return false;
+
+  const fromName = firstSegment.from.name.trim();
+  const routeFrom = nextDay.route.split(' → ')[0]?.trim() ?? '';
+
+  return fromName === 'Overnight Stop'
+    || fromName.includes('(transit)')
+    || fromName.includes(' → ')
+    || routeFrom.startsWith('En route from ');
+}
+
+export function shouldPropagateSnappedOvernightToNextDay(nextDay: TripDay): boolean {
+  return usesSyntheticTransitDeparture(nextDay);
+}
+
 // ── fireAndForgetOvernightSnap ─────────────────────────────────────────────
 // Async fire-and-forget: snaps transit-split overnight locations to real OSM
 // town centres. Updates summary state once the Overpass query resolves.
@@ -174,7 +191,7 @@ export function fireAndForgetOvernightSnap(
         if (idx + 1 < enriched.length) {
           const nextDay = enriched[idx + 1];
           const nextCloned = [...nextDay.segments];
-          if (nextCloned.length > 0 && nextCloned[0].from.name === 'Overnight Stop') {
+          if (nextCloned.length > 0 && shouldPropagateSnappedOvernightToNextDay(nextDay)) {
             nextCloned[0] = {
               ...nextCloned[0],
               from: {

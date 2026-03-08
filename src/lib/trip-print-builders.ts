@@ -15,6 +15,23 @@ import { PRINT_STYLES } from './trip-print-styles';
 
 // ── Top-level HTML envelope ───────────────────────────────────────────────────
 
+function buildTripBudgetStatus(summary: TripSummary, settings: TripSettings): string {
+  if (settings.budgetMode !== 'plan-to-budget' || settings.budget.total <= 0) return '';
+  if (summary.budgetRemaining === undefined || !summary.costBreakdown) return '';
+
+  const statusLabel = summary.budgetRemaining < 0
+    ? `Over total budget by ${formatCurrency(Math.abs(summary.budgetRemaining))}`
+    : `Total budget remaining: ${formatCurrency(summary.budgetRemaining)}`;
+
+  return `
+    <div class="budget-overview">
+      <strong>Budget target: ${formatCurrency(settings.budget.total)}</strong>
+      &nbsp;|&nbsp;
+      ${statusLabel}
+    </div>
+  `;
+}
+
 export function buildPrintHTML(
   tripTitle: string,
   summary: TripSummary,
@@ -24,6 +41,7 @@ export function buildPrintHTML(
   timedEvents: TimedEvent[],
 ): string {
   const units = settings.units;
+  let runningTripSpend = 0;
 
   const overviewHTML = `
     <div class="overview">
@@ -47,10 +65,17 @@ export function buildPrintHTML(
           📦 ${formatCurrency(summary.costBreakdown.misc)} misc
         </div>
       ` : ''}
+      ${buildTripBudgetStatus(summary, settings)}
     </div>
   `;
 
-  const daysHTML = days.map(day => buildDayHTML(day, settings, driverRotation, units, timedEvents)).join('\n');
+  const daysHTML = days.map(day => {
+    runningTripSpend += day.budget.dayTotal;
+    const tripBudgetRemaining = settings.budgetMode === 'plan-to-budget' && settings.budget.total > 0
+      ? settings.budget.total - runningTripSpend
+      : undefined;
+    return buildDayHTML(day, settings, driverRotation, units, timedEvents, tripBudgetRemaining);
+  }).join('\n');
 
   let driverHTML = '';
   if (driverRotation && driverRotation.stats.length > 1) {

@@ -3,8 +3,10 @@ import {
   interpolateRoutePosition,
   reverseGeocodeTown,
   resolveStopTowns,
+  enrichSmartStopHubs,
 } from './route-geocoder';
 import type { TimedEvent } from './trip-timeline';
+import { clearHubCache } from './hub-cache';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -93,6 +95,7 @@ describe('interpolateRoutePosition', () => {
 describe('reverseGeocodeTown', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
+    clearHubCache();
   });
 
   afterEach(() => {
@@ -196,6 +199,7 @@ describe('reverseGeocodeTown', () => {
 describe('resolveStopTowns', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
+    clearHubCache();
   });
 
   afterEach(() => {
@@ -243,5 +247,82 @@ describe('resolveStopTowns', () => {
     const events = [makeEvent('stop1', 50)];
     const result = await resolveStopTowns(events, STRAIGHT_LINE, controller.signal);
     expect(result.size).toBe(0);
+  });
+});
+
+// ─── enrichSmartStopHubs ────────────────────────────────────────────────────
+
+describe('enrichSmartStopHubs', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+    clearHubCache();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('fills a missing fuel hub name from reverse geocoding and caches it', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      mockNominatimResponse({ town: 'Baton Rouge', ISO3166_2_lvl4: 'US-LA' }) as Response
+    );
+
+    const enriched = await enrichSmartStopHubs([
+      {
+        id: 'fuel-1',
+        type: 'fuel',
+        reason: 'fuel stop',
+        afterSegmentIndex: 0,
+        estimatedTime: BASE_DATE,
+        duration: 15,
+        priority: 'recommended',
+        details: {},
+        lat: 30.45,
+        lng: -91.14,
+      },
+    ]);
+
+    expect(enriched[0].hubName).toBe('Baton Rouge, LA');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('reuses the cached hub on a later run without another fetch', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      mockNominatimResponse({ town: 'Baton Rouge', ISO3166_2_lvl4: 'US-LA' }) as Response
+    );
+
+    const first = await enrichSmartStopHubs([
+      {
+        id: 'fuel-1',
+        type: 'fuel',
+        reason: 'fuel stop',
+        afterSegmentIndex: 0,
+        estimatedTime: BASE_DATE,
+        duration: 15,
+        priority: 'recommended',
+        details: {},
+        lat: 30.45,
+        lng: -91.14,
+      },
+    ]);
+    expect(first[0].hubName).toBe('Baton Rouge, LA');
+
+    const second = await enrichSmartStopHubs([
+      {
+        id: 'fuel-2',
+        type: 'fuel',
+        reason: 'fuel stop',
+        afterSegmentIndex: 1,
+        estimatedTime: BASE_DATE,
+        duration: 15,
+        priority: 'recommended',
+        details: {},
+        lat: 30.46,
+        lng: -91.13,
+      },
+    ]);
+
+    expect(second[0].hubName).toBe('Baton Rouge, LA');
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 });

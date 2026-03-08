@@ -83,6 +83,25 @@ describe('assignDrivers', () => {
     expect(result.rotationPoints).toHaveLength(1);
   });
 
+  it('treats driver 1 as primary when total time is uneven', () => {
+    const segments = [
+      makeSegment({ durationMinutes: 100 }),
+      makeSegment({ durationMinutes: 100 }),
+      makeSegment({ durationMinutes: 100 }),
+      makeSegment({ durationMinutes: 101 }),
+    ];
+
+    const result = assignDrivers(segments, 3, []);
+
+    const d1 = result.stats.find(s => s.driver === 1)!;
+    const d2 = result.stats.find(s => s.driver === 2)!;
+    const d3 = result.stats.find(s => s.driver === 3)!;
+
+    expect(Math.abs(d2.totalMinutes - d3.totalMinutes)).toBeLessThanOrEqual(1);
+    expect(d1.totalMinutes).toBeGreaterThanOrEqual(d2.totalMinutes);
+    expect(d1.totalMinutes).toBeGreaterThanOrEqual(d3.totalMinutes);
+  });
+
   it('accumulates per-driver stats correctly', () => {
     const segments = [
       makeSegment({ durationMinutes: 100, distanceKm: 150 }),

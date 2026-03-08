@@ -94,6 +94,12 @@ export const TRIP_CONSTANTS = {
     /** Time window (ms) within which nearby stops are merged. */
     mergeWindowMs: 60 * 60 * 1000,
 
+    /** Overnight should only absorb an adjacent stop when they are effectively the same event. */
+    overnightMergeWindowMs: 15 * 60 * 1000,
+
+    /** Gentle heads-up threshold for a very long uninterrupted driving block. */
+    longPushHours: 6,
+
     /** Priority tiers used when two stops compete for the same slot. Higher wins. */
     priorities: {
       overnight: 4,

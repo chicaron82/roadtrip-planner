@@ -43,7 +43,7 @@ export function analyzeFeasibility(
   warnings.push(...analyzeBudget(summary, settings));
   warnings.push(...analyzeDriveTime(days, settings));
   warnings.push(...analyzeDriverFatigue(days, settings));
-  warnings.push(...analyzeTiming(days));
+  warnings.push(...analyzeTiming(days, settings));
   warnings.push(...analyzePerPersonCosts(summary, settings));
   warnings.push(...analyzeDateWindow(days, settings));
 

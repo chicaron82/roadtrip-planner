@@ -17,6 +17,7 @@
 import { haversineDistance } from './poi-ranking';
 import type { TimedEvent } from './trip-timeline';
 import type { POISuggestion } from '../types';
+import type { SuggestedStop } from './stop-suggestion-types';
 import { resolveHubName, cacheDiscoveredHub } from './hub-cache';
 import { NOMINATIM_BASE_URL } from './constants';
 
@@ -24,6 +25,7 @@ import { NOMINATIM_BASE_URL } from './constants';
 
 /** Nominatim usage policy: max 1 request per second */
 const NOMINATIM_DELAY_MS = 1100;
+const MAX_STOP_HUB_LOOKUPS = 4;
 
 /** In-memory cache: rounded km → town name (avoids repeat fetches) */
 const townCache = new Map<number, string | null>();
@@ -234,4 +236,46 @@ export async function resolveStopTowns(
   }
 
   return result;
+}
+
+/**
+ * Enrich unresolved fuel stop hub names and persist them to the hub cache so
+ * future trip calculations can reuse the learned town immediately.
+ */
+export async function enrichSmartStopHubs(
+  stops: SuggestedStop[],
+  signal?: AbortSignal,
+): Promise<SuggestedStop[]> {
+  if (stops.length === 0) return stops;
+
+  const enrichedStops = [...stops];
+  let lookups = 0;
+
+  for (let i = 0; i < enrichedStops.length; i++) {
+    if (signal?.aborted || lookups >= MAX_STOP_HUB_LOOKUPS) break;
+
+    const stop = enrichedStops[i];
+    if (stop.type !== 'fuel' || stop.hubName || stop.lat == null || stop.lng == null) continue;
+
+    let hubName = resolveHubName(stop.lat, stop.lng);
+    if (!hubName) {
+      hubName = await reverseGeocodeTown(stop.lat, stop.lng, signal);
+      lookups++;
+      if (!hubName) continue;
+
+      cacheDiscoveredHub({
+        name: hubName,
+        lat: stop.lat,
+        lng: stop.lng,
+        radius: 25,
+        poiCount: 1,
+        discoveredAt: new Date().toISOString(),
+        source: 'discovered',
+      });
+    }
+
+    enrichedStops[i] = { ...stop, hubName };
+  }
+
+  return enrichedStops;
 }

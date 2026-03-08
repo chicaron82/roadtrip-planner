@@ -23,9 +23,33 @@ export function createTimelineLocationResolver(
   iterSegments: ProcessedSegment[],
   iterSegEndKm: number[],
 ): TimelineLocationResolver {
+  const finalDestinationName = segments.at(-1)?.to.name?.trim();
+  const totalRouteKm = segEndKm.at(-1) ?? 0;
+
+  const isWaypointLabelUsable = (name?: string, currentKm?: number): boolean => {
+    if (!name) return false;
+    const trimmed = name.trim();
+    if (!trimmed || trimmed.includes('(transit)')) return false;
+    if (/unorganized/i.test(trimmed)) return false;
+
+    // Long split segments can carry the trip endpoint name on intermediate
+    // transit parts. Don't let an en-route fuel stop near Lake Charles get
+    // labeled as "Disneyland, Anaheim" just because the parent segment ends there.
+    if (
+      finalDestinationName &&
+      trimmed === finalDestinationName &&
+      currentKm !== undefined &&
+      totalRouteKm - currentKm > 60
+    ) {
+      return false;
+    }
+
+    return true;
+  };
+
   const makeLocationHint = (km: number, wpName?: string, hubName?: string): string => {
     if (km < 20) return wpName ?? originName;
-    if (wpName && !/unorganized/i.test(wpName)) return wpName;
+    if (isWaypointLabelUsable(wpName, km)) return wpName!;
     if (hubName && !/unorganized/i.test(hubName)) return `near ${hubName}`;
     const rounded = Math.round(km / 5) * 5;
     return `~${rounded} km into trip`;
@@ -36,20 +60,22 @@ export function createTimelineLocationResolver(
     if (idx >= 0 && idx < segments.length) {
       const endKm = segEndKm[idx];
       if (endKm !== undefined && Math.abs(currentKm - endKm) <= 30) {
-        return segments[idx].to.name;
+        const candidate = segments[idx].to.name;
+        if (isWaypointLabelUsable(candidate, currentKm)) return candidate;
       }
     }
 
     for (let i = 0; i < segments.length; i++) {
       if (Math.abs(currentKm - segEndKm[i]) <= 20) {
-        return segments[i].to.name;
+        const candidate = segments[i].to.name;
+        if (isWaypointLabelUsable(candidate, currentKm)) return candidate;
       }
     }
 
     for (let i = 0; i < iterSegEndKm.length; i++) {
       if (Math.abs(currentKm - iterSegEndKm[i]) <= 20) {
         const name = iterSegments[i]?.to.name;
-        if (name && !name.includes('(transit)')) return name;
+        if (isWaypointLabelUsable(name, currentKm)) return name;
       }
     }
 

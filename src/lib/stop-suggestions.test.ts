@@ -105,9 +105,20 @@ describe('consolidateStops', () => {
 
   it('overnight beats fuel when merging (priority 4 vs 3)', () => {
     const fuel = makeStop('f', 'fuel', 0);
-    const night = makeStop('n', 'overnight', 30);
+    const night = makeStop('n', 'overnight', 5);
     const result = consolidateStops([fuel, night]);
     expect(result[0].type).toBe('overnight');
+  });
+
+  it('keeps a fuel stop separate when it lands meaningfully before an overnight', () => {
+    const fuel = makeStop('fuel', 'fuel', 0);
+    const night = makeStop('night', 'overnight', 30);
+
+    const result = consolidateStops([fuel, night]);
+
+    expect(result).toHaveLength(2);
+    expect(result[0].type).toBe('fuel');
+    expect(result[1].type).toBe('overnight');
   });
 
   it('merged id is prefixed with "merged-"', () => {

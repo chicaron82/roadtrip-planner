@@ -1,6 +1,8 @@
 import type { TripDay } from '../types';
 import { executeOverpassQuery } from './poi-service/overpass';
+import { cacheDiscoveredHub, findHubInWindow } from './hub-cache';
 import { haversineDistance } from './poi-ranking';
+import { reverseGeocodeTown } from './route-geocoder';
 
 /**
  * Search radius for finding the nearest real settlement.
@@ -10,6 +12,7 @@ import { haversineDistance } from './poi-ranking';
  */
 const SNAP_RADIUS_M = 50_000;
 const SNAP_RADIUS_KM = SNAP_RADIUS_M / 1000;
+const HUB_OVERRIDE_WINDOW_KM = 40;
 
 /**
  * Settlement type weights — a nearby village beats a distant city, but
@@ -71,6 +74,20 @@ out body;`;
 
   for (const day of transitDays) {
     const { lat, lng } = day.overnight!.location;
+    const nearbyHub = findHubInWindow(lat, lng, HUB_OVERRIDE_WINDOW_KM);
+
+    if (nearbyHub) {
+      const hubDistanceKm = haversineDistance(lat, lng, nearbyHub.lat, nearbyHub.lng);
+      if (hubDistanceKm <= HUB_OVERRIDE_WINDOW_KM) {
+        results.push({
+          dayNumber: day.dayNumber,
+          lat: nearbyHub.lat,
+          lng: nearbyHub.lng,
+          name: nearbyHub.name,
+        });
+        continue;
+      }
+    }
 
     let bestScore = -Infinity;
     let bestEl: (typeof elements)[number] | null = null;
@@ -114,7 +131,40 @@ out body;`;
 
     if (!name) continue;
 
+    cacheDiscoveredHub({
+      name,
+      lat: snappedLat,
+      lng: snappedLng,
+      radius: 25,
+      poiCount: 1,
+      discoveredAt: new Date().toISOString(),
+      source: 'discovered',
+    });
+
     results.push({ dayNumber: day.dayNumber, lat: snappedLat, lng: snappedLng, name });
+    continue;
+
+    // unreachable but keeps structure obvious
+  }
+
+  for (const day of transitDays) {
+    if (results.some(result => result.dayNumber === day.dayNumber)) continue;
+
+    const { lat, lng } = day.overnight!.location;
+    const fallbackName = await reverseGeocodeTown(lat, lng, signal);
+    if (!fallbackName) continue;
+
+    cacheDiscoveredHub({
+      name: fallbackName,
+      lat,
+      lng,
+      radius: 25,
+      poiCount: 1,
+      discoveredAt: new Date().toISOString(),
+      source: 'discovered',
+    });
+
+    results.push({ dayNumber: day.dayNumber, lat, lng, name: fallbackName });
   }
 
   return results;

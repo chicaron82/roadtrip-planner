@@ -56,17 +56,65 @@ const IANA_TO_ABBR: Record<string, string> = {
   'America/St_Johns': 'NDT', 'America/Anchorage': 'AKDT',
 };
 
+const OFFSET_TZ_RE = /^(?:UTC|GMT)\s*([+-])\s*(\d{1,2})(?::?(\d{2}))?$/i;
+
 /** Convert an IANA timezone to its rough abbreviation (daylight-saving variant). */
 export function ianaToAbbr(iana: string): string | null {
   return IANA_TO_ABBR[iana] ?? null;
 }
 
+function parseUTCOffsetMinutes(tz: string): number | null {
+  const match = tz.trim().match(OFFSET_TZ_RE);
+  if (!match) return null;
+
+  const [, sign, hoursText, minutesText] = match;
+  const hours = Number(hoursText);
+  const minutes = minutesText ? Number(minutesText) : 0;
+
+  if (Number.isNaN(hours) || Number.isNaN(minutes) || hours > 23 || minutes > 59) {
+    return null;
+  }
+
+  const totalMinutes = hours * 60 + minutes;
+  return sign === '+' ? totalMinutes : -totalMinutes;
+}
+
+function isValidTimeZone(tz: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getOffsetAdjustedDate(date: Date, offsetMinutes: number): Date {
+  return new Date(date.getTime() + offsetMinutes * 60 * 1000);
+}
+
+function formatWithOffsetTimezone(
+  date: Date,
+  offsetMinutes: number,
+  options: Intl.DateTimeFormatOptions,
+  locale: string,
+): string {
+  return new Intl.DateTimeFormat(locale, {
+    ...options,
+    timeZone: 'UTC',
+  }).format(getOffsetAdjustedDate(date, offsetMinutes));
+}
+
 /**
  * Normalize a TZ abbreviation ("EST", "CDT") or an already-IANA string
- * ("America/Toronto") to a canonical IANA string.
+ * ("America/Toronto") to a canonical display timezone token.
  */
 export function normalizeToIANA(tz: string): string {
-  return TZ_ABBR_TO_IANA[tz] ?? tz; // if it's already IANA, return as-is
+  const normalized = tz.trim();
+  const upper = normalized.toUpperCase();
+
+  if (TZ_ABBR_TO_IANA[upper]) return TZ_ABBR_TO_IANA[upper];
+  if (parseUTCOffsetMinutes(normalized) !== null) return upper.replace(/\s+/g, '');
+  return normalized;
 }
 
 // ── Parse local datetime in a specific IANA timezone to UTC Date ──────────────
@@ -140,11 +188,22 @@ export function getTripStartTime(dateStr: string, timeStr: string, originLng?: n
  * Falls back to browser local time when no timezone is provided (legacy behaviour).
  */
 export function formatTimeInZone(date: Date, ianaTimezone?: string): string {
+  const normalized = ianaTimezone?.trim();
+  const offsetMinutes = normalized ? parseUTCOffsetMinutes(normalized) : null;
+
+  if (offsetMinutes !== null) {
+    return formatWithOffsetTimezone(date, offsetMinutes, {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    }, 'en-US');
+  }
+
   return date.toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
-    ...(ianaTimezone ? { timeZone: ianaTimezone } : {}),
+    ...(normalized && isValidTimeZone(normalized) ? { timeZone: normalized } : {}),
   });
 }
 
@@ -154,8 +213,19 @@ export function formatTimeInZone(date: Date, ianaTimezone?: string): string {
  * timezone rather than the browser's local timezone.
  */
 export function formatDateInZone(date: Date, ianaTimezone: string): string {
+  const normalized = ianaTimezone.trim();
+  const offsetMinutes = parseUTCOffsetMinutes(normalized);
+
+  if (offsetMinutes !== null) {
+    const shifted = getOffsetAdjustedDate(date, offsetMinutes);
+    const year = shifted.getUTCFullYear();
+    const month = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(shifted.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: ianaTimezone,
+    ...(isValidTimeZone(normalized) ? { timeZone: normalized } : { timeZone: 'UTC' }),
     year: 'numeric', month: '2-digit', day: '2-digit',
   }).formatToParts(date);
   const pobj = Object.fromEntries(parts.map(p => [p.type, p.value]));
@@ -167,10 +237,21 @@ export function formatDateInZone(date: Date, ianaTimezone: string): string {
  * given IANA timezone. Falls back to browser-local formatting when omitted.
  */
 export function formatDisplayDateInZone(date: Date, ianaTimezone?: string): string {
+  const normalized = ianaTimezone?.trim();
+  const offsetMinutes = normalized ? parseUTCOffsetMinutes(normalized) : null;
+
+  if (offsetMinutes !== null) {
+    return formatWithOffsetTimezone(date, offsetMinutes, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    }, 'en-US');
+  }
+
   return date.toLocaleDateString('en-US', {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
-    ...(ianaTimezone ? { timeZone: ianaTimezone } : {}),
+    ...(normalized && isValidTimeZone(normalized) ? { timeZone: normalized } : {}),
   });
 }

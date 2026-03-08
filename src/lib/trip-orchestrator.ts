@@ -19,6 +19,7 @@ import { validateTripInputs } from './validate-inputs';
 import { buildTimedTimeline } from './trip-timeline';
 import { applyComboOptimization } from './stop-consolidator';
 import { formatDateInZone } from './trip-timezone';
+import { enrichSmartStopHubs } from './route-geocoder';
 
 /** Thrown for expected failures (no route, validation) — carries user-facing message. */
 export class TripCalculationError extends Error {
@@ -40,6 +41,18 @@ export interface StopUpdateResult {
   updatedSummary: TripSummary;
   canonicalTimeline: CanonicalTripTimeline;
   projectedFuelStops: StrategicFuelStop[];
+}
+
+function getRoundTripDayTripStayMinutes(
+  summary: TripSummary,
+  dayCount: number,
+  settings: TripSettings,
+): number {
+  const isRTDayTrip = settings.isRoundTrip &&
+    dayCount <= 1 &&
+    summary.totalDurationMinutes <= settings.maxDriveHours * 60;
+
+  return isRTDayTrip ? (settings.dayTripDurationHours ?? 0) * 60 : 0;
 }
 
 /** Project simulation fuel stops onto the map pin shape. */
@@ -112,7 +125,7 @@ function patchDaysFromCanonicalEvents(tripDays: TripDay[], canonicalEvents: Time
     }
     if (depEvent) day.totals.departureTime = depEvent.arrivalTime.toISOString();
     if (arrEvent) day.totals.arrivalTime = arrEvent.arrivalTime.toISOString();
-    if (depEvent) {
+    if (depEvent && !day.route) {
       let toCity = day.segments.at(-1)?.to.name ?? '';
       toCity = toCity.replace(/\s*\(transit\)\s*$/, '');
       if (toCity.includes(' → ')) toCity = toCity.split(' → ').pop()!.trim();
@@ -189,15 +202,18 @@ export async function orchestrateTrip(
       : tripSummary.totalFuelCost;
   }
 
-  const smartStops = generateSmartStops(
+  const rawSmartStops = generateSmartStops(
     tripSummary.segments,
     createStopConfig(vehicle, settings, tripSummary.fullGeometry, tripSummary.segments[0]?.from.lng),
     tripDays,
   );
+  const smartStops = await enrichSmartStopHubs(rawSmartStops);
+
+  const destinationStayMinutes = getRoundTripDayTripStayMinutes(tripSummary, tripDays.length, settings);
 
   const timedRaw = buildTimedTimeline(
     tripSummary.segments, smartStops, settings,
-    roundTripMidpoint, 0, tripDays,
+    roundTripMidpoint, destinationStayMinutes, tripDays,
   );
   const canonicalEvents = applyComboOptimization(timedRaw);
 
@@ -264,9 +280,11 @@ export function orchestrateStopUpdate(
     updatedDays,
   );
 
+  const destinationStayMinutes = getRoundTripDayTripStayMinutes(updatedSummary, updatedDays.length, settings);
+
   const refreshedTimeline = buildTimedTimeline(
     segmentsWithTimes, refreshedSmartStops, settings,
-    roundTripMidpoint, 0, updatedDays,
+    roundTripMidpoint, destinationStayMinutes, updatedDays,
   );
 
   const canonicalTimeline = assembleCanonicalTimeline(

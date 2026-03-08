@@ -1,6 +1,7 @@
 import type { TripDay, TripSettings } from '../../types';
 import type { FeasibilityWarning } from './types';
 import { formatTime } from './helpers';
+import { TRIP_CONSTANTS } from '../trip-constants';
 
 /** Late arrival threshold (hour of day, 24h format) */
 const LATE_ARRIVAL_HOUR = 22;         // 10 PM
@@ -8,8 +9,15 @@ const LATE_ARRIVAL_HOUR = 22;         // 10 PM
 /** Early departure threshold */
 const EARLY_DEPARTURE_HOUR = 4;       // 4 AM
 
-export function analyzeTiming(days: TripDay[]): FeasibilityWarning[] {
+function formatDuration(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const mins = Math.round(minutes % 60);
+  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+}
+
+export function analyzeTiming(days: TripDay[], settings?: TripSettings): FeasibilityWarning[] {
   const warnings: FeasibilityWarning[] = [];
+  const longPushMinutes = TRIP_CONSTANTS.stops.longPushHours * 60;
 
   for (const day of days) {
     // Check late arrivals
@@ -42,6 +50,25 @@ export function analyzeTiming(days: TripDay[]): FeasibilityWarning[] {
           dayNumber: day.dayNumber,
         });
       }
+    }
+
+    const longestSegmentMinutes = day.segments.reduce(
+      (max, segment) => Math.max(max, segment.durationMinutes),
+      0,
+    );
+
+    if (longestSegmentMinutes >= longPushMinutes) {
+      const comfortHours = settings
+        ? TRIP_CONSTANTS.stops.comfortRefuel[settings.stopFrequency || 'balanced']
+        : TRIP_CONSTANTS.stops.comfortRefuel.balanced;
+      warnings.push({
+        category: 'timing',
+        severity: 'info',
+        message: `Day ${day.dayNumber}: Long uninterrupted stretch of ${formatDuration(longestSegmentMinutes)}`,
+        detail: `One leg runs ${formatDuration(longestSegmentMinutes)} before the next planned stop. That's technically doable, but it's a real push for the crew.`,
+        dayNumber: day.dayNumber,
+        suggestion: `Consider adding a fuel or stretch stop around the ${comfortHours.toFixed(1)}h mark to break it up.`,
+      });
     }
   }
 

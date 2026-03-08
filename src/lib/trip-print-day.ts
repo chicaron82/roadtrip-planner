@@ -64,10 +64,59 @@ export function buildEventHTML(
         <div class="event-timing">
           Arrive ${formatTime(event.arrivalTime, event.timezone)} · ${formatDuration(event.durationMinutes)}${showDepart ? ` · Depart ${formatTime(event.departureTime, event.timezone)}` : ''}
         </div>
-        ${event.timeSavedMinutes ? `<span class="time-saved">saves ${event.timeSavedMinutes} min</span>` : ''}
       </div>
     </div>
   `;
+}
+
+function cleanRouteEndpoint(name?: string): string {
+  if (!name) return '';
+  const cleaned = name.replace(/\s*\(transit\)\s*$/, '');
+  return cleaned.includes(' → ') ? cleaned.split(' → ').pop()!.trim() : cleaned.trim();
+}
+
+function resolveDayRouteLabel(
+  day: TripDay,
+  dayType: 'planned' | 'flexible' | 'free',
+  departureEvent?: TimedEvent,
+  arrivalEvent?: TimedEvent,
+  destinationEvent?: TimedEvent,
+): string {
+  if (departureEvent && destinationEvent) {
+    const routeParts = [departureEvent.locationHint, destinationEvent.locationHint];
+    if (arrivalEvent?.locationHint && arrivalEvent.locationHint !== destinationEvent.locationHint) {
+      routeParts.push(arrivalEvent.locationHint);
+    }
+    return routeParts.join(' → ');
+  }
+
+  if (day.route) return day.route;
+  if (dayType === 'free') return 'Free Day';
+  if (dayType === 'flexible') return 'Flexible Day';
+
+  const from = day.overnight?.location.name ?? day.segments[0]?.from.name;
+  const to = cleanRouteEndpoint(day.segments.at(-1)?.to.name);
+  if (from && to) return `${from} → ${to}`;
+  return '—';
+}
+
+function normalizeDayEvents(day: TripDay, dayEvents: TimedEvent[]): TimedEvent[] {
+  const routeFrom = day.route.split(' → ')[0]?.trim();
+  const overnightName = day.overnight?.location.name?.trim();
+  const arrivalName = cleanRouteEndpoint(day.segments.at(-1)?.to.name);
+
+  return dayEvents.map(event => {
+    if (event.type === 'departure' && routeFrom) {
+      return { ...event, locationHint: routeFrom };
+    }
+    if (event.type === 'overnight' && overnightName) {
+      return { ...event, locationHint: overnightName };
+    }
+    if (event.type === 'arrival' && arrivalName) {
+      return { ...event, locationHint: arrivalName };
+    }
+    return event;
+  });
 }
 
 // ── Segment HTML builder (legacy fallback) ──────────────────────────────────
@@ -120,6 +169,7 @@ export function buildDayHTML(
   driverRotation: DriverRotationResult | null,
   units: 'metric' | 'imperial',
   timedEvents: TimedEvent[],
+  tripBudgetRemaining?: number,
 ): string {
   const dayType = day.dayType || 'planned';
   const departureMs = day.totals.departureTime ? new Date(day.totals.departureTime).getTime() : null;
@@ -139,8 +189,10 @@ export function buildDayHTML(
         return matchesDate;
       })
     : [];
-  const departureEvent = dayEvents.find(event => event.type === 'departure');
-  const arrivalEvent = dayEvents.find(event => event.type === 'overnight' || event.type === 'arrival');
+  const normalizedDayEvents = normalizeDayEvents(day, dayEvents);
+  const departureEvent = normalizedDayEvents.find(event => event.type === 'departure');
+  const arrivalEvent = normalizedDayEvents.find(event => event.type === 'overnight' || event.type === 'arrival');
+  const destinationEvent = normalizedDayEvents.find(event => event.type === 'destination');
 
   const hotelHTML = day.overnight ? buildHotelHTML(day) : '';
   const timezoneHTML = day.timezoneChanges.map(change => `
@@ -148,8 +200,8 @@ export function buildDayHTML(
   `).join('');
 
   let timelineHTML = '';
-  if (dayEvents.length > 0) {
-    timelineHTML = dayEvents.map((event, index) => buildEventHTML(event, units, index === 0)).join('');
+  if (normalizedDayEvents.length > 0) {
+    timelineHTML = normalizedDayEvents.map((event, index) => buildEventHTML(event, units, index === 0)).join('');
   } else if (dayType === 'planned' && day.segments.length > 0) {
     timelineHTML = day.segments.map((segment, index) => {
       const globalIndex = day.segmentIndices[index];
@@ -172,7 +224,7 @@ export function buildDayHTML(
   }
 
   const notesHTML = day.notes ? `<div class="day-notes">📝 ${day.notes}</div>` : '';
-  const budgetHTML = buildBudgetHTML(day);
+  const budgetHTML = buildBudgetHTML(day, tripBudgetRemaining);
 
   const departureTimezone = day.segments[0]?.from.lng != null ? lngToIANA(day.segments[0].from.lng) : undefined;
   const departureTimeStr = departureEvent
@@ -183,11 +235,7 @@ export function buildDayHTML(
     : formatTimeFromISO(day.totals.arrivalTime, departureTimezone);
   const sameTime = departureTimeStr === arrivalTimeStr;
 
-  const routeFromCity = departureEvent?.locationHint;
-  const routeToCity = day.segments.at(-1)?.to.name;
-  const routeLabel = (routeFromCity && routeToCity)
-    ? `${routeFromCity} → ${routeToCity}`
-    : day.route || (dayType === 'free' ? 'Free Day' : dayType === 'flexible' ? 'Flexible Day' : '—');
+  const routeLabel = resolveDayRouteLabel(day, dayType, departureEvent, arrivalEvent, destinationEvent);
 
   const statsLine = dayType !== 'free'
     ? `${formatDistance(day.totals.distanceKm, units)} •
@@ -242,8 +290,17 @@ function buildHotelHTML(day: TripDay): string {
   `;
 }
 
-function buildBudgetHTML(day: TripDay): string {
+function buildBudgetHTML(day: TripDay, tripBudgetRemaining?: number): string {
   const budget = day.budget;
+  const tripBudgetHTML = tripBudgetRemaining === undefined
+    ? ''
+    : `
+      &nbsp;|&nbsp;
+      ${tripBudgetRemaining < 0
+        ? `Trip budget over by: ${formatCurrency(Math.abs(tripBudgetRemaining))}`
+        : `Trip budget remaining: ${formatCurrency(tripBudgetRemaining)}`}
+    `;
+
   return `
     <div class="budget-row">
       💰 <strong>Day Estimate:</strong>
@@ -251,9 +308,11 @@ function buildBudgetHTML(day: TripDay): string {
       • 🏨 ${formatCurrency(budget.hotelCost)} hotel est.
       • 🍽️ ${formatCurrency(budget.foodEstimate)} meals est.
       • Est. total: <strong>${formatCurrency(budget.dayTotal)}</strong>
-      &nbsp;|&nbsp;
-      ${budget.gasRemaining < 0 ? `Fuel over by: ${formatCurrency(Math.abs(budget.gasRemaining))}` : `Fuel under: ${formatCurrency(budget.gasRemaining)}`}
-      • ${budget.hotelRemaining < 0 ? `Hotel over by: ${formatCurrency(Math.abs(budget.hotelRemaining))}` : `Hotel under: ${formatCurrency(budget.hotelRemaining)}`}
+      ${tripBudgetHTML}
+      <br />
+      📊 <strong>Category budgets after this day:</strong>
+      ${budget.gasRemaining < 0 ? `Fuel budget over by ${formatCurrency(Math.abs(budget.gasRemaining))}` : `Fuel budget left: ${formatCurrency(budget.gasRemaining)}`}
+      • ${budget.hotelRemaining < 0 ? `Hotel budget over by ${formatCurrency(Math.abs(budget.hotelRemaining))}` : `Hotel budget left: ${formatCurrency(budget.hotelRemaining)}`}
     </div>
   `;
 }
