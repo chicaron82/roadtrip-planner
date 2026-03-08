@@ -3,7 +3,12 @@ import type { TripSummary, TripSettings, TripJournal, JournalEntry, JournalPhoto
 import { showToast } from '../../lib/toast';
 import { formatDisplayDateInZone, formatTimeInZone, getTripStartTime, lngToIANA } from '../../lib/trip-timezone';
 import { buildAcceptedItineraryProjection } from '../../lib/accepted-itinerary-projection';
-import { buildJournalActiveSuggestions, buildJournalTimelineStops } from '../../lib/journal-trip-view';
+import {
+  buildJournalActiveSuggestions,
+  buildJournalTimelineStops,
+  findJournalEntry,
+  resolveJournalTimelineStop,
+} from '../../lib/journal-trip-view';
 
 interface UseJournalTimelineParams {
   summary: TripSummary;
@@ -55,28 +60,20 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
   // Looks up by stopId (stable geographic ID) first, falls back to segmentIndex
   // for entries created before this pattern was enforced.
   const getEntry = (segmentIndex: number): JournalEntry | undefined => {
-    const waypointId = summary.segments[segmentIndex]?.to.id;
-    if (waypointId) {
-      return (
-        journal.entries.find(e => e.stopId === waypointId) ??
-        journal.entries.find(e => e.segmentIndex === segmentIndex)
-      );
-    }
-    return journal.entries.find(e => e.segmentIndex === segmentIndex);
+    const projectedStop = resolveJournalTimelineStop(journalStops, segmentIndex);
+    return findJournalEntry(journal.entries, projectedStop)
+      ?? journal.entries.find(entry => entry.segmentIndex === segmentIndex);
   };
 
   const currentStop = useMemo(() => {
     for (const stop of journalStops) {
-      const waypointId = stop.segment.to.id;
-      const entry = journal.entries.find(e =>
-        (waypointId && e.stopId === waypointId) || e.segmentIndex === stop.originalIndex
-      );
+      const entry = findJournalEntry(journal.entries, stop);
       if (!entry || entry.status !== 'visited') return stop;
     }
     return journalStops[journalStops.length - 1];
   }, [journalStops, journal.entries]);
 
-  const currentStopIndex = currentStop?.originalIndex ?? Math.max(summary.segments.length - 1, 0);
+  const currentStopIndex = currentStop?.originalIndex ?? journalStops[journalStops.length - 1]?.originalIndex ?? Math.max(summary.segments.length - 1, 0);
 
   const realSegmentIndices = useMemo(
     () => new Set(journalStops.map(stop => stop.originalIndex)),
@@ -96,7 +93,9 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
   // Update an entry
   const handleUpdateEntry = (segmentIndex: number, updates: Partial<JournalEntry>) => {
     const existingEntry = getEntry(segmentIndex);
-    const segment = summary.segments[segmentIndex];
+    const projectedStop = resolveJournalTimelineStop(journalStops, segmentIndex);
+    const segment = projectedStop?.segment ?? summary.segments[segmentIndex];
+    if (!segment) return;
 
     let newEntry: JournalEntry;
     if (existingEntry) {
@@ -107,7 +106,7 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
       newEntry = {
         id: `entry-${segment.to.id}`,
         stopId: segment.to.id,
-        segmentIndex,
+        segmentIndex: projectedStop?.originalIndex ?? segmentIndex,
         photos: [],
         notes: '',
         status: 'planned',

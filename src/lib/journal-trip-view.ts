@@ -10,6 +10,24 @@ export interface JournalTimelineStop {
   segment: RouteSegment;
 }
 
+export function resolveJournalTimelineStop(
+  stops: JournalTimelineStop[],
+  segmentIndex: number,
+): JournalTimelineStop | undefined {
+  return stops.find(stop => stop.originalIndex === segmentIndex);
+}
+
+export function findJournalEntry(
+  entries: JournalEntry[],
+  stop: Pick<JournalTimelineStop, 'originalIndex' | 'segment'> | undefined,
+): JournalEntry | undefined {
+  if (!stop) return undefined;
+
+  const stopId = stop.segment.to.id;
+  return (stopId ? entries.find(entry => entry.stopId === stopId) : undefined)
+    ?? entries.find(entry => entry.segmentIndex === stop.originalIndex);
+}
+
 export function resolveJournalEntryLocation(summary: TripSummary, entry: Pick<JournalEntry, 'stopId' | 'segmentIndex'>): Location | undefined {
   return summary.segments.find(segment => segment.to.id === entry.stopId)?.to
     ?? summary.segments[entry.segmentIndex]?.to;

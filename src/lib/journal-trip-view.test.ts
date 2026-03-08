@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { applyStopOverrides, buildJournalTimelineStops, resolveJournalEntryLocation } from './journal-trip-view';
+import {
+  applyStopOverrides,
+  buildJournalTimelineStops,
+  findJournalEntry,
+  resolveJournalEntryLocation,
+  resolveJournalTimelineStop,
+} from './journal-trip-view';
 import { makeLocation, makeSegment, makeSummary } from '../test/fixtures';
 
 describe('journal-trip-view helpers', () => {
@@ -93,5 +99,36 @@ describe('journal-trip-view helpers', () => {
         segment: actualSegment,
       },
     ]);
+  });
+
+  it('finds projected journal stops and entries by accepted-itinerary-backed identity first', () => {
+    const actualSegment = makeSegment({
+      to: { ...makeLocation('Actual Stop'), id: 'actual-stop' },
+      _originalIndex: 4,
+    });
+    const stops = [{
+      flatIndex: 7,
+      originalIndex: 4,
+      segment: actualSegment,
+    }];
+
+    const stop = resolveJournalTimelineStop(stops, 4);
+    const entry = findJournalEntry([
+      {
+        id: 'entry-actual-stop',
+        stopId: 'actual-stop',
+        segmentIndex: 1,
+        photos: [],
+        notes: '',
+        status: 'planned',
+        isHighlight: false,
+        createdAt: new Date('2025-08-16T09:00:00Z'),
+        updatedAt: new Date('2025-08-16T09:00:00Z'),
+      },
+    ], stop);
+
+    expect(stop).toEqual(stops[0]);
+    expect(entry?.stopId).toBe('actual-stop');
+    expect(entry?.segmentIndex).toBe(1);
   });
 });
