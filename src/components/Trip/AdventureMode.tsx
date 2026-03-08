@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Compass, MapPin, Sparkles, X } from 'lucide-react';
 import type { Location, AdventureDestination, TripPreference } from '../../types';
-import { findAdventureDestinations, calculateMaxDistance } from '../../lib/adventure-service';
+import { findAdventureDestinations, calculateMaxDistance } from '../../lib/adventure/adventure-service';
 import { LocationSearchInput } from './LocationSearchInput';
 import { AdventureFormPanel } from './AdventureFormPanel';
 import { AdventureResultsPanel } from './AdventureResultsPanel';

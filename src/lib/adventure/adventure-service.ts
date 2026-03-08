@@ -4,7 +4,7 @@ import type {
   AdventureResult,
   BudgetProfile,
   TripPreference,
-} from '../types';
+} from '../../types';
 
 // Average costs for budget calculations
 const COST_ESTIMATES = {

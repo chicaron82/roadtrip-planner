@@ -12,7 +12,7 @@
  * 💚 My Experience Engine
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { PlanningStep } from '../../hooks/useWizard';
 
 // ── Types ───────────────────────────────────────────────────────────────────
@@ -90,14 +90,11 @@ export function CarTrack(props: CarTrackProps) {
 
   // ── Window slide animation (trip mode pagination) ──
   const [sliding, setSliding] = useState(false);
-  const prevWindowRef = useRef(windowStops ? windowStops[0] : '');
-
-  useEffect(() => {
-    if (windowStops && windowStops[0] !== prevWindowRef.current) {
-      prevWindowRef.current = windowStops[0];
-      setSliding(true);
-    }
-  }, [windowStops]);
+  const [prevWindow, setPrevWindow] = useState(windowStops ? windowStops[0] : '');
+  if (windowStops && windowStops[0] !== prevWindow) {
+    setPrevWindow(windowStops[0]);
+    setSliding(true);
+  }
 
   useEffect(() => {
     if (sliding) {
@@ -108,15 +105,11 @@ export function CarTrack(props: CarTrackProps) {
 
   // ── Arrival bounce (car just reached a stop) ──
   const [arrived, setArrived] = useState(false);
-  const prevStepRef = useRef(currentStep);
-
-  useEffect(() => {
-    if (isWizard && currentStep !== prevStepRef.current) {
-      prevStepRef.current = currentStep;
-      setArrived(true);
-    }
-  }, [isWizard, currentStep]);
-
+  const [prevStep, setPrevStep] = useState(currentStep);
+  if (isWizard && currentStep !== prevStep) {
+    setPrevStep(currentStep);
+    setArrived(true);
+  }
   useEffect(() => {
     if (arrived) {
       const id = setTimeout(() => setArrived(false), 700);

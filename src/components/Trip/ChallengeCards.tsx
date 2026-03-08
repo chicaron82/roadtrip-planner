@@ -24,7 +24,7 @@ import {
   formatParStats,
   formatHistoricalCost,
   DIFFICULTY_META,
-} from '../../lib/challenges';
+} from '../../lib/adventure/challenges';
 
 interface ChallengeCardsProps {
   onSelectChallenge: (challenge: TripChallenge) => void;

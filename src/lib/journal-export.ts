@@ -93,6 +93,7 @@ export function exportJournalAsHTML(journal: TripJournal, summary: TripSummary):
   const link = document.createElement('a');
   link.href = url;
   const safeTitle = journal.metadata.title
+    // eslint-disable-next-line no-control-regex
     .replace(/[<>:"/\\|?*\x00-\x1f]/g, '')
     .replace(/\s+/g, '-')
     .toLowerCase()
@@ -188,6 +189,7 @@ export function exportJournalAsTemplate(journal: TripJournal, summary: TripSumma
   const link = document.createElement('a');
   link.href = url;
   const safeName = journal.metadata.title
+    // eslint-disable-next-line no-control-regex
     .replace(/[<>:"/\\|?*\x00-\x1f]/g, '')
     .replace(/\s+/g, '-')
     .toLowerCase()

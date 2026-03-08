@@ -5,7 +5,7 @@
  * Pure display component — all logic lives in feasibility.ts
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { cn } from '../../lib/utils';
 import {
   CheckCircle,
@@ -123,13 +123,11 @@ export function FeasibilityBanner({
   const resultSignature = result.warnings
     .map(w => `${w.category}:${w.dayNumber ?? 'trip'}:${w.severity}`)
     .join('|');
-  const prevSig = useRef(resultSignature);
-  useEffect(() => {
-    if (prevSig.current !== resultSignature) {
-      prevSig.current = resultSignature;
-      setDismissed(new Set());
-    }
-  }, [resultSignature]);
+  const [prevSig, setPrevSig] = useState(resultSignature);
+  if (prevSig !== resultSignature) {
+    setPrevSig(resultSignature);
+    setDismissed(new Set());
+  }
 
   const visibleWarnings = result.warnings.filter(w => !dismissed.has(getWarningKey(w)));
   const dismissedCount = result.warnings.length - visibleWarnings.length;

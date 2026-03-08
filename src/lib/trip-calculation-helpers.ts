@@ -139,7 +139,7 @@ export function applySnappedOvernightsToCanonicalTimeline(
   updatedSummary: TripSummary,
   snapped: Array<{ dayNumber: number; lat: number; lng: number; name: string }>,
 ): CanonicalTripTimeline {
-  let updatedDays = canonicalTimeline.days.map(day => ({
+  const updatedDays = canonicalTimeline.days.map(day => ({
     ...day,
     meta: { ...day.meta },
     events: [...day.events],

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import type { TripSummary, TripSettings, Vehicle, TripDay } from '../../types';
 import { generateSmartStops, createStopConfig, type SuggestedStop } from '../../lib/stop-suggestions';
 import { buildPacingSuggestions } from '../../lib/pacing-suggestions-builder';
@@ -83,15 +83,11 @@ export function useTimelineStopSuggestions({
     return generateSmartStops(summary.segments, config, days);
   }, [summary.segments, summary.fullGeometry, vehicle, settings, days]);
 
-  const [userOverrides, setUserOverrides] = useState<StopOverrides>({});
-  const overridesHydrated = useRef(false);
-
-  useEffect(() => {
-    if (!overridesHydrated.current && initialOverrides && Object.keys(initialOverrides).length > 0) {
-      overridesHydrated.current = true;
-      setUserOverrides(initialOverrides);
-    }
-  }, [initialOverrides]);
+  // Lazy init so the prop value is consumed once on mount, matching the original
+  // one-shot hydration guard without needing an effect.
+  const [userOverrides, setUserOverrides] = useState<StopOverrides>(
+    () => (initialOverrides && Object.keys(initialOverrides).length > 0) ? initialOverrides : {},
+  );
 
   const stopSuggestions = useMemo(() =>
     baseSuggestions.map(suggestion => {

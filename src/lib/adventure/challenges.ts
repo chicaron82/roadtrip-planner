@@ -11,7 +11,7 @@
  * 💚 Built with love by Aaron "Chicharon" 💚
  */
 
-import type { TripChallenge, ChallengeDifficulty } from '../types';
+import type { TripChallenge, ChallengeDifficulty } from '../../types';
 
 // ==================== DIFFICULTY CONFIG ====================
 

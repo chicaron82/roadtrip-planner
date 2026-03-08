@@ -12,7 +12,7 @@ import { formatTime, formatDuration, type TimedEvent } from '../../lib/trip-time
 
 // ─── Icon / colour maps ────────────────────────────────────────────────────────
 
-export const EVENT_ICON: Record<string, React.ReactNode> = {
+const EVENT_ICON: Record<string, React.ReactNode> = {
   departure:   <Zap className="h-3.5 w-3.5" />,
   arrival:     <MapPin className="h-3.5 w-3.5" />,
   fuel:        <Fuel className="h-3.5 w-3.5" />,
@@ -23,7 +23,7 @@ export const EVENT_ICON: Record<string, React.ReactNode> = {
   combo:       null, // rendered separately
 };
 
-export const EVENT_COLOR: Record<string, string> = {
+const EVENT_COLOR: Record<string, string> = {
   departure:   '#22C55E',
   arrival:     '#22C55E',
   fuel:        '#F59E0B',

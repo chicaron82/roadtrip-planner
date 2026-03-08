@@ -23,7 +23,7 @@ import type { TripSummary } from './types';
 
 /** App.tsx — Root orchestrator. Full-bleed map + floating glass panel. 💚 My Experience Engine */
 function AppContent() {
-  const { locations, setLocations, vehicle, setVehicle, settings, setSettings, summary, setSummary } = useTripContext();
+  const { locations, setLocations, vehicle, setVehicle, settings, setSettings, summary, setSummary, canonicalTimeline } = useTripContext();
 
   const previewGeometry = useEagerRoute(locations);
   const onCalcCompleteRef = useRef<() => void>(() => {});
@@ -64,7 +64,7 @@ function AppContent() {
 
   // Trip calculation
   const {
-    isCalculating, error: calcError, shareUrl, canonicalTimeline,
+    isCalculating, error: calcError, shareUrl,
     strategicFuelStops, showOvernightPrompt, suggestedOvernightStop,
     dismissOvernightPrompt, calculateTrip,
     routeStrategies, activeStrategyIndex, selectStrategy,
@@ -179,7 +179,6 @@ function AppContent() {
     poiSuggestions, poiInference, isLoadingPOIs, poiPartialResults, addPOI, addStop, dismissPOI,
     openInGoogleMaps, copyShareLink,
     precomputedEvents: canonicalTimeline?.events,
-    canonicalTimeline,
   });
 
   return (
