@@ -104,22 +104,25 @@ export async function generateStoryCard(
   ctx.fillStyle = overlay;
   ctx.fillRect(0, 0, CARD_W, CARD_H);
 
+  // Ensure brand font is ready for canvas context (font loaded globally via index.html)
+  await document.fonts.load('500 90px "Cormorant Garamond"');
+
   // --- Stop name ---
   const nameSize = stopName.length > 18 ? 72 : 90;
   ctx.fillStyle = '#ffffff';
-  ctx.font = `bold ${nameSize}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+  ctx.font = `italic 500 ${nameSize}px "Cormorant Garamond", Georgia, serif`;
   ctx.fillText(stopName.slice(0, 24) + (stopName.length > 24 ? '…' : ''), 80, CARD_H - 400);
 
   // --- Notes excerpt (max 2 lines) ---
   if (notes?.trim()) {
     ctx.fillStyle = 'rgba(255,255,255,0.78)';
-    ctx.font = `46px system-ui, -apple-system, "Segoe UI", sans-serif`;
+    ctx.font = `400 46px "Cormorant Garamond", Georgia, serif`;
     wrapText(ctx, notes.trim(), 80, CARD_H - 300, CARD_W - 160, 64, 2);
   }
 
   // --- Branding ---
   ctx.fillStyle = 'rgba(255,255,255,0.45)';
-  ctx.font = `36px system-ui, -apple-system, "Segoe UI", sans-serif`;
+  ctx.font = `300 36px "Cormorant Garamond", Georgia, serif`;
   ctx.fillText('🗺️  myexperienceengine.com', 80, CARD_H - 90);
 
   return new Promise((resolve, reject) => {
