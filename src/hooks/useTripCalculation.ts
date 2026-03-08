@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef, useLayoutEffect } from 'react';
 import type { Location, Vehicle, TripSettings, TripSummary, TripDay, RouteStrategy, StopType, DayType, OvernightStop } from '../types';
 import type { StrategicFuelStop } from '../lib/calculations';
-import type { CanonicalTripTimeline } from '../lib/canonical-trip';
 import { fetchAllRouteStrategies } from '../lib/api';
 import { snapFuelStopsToStations } from '../lib/fuel-stop-snapper';
 import { checkAndSetOvernightPrompt, fireAndForgetOvernightSnap } from './useOvernightSnap';
@@ -11,6 +10,7 @@ import { buildStrategyUpdate } from '../lib/trip-strategy-selector';
 import {
   orchestrateTrip, orchestrateStopUpdate, TripCalculationError,
 } from '../lib/trip-orchestrator';
+import { useTripContext } from '../contexts/TripContext';
 
 interface UseTripCalculationOptions {
   locations: Location[];
@@ -26,7 +26,6 @@ interface UseTripCalculationReturn {
   error: string | null;
   shareUrl: string | null;
   strategicFuelStops: StrategicFuelStop[];
-  canonicalTimeline: CanonicalTripTimeline | null;
 
   // Route strategies (named alternatives: fastest / canada-only / scenic)
   routeStrategies: RouteStrategy[];
@@ -69,7 +68,8 @@ export function useTripCalculation({
 
   // Store summary locally for updateStopType
   const [localSummary, setLocalSummary] = useState<TripSummary | null>(null);
-  const [canonicalTimeline, setCanonicalTimeline] = useState<CanonicalTripTimeline | null>(null);
+  // canonicalTimeline lives in TripContext so deep consumers don't need prop drilling.
+  const { setCanonicalTimeline } = useTripContext();
 
   // Abort controller for background overnight-stop geocoding.
   // Cancelled when a new calculation starts so stale results never overwrite.
@@ -148,7 +148,7 @@ export function useTripCalculation({
     } finally {
       setIsCalculating(false);
     }
-  }, [locations, vehicle, onSummaryChange, onCalculationComplete]);
+  }, [locations, vehicle, onSummaryChange, onCalculationComplete, setCanonicalTimeline]);
 
   // Switch to a named route strategy — swaps geometry + recalculates fuel costs.
   // Day itinerary, weather, and POIs are preserved from the primary calculation.
@@ -162,7 +162,7 @@ export function useTripCalculation({
       setLocalSummary(updatedSummary);
       onSummaryChange(updatedSummary);
     },
-    [routeStrategies, localSummary, vehicle, settings, onSummaryChange]
+    [routeStrategies, localSummary, vehicle, settings, onSummaryChange, setCanonicalTimeline]
   );
 
   const updateStopType = useCallback(
@@ -185,7 +185,7 @@ export function useTripCalculation({
         console.warn('[fuel-snap] Overpass unavailable — keeping simulation-interpolated positions', err);
       });
     },
-    [localSummary, settings, vehicle, locations, onSummaryChange]
+    [localSummary, settings, vehicle, locations, onSummaryChange, setCanonicalTimeline]
   );
 
   // Generic day updater — updates a single day in summary.days
@@ -242,20 +242,19 @@ export function useTripCalculation({
     setRouteStrategies([]);
     setActiveStrategyIndex(0);
     setLocalSummary(null);
-    setCanonicalTimeline(null);
+    setCanonicalTimeline(null); // clears context value
     setShareUrl(null);
     setError(null);
     setShowOvernightPrompt(false);
     setSuggestedOvernightStop(null);
     onSummaryChange(null);
-  }, [onSummaryChange]);
+  }, [onSummaryChange, setCanonicalTimeline]);
 
   return {
     isCalculating,
     error,
     shareUrl,
     strategicFuelStops,
-    canonicalTimeline,
     routeStrategies,
     activeStrategyIndex,
     showOvernightPrompt,

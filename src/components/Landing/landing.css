@@ -269,6 +269,28 @@
   animation: landing-footer-entrance 0.8s ease 0.8s forwards;
 }
 
+/* ── Ghost pill button — "Continue" / "Resume" session buttons ── */
+/* Replaces JS onMouseEnter/onMouseLeave style mutations with declarative CSS. */
+.landing-ghost-btn {
+  background: rgba(249, 115, 22, 0.12);
+  border: 1px solid rgba(249, 115, 22, 0.35);
+  color: #FDBA74;
+  padding: 10px 24px;
+  border-radius: 100px;
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 0 20px rgba(249, 115, 22, 0.08);
+}
+
+.landing-ghost-btn:hover {
+  background: rgba(249, 115, 22, 0.22);
+  box-shadow: 0 0 30px rgba(249, 115, 22, 0.18);
+}
+
 /* ── Divider — orange warmth ── */
 .landing-divider {
   width: 40px;

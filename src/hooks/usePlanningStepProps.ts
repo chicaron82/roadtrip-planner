@@ -9,7 +9,6 @@ import type { SuggestedStop } from '../lib/stop-suggestions';
 import type { PlanningStep } from './useWizard';
 import type { StopType, DayType, OvernightStop } from '../types';
 import type { TimedEvent } from '../lib/trip-timeline';
-import type { CanonicalTripTimeline } from '../lib/canonical-trip';
 
 const POI_CATEGORY_MAP: Partial<Record<string, POICategory>> = {
   gas: 'gas', food: 'food', restaurant: 'food', cafe: 'food', hotel: 'hotel', attraction: 'attraction',
@@ -76,7 +75,6 @@ interface UsePlanningStepPropsOptions {
   dismissPOI: (id: string) => void;
   // Print
   precomputedEvents?: TimedEvent[];
-  canonicalTimeline?: CanonicalTripTimeline | null;
   // Actions
   openInGoogleMaps: () => void;
   copyShareLink: () => void;
@@ -159,6 +157,5 @@ export function usePlanningStepProps(o: UsePlanningStepPropsOptions): PlanningSt
     onUnconfirmTrip,
     onLoadHistoryTrip: o.setSummary,
     precomputedEvents: o.precomputedEvents,
-    canonicalTimeline: o.canonicalTimeline,
   };
 }

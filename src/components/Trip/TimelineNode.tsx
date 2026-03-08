@@ -1,3 +1,4 @@
+import type React from 'react';
 import { Clock, Fuel, MapPin, Trophy, Edit3 } from 'lucide-react';
 import type { RouteSegment, StopType, Activity } from '../../types';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
@@ -5,6 +6,7 @@ import { formatTime as formatTimeWithTz, STOP_LABELS } from '../../lib/calculati
 import { formatTimeInZone } from '../../lib/trip-timezone';
 import { StopDurationPicker } from './StopDurationPicker';
 import { ActivityBadge } from './ActivityEditor';
+import { getWeatherEmoji } from '../../lib/weather-ui-utils';
 
 // ==================== TYPES ====================
 
@@ -296,11 +298,11 @@ export function WaypointNode({
             {segment.weather && (
               <div className="flex items-center gap-1.5 bg-sky-50 text-sky-700 px-2 py-1 rounded-md text-xs border border-sky-100 font-medium">
                 <span className="text-base">
-                  {segment.weather.weatherCode !== undefined ? (
-                    segment.weather.temperatureMax > 25 ? '☀️' :
-                    (segment.weather.precipitationProb > 40 ? '🌧️' :
-                    (segment.weather.weatherCode > 3 ? '☁️' : '🌤️'))
-                  ) : '🌡️'}
+                  {getWeatherEmoji(
+                    segment.weather.weatherCode,
+                    segment.weather.temperatureMax,
+                    segment.weather.precipitationProb,
+                  )}
                 </span>
                 <span>{segment.weather.temperatureMax}°C</span>
                 <span className="text-sky-400 pl-1 border-l border-sky-200">

@@ -9,7 +9,6 @@ import { generateTripOverview } from '../../lib/trip-analyzer';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
 import type { PlanningStep } from '../../hooks';
 import type { TimedEvent } from '../../lib/trip-timeline';
-import type { CanonicalTripTimeline } from '../../lib/canonical-trip';
 import { useTripContext } from '../../contexts/TripContext';
 import { Step3Header } from './Step3Header';
 import { Step3HealthSection } from './Step3HealthSection';
@@ -51,7 +50,6 @@ interface Step3ContentProps {
   onGoToStep: (step: PlanningStep) => void;
   externalStops?: SuggestedStop[];
   precomputedEvents?: TimedEvent[];
-  canonicalTimeline?: CanonicalTripTimeline | null;
   tripConfirmed: boolean;
   addedStopCount: number;
   onConfirmTrip: () => void;
@@ -91,7 +89,6 @@ export function Step3Content({
   onGoToStep,
   externalStops,
   precomputedEvents,
-  canonicalTimeline,
   tripConfirmed,
   addedStopCount,
   onConfirmTrip,
@@ -100,7 +97,7 @@ export function Step3Content({
 }: Step3ContentProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isJournalFullscreen, setIsJournalFullscreen] = useState(false);
-  const { addDayActivity, updateDayActivity, removeDayActivity } = useTripContext();
+  const { addDayActivity, updateDayActivity, removeDayActivity, canonicalTimeline } = useTripContext();
 
   const feasibility = useMemo(
     () => summary ? analyzeFeasibility(summary, settings) : null,

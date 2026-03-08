@@ -111,28 +111,7 @@ export function LandingHeroSection({
           </p>
           <button
             onClick={(e) => { e.stopPropagation(); onExitStart(onContinueSavedTrip); }}
-            style={{
-              background: 'rgba(249, 115, 22, 0.12)',
-              border: '1px solid rgba(249, 115, 22, 0.35)',
-              color: '#FDBA74',
-              padding: '10px 24px',
-              borderRadius: '100px',
-              fontFamily: "'DM Mono', monospace",
-              fontSize: '13px',
-              fontWeight: 600,
-              letterSpacing: '0.05em',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 0 20px rgba(249, 115, 22, 0.08)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(249, 115, 22, 0.22)';
-              e.currentTarget.style.boxShadow = '0 0 30px rgba(249, 115, 22, 0.18)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(249, 115, 22, 0.12)';
-              e.currentTarget.style.boxShadow = '0 0 20px rgba(249, 115, 22, 0.08)';
-            }}
+            className="landing-ghost-btn"
           >
             Continue where you left off →
           </button>
@@ -153,29 +132,8 @@ export function LandingHeroSection({
           </p>
           <button
             onClick={(e) => { e.stopPropagation(); onExitStart(onResumeSession); }}
-            className="resume-session-btn"
-            style={{
-              background: 'rgba(249, 115, 22, 0.15)',
-              border: '1px solid rgba(249, 115, 22, 0.4)',
-              color: '#FDBA74',
-              padding: '10px 24px',
-              borderRadius: '100px',
-              fontFamily: "'DM Mono', monospace",
-              fontSize: '13px',
-              fontWeight: 600,
-              letterSpacing: '0.05em',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 0 20px rgba(249, 115, 22, 0.1)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(249, 115, 22, 0.25)';
-              e.currentTarget.style.boxShadow = '0 0 30px rgba(249, 115, 22, 0.2)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(249, 115, 22, 0.15)';
-              e.currentTarget.style.boxShadow = '0 0 20px rgba(249, 115, 22, 0.1)';
-            }}
+            className="resume-session-btn landing-ghost-btn"
+            style={{ background: 'rgba(249, 115, 22, 0.15)', border: '1px solid rgba(249, 115, 22, 0.4)', boxShadow: '0 0 20px rgba(249, 115, 22, 0.1)' }}
           >
             Resume where you left off →
           </button>

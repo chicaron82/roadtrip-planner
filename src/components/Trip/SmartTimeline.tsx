@@ -70,7 +70,7 @@ function DriveRow({ event }: { event: TimedEvent }) {
       <div className="flex items-center gap-1.5 pl-3 py-1">
         <ChevronRight className="h-3 w-3 text-muted-foreground/30 shrink-0" />
         <span className="text-[11px] text-muted-foreground/50 font-mono tabular-nums">
-          {formatDuration(min)} &middot; {Math.round(km)} km
+          {formatDuration(min)} &middot; {km < 0.5 ? '< 1 km' : `${Math.round(km)} km`}
         </span>
       </div>
     </div>
@@ -86,6 +86,13 @@ export function SmartTimeline({ summary, settings, vehicle, precomputedEvents, p
 
     if (precomputedEvents && precomputedEvents.length > 0) {
       return precomputedEvents;
+    }
+
+    if (import.meta.env.DEV) {
+      console.warn(
+        '[SmartTimeline] precomputedEvents not provided — falling back to local compute.',
+        'Pass canonicalTimeline?.events from useTripContext() for best accuracy.',
+      );
     }
 
     const allSuggestions = vehicle

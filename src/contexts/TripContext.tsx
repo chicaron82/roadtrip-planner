@@ -3,6 +3,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import type { Location, Vehicle, TripSettings, TripSummary, TripBudget, Activity, TripDay } from '../types';
+import type { CanonicalTripTimeline } from '../lib/canonical-trip';
 import { DEFAULT_BUDGET } from '../lib/budget';
 import { getDefaultVehicleId, getGarage, loadSettingsDefaults, saveSettingsDefaults } from '../lib/storage';
 import { formatLocalYMD } from '../lib/utils';
@@ -60,12 +61,16 @@ interface TripContextType {
   vehicle: Vehicle;
   settings: TripSettings;
   summary: TripSummary | null;
+  /** Canonical trip timeline (set after a successful calculation). Promoted to context
+   *  so deep consumers (Step3, SmartTimeline) can read it without prop drilling. */
+  canonicalTimeline: CanonicalTripTimeline | null;
 
   // Core Setters
   setLocations: React.Dispatch<React.SetStateAction<Location[]>>;
   setVehicle: React.Dispatch<React.SetStateAction<Vehicle>>;
   setSettings: React.Dispatch<React.SetStateAction<TripSettings>>;
   setSummary: React.Dispatch<React.SetStateAction<TripSummary | null>>;
+  setCanonicalTimeline: React.Dispatch<React.SetStateAction<CanonicalTripTimeline | null>>;
 
   // Location Helpers
   updateLocation: (index: number, updates: Partial<Location>) => void;
@@ -123,6 +128,7 @@ export function TripProvider({
     ...(initialSettings || {}),
   }));
   const [summary, setSummary] = useState<TripSummary | null>(null);
+  const [canonicalTimeline, setCanonicalTimeline] = useState<CanonicalTripTimeline | null>(null);
 
   // Auto-persist preference fields whenever settings change
   useEffect(() => {
@@ -247,10 +253,12 @@ export function TripProvider({
     vehicle,
     settings,
     summary,
+    canonicalTimeline,
     setLocations,
     setVehicle,
     setSettings,
     setSummary,
+    setCanonicalTimeline,
     updateLocation,
     addWaypoint,
     removeLocation,

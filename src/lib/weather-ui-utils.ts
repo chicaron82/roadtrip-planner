@@ -60,3 +60,21 @@ export function getWeatherHexColor(weatherCode?: number): string {
     
     return '#cbd5e1'; 
 }
+
+/**
+ * Maps weather data to a display emoji for inline weather indicators.
+ * Also considers temperature and precipitation probability for a more human-readable result.
+ * Extracted from TimelineNode so it's testable and reusable.
+ */
+export function getWeatherEmoji(
+  weatherCode?: number,
+  temperatureMax?: number,
+  precipitationProb?: number,
+): string {
+  if (weatherCode === undefined) return '🌡️';
+  if (temperatureMax !== undefined && temperatureMax > 25) return '☀️';
+  if (precipitationProb !== undefined && precipitationProb > 40) return '🌧️';
+  if (weatherCode > 3) return '☁️';
+  return '🌤️';
+}
+
