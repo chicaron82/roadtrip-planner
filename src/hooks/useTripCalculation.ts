@@ -4,7 +4,7 @@ import type { StrategicFuelStop } from '../lib/calculations';
 import type { CanonicalTripTimeline } from '../lib/canonical-trip';
 import { fetchAllRouteStrategies } from '../lib/api';
 import { snapFuelStopsToStations } from '../lib/fuel-stop-snapper';
-import { checkAndSetOvernightPrompt, fireAndForgetOvernightSnap } from '../lib/trip-calculation-helpers';
+import { checkAndSetOvernightPrompt, fireAndForgetOvernightSnap } from './useOvernightSnap';
 import { addToHistory } from '../lib/storage';
 import { serializeStateToURL } from '../lib/url';
 import { buildStrategyUpdate } from '../lib/trip-strategy-selector';
