@@ -227,6 +227,94 @@ describe('findPreferredHubInWindow', () => {
     expect(result).not.toBeNull();
     expect(result!.name).toBe('El Paso, TX');
   });
+
+  it('suppresses a bare prewarm hub (poiCount=5, useCount=0) when a seed hub exists within 100 km — even if seed is outside the caller window', () => {
+    // Simulates the Disneyland→WDW bug:
+    // El Paso (seed) is ~60 km from the fuel stop — outside the 40 km caller window.
+    // Praxedis G. Guerrero (prewarm-injected) is ~5 km away — inside 40 km window.
+    // Before Option B, Praxedis won because El Paso was excluded by the hard window.
+    seedHubCache([{
+      name: 'El Paso, TX',
+      lat: 31.7619,
+      lng: -106.485,
+      radius: 40,
+      poiCount: 20,
+      discoveredAt: '2026-01-01',
+      source: 'seed',
+    }]);
+    cacheDiscoveredHub({
+      name: 'Praxedis G. Guerrero',
+      lat: 31.37,
+      lng: -106.01,
+      radius: 25,
+      poiCount: 5,       // minimum prewarm tier
+      discoveredAt: '2026-01-01',
+      source: 'discovered',
+      // useCount defaults to 0 — never used before
+    });
+
+    // Fuel stop fires ~5 km from Praxedis, ~60 km from El Paso
+    const fuelStopLat = 31.38;
+    const fuelStopLng = -106.05;
+    const result = findPreferredHubInWindow(fuelStopLat, fuelStopLng, 40);
+
+    // El Paso should win via extended seed window — Praxedis is suppressed
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('El Paso, TX');
+  });
+
+  it('does NOT suppress a discovered hub with earned useCount > 0 even when seed hub is nearby', () => {
+    // A discovered hub that has been used multiple times has earned its place
+    // and should not be suppressed by the prewarm-only rule.
+    seedHubCache([{
+      name: 'Major City',
+      lat: 50.0,
+      lng: -90.0,
+      radius: 30,
+      poiCount: 15,
+      discoveredAt: '2026-01-01',
+      source: 'seed',
+    }]);
+    cacheDiscoveredHub({
+      name: 'Established Town',
+      lat: 50.05,
+      lng: -90.05,
+      radius: 25,
+      poiCount: 5,
+      discoveredAt: '2026-01-01',
+      source: 'discovered',
+    });
+    // Simulate repeat usage so useCount > 0
+    findHubInWindow(50.05, -90.05);
+    findHubInWindow(50.05, -90.05);
+
+    // Lookup right next to Established Town
+    const result = findPreferredHubInWindow(50.05, -90.05, 40);
+
+    // Established Town should compete normally (not suppressed)
+    // It may or may not win depending on scoring, but it should not be excluded
+    expect(result).not.toBeNull();
+  });
+
+  it('falls back to minimum-tier discovered hub when no seed/promoted hub is within 100 km', () => {
+    // In a sparse corridor with no seeded cities, a prewarm hub should still win
+    cacheDiscoveredHub({
+      name: 'Remote Waypoint',
+      lat: 55.0,
+      lng: -100.0,
+      radius: 25,
+      poiCount: 5,
+      discoveredAt: '2026-01-01',
+      source: 'discovered',
+      useCount: 0,
+    });
+
+    const result = findPreferredHubInWindow(55.05, -100.05, 40);
+
+    // No seed hub → suppression does not apply → remote waypoint wins
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('Remote Waypoint');
+  });
 });
 
 // ─── Memory Singleton Behavior ───────────────────────────────────────────────

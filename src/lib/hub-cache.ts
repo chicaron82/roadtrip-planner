@@ -305,10 +305,24 @@ function scorePracticalHubCandidate(hub: DiscoveredHub, distanceKm: number): num
 }
 
 /**
+ * Seed/promoted hubs are always searched within this radius regardless of
+ * the caller's windowKm. This ensures a major seeded city like El Paso is
+ * never excluded by a narrow per-segment window when a tiny prewarm-injected
+ * waypoint (e.g. "Praxedis G. Guerrero") happens to be closer.
+ */
+const SEED_FALLBACK_WINDOW_KM = 100;
+
+/**
  * Find the most practical hub within a window, balancing proximity against
  * likely services. This favors major corridor cities over tiny nearby border
  * settlements when the user-facing label should reflect the place they'd
  * realistically stop.
+ *
+ * Option-B suppression: a freshly prewarm-injected hub (poiCount ≤ 5,
+ * useCount === 0, source = 'discovered') is excluded from competition
+ * whenever a seed or promoted hub exists within SEED_FALLBACK_WINDOW_KM.
+ * This prevents a route waypoint that geocoded to a small municipality from
+ * beating a well-known city just because it is a few km closer.
  */
 export function findPreferredHubInWindow(
   currentLat: number,
@@ -316,6 +330,15 @@ export function findPreferredHubInWindow(
   windowKm: number = 80,
 ): DiscoveredHub | null {
   const hubs = loadCache();
+
+  // One quick scan to know if any authoritative hub is near enough to suppress
+  // bare prewarm candidates.
+  const hasSeedHubNearby = hubs.some(
+    hub =>
+      (hub.source === 'seed' || hub.source === 'promoted') &&
+      isUsableHubName(hub.name) &&
+      haversineDistance(currentLat, currentLng, hub.lat, hub.lng) <= SEED_FALLBACK_WINDOW_KM,
+  );
 
   let bestHub: DiscoveredHub | null = null;
   let bestScore = -Infinity;
@@ -325,7 +348,23 @@ export function findPreferredHubInWindow(
     if (!isUsableHubName(hub.name)) continue;
 
     const distanceKm = haversineDistance(currentLat, currentLng, hub.lat, hub.lng);
-    if (distanceKm > windowKm) continue;
+
+    // Seed/promoted hubs always participate up to SEED_FALLBACK_WINDOW_KM so
+    // they are never hard-excluded by a narrow caller window.
+    const effectiveWindow =
+      hub.source === 'seed' || hub.source === 'promoted'
+        ? Math.max(windowKm, SEED_FALLBACK_WINDOW_KM)
+        : windowKm;
+    if (distanceKm > effectiveWindow) continue;
+
+    // Suppress bare prewarm-injected discovered hubs when an authoritative
+    // hub is within range. Prewarm hubs start at poiCount=5, radius=25,
+    // useCount=0 — they should not out-compete seeded cities.
+    const isMinTierDiscovered =
+      hub.source === 'discovered' &&
+      hub.poiCount <= 5 &&
+      (hub.useCount ?? 0) === 0;
+    if (isMinTierDiscovered && hasSeedHubNearby) continue;
 
     const score = scorePracticalHubCandidate(hub, distanceKm);
     if (score > bestScore || (score === bestScore && distanceKm < bestDist)) {
