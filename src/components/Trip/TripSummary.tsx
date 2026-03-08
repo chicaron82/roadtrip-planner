@@ -46,41 +46,58 @@ interface TripSummaryProps {
 }
 
 export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenVehicleTab }: TripSummaryProps) {
-  const [isMinimized, setIsMinimized] = useState(true);
-
   const feasibility = useMemo(
     () => summary ? analyzeFeasibility(summary, settings) : null,
     [summary, settings],
   );
 
-  // Refinement delta warnings — produced when the user changes traveler/driver count
-  // mid-session. Cleared when the route (summary) changes so stale deltas don't linger.
+  // Minimized by default; auto-expands when a new route arrives with non-green feasibility.
+  const [isMinimized, setIsMinimized] = useState(true);
+
+  // ─── Refinement warning tracking ────────────────────────────────────────────
+  // eslint-plugin-react-hooks v7 forbids setState inside effects (even in conditionals).
+  // We use the "setState during render" pattern instead: track previous values in state,
+  // detect changes during render, and batch all state updates in one block.
+  // React 18 batches these into a single re-render — no cascading renders.
+  interface PrevTrack {
+    feasibility: FeasibilityResult | null;
+    numTravelers: number;
+    numDrivers: number;
+    summary: TripSummary | null;
+  }
+  const [prev, setPrev] = useState<PrevTrack>({
+    feasibility, numTravelers: settings.numTravelers, numDrivers: settings.numDrivers, summary,
+  });
   const [refinementWarnings, setRefinementWarnings] = useState<FeasibilityWarning[]>([]);
-  const prevFeasibility = useRef<FeasibilityResult | null>(null);
-  const prevCounts = useRef<{ numTravelers: number; numDrivers: number } | null>(null);
 
-  // Route changed → wipe refinement context so old deltas don't linger.
-  // Must be declared before the effect below so it runs first (React effect order).
-  useEffect(() => {
-    setRefinementWarnings([]);
-    prevFeasibility.current = null;
-  }, [summary]);
+  const trackingChanged =
+    prev.feasibility !== feasibility ||
+    prev.numTravelers !== settings.numTravelers ||
+    prev.numDrivers !== settings.numDrivers ||
+    prev.summary !== summary;
 
-  // Traveler or driver count changed → compare before/after feasibility.
-  useEffect(() => {
-    if (feasibility && prevFeasibility.current && prevCounts.current) {
-      const travelersChanged = prevCounts.current.numTravelers !== settings.numTravelers;
-      const driversChanged   = prevCounts.current.numDrivers   !== settings.numDrivers;
-      if (travelersChanged || driversChanged) {
-        setRefinementWarnings(compareRefinements(prevFeasibility.current, feasibility, {
-          ...(travelersChanged && { travelersBefore: prevCounts.current.numTravelers, travelersAfter: settings.numTravelers }),
-          ...(driversChanged   && { driversBefore:   prevCounts.current.numDrivers,   driversAfter:   settings.numDrivers   }),
-        }));
-      }
+  if (trackingChanged) {
+    setPrev({ feasibility, numTravelers: settings.numTravelers, numDrivers: settings.numDrivers, summary });
+
+    const summaryChanged = prev.summary !== summary;
+    const sameSummary = !summaryChanged;
+    const travelersChanged = prev.numTravelers !== settings.numTravelers;
+    const driversChanged   = prev.numDrivers   !== settings.numDrivers;
+
+    // New route → clear stale refinement warnings
+    if (summaryChanged && refinementWarnings.length > 0) setRefinementWarnings([]);
+
+    // Count changed on the same route → generate delta warnings
+    if (sameSummary && (travelersChanged || driversChanged) && prev.feasibility && feasibility) {
+      setRefinementWarnings(compareRefinements(prev.feasibility, feasibility, {
+        ...(travelersChanged && { travelersBefore: prev.numTravelers, travelersAfter: settings.numTravelers }),
+        ...(driversChanged   && { driversBefore:   prev.numDrivers,   driversAfter:   settings.numDrivers   }),
+      }));
     }
-    if (feasibility) prevFeasibility.current = feasibility;
-    prevCounts.current = { numTravelers: settings.numTravelers, numDrivers: settings.numDrivers };
-  }, [feasibility, settings.numTravelers, settings.numDrivers]);
+
+    // Non-green feasibility → auto-expand so warnings are immediately visible
+    if (feasibility && feasibility.status !== 'on-track') setIsMinimized(false);
+  }
 
   // Merge refinement warnings (at top, so they appear first) with base warnings.
   const displayFeasibility = useMemo(() => {
