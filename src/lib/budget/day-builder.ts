@@ -179,7 +179,6 @@ export function finalizeTripDay(
   }
 
   // Calculate budget
-  // Calculate budget
   // RECONCILED: Unified Human Fuel Model
   // 1. Charge for actual fuel stops occurrence (at-the-pump cost)
   // 2. Only charge mathematical L/km for segments that occur AFTER the very last fuel stop

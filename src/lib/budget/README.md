@@ -57,7 +57,7 @@ The fuel calculation uses two sources reconciled per day:
 ## Key Files
 
 ### `split-by-days.ts`
-The core day-splitting loop. The most complex file in the pipeline (~525 lines). Owns:
+The core day-splitting loop. The most complex file in the pipeline (~258 lines). Owns:
 - Walking `ProcessedSegment[]` and detecting day boundaries (when cumulative drive time hits `maxDriveHours`)
 - Inserting free days at midpoints (e.g. planned rest days on long trips)
 - Tracking timezone transitions across day boundaries

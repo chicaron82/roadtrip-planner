@@ -19,6 +19,7 @@ import { validateTripInputs } from './validate-inputs';
 import { buildTimedTimeline } from './trip-timeline';
 import { applyComboOptimization } from './stop-consolidator';
 import { formatDateInZone } from './trip-timezone';
+import { formatTime } from './trip-timeline-helpers';
 import { enrichSmartStopHubs } from './route-geocoder';
 
 /** Thrown for expected failures (no route, validation) — carries user-facing message. */
@@ -60,12 +61,7 @@ export function projectFuelStopsFromSimulation(stops: SuggestedStop[]): Strategi
   return stops
     .filter(s => s.type === 'fuel' && !s.dismissed && s.lat != null && s.lng != null)
     .map(s => {
-      const t = s.estimatedTime;
-      const h = t.getHours();
-      const m = t.getMinutes();
-      const ampm = h >= 12 ? 'PM' : 'AM';
-      const h12 = h % 12 || 12;
-      const timeStr = `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
+      const timeStr = formatTime(s.estimatedTime);
       return {
         lat: s.lat!,
         lng: s.lng!,

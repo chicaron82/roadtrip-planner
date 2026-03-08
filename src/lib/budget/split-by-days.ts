@@ -16,7 +16,8 @@ import {
   getOverflowToleranceMinutes,
 } from './split-by-days-policies';
 import { buildNextDrivingDay } from './split-by-days-next-day';
-import { insertOneWayDestinationFreeDays, maybeInsertRoundTripMidpointDays } from './split-by-days-free-days';
+import { maybeInsertRoundTripMidpointDays } from './split-by-days-round-trip';
+import { insertOneWayDestinationFreeDays } from './split-by-days-one-way';
 
 function finalizeAndStoreDay(
   day: TripDay,

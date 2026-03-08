@@ -1,4 +1,4 @@
-import type { ProcessedSegment, RouteSegment } from '../types';
+import type { ProcessedSegment, RouteSegment, TripDay } from '../types';
 import type { SuggestedStop } from './stop-suggestions';
 import type { TimedEvent } from './trip-timeline-types';
 
@@ -108,7 +108,7 @@ interface WaypointOrArrivalParams {
   iterSegments: ProcessedSegment[];
   segmentIndex: number;
   originalIndex: number;
-  dayStartMap: Map<number, unknown>;
+  dayStartMap: Map<number, TripDay>;
 }
 
 export function emitWaypointOrArrival({
