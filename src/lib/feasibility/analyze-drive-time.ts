@@ -2,6 +2,7 @@ import type { TripDay, TripSettings } from '../../types';
 import type { FeasibilityWarning } from './types';
 import { formatDuration } from './helpers';
 import { TRIP_CONSTANTS } from '../trip-constants';
+import { lngToIANA } from '../trip-timezone';
 
 /**
  * Comfortable daily max for rotating drivers — the ceiling where individual
@@ -41,11 +42,33 @@ export function analyzeDriveTime(
     const targetArrivalHour = settings.targetArrivalHour ?? 21;
     const availableHours = targetArrivalHour - departureDecimal;
     const actualDriveHours = day1.totals.driveTimeMinutes / 60;
-    const estimatedArrivalHour = departureDecimal + actualDriveHours;
+
+    // Express arrival in the destination's local timezone so stop durations
+    // and timezone shifts are both accounted for (not just raw drive time).
+    const lastSeg = day1.segments[day1.segments.length - 1];
+    const destTZ = lngToIANA(lastSeg.to.lng);
+    let estimatedArrivalHour: number;
+    // Only use the timezone-aware path when arrivalTime is an explicit UTC ISO
+    // string (ends with 'Z'). Production always uses Date.toISOString() which
+    // includes 'Z'. Test fixtures without 'Z' fall back to drive-time arithmetic.
+    const arrivalISO = day1.totals.arrivalTime;
+    if (arrivalISO && /Z$|[+-]\d\d:\d\d$/.test(arrivalISO)) {
+      const arrDate = new Date(arrivalISO);
+      const [hStr, mStr] = new Intl.DateTimeFormat('en-US', {
+        timeZone: destTZ, hour: '2-digit', minute: '2-digit', hour12: false,
+      }).format(arrDate).split(':');
+      estimatedArrivalHour = (parseInt(hStr) % 24) + parseInt(mStr) / 60;
+      // Handle post-midnight arrivals (e.g. 1:00 AM after 9 AM departure)
+      if (estimatedArrivalHour < departureDecimal) estimatedArrivalHour += 24;
+    } else {
+      estimatedArrivalHour = departureDecimal + actualDriveHours;
+    }
+    // Effective elapsed hours absorbed into destination TZ (drive + stops + TZ shift)
+    const effectiveElapsedHours = estimatedArrivalHour - departureDecimal;
 
     if (estimatedArrivalHour > targetArrivalHour + TRIP_CONSTANTS.feasibility.day1ArrivalBuffer) {
       // Suggest the ideal departure so they'd hit the target arrival
-      const suggestedDep = Math.max(5, Math.round(targetArrivalHour - actualDriveHours));
+      const suggestedDep = Math.max(5, Math.round(targetArrivalHour - effectiveElapsedHours));
       const suggestedH = Math.floor(suggestedDep);
       const suggestedMin = Math.round((suggestedDep - suggestedH) * 60);
       const suggestedLabel = `${suggestedH}:${String(suggestedMin).padStart(2, '0')}`;
@@ -63,7 +86,7 @@ export function analyzeDriveTime(
         category: 'drive-time',
         severity: 'info',
         message: `Day 1: departing at ${settings.departureTime} means arriving around ${arrivalLabel}`,
-        detail: `With ${formatDuration(day1.totals.driveTimeMinutes)} of driving, you'll arrive ~${overByHours}h past your ${targetArrivalHour}:00 target. ${availableHours < actualDriveHours ? 'The drive is longer than the day allows.' : ''}`,
+        detail: `With ${formatDuration(day1.totals.driveTimeMinutes)} of driving, you'll arrive ~${overByHours}h past your ${targetArrivalHour}:00 target. ${availableHours < effectiveElapsedHours ? 'The drive is longer than the day allows.' : ''}`,
         dayNumber: 1,
         suggestion: `Depart by ${suggestedLabel} to arrive near your ${targetArrivalHour}:00 target, or add a planned overnight stop to split the drive.${driverHint}`,
       });
