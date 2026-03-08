@@ -1,9 +1,9 @@
 import { Calendar, DollarSign, Users, Clock, Car, ArrowRight, RotateCcw } from 'lucide-react';
-import type { Location, TripPreference } from '../../types';
-import { Button } from '../UI/Button';
-import { Input } from '../UI/Input';
-import { Label } from '../UI/Label';
-import { cn, formatLocalYMD } from '../../lib/utils';
+import type { Location, TripPreference } from '../../../types';
+import { Button } from '../../UI/Button';
+import { Input } from '../../UI/Input';
+import { Label } from '../../UI/Label';
+import { cn, formatLocalYMD } from '../../../lib/utils';
 
 interface AdventureFormPanelProps {
   budget: number;

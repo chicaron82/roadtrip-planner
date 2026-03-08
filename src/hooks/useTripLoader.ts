@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import type { Location, Vehicle, TripSettings, TripChallenge, TripOrigin } from '../types';
 import { buildAdventureBudget } from '../lib/adventure/adventure-service';
-import type { AdventureSelection } from '../components/Trip/AdventureMode';
+import type { AdventureSelection } from '../components/Trip/Adventure/AdventureMode';
 import type { TemplateImportResult } from '../lib/url';
 import type { PlanningStep } from './useWizard';
 

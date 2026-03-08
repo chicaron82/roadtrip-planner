@@ -1,6 +1,6 @@
 import { Sparkles, MapPin, Clock, DollarSign, ChevronRight, Compass } from 'lucide-react';
-import type { AdventureDestination } from '../../types';
-import { cn } from '../../lib/utils';
+import type { AdventureDestination } from '../../../types';
+import { cn } from '../../../lib/utils';
 
 interface AdventureResultsPanelProps {
   isCalculating: boolean;

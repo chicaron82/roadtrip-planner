@@ -15,8 +15,8 @@
 
 import { useState } from 'react';
 import { Trophy, Lock, ChevronRight, MapPin } from 'lucide-react';
-import type { TripChallenge, Location } from '../../types';
-import { LocationSearchInput } from './LocationSearchInput';
+import type { TripChallenge, Location } from '../../../types';
+import { LocationSearchInput } from '../LocationSearchInput';
 import {
   getChallenges,
   getChallengeById,
@@ -24,7 +24,7 @@ import {
   formatParStats,
   formatHistoricalCost,
   DIFFICULTY_META,
-} from '../../lib/adventure/challenges';
+} from '../../../lib/adventure/challenges';
 
 interface ChallengeCardsProps {
   onSelectChallenge: (challenge: TripChallenge) => void;

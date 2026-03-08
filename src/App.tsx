@@ -4,7 +4,7 @@ import { WizardContent } from './components/WizardContent';
 import { Map } from './components/Map/Map';
 import { TripSummaryCard } from './components/Trip/TripSummary';
 import { RouteStrategyPicker } from './components/Trip/RouteStrategyPicker';
-import { AdventureMode } from './components/Trip/AdventureMode';
+import { AdventureMode } from './components/Trip/Adventure/AdventureMode';
 import { LandingScreen } from './components/Landing/LandingScreen';
 import { PlanningStepContent } from './components/Steps/PlanningStepContent';
 import { SwipeableWizard } from './components/UI/SwipeableWizard';

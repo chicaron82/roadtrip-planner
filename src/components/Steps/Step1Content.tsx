@@ -4,7 +4,7 @@ import type { Location, TripChallenge, TripMode, TripSettings } from '../../type
 import { parseSharedTemplate, type TemplateImportResult } from '../../lib/url';
 import { showToast } from '../../lib/toast';
 import { LocationList } from '../Trip/LocationList';
-import { ChallengeCards } from '../Trip/ChallengeCards';
+import { ChallengeCards } from '../Trip/Adventure/ChallengeCards';
 import { Button } from '../UI/Button';
 import { Label } from '../UI/Label';
 import { Switch } from '../UI/Switch';

@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Compass, MapPin, Sparkles, X } from 'lucide-react';
-import type { Location, AdventureDestination, TripPreference } from '../../types';
-import { findAdventureDestinations, calculateMaxDistance } from '../../lib/adventure/adventure-service';
-import { LocationSearchInput } from './LocationSearchInput';
+import type { Location, AdventureDestination, TripPreference } from '../../../types';
+import { findAdventureDestinations, calculateMaxDistance } from '../../../lib/adventure/adventure-service';
+import { LocationSearchInput } from '../LocationSearchInput';
 import { AdventureFormPanel } from './AdventureFormPanel';
 import { AdventureResultsPanel } from './AdventureResultsPanel';
-import { cn, formatLocalYMD } from '../../lib/utils';
+import { cn, formatLocalYMD } from '../../../lib/utils';
 
 // Settings to carry over when selecting a destination
 export interface AdventureSelection {
