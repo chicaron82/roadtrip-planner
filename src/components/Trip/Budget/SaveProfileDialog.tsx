@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import type { SavedBudgetProfile, TripBudget } from '../../types';
-import { BUDGET_PROFILES } from '../../lib/budget';
-import { saveBudgetProfile } from '../../lib/storage';
-import { cn, formatLocalYMD } from '../../lib/utils';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../UI/Dialog';
-import { Input } from '../UI/Input';
-import { Label } from '../UI/Label';
+import type { SavedBudgetProfile, TripBudget } from '../../../types';
+import { BUDGET_PROFILES } from '../../../lib/budget';
+import { saveBudgetProfile } from '../../../lib/storage';
+import { cn, formatLocalYMD } from '../../../lib/utils';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../UI/Dialog';
+import { Input } from '../../UI/Input';
+import { Label } from '../../UI/Label';
 
 const EMOJI_OPTIONS = ['💰', '🎒', '🍜', '🏔️', '✨', '👨‍👩‍👧‍👦', '🏕️', '🍷', '🎯', '🌴', '🚗', '💼'];
 

@@ -3,7 +3,7 @@ import type { ViewMode } from '../Trip/JournalModeToggle';
 import type { Step3ArrivalInfo } from './step3-types';
 import { FeasibilityBanner } from '../Trip/FeasibilityBanner';
 import { JournalModeToggle } from '../Trip/JournalModeToggle';
-import { BudgetBar } from '../Trip/BudgetBar';
+import { BudgetBar } from '../Trip/Budget/BudgetBar';
 import { TripBudgetHealth } from '../Trip/TripBudgetHealth';
 import { TripArrivalHero } from '../Trip/TripArrivalHero';
 import { PlannerRationaleCard } from '../Trip/PlannerRationaleCard';

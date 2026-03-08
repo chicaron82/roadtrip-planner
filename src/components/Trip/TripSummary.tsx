@@ -4,7 +4,7 @@ import { formatDistance, formatDuration, formatCurrency } from '../../lib/calcul
 import { Car, Fuel, Users, TrendingDown, TrendingUp, Gauge, ChevronUp, ChevronDown } from 'lucide-react';
 import { TripOverview } from './TripOverview';
 import { FeasibilityBanner } from './FeasibilityBanner';
-import { BudgetSensitivity } from './BudgetSensitivity';
+import { BudgetSensitivity } from './Budget/BudgetSensitivity';
 import { HoursTradeoff } from './HoursTradeoff';
 import { analyzeFeasibility, compareRefinements } from '../../lib/feasibility';
 import type { FeasibilityResult, FeasibilityWarning } from '../../lib/feasibility';

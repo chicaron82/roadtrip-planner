@@ -1,8 +1,8 @@
 import { Check, Clock, Star, Trash2 } from 'lucide-react';
-import type { BudgetProfile, LastTripBudget, SavedBudgetProfile, TripBudget } from '../../types';
-import { BUDGET_PROFILES } from '../../lib/budget';
-import { cn } from '../../lib/utils';
-import { Label } from '../UI/Label';
+import type { BudgetProfile, LastTripBudget, SavedBudgetProfile, TripBudget } from '../../../types';
+import { BUDGET_PROFILES } from '../../../lib/budget';
+import { cn } from '../../../lib/utils';
+import { Label } from '../../UI/Label';
 
 interface QuickRecallSectionProps {
   lastTripBudget: LastTripBudget;

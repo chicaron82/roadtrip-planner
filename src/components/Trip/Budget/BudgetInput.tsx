@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { DollarSign, Sparkles, Lock, Unlock, Users, ChevronDown, ChevronUp, Save } from 'lucide-react';
-import { Input } from '../UI/Input';
-import { Label } from '../UI/Label';
-import type { TripBudget, Currency, BudgetWeights, SavedBudgetProfile } from '../../types';
-import { applyBudgetWeights, getPerPersonCost } from '../../lib/budget';
-import { cn } from '../../lib/utils';
+import { Input } from '../../UI/Input';
+import { Label } from '../../UI/Label';
+import type { TripBudget, Currency, BudgetWeights, SavedBudgetProfile } from '../../../types';
+import { applyBudgetWeights, getPerPersonCost } from '../../../lib/budget';
+import { cn } from '../../../lib/utils';
 import { BudgetProfilePicker, SaveProfileDialog } from './BudgetProfilePicker';
-import { getAdaptiveDefaults, isAdaptiveMeaningful } from '../../lib/user-profile';
+import { getAdaptiveDefaults, isAdaptiveMeaningful } from '../../../lib/user-profile';
 import { BudgetDistributionBar } from './BudgetDistributionBar';
 import { BudgetCategoryDetails } from './BudgetCategoryDetails';
 

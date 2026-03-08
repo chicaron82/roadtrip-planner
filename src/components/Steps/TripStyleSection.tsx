@@ -1,5 +1,5 @@
 import type { TripSettings, TripBudget, TripMode } from '../../types';
-import { BudgetInput } from '../Trip/BudgetInput';
+import { BudgetInput } from '../Trip/Budget/BudgetInput';
 import { StylePresetRow } from '../Trip/StylePresetRow';
 import type { StylePreset } from '../../lib/style-presets';
 

@@ -8,9 +8,9 @@
  */
 
 import { useState, useEffect } from 'react';
-import type { CostBreakdown } from '../../types';
-import { formatCurrency } from '../../lib/calculations';
-import type { TripSettings } from '../../types';
+import type { CostBreakdown } from '../../../types';
+import { formatCurrency } from '../../../lib/calculations';
+import type { TripSettings } from '../../../types';
 
 interface BudgetBarProps {
   breakdown: CostBreakdown;

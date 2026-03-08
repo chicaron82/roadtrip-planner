@@ -1,8 +1,8 @@
 import { Fuel, Hotel, Utensils, Sparkles } from 'lucide-react';
-import { Input } from '../UI/Input';
-import { Label } from '../UI/Label';
-import type { TripBudget } from '../../types';
-import { cn } from '../../lib/utils';
+import { Input } from '../../UI/Input';
+import { Label } from '../../UI/Label';
+import type { TripBudget } from '../../../types';
+import { cn } from '../../../lib/utils';
 
 interface Props {
   budget: TripBudget;

@@ -1,4 +1,4 @@
-import type { BudgetWeights } from '../../types';
+import type { BudgetWeights } from '../../../types';
 
 interface Props {
   weights: BudgetWeights;
