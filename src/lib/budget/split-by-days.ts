@@ -89,14 +89,24 @@ export function splitTripByDays(
     ? segments.slice(0, roundTripMidpoint).reduce((sum, s) => sum + s.distanceKm, 0)
     : cumulativeKm;
 
+  // Parse departure time into minutes from midnight so splitLongSegments can
+  // tighten the per-day cap to the user's targetArrivalHour.
+  // "09:00" → 540, "14:30" → 870, etc.
+  const [depHourStr = '9', depMinStr = '0'] = departureTime.split(':');
+  const departureMinsFromMidnight = parseInt(depHourStr, 10) * 60 + parseInt(depMinStr, 10);
+
   // Pre-split any single segment that exceeds the max drive limit so that each
   // processed sub-segment always fits within one driving day.
+  // Also honours targetArrivalHour: a 9 AM departure + 7 PM target constrains
+  // the first day to 10 h regardless of the maxDriveHours setting.
   const processedSegments = splitLongSegments(
     segments,
     maxDriveMinutes,
     fullGeometry,
     segKmStarts,
     outboundTotalKm,
+    settings.targetArrivalHour,
+    departureMinsFromMidnight,
   );
 
   // Track whether we've inserted the destination free days

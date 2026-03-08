@@ -32,6 +32,18 @@ export function splitLongSegments(
    * Used to mirror return-leg split points onto the outbound geometry.
    */
   outboundTotalKm?: number,
+  /**
+   * User's target arrival hour (0–23 in local time, e.g. 19 for 7 PM).
+   * When combined with departureMinsFromMidnight, the per-day cap is
+   * tightened so the first overnight split lands before this hour instead
+   * of running well past midnight.
+   */
+  targetArrivalHour?: number,
+  /**
+   * Minutes from midnight for the trip's (first day) departure time,
+   * e.g. 540 for a 9:00 AM start.
+   */
+  departureMinsFromMidnight?: number,
 ): ProcessedSegment[] {
   const result: ProcessedSegment[] = [];
 
@@ -40,12 +52,27 @@ export function splitLongSegments(
   // 4h15m halves that each waste a full day.
   const effectiveMax = maxDriveMinutes + TRIP_CONSTANTS.dayOverflow.toleranceHours * 60;
 
+  // If the caller supplies a target arrival hour and departure time, use that
+  // window as the per-day cap when it is tighter than effectiveMax.
+  // Example: 9 AM departure + 7 PM target → 600 min available.
+  //   12 h setting → effectiveMax 780 min → dayCap = min(780, 600) = 600 min
+  //   16 h setting → effectiveMax 1020 min → dayCap = min(1020, 600) = 600 min
+  // Both correctly produce 4 × ~9.25 h sub-segments instead of 3 × ~12.3 h.
+  const availableMinsToday =
+    targetArrivalHour !== undefined && departureMinsFromMidnight !== undefined
+      ? targetArrivalHour * 60 - departureMinsFromMidnight
+      : null;
+  const dayCap =
+    availableMinsToday !== null && availableMinsToday > 0
+      ? Math.min(effectiveMax, availableMinsToday)
+      : effectiveMax;
+
   let runningDistance = 0;
 
   for (let origIdx = 0; origIdx < segments.length; origIdx++) {
     const seg = segments[origIdx];
 
-    if (seg.durationMinutes <= effectiveMax) {
+    if (seg.durationMinutes <= dayCap) {
       result.push({
         ...seg,
         _originalIndex: origIdx,
@@ -55,7 +82,7 @@ export function splitLongSegments(
       continue;
     }
 
-    const numParts = Math.ceil(seg.durationMinutes / effectiveMax);
+    const numParts = Math.ceil(seg.durationMinutes / dayCap);
 
     // Distribute drive time evenly across sub-segments instead of filling each
     // part to maxDriveMinutes. Fill-to-max creates heavily imbalanced splits
