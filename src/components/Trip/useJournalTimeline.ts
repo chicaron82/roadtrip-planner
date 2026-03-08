@@ -4,7 +4,7 @@ import { groupEventsByTripDay } from '../../lib/accepted-itinerary-timeline';
 import { buildDayPlacementMaps } from '../../lib/day-placement-maps';
 import { showToast } from '../../lib/toast';
 import { buildTimedTimeline } from '../../lib/trip-timeline';
-import { formatDisplayDateInZone, formatTimeInZone, lngToIANA, parseLocalDateInTZ } from '../../lib/trip-timezone';
+import { formatDisplayDateInZone, formatTimeInZone, getTripStartTime, lngToIANA } from '../../lib/trip-timezone';
 
 interface UseJournalTimelineParams {
   summary: TripSummary;
@@ -21,13 +21,7 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
   }>({});
 
   const startTime = useMemo(
-    () => {
-      const originLng = summary.segments[0]?.from.lng;
-      if (originLng !== undefined) {
-        return parseLocalDateInTZ(settings.departureDate, settings.departureTime, lngToIANA(originLng));
-      }
-      return new Date(`${settings.departureDate}T${settings.departureTime}`);
-    },
+    () => getTripStartTime(settings.departureDate, settings.departureTime, summary.segments[0]?.from.lng),
     [settings.departureDate, settings.departureTime, summary.segments],
   );
 

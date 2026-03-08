@@ -191,7 +191,7 @@ export async function orchestrateTrip(
 
   const smartStops = generateSmartStops(
     tripSummary.segments,
-    createStopConfig(vehicle, settings, tripSummary.fullGeometry),
+    createStopConfig(vehicle, settings, tripSummary.fullGeometry, tripSummary.segments[0]?.from.lng),
     tripDays,
   );
 
@@ -260,7 +260,7 @@ export function orchestrateStopUpdate(
 
   const refreshedSmartStops = generateSmartStops(
     segmentsWithTimes,
-    createStopConfig(vehicle, settings, localSummary.fullGeometry as number[][]),
+    createStopConfig(vehicle, settings, localSummary.fullGeometry as number[][], localSummary.segments[0]?.from.lng),
     updatedDays,
   );
 

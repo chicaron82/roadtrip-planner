@@ -8,6 +8,7 @@
  */
 
 import type { Vehicle, TripSettings } from '../types';
+import { getTripStartTime } from './trip-timezone';
 import { getTankSizeLitres, getWeightedFuelEconomyL100km } from './unit-conversions';
 import type { SuggestionStopType, StopSuggestionConfig } from './stop-suggestion-types';
 
@@ -49,6 +50,7 @@ export function createStopConfig(
   vehicle: Vehicle,
   settings: TripSettings,
   fullGeometry?: number[][],
+  originLng?: number,
 ): StopSuggestionConfig {
   const tankSizeLitres = getTankSizeLitres(vehicle, settings.units);
   const fuelEconomyL100km = getWeightedFuelEconomyL100km(vehicle, settings.units);
@@ -58,7 +60,7 @@ export function createStopConfig(
     fuelEconomyL100km,
     maxDriveHoursPerDay: settings.maxDriveHours,
     numDrivers: settings.numDrivers,
-    departureTime: new Date(`${settings.departureDate}T${settings.departureTime}`),
+    departureTime: getTripStartTime(settings.departureDate, settings.departureTime, originLng),
     gasPrice: settings.gasPrice,
     fullGeometry,
   };

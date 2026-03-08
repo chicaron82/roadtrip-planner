@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import type { TripSummary, TripSettings, Vehicle, TripDay } from '../../types';
 import { generateSmartStops, createStopConfig, type SuggestedStop } from '../../lib/stop-suggestions';
 import { buildPacingSuggestions } from '../../lib/pacing-suggestions-builder';
-import { parseLocalDateInTZ, lngToIANA } from '../../lib/trip-timezone';
+import { getTripStartTime, lngToIANA } from '../../lib/trip-timezone';
 import type { StopOverrides } from './timeline-data-types';
 
 interface UseTimelineStopSuggestionsParams {
@@ -30,11 +30,7 @@ export function useTimelineStopSuggestions({
   }, [summary.segments]);
 
   const startTime = useMemo(() => {
-    const originLng = summary.segments[0]?.from.lng;
-    if (originLng !== undefined) {
-      return parseLocalDateInTZ(settings.departureDate, settings.departureTime, lngToIANA(originLng));
-    }
-    return new Date(`${settings.departureDate}T${settings.departureTime}`);
+    return getTripStartTime(settings.departureDate, settings.departureTime, summary.segments[0]?.from.lng);
   }, [settings.departureDate, settings.departureTime, summary.segments]);
 
   const drivingDays = useMemo(
@@ -83,7 +79,7 @@ export function useTimelineStopSuggestions({
 
   const baseSuggestions = useMemo(() => {
     if (!vehicle) return [];
-    const config = createStopConfig(vehicle, settings, summary.fullGeometry);
+    const config = createStopConfig(vehicle, settings, summary.fullGeometry, summary.segments[0]?.from.lng);
     return generateSmartStops(summary.segments, config, days);
   }, [summary.segments, summary.fullGeometry, vehicle, settings, days]);
 

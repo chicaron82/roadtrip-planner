@@ -2,6 +2,7 @@ import type { TripSummary, TripSettings, Vehicle } from '../types';
 import { generatePacingSuggestions } from './segment-analyzer';
 import { findOptimalReturnDeparture } from './return-departure-optimizer';
 import { findOptimalOutboundDeparture } from './outbound-departure-optimizer';
+import { getTripStartTime } from './trip-timezone';
 
 interface Params {
   maxDayMinutes: number;
@@ -63,7 +64,7 @@ export function buildPacingSuggestions({
     const returnDeparture: Date =
       firstReturnSeg?.departureTime
         ? new Date(firstReturnSeg.departureTime)
-        : new Date(`${settings.departureDate}T${settings.departureTime}`);
+        : getTripStartTime(settings.departureDate, settings.departureTime, firstReturnSeg?.from.lng);
 
     const suggestion = findOptimalReturnDeparture(
       returnSegments,

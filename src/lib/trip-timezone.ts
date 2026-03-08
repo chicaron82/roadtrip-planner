@@ -124,6 +124,16 @@ export function parseLocalDateInTZ(dateStr: string, timeStr: string, iana: strin
   return candidate;
 }
 
+/**
+ * Build the trip's departure instant using the origin longitude when available.
+ * Falls back to legacy browser-local parsing only when no origin coordinates exist.
+ */
+export function getTripStartTime(dateStr: string, timeStr: string, originLng?: number): Date {
+  return originLng !== undefined
+    ? parseLocalDateInTZ(dateStr, timeStr, lngToIANA(originLng))
+    : new Date(`${dateStr}T${timeStr}`);
+}
+
 // ── Format a UTC Date in a specific timezone for display ─────────────────────
 /**
  * Format a UTC Date as "9:00 AM" in the given IANA timezone.

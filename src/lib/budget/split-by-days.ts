@@ -4,7 +4,7 @@ import { splitLongSegments } from './segment-processor';
 import { createEmptyDay, finalizeTripDay, labelTransitDay } from './day-builder';
 import { getTimezoneOffset, getTimezoneName } from './timezone';
 import { findHubInWindow } from '../hub-cache';
-import { lngToIANA, parseLocalDateInTZ } from '../trip-timezone';
+import { getTripStartTime, lngToIANA, parseLocalDateInTZ } from '../trip-timezone';
 import {
   type BudgetRemaining,
   computeSmartDepartureHour,
@@ -68,7 +68,7 @@ export function splitTripByDays(
   const days: TripDay[] = [];
   let currentDay: TripDay | null = null;
   let currentDayDriveMinutes = 0;
-  let currentDate = new Date(`${departureDate}T${departureTime}`);
+  let currentDate = getTripStartTime(departureDate, departureTime, segments[0]?.from.lng);
   let dayNumber = 1;
   let budget = deriveBudgetRemaining(settings);
 

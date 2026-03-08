@@ -89,7 +89,7 @@ export function SmartTimeline({ summary, settings, vehicle, precomputedEvents, p
     }
 
     const allSuggestions = vehicle
-      ? generateSmartStops(summary.segments, createStopConfig(vehicle, settings, summary.fullGeometry), summary.days)
+      ? generateSmartStops(summary.segments, createStopConfig(vehicle, settings, summary.fullGeometry, summary.segments[0]?.from.lng), summary.days)
       : [];
 
     // Only inject the destination dwell event for actual round-trip DAY TRIPS.
