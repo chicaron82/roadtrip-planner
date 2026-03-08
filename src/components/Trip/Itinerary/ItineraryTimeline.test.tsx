@@ -186,8 +186,10 @@ describe('ItineraryTimeline', () => {
       />,
     );
 
-    expect(screen.getByText(/2 days/i)).toBeInTheDocument();
-    expect(screen.getByText(/1 driving, 1 free/i)).toBeInTheDocument();
+    // TripHeaderSummary now renders totalDays and the unit as separate spans.
+    // Verify the trip-length section label and the driving breakdown sub-label.
+    expect(screen.getByText('Trip Length')).toBeInTheDocument();
+    expect(screen.getByText(/1 driving/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByTitle('Add this stop'));
     expect(handleAccept).toHaveBeenCalledWith('stop-1', 15);

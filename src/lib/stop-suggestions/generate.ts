@@ -68,6 +68,9 @@ export function generateSmartStops(
   const GRACE_ZONE_KM = 50;
   const { totalRouteDistanceKm } = routeContext;
   let cumulativeDistanceKm = 0;
+  // For round trips: track whether the return-leg refuel reset has fired.
+  // The sim assumes the car fills up at the destination before turning around.
+  let returnLegFuelResetDone = false;
 
   // Build drivingDayStartMap keyed by FLAT processedSegment index (not _originalIndex).
   // Flat index is unique per sub-segment, so every driving-day boundary gets its own
@@ -164,6 +167,20 @@ export function generateSmartStops(
       }
     } else {
       applyTimezoneShift(state, segment);
+    }
+
+    // Round-trip midpoint: reset fuel state to simulate the car refueling at the
+    // destination before the return leg. cumulativeDistanceKm has NOT yet been
+    // incremented for this segment, so the check fires on the first segment of
+    // the return leg (the exact turnaround point). handleDayBoundaryReset already
+    // does this when day-split data is perfect, but acts as a reliable fallback
+    // when that path doesn't fire (transit sub-segments, missing day boundaries).
+    if (isRoundTrip && !returnLegFuelResetDone && cumulativeDistanceKm >= totalRouteDistanceKm / 2) {
+      state.currentFuel = config.tankSizeLitres;
+      state.distanceSinceLastFill = 0;
+      state.hoursSinceLastFill = 0;
+      state.costSinceLastFill = 0;
+      returnLegFuelResetDone = true;
     }
 
     // Accumulate distance/hours for fuel check
