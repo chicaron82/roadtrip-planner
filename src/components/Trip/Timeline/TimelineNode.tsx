@@ -1,12 +1,12 @@
 import type React from 'react';
 import { Clock, Fuel, MapPin, Trophy, Edit3 } from 'lucide-react';
-import type { RouteSegment, StopType, Activity } from '../../types';
-import type { SuggestedStop } from '../../lib/stop-suggestions';
-import { formatTime as formatTimeWithTz, STOP_LABELS } from '../../lib/calculations';
-import { formatTimeInZone } from '../../lib/trip-timezone';
-import { StopDurationPicker } from './StopDurationPicker';
-import { ActivityBadge } from './ActivityEditor';
-import { getWeatherEmoji } from '../../lib/weather-ui-utils';
+import type { RouteSegment, StopType, Activity } from '../../../types';
+import type { SuggestedStop } from '../../../lib/stop-suggestions';
+import { formatTime as formatTimeWithTz, STOP_LABELS } from '../../../lib/calculations';
+import { formatTimeInZone } from '../../../lib/trip-timezone';
+import { StopDurationPicker } from '../StopDurationPicker';
+import { ActivityBadge } from '../ActivityEditor';
+import { getWeatherEmoji } from '../../../lib/weather-ui-utils';
 
 // ==================== TYPES ====================
 

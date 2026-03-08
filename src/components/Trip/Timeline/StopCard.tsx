@@ -7,8 +7,8 @@
  * Purely presentational — no callbacks or local state.
  */
 import { Zap, Fuel, Utensils, Coffee, Moon, MapPin, Timer } from 'lucide-react';
-import type { POISuggestion } from '../../types';
-import { formatTime, formatDuration, type TimedEvent } from '../../lib/trip-timeline';
+import type { POISuggestion } from '../../../types';
+import { formatTime, formatDuration, type TimedEvent } from '../../../lib/trip-timeline';
 
 // ─── Icon / colour maps ────────────────────────────────────────────────────────
 

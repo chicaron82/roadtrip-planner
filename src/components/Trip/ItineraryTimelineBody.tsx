@@ -3,7 +3,7 @@ import type { Activity, DayOption, DayType, OvernightStop, StopType, TripDay, Tr
 import { ActivityBadge } from './ActivityEditor';
 import { DaySection } from './DaySection';
 import { SuggestedStopCard } from './SuggestedStopCard';
-import { GasStopNode, StartNode, SuggestedStopNode, WaypointNode } from './TimelineNode';
+import { GasStopNode, StartNode, SuggestedStopNode, WaypointNode } from './Timeline/TimelineNode';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
 import type { EditingDayActivity } from './TimelineDialogs';
 import type { SimulationItem } from './useTimelineData';

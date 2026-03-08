@@ -12,13 +12,13 @@
  */
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { Clock, ChevronRight } from 'lucide-react';
-import type { TripSummary, TripSettings, Vehicle } from '../../types';
-import type { POISuggestion } from '../../types';
-import { generateSmartStops, createStopConfig } from '../../lib/stop-suggestions';
-import { buildTimedTimeline, formatDuration, type TimedEvent } from '../../lib/trip-timeline';
-import { applyComboOptimization } from '../../lib/stop-consolidator';
-import { resolveStopTowns } from '../../lib/route-geocoder';
-import { getWeatherGradientClass } from '../../lib/weather-ui-utils';
+import type { TripSummary, TripSettings, Vehicle } from '../../../types';
+import type { POISuggestion } from '../../../types';
+import { generateSmartStops, createStopConfig } from '../../../lib/stop-suggestions';
+import { buildTimedTimeline, formatDuration, type TimedEvent } from '../../../lib/trip-timeline';
+import { applyComboOptimization } from '../../../lib/stop-consolidator';
+import { resolveStopTowns } from '../../../lib/route-geocoder';
+import { getWeatherGradientClass } from '../../../lib/weather-ui-utils';
 import { StopCard } from './StopCard';
 
 interface SmartTimelineProps {

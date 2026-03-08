@@ -24,7 +24,7 @@ import type { SuggestedStop } from '../../lib/stop-suggestions';
 import type { CanonicalTripTimeline } from '../../lib/canonical-trip';
 import type { StopOverrides } from './useTimelineData';
 import type { ViewMode } from './Journal/JournalModeToggle';
-import { SmartTimeline } from './SmartTimeline';
+import { SmartTimeline } from './Timeline/SmartTimeline';
 import { JournalTimeline } from './Journal/JournalTimeline';
 import { ItineraryTimeline } from './ItineraryTimeline';
 import { StartJournalCTA } from './Journal/JournalModeToggle';
