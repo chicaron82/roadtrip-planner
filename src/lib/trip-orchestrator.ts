@@ -91,7 +91,7 @@ export function assembleCanonicalTimeline(
 }
 
 /** Patch TripDay departure/arrival times and route labels from canonical events. */
-function patchDaysFromCanonicalEvents(tripDays: TripDay[], canonicalEvents: TimedEvent[]): void {
+export function patchDaysFromCanonicalEvents(tripDays: TripDay[], canonicalEvents: TimedEvent[]): void {
   for (const day of tripDays) {
     if (day.segments.length === 0) continue;
     const depEvent = canonicalEvents.find(
