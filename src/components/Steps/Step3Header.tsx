@@ -2,8 +2,8 @@ import { Share2, Printer } from 'lucide-react';
 import type { TripSettings, TripSummary, Vehicle } from '../../types';
 import type { TimedEvent } from '../../lib/trip-timeline';
 import { Button } from '../UI/Button';
-import { DifficultyBadge } from '../Trip/DifficultyBadge';
-import { printTrip } from '../Trip/TripPrintView';
+import { DifficultyBadge } from '../Trip/StepHelpers/DifficultyBadge';
+import { printTrip } from '../Trip/StepHelpers/TripPrintView';
 
 interface Difficulty {
   color: string;

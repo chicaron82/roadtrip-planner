@@ -1,5 +1,5 @@
 import type { TripSummary } from '../../types';
-import { RecentTrips } from '../Trip/RecentTrips';
+import { RecentTrips } from '../Trip/StepHelpers/RecentTrips';
 
 interface Step3HistorySectionProps {
   history: TripSummary[];

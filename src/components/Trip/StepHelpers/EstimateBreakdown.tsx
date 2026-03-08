@@ -5,7 +5,7 @@
  * Pure display: takes a TripEstimate, renders header total + per-category rows.
  */
 
-import type { TripEstimate } from '../../lib/estimate-service';
+import type { TripEstimate } from '../../../lib/estimate-service';
 
 interface EstimateBreakdownProps {
   estimate: TripEstimate;

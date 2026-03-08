@@ -1,4 +1,4 @@
-import type { TripSummary } from '../../types';
+import type { TripSummary } from '../../../types';
 
 interface Props {
   history: TripSummary[];

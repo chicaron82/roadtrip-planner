@@ -1,6 +1,6 @@
 import { Hotel, MapPin, Clock, Users } from 'lucide-react';
-import { Button } from '../UI/Button';
-import type { Location } from '../../types';
+import { Button } from '../../UI/Button';
+import type { Location } from '../../../types';
 
 interface OvernightStopPromptProps {
   suggestedLocation: Location;

@@ -1,6 +1,6 @@
 import type { TripSettings, TripBudget, TripMode } from '../../types';
 import { BudgetInput } from '../Trip/Budget/BudgetInput';
-import { StylePresetRow } from '../Trip/StylePresetRow';
+import { StylePresetRow } from '../Trip/StepHelpers/StylePresetRow';
 import type { StylePreset } from '../../lib/style-presets';
 
 interface TripStyleSectionProps {

@@ -8,8 +8,8 @@
  */
 import { useState } from 'react';
 import { Share2, ChevronDown, Check } from 'lucide-react';
-import type { TripMode } from '../../types';
-import type { StylePreset } from '../../lib/style-presets';
+import type { TripMode } from '../../../types';
+import type { StylePreset } from '../../../lib/style-presets';
 
 const MODE_COLOR: Record<string, string> = {
   plan: '#22C55E',

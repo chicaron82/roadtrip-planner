@@ -1,7 +1,7 @@
 import { Share2, Printer } from 'lucide-react';
 import { printTrip } from './TripPrintView';
-import type { TripSummary, TripSettings, Vehicle } from '../../types';
-import type { TimedEvent } from '../../lib/trip-timeline';
+import type { TripSummary, TripSettings, Vehicle } from '../../../types';
+import type { TimedEvent } from '../../../lib/trip-timeline';
 
 interface Props {
   summary: TripSummary;

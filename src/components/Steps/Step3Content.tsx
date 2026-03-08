@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
 import type { Location, Vehicle, TripSettings, TripSummary, POISuggestion, TripJournal, StopType, DayType, OvernightStop, TripMode, TripChallenge } from '../../types';
-import { OvernightStopPrompt } from '../Trip/OvernightStopPrompt';
+import { OvernightStopPrompt } from '../Trip/StepHelpers/OvernightStopPrompt';
 import { type ViewMode } from '../Trip/Journal/JournalModeToggle';
 import { analyzeFeasibility } from '../../lib/feasibility';
-import { EstimateBreakdown } from '../Trip/EstimateBreakdown';
+import { EstimateBreakdown } from '../Trip/StepHelpers/EstimateBreakdown';
 import { generateEstimate } from '../../lib/estimate-service';
 import { generateTripOverview } from '../../lib/trip-analyzer';
 import type { SuggestedStop } from '../../lib/stop-suggestions';

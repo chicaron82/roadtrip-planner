@@ -1,8 +1,8 @@
 import type { TimedEvent } from '../../lib/trip-timeline';
 import type { TripSettings, TripSummary, Vehicle } from '../../types';
 import type { ViewMode } from '../Trip/Journal/JournalModeToggle';
-import { ConfirmTripCard } from '../Trip/ConfirmTripCard';
-import { TripBottomActions } from '../Trip/TripBottomActions';
+import { ConfirmTripCard } from '../Trip/StepHelpers/ConfirmTripCard';
+import { TripBottomActions } from '../Trip/StepHelpers/TripBottomActions';
 
 interface Step3CommitSectionProps {
   summary: TripSummary;
