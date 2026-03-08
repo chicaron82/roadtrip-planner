@@ -61,7 +61,6 @@ export function runDriveWithMidStops({
   segIndex,
   cumulativeKm,
 }: MidStopDriveParams): number {
-  let nextCumulativeKm = cumulativeKm;
   let drivenKm = 0;
   let drivenMin = 0;
 
@@ -91,11 +90,13 @@ export function runDriveWithMidStops({
   const remainingMin = segMin - drivenMin;
   if (remainingKm > 1) {
     emitDrive(remainingKm, remainingMin, segIndex, midDrive.length);
-  } else {
-    nextCumulativeKm += remainingKm;
   }
 
-  return nextCumulativeKm;
+  // Return the correct final cumulative km.  emitDrive (a closure) already
+  // advanced the outer cumulativeKm for driven portions; adding segKm to the
+  // entry value accounts for any tiny (≤1 km) remainder that was too small
+  // to emit as a drive event.
+  return cumulativeKm + segKm;
 }
 
 interface WaypointOrArrivalParams {
