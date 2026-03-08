@@ -1,14 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   Camera,
-  PenLine,
   Check,
   Star,
   Clock,
   ChevronDown,
   ChevronUp,
-  X,
   Share2,
+  PenLine,
 } from 'lucide-react';
 import { shareStop } from '../../../lib/share-utils';
 import type { JournalEntry, JournalPhoto, RouteSegment } from '../../../types';
@@ -16,6 +15,8 @@ import { formatTimeInZone, normalizeToIANA } from '../../../lib/trip-timezone';
 import { Button } from '../../UI/Button';
 import { cn } from '../../../lib/utils';
 import { dispatchStopArrived } from '../../../hooks/useArrivalSnap';
+import { JournalPhotoGrid } from './JournalPhotoGrid';
+import { JournalNotesEditor } from './JournalNotesEditor';
 
 interface JournalStopCardProps {
   segment: RouteSegment;
@@ -41,8 +42,6 @@ export function JournalStopCard({
   className,
 }: JournalStopCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isEditingNotes, setIsEditingNotes] = useState(false);
-  const [notesValue, setNotesValue] = useState(entry?.notes || '');
   const [shareStatus, setShareStatus] = useState<'idle' | 'sharing' | 'copied'>('idle');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const shareTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -53,7 +52,6 @@ export function JournalStopCard({
 
   const resolvedTimezone = displayTimezone ?? segment.timezone ?? segment.weather?.timezone ?? (segment.weather?.timezoneAbbr ? normalizeToIANA(segment.weather.timezoneAbbr) : undefined);
 
-  // Format time
   const formatTime = (date: Date | string | undefined) => {
     if (!date) return '--:--';
     const d = typeof date === 'string' ? new Date(date) : date;
@@ -74,38 +72,22 @@ export function JournalStopCard({
   };
 
   const handleToggleHighlight = () => {
-    onUpdateEntry({
-      isHighlight: !isHighlight,
-    });
-  };
-
-  const handleSaveNotes = () => {
-    onUpdateEntry({ notes: notesValue });
-    setIsEditingNotes(false);
+    onUpdateEntry({ isHighlight: !isHighlight });
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Import compression function dynamically to keep bundle smaller
     const { createPhotoFromFile } = await import('../../../lib/journal-storage');
     const photo = await createPhotoFromFile(file);
     onAddPhoto(photo);
-
-    // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
-
-  const stopName = segment.to.name.split(',')[0];
-  const plannedArrival = segment.arrivalTime ? new Date(segment.arrivalTime) : null;
 
   const handleShare = async () => {
     setShareStatus('sharing');
     const firstPhoto = entry?.photos?.[0]?.dataUrl;
-    const result = await shareStop(stopName, entry?.notes, firstPhoto);
+    const result = await shareStop(segment.to.name.split(',')[0], entry?.notes, firstPhoto);
     if (result === 'copied') {
       setShareStatus('copied');
       shareTimerRef.current = setTimeout(() => setShareStatus('idle'), 2500);
@@ -113,6 +95,8 @@ export function JournalStopCard({
       setShareStatus('idle');
     }
   };
+
+  const plannedArrival = segment.arrivalTime ? new Date(segment.arrivalTime) : null;
 
   return (
     <div
@@ -127,7 +111,6 @@ export function JournalStopCard({
       {/* Header Row */}
       <div className="p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          {/* Status Indicator */}
           <div
             className={cn(
               'w-10 h-10 rounded-full flex items-center justify-center text-lg',
@@ -138,7 +121,7 @@ export function JournalStopCard({
           </div>
 
           <div>
-            <h4 className="font-semibold text-sm">{stopName}</h4>
+            <h4 className="font-semibold text-sm">{segment.to.name.split(',')[0]}</h4>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Clock className="h-3 w-3" />
               <span>Plan: {formatTime(plannedArrival ?? undefined)}</span>
@@ -156,7 +139,6 @@ export function JournalStopCard({
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
-          {/* Highlight Star */}
           <Button
             variant="ghost"
             size="sm"
@@ -170,7 +152,6 @@ export function JournalStopCard({
             <Star className={cn('h-4 w-4', isHighlight && 'fill-current')} />
           </Button>
 
-          {/* Arrive Button (only if not arrived) */}
           {!hasArrived && (
             <Button
               size="sm"
@@ -182,18 +163,13 @@ export function JournalStopCard({
             </Button>
           )}
 
-          {/* Expand Toggle */}
           <Button
             variant="ghost"
             size="sm"
             className="h-8 w-8 p-0"
             onClick={() => setIsExpanded(!isExpanded)}
           >
-            {isExpanded ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
+            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </Button>
         </div>
       </div>
@@ -211,7 +187,6 @@ export function JournalStopCard({
               className="hidden"
               onChange={handlePhotoUpload}
             />
-
             <Button
               variant="outline"
               size="sm"
@@ -221,17 +196,6 @@ export function JournalStopCard({
               <Camera className="h-4 w-4" />
               Add Photo
             </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1 gap-2"
-              onClick={() => setIsEditingNotes(true)}
-            >
-              <PenLine className="h-4 w-4" />
-              {entry?.notes ? 'Edit Notes' : 'Add Notes'}
-            </Button>
-
             <Button
               variant="outline"
               size="sm"
@@ -253,69 +217,12 @@ export function JournalStopCard({
             </Button>
           </div>
 
-          {/* Photos Grid */}
-          {entry?.photos && entry.photos.length > 0 && (
-            <div className="space-y-2">
-              <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Photos ({entry.photos.length})
-              </h5>
-              <div className="grid grid-cols-3 gap-2">
-                {entry.photos.map((photo) => (
-                  <div key={photo.id} className="relative group">
-                    <img
-                      src={photo.dataUrl}
-                      alt={photo.caption || 'Trip photo'}
-                      className="w-full h-20 object-cover rounded-lg"
-                    />
-                    <button
-                      onClick={() => onRemovePhoto(photo.id)}
-                      className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                    {photo.caption && (
-                      <p className="text-xs text-gray-600 mt-1 truncate">{photo.caption}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <JournalPhotoGrid photos={entry?.photos ?? []} onRemovePhoto={onRemovePhoto} />
 
-          {/* Notes Section */}
-          {isEditingNotes ? (
-            <div className="space-y-2">
-              <textarea
-                value={notesValue}
-                onChange={(e) => setNotesValue(e.target.value)}
-                placeholder="Write about your experience here..."
-                className="w-full h-24 p-3 text-sm border rounded-lg resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                autoFocus
-              />
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setNotesValue(entry?.notes || '');
-                    setIsEditingNotes(false);
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button size="sm" onClick={handleSaveNotes}>
-                  Save Notes
-                </Button>
-              </div>
-            </div>
-          ) : entry?.notes ? (
-            <div
-              className="p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
-              onClick={() => setIsEditingNotes(true)}
-            >
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">{entry.notes}</p>
-            </div>
-          ) : null}
+          <JournalNotesEditor
+            notes={entry?.notes}
+            onSave={(notes) => onUpdateEntry({ notes })}
+          />
 
           {/* Highlight Reason */}
           {isHighlight && (
@@ -357,34 +264,5 @@ export function JournalStopCard({
         </div>
       )}
     </div>
-  );
-}
-
-// Quick Arrive Button for prominent placement
-interface QuickArriveButtonProps {
-  stopName: string;
-  onArrive: () => void;
-  className?: string;
-}
-
-export function QuickArriveButton({ stopName, onArrive, className }: QuickArriveButtonProps) {
-  return (
-    <button
-      onClick={onArrive}
-      className={cn(
-        'w-full p-4 rounded-xl bg-gradient-to-r from-green-500 to-green-600 text-white',
-        'flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transition-all',
-        'active:scale-[0.98]',
-        className
-      )}
-    >
-      <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-        <Check className="h-6 w-6" />
-      </div>
-      <div className="text-left">
-        <div className="text-sm font-medium opacity-90">Tap when you arrive at</div>
-        <div className="text-lg font-bold">{stopName}</div>
-      </div>
-    </button>
   );
 }
