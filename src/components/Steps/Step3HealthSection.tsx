@@ -6,6 +6,7 @@ import { JournalModeToggle } from '../Trip/JournalModeToggle';
 import { BudgetBar } from '../Trip/BudgetBar';
 import { TripBudgetHealth } from '../Trip/TripBudgetHealth';
 import { TripArrivalHero } from '../Trip/TripArrivalHero';
+import { PlannerRationaleCard } from '../Trip/PlannerRationaleCard';
 
 interface Step3HealthSectionProps {
   summary: TripSummary;
@@ -49,6 +50,14 @@ export function Step3HealthSection({
       />
 
       {viewMode !== 'journal' && arrivalInfo && <TripArrivalHero arrivalInfo={arrivalInfo} />}
+
+      {viewMode !== 'journal' && (
+        <PlannerRationaleCard
+          summary={summary}
+          settings={settings}
+          feasibility={feasibility}
+        />
+      )}
 
       {viewMode !== 'journal' && summary.costBreakdown && (
         <BudgetBar breakdown={summary.costBreakdown} settings={settings} />

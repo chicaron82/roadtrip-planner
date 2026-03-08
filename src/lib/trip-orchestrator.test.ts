@@ -40,6 +40,7 @@ function makeDay(overrides: Partial<TripDay> = {}): TripDay {
         durationMinutes: 360,
         fuelNeededLitres: 40,
         fuelCost: 60,
+        _originalIndex: 0,
       },
     ],
     segmentIndices: [0],
@@ -236,6 +237,7 @@ describe('patchDaysFromCanonicalEvents', () => {
         from: { id: 'a', name: 'Phoenix, AZ', lat: 33.45, lng: -112.07, type: 'waypoint' },
         to: { id: 'b', name: 'Albuquerque (transit)', lat: 35.08, lng: -106.65, type: 'waypoint' },
         distanceKm: 480, durationMinutes: 300, fuelNeededLitres: 30, fuelCost: 40,
+        _originalIndex: 0,
       }],
     });
     const depEvent = makeEvent({

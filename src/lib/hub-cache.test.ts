@@ -306,7 +306,6 @@ describe('findPreferredHubInWindow', () => {
       poiCount: 5,
       discoveredAt: '2026-01-01',
       source: 'discovered',
-      useCount: 0,
     });
 
     const result = findPreferredHubInWindow(55.05, -100.05, 40);

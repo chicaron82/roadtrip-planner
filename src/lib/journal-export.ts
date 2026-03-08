@@ -1,6 +1,7 @@
 import type { TripJournal, TripSummary, TripSettings } from '../types';
 import { showToast } from './toast';
 import { escapeHtml } from './utils';
+import { getExportBudgetBreakdown, getTripDisplayEndpoints } from './trip-summary-view';
 
 /**
  * Export the trip journal as a downloadable HTML file.
@@ -110,6 +111,9 @@ export function exportJournalAsHTML(journal: TripJournal, summary: TripSummary):
  * Export the trip as a loadable JSON template that others can import.
  */
 export function exportJournalAsTemplate(journal: TripJournal, summary: TripSummary, settings: TripSettings): void {
+  const endpoints = getTripDisplayEndpoints(summary);
+  const exportBudget = getExportBudgetBreakdown(summary);
+
   const template = {
     type: 'roadtrip-template',
     version: '1.0',
@@ -129,17 +133,12 @@ export function exportJournalAsTemplate(journal: TripJournal, summary: TripSumma
       profile: settings.budget.profile,
       totalSpent: journal.stats.totalActualSpent,
       perPerson: journal.stats.totalActualSpent / settings.numTravelers,
-      breakdown: {
-        fuel: journal.tripSummary.totalFuelCost,
-        accommodation: journal.stats.totalActualSpent * 0.4, // estimate
-        food: journal.stats.totalActualSpent * 0.3, // estimate
-        misc: journal.stats.totalActualSpent * 0.3, // estimate
-      },
+      breakdown: exportBudget,
     },
 
     route: {
-      origin: summary.segments[0]?.from,
-      destination: summary.segments[summary.segments.length - 1]?.to,
+      origin: endpoints.origin,
+      destination: endpoints.destination,
       waypoints: summary.segments
         .map(s => s.to)
         .filter((loc, idx, arr) => arr.findIndex(l => l.name === loc.name) === idx),

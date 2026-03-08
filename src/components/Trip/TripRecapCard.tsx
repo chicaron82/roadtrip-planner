@@ -14,6 +14,7 @@
 import { useState, useRef, useEffect } from 'react';
 import type { TripJournal, TripSummary, TripSettings } from '../../types';
 import { exportJournalAsHTML, exportJournalAsTemplate } from '../../lib/journal-export';
+import { getTripDisplayEndpoints } from '../../lib/trip-summary-view';
 
 interface TripRecapCardProps {
   journal: TripJournal;
@@ -47,8 +48,9 @@ export function TripRecapCard({ journal, summary, settings, totalStops }: TripRe
   const shareTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(shareTimerRef.current), []);
 
-  const origin      = summary.segments[0]?.from.name.split(',')[0] ?? 'Start';
-  const destination = summary.segments.at(-1)?.to.name.split(',')[0] ?? 'End';
+  const endpoints = getTripDisplayEndpoints(summary);
+  const origin = endpoints.origin?.name.split(',')[0] ?? 'Start';
+  const destination = endpoints.destination?.name.split(',')[0] ?? 'End';
 
   const dateStart = journal.metadata.dates.actualStart ?? journal.metadata.dates.plannedStart;
   const dateEnd   = journal.metadata.dates.actualEnd   ?? journal.metadata.dates.plannedEnd;

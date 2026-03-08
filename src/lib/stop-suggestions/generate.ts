@@ -15,11 +15,10 @@ import {
   checkOvernightStop,
   applyTimezoneShift,
 } from './stop-checks';
-import { findPreferredHubInWindow, cacheDiscoveredHub } from '../hub-cache';
-import { interpolateRoutePosition } from '../route-geocoder';
+import { findPreferredHubInWindow } from '../hub-cache';
 import { lngToIANA, ianaToAbbr } from '../trip-timezone';
 import { getTimezoneShiftHours } from './timezone';
-import { haversineDistance } from '../poi-ranking';
+import { createStopPlanningRouteContext, prewarmWaypointHubs } from './route-context';
 
 function createInitialState(config: StopSuggestionConfig, segments: RouteSegment[]): SimState {
   const stopFrequency = config.stopFrequency || 'balanced';
@@ -53,33 +52,11 @@ export function generateSmartStops(
   const actualBuffer = TRIP_CONSTANTS.stops.buffers[stopFrequency];
   const vehicleRangeKm = (config.tankSizeLitres / config.fuelEconomyL100km) * 100;
   const safeRangeKm = vehicleRangeKm * (1 - actualBuffer);
+  const routeContext = createStopPlanningRouteContext(segments, fullGeometry);
 
   const state = createInitialState(config, segments);
   const suggestions: SuggestedStop[] = [];
-
-  // Pre-warm the hub cache from the route's own named waypoints.
-  // cacheDiscoveredHub is a no-op for coordinates already within 20km of any
-  // existing entry, so seeded major cities (Winnipeg, Calgary, etc.) are never
-  // overwritten — only genuinely un-seeded cities get a new 25km-radius entry.
-  // Effect: fuel stops within 25km of any waypoint snap to the city name on the
-  // FIRST run through a new corridor, not just after a second-run cache warm-up.
-  const prewarmPoints = [
-    segments[0]?.from,
-    ...segments.map(s => s.to),
-  ];
-  for (const pt of prewarmPoints) {
-    if (pt?.name && pt.lat != null && pt.lng != null && !/unorganized/i.test(pt.name)) {
-      cacheDiscoveredHub({
-        name: pt.name,
-        lat: pt.lat,
-        lng: pt.lng,
-        radius: 25,    // Minimum hub tier (≥5 POIs) — conservative for unknown cities
-        poiCount: 5,
-        discoveredAt: new Date().toISOString(),
-        source: 'discovered',
-      });
-    }
-  }
+  prewarmWaypointHubs(segments);
 
   // Detect round trip (origin === final destination) for meal suppression at end
   const originName = segments[0]?.from.name;
@@ -89,32 +66,8 @@ export function generateSmartStops(
   // Calculate total route distance for destination grace period.
   // Suppress fuel stops within GRACE_ZONE_KM of the final destination.
   const GRACE_ZONE_KM = 50;
-  const totalRouteDistanceKm = segments.reduce((sum, seg) => sum + seg.distanceKm, 0);
+  const { totalRouteDistanceKm } = routeContext;
   let cumulativeDistanceKm = 0;
-
-  const geometryCoversRoundTrip = !!(
-    isRoundTrip &&
-    fullGeometry &&
-    fullGeometry.length > 1 &&
-    haversineDistance(
-      fullGeometry[0][0],
-      fullGeometry[0][1],
-      fullGeometry[fullGeometry.length - 1][0],
-      fullGeometry[fullGeometry.length - 1][1],
-    ) < 5
-  );
-
-  // For round trips, the fullGeometry covers only the outbound leg.
-  // Return-leg positions must be mirrored back onto this geometry so
-  // hub name lookups resolve correctly (otherwise they fall off the end).
-  const outboundTotalKm = isRoundTrip ? totalRouteDistanceKm / 2 : totalRouteDistanceKm;
-  /** Map a cumulative-km position onto the outbound geometry, mirroring return-leg positions. */
-  const toGeometryKm = (km: number): number => {
-    if (isRoundTrip && !geometryCoversRoundTrip && km > outboundTotalKm) {
-      return Math.max(0, outboundTotalKm - (km - outboundTotalKm));
-    }
-    return km;
-  };
 
   // Build drivingDayStartMap keyed by FLAT processedSegment index (not _originalIndex).
   // Flat index is unique per sub-segment, so every driving-day boundary gets its own
@@ -250,7 +203,7 @@ export function generateSmartStops(
       if (fromHub) hubName = fromHub.name;
     }
     if (!hubName && fullGeometry && fullGeometry.length > 1) {
-      const pos = interpolateRoutePosition(fullGeometry, toGeometryKm(segmentStartKm + segment.distanceKm * 0.5));
+      const pos = routeContext.getGeometryPosition(segmentStartKm + segment.distanceKm * 0.5);
       if (pos) {
         const hub = findPreferredHubInWindow(pos.lat, pos.lng);
         if (hub) hubName = hub.name;
@@ -279,7 +232,7 @@ export function generateSmartStops(
         fuelSug.lat = segment.from.lat;
         fuelSug.lng = segment.from.lng;
       } else if (fullGeometry && fullGeometry.length > 1) {
-        const pos = interpolateRoutePosition(fullGeometry, toGeometryKm(segmentStartKm));
+        const pos = routeContext.getGeometryPosition(segmentStartKm);
         if (pos) { fuelSug.lat = pos.lat; fuelSug.lng = pos.lng; }
       }
       suggestions.push(fuelSug);
@@ -319,17 +272,12 @@ export function generateSmartStops(
     // En-route fuel stops (for very long legs).
     // Build a resolver so each stop gets its own hub name from its actual route position.
     const enRouteHubResolver = (fullGeometry && fullGeometry.length > 1)
-      ? (kmIntoSegment: number): string | undefined => {
-          const pos = interpolateRoutePosition(fullGeometry!, toGeometryKm(segmentStartKm + kmIntoSegment));
-          if (!pos) return undefined;
-          const hub = findPreferredHubInWindow(pos.lat, pos.lng);
-          return hub?.name;
-        }
+      ? (kmIntoSegment: number): string | undefined => routeContext.getHubNameAtKm(segmentStartKm + kmIntoSegment)
       : undefined;
     const distBeforeSegment = (state.distanceSinceLastFill - segment.distanceKm);
     const enRoutePositionResolver = (fullGeometry && fullGeometry.length > 1)
       ? (kmIntoSegment: number) => {
-          return interpolateRoutePosition(fullGeometry!, toGeometryKm(segmentStartKm + kmIntoSegment)) ?? undefined;
+          return routeContext.getGeometryPosition(segmentStartKm + kmIntoSegment);
         }
       : undefined;
     const { stops: enRouteStops, lastFillKm } = getEnRouteFuelStops(
