@@ -17,21 +17,34 @@ export function SmartSuggestions({ suggestions }: SmartSuggestionsProps) {
 
       <div className="space-y-2">
         {suggestions.map((suggestion, idx) => {
-          // Determine icon based on suggestion content
-          const icon = suggestion.includes('driver') || suggestion.includes('swap')
-            ? <Users className="h-4 w-4 text-blue-500" />
-            : suggestion.includes('break') || suggestion.includes('stretch')
-            ? <Coffee className="h-4 w-4 text-amber-500" />
-            : suggestion.includes('departing') || suggestion.includes('starting')
-            ? <Clock className="h-4 w-4 text-purple-500" />
-            : <Lightbulb className="h-4 w-4 text-yellow-500" />;
+          // Determine icon + left-border accent by suggestion category
+          const isDriver = suggestion.includes('driver') || suggestion.includes('swap');
+          const isRest = suggestion.includes('break') || suggestion.includes('stretch');
+          const isTiming = suggestion.includes('departing') || suggestion.includes('starting');
+
+          const icon = isDriver
+            ? <Users className="h-4 w-4 text-blue-400" />
+            : isRest
+            ? <Coffee className="h-4 w-4 text-amber-400" />
+            : isTiming
+            ? <Clock className="h-4 w-4 text-purple-400" />
+            : <Lightbulb className="h-4 w-4 text-yellow-400" />;
+
+          const accentBorder = isDriver
+            ? 'border-l-2 border-l-blue-500'
+            : isRest
+            ? 'border-l-2 border-l-amber-500'
+            : isTiming
+            ? 'border-l-2 border-l-purple-500'
+            : 'border-l-2 border-l-yellow-500';
 
           return (
             <div
               key={idx}
               className={cn(
-                "flex items-start gap-3 p-3 rounded-lg border text-sm",
-                "bg-gradient-to-r from-primary/5 to-transparent hover:shadow-sm transition-shadow"
+                "flex items-start gap-3 p-3 rounded-lg border border-white/10 text-sm",
+                "bg-gradient-to-r from-primary/5 to-transparent hover:shadow-sm transition-shadow",
+                accentBorder,
               )}
             >
               <div className="flex-shrink-0 mt-0.5">{icon}</div>
