@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Check, X, Clock, Fuel, Coffee, UtensilsCrossed, Hotel, ChevronDown, ChevronUp } from 'lucide-react';
 import type { SuggestedStop } from '../../../lib/stop-suggestions';
 import { getStopColors } from '../../../lib/stop-suggestions';
@@ -43,6 +43,58 @@ const DURATION_OPTIONS: Record<SuggestedStop['type'], number[]> = {
   meal: [30, 45, 60, 90],
   overnight: [480, 600, 720], // 8, 10, 12 hours
 };
+
+// Segmented fuel gauge — renders E–F bar with colour-coded fill level.
+interface FuelGaugeProps {
+  tankPercent: number;
+  priority: SuggestedStop['priority'];
+  fillType?: 'full' | 'topup';
+  comboMeal?: boolean;
+}
+
+function FuelGauge({ tankPercent, priority, fillType, comboMeal }: FuelGaugeProps) {
+  const [filled, setFilled] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setFilled(true), 50);
+    return () => clearTimeout(t);
+  }, []);
+
+  const pct = Math.max(0, Math.min(100, tankPercent));
+  const filledSegments = Math.round((pct / 100) * 10);
+  const color = pct > 50 ? '#22c55e' : pct > 25 ? '#f59e0b' : '#ef4444';
+  const label = priority === 'required'
+    ? 'REQUIRED STOP'
+    : comboMeal
+    ? 'FUEL + MEAL'
+    : fillType === 'topup'
+    ? 'TOP-UP COMFORT'
+    : 'FUEL STOP';
+
+  return (
+    <div className="flex items-center gap-1.5 my-2">
+      <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-widest">E</span>
+      <div className="flex gap-0.5 flex-1">
+        {Array.from({ length: 10 }, (_, i) => (
+          <div
+            key={i}
+            style={{
+              flex: 1,
+              height: '8px',
+              borderRadius: '2px',
+              backgroundColor: filled && i < filledSegments ? color : 'rgba(255,255,255,0.08)',
+              transition: 'background-color 400ms ease-out',
+              transitionDelay: filled ? `${i * 30}ms` : '0ms',
+            }}
+          />
+        ))}
+      </div>
+      <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-widest">F</span>
+      <span className="font-mono text-[9px] font-bold uppercase tracking-widest" style={{ color }}>
+        {pct}% · {label}
+      </span>
+    </div>
+  );
+}
 
 export function SuggestedStopCard({ stop, onAccept, onDismiss }: SuggestedStopCardProps) {
   const [customDuration, setCustomDuration] = useState(stop.duration);
@@ -134,6 +186,16 @@ export function SuggestedStopCard({ stop, onAccept, onDismiss }: SuggestedStopCa
                 {stop.warning}
               </p>
             </div>
+          )}
+
+          {/* Fuel Gauge — fuel stops only, when tankPercent data is present */}
+          {stop.type === 'fuel' && stop.details.tankPercent != null && (
+            <FuelGauge
+              tankPercent={stop.details.tankPercent}
+              priority={stop.priority}
+              fillType={stop.details.fillType}
+              comboMeal={stop.details.comboMeal}
+            />
           )}
 
           {/* Details */}

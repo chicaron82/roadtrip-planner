@@ -104,6 +104,7 @@ export function checkFuelStop(
         fillType: (wouldRunCriticallyLow || exceededSafeRange) ? 'full' : 'topup',
         comboMeal,
         comboMealType: comboMeal ? (isLunchWindow ? 'lunch' : 'dinner') : undefined,
+        tankPercent,
       },
       hubName,
       warning: sparseWarning,
@@ -151,6 +152,14 @@ export function getEnRouteFuelStops(
   // of litres × flat gasPrice so stop cards agree with the per-day budget total.
   let costSinceLastFillInSegment = state.costSinceLastFill;
   let lastStopKmInSegment = 0;
+
+  // Track fuel level through the en-route loop for FuelGauge tankPercent.
+  // state.currentFuel is the level at segment start (after any boundary refill).
+  // Pre-subtract the fuel already consumed for distanceAlreadyDriven before the
+  // first en-route stop fires.
+  let loopFuelLevel = Math.max(0,
+    state.currentFuel - ((distanceAlreadyDriven / 100) * config.fuelEconomyL100km),
+  );
 
   // Hub snap: scan backward (and slightly forward) from the trigger km mark to
   // find the nearest real city. 140km window catches towns like Brandon (~200km
@@ -256,6 +265,11 @@ export function getEnRouteFuelStops(
     const fuelCostForStop = costSinceLastFillInSegment
       + (kmFromLastFill / segment.distanceKm) * (segment.fuelCost ?? 0);
 
+    // Fuel level at this stop for the gauge — consumes km-based fuel from loopFuelLevel.
+    const fuelUsedToStop = (kmFromLastFill / 100) * config.fuelEconomyL100km;
+    loopFuelLevel = Math.max(0, loopFuelLevel - fuelUsedToStop);
+    const enRouteTankPercent = Math.round((loopFuelLevel / config.tankSizeLitres) * 100);
+
     const stopPosition = positionResolver?.(snappedKm);
     stops.push({
       id: `fuel-enroute-${index}-${stopIndex}`,
@@ -271,6 +285,7 @@ export function getEnRouteFuelStops(
         fillType: isComfortStop ? 'topup' : 'full',
         comboMeal,
         comboMealType: comboMeal ? (isLunchWindow ? 'lunch' : 'dinner') : undefined,
+        tankPercent: enRouteTankPercent,
       },
       hubName: stopHubName,
       dayNumber: state.currentDayNumber,
@@ -281,6 +296,7 @@ export function getEnRouteFuelStops(
 
     lastFillKm = snappedKm;
     lastStopKmInSegment = snappedKm;
+    loopFuelLevel = config.tankSizeLitres; // refilled at this en-route stop
     costSinceLastFillInSegment = 0; // reset — next stop counts from this fill point
     // All subsequent stops use the safety range interval
     kmMark = snappedKm + safeRangeKm;

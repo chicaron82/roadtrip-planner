@@ -28,6 +28,8 @@ export interface SuggestedStop {
     comboMeal?: boolean;
     /** 'lunch' | 'dinner' when comboMeal = true — used for labeling the stop card */
     comboMealType?: 'lunch' | 'dinner';
+    /** Tank fill level at the time of this stop (0–100). Used by the FuelGauge component. */
+    tankPercent?: number;
   };
   /** Hub city name resolved at generation time (e.g. "Fargo, ND").
    *  When set, buildTimedTimeline uses this as the locationHint instead of
