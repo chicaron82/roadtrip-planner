@@ -63,7 +63,7 @@ const STATUS_CONFIG: Record<FeasibilityStatus, {
     dotClass: 'bg-amber-500',
   },
   'over': {
-    label: 'Needs Attention',
+    label: 'Check the Route',
     icon: XCircle,
     containerClass: 'border-red-500/25 bg-red-500/10',
     iconClass: 'text-red-400',
