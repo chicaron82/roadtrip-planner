@@ -1,10 +1,9 @@
 import { useState, useMemo } from 'react';
 import type { TripSummary, TripSettings, TripJournal, JournalEntry, JournalPhoto, QuickCapture } from '../../types';
-import { groupEventsByTripDay } from '../../lib/accepted-itinerary-timeline';
-import { buildDayPlacementMaps } from '../../lib/day-placement-maps';
 import { showToast } from '../../lib/toast';
-import { buildTimedTimeline } from '../../lib/trip-timeline';
 import { formatDisplayDateInZone, formatTimeInZone, getTripStartTime, lngToIANA } from '../../lib/trip-timezone';
+import { buildAcceptedItineraryProjection } from '../../lib/accepted-itinerary-projection';
+import { buildJournalActiveSuggestions } from '../../lib/journal-trip-view';
 
 interface UseJournalTimelineParams {
   summary: TripSummary;
@@ -30,27 +29,22 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
     return originLng !== undefined ? lngToIANA(originLng) : undefined;
   }, [summary.segments]);
 
-  const canonicalDays = useMemo(() => {
-    const tripDays = summary.days ?? [];
-    if (tripDays.length === 0) return [];
+  const activeSuggestions = useMemo(() => buildJournalActiveSuggestions(
+    summary,
+    settings,
+    journal.vehicle,
+    summary.days,
+    journal.stopOverrides,
+  ), [summary, settings, journal.vehicle, journal.stopOverrides]);
 
-    const events = buildTimedTimeline(
-      summary.segments,
-      [],
-      settings,
-      summary.roundTripMidpoint,
-      undefined,
-      tripDays,
-      startTime,
-    );
-
-    return groupEventsByTripDay(events, tripDays);
-  }, [summary.segments, summary.days, settings, summary.roundTripMidpoint, startTime]);
-
-  const { dayStartMap, freeDaysAfterSegment } = useMemo(
-    () => buildDayPlacementMaps(canonicalDays, 'original'),
-    [canonicalDays],
-  );
+  const journalProjection = useMemo(() => buildAcceptedItineraryProjection({
+    summary,
+    settings,
+    vehicle: journal.vehicle,
+    days: summary.days,
+    startTime,
+    activeSuggestions,
+  }), [summary, settings, journal.vehicle, startTime, activeSuggestions]);
 
   // Find current/next stop (first unvisited non-guard stop)
   const currentStopIndex = useMemo(() => {
@@ -185,8 +179,8 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
   return {
     startTime,
     originTimezone,
-    dayStartMap,
-    freeDaysAfterSegment,
+    dayStartMap: journalProjection.dayStartMap,
+    freeDaysAfterSegment: journalProjection.freeDaysAfterSegment,
     currentStopIndex,
     totalStops,
     visitedCount,

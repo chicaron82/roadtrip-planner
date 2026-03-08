@@ -2,6 +2,7 @@ import type { TripJournal, TripSummary, TripSettings } from '../types';
 import { showToast } from './toast';
 import { escapeHtml } from './utils';
 import { getExportBudgetBreakdown, getTripDisplayEndpoints } from './trip-summary-view';
+import { resolveJournalEntryLocation } from './journal-trip-view';
 
 /**
  * Export the trip journal as a downloadable HTML file.
@@ -28,7 +29,7 @@ export function exportJournalAsHTML(journal: TripJournal, summary: TripSummary):
 
   <h2>Journey Highlights</h2>
   ${journal.entries.map(e => {
-    const stop = summary.segments[e.segmentIndex]?.to;
+    const stop = resolveJournalEntryLocation(summary, e);
     const photosHTML = e.photos.length > 0
       ? `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin: 15px 0;">
           ${e.photos.map(p => `
@@ -145,7 +146,7 @@ export function exportJournalAsTemplate(journal: TripJournal, summary: TripSumma
     },
 
     recommendations: journal.entries.map(e => {
-      const stop = summary.segments[e.segmentIndex]?.to;
+      const stop = resolveJournalEntryLocation(summary, e);
       return {
         location: stop?.name,
         lat: stop?.lat,
