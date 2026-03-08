@@ -1,5 +1,5 @@
 /**
- * hub-cache.ts — Self-Learning Highway Hub Cache
+ * hub-cache.ts — Self-Learning Highway Hub Cache (Public Lookup API)
  *
  * THE PROBLEM:
  * Fuel stops often land in sparse highway areas. Without city context,
@@ -44,11 +44,8 @@
  *   • Hubs used 3+ times auto-promote to permanent status
  *   • Seeds and promoted hubs only evicted by LRU (500-entry cap)
  *
- * CACHE MANAGEMENT:
- *   • In-memory singleton avoids repeated JSON.parse per lookup
- *   • LRU eviction keeps cache under 500 entries
- *   • Debounced async localStorage writes don't block UI
- *   • 20km deduplication prevents near-duplicate entries
+ * Storage + eviction logic lives in hub-cache-storage.ts.
+ * This module owns the lookup and scoring API.
  *
  * 💚 My Experience Engine
  */
@@ -56,110 +53,20 @@
 import { haversineDistance } from './poi-ranking';
 import type { POISuggestion } from '../types';
 import { analyzeForHub } from './hub-poi-analysis';
-export { analyzeForHub };
+import {
+  type DiscoveredHub,
+  isUsableHubName,
+  loadCache,
+  recordHubUse,
+  cacheDiscoveredHub,
+  seedHubCache,
+  clearHubCache,
+} from './hub-cache-storage';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+export type { DiscoveredHub };
+export { analyzeForHub, cacheDiscoveredHub, seedHubCache, clearHubCache };
 
-export interface DiscoveredHub {
-  name: string;           // "Fargo, ND"
-  lat: number;
-  lng: number;
-  radius: number;         // Coverage in km (scales with POI count)
-  poiCount: number;       // Confidence indicator
-  discoveredAt: string;   // ISO date
-  lastUsed: string;       // ISO date (for LRU eviction)
-  source: 'seed' | 'discovered' | 'promoted';
-  useCount?: number;      // Times this hub resolved a lookup (optional for backcompat)
-}
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const CACHE_KEY = 'roadtrip-discovered-hubs';
-const MAX_CACHE_SIZE = 500;
-
-/**
- * Returns false for administrative placeholders that are geographically correct
- * but useless as trip stop labels — e.g. "Unorganized Kenora District".
- * These appear when OSRM resolves sparse highway coordinates to unincorporated
- * territory names instead of the nearest real city.
- */
-function isUsableHubName(name: string): boolean {
-  return !/unorganized/i.test(name);
-}
-
-// TTL and promotion
-const EXPIRY_DAYS = 90;
-const EXPIRY_MS = EXPIRY_DAYS * 24 * 60 * 60 * 1000;
-const PROMOTION_THRESHOLD = 3;  // Uses before a discovered hub becomes promoted
-
-// ─── Cache Management ─────────────────────────────────────────────────────────
-
-// In-memory singleton — avoids repeated localStorage reads + JSON.parse per lookup.
-// On a 2000km route with 10+ fuel checks, this saves ~100ms of main thread blocking.
-let memoryCache: DiscoveredHub[] | null = null;
-let pendingSaveTimer: ReturnType<typeof setTimeout> | null = null;
-
-function loadCache(): DiscoveredHub[] {
-  // Return memory if already loaded (fast path)
-  if (memoryCache) return memoryCache;
-
-  // Otherwise, hit disk ONCE per session
-  try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    memoryCache = cached ? (JSON.parse(cached) as DiscoveredHub[]) : [];
-    return memoryCache;
-  } catch {
-    memoryCache = [];
-    return memoryCache;
-  }
-}
-
-function saveCache(hubs: DiscoveredHub[]): void {
-  try {
-    // Prune expired discovered hubs (90-day TTL)
-    const now = Date.now();
-    const alive = hubs.filter(h => {
-      if (h.source === 'seed' || h.source === 'promoted') return true;
-      const lastUsedTime = new Date(h.lastUsed).getTime();
-      return (now - lastUsedTime) < EXPIRY_MS;
-    });
-
-    // LRU eviction: sort by lastUsed, keep most recent
-    const sorted = [...alive].sort(
-      (a, b) => new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime()
-    );
-    const trimmed = sorted.slice(0, MAX_CACHE_SIZE);
-
-    // Update memory instantly (keeps lookups fast)
-    memoryCache = trimmed;
-
-    // Debounced async dump to disk — during route calculation findHubInWindow
-    // fires 10+ times; this coalesces into a single localStorage write.
-    if (pendingSaveTimer !== null) clearTimeout(pendingSaveTimer);
-    pendingSaveTimer = setTimeout(() => {
-      pendingSaveTimer = null;
-      localStorage.setItem(CACHE_KEY, JSON.stringify(trimmed));
-    }, 0);
-  } catch {
-    // localStorage full or unavailable — silent fail
-  }
-}
-
-/**
- * Record a "use" of a hub — updates lastUsed, increments useCount,
- * and auto-promotes discovered hubs that reach the threshold.
- */
-function recordHubUse(hub: DiscoveredHub, hubs: DiscoveredHub[]): void {
-  hub.lastUsed = new Date().toISOString();
-  hub.useCount = (hub.useCount ?? 0) + 1;
-
-  // Auto-promote discovered hubs that earn permanence
-  if (hub.source === 'discovered' && hub.useCount >= PROMOTION_THRESHOLD) {
-    hub.source = 'promoted';
-  }
-
-  saveCache(hubs);
-}
+// ─── Point-in-radius lookup ───────────────────────────────────────────────────
 
 /**
  * Find a known hub near the given coordinates.
@@ -169,10 +76,6 @@ function recordHubUse(hub: DiscoveredHub, hubs: DiscoveredHub[]): void {
  * **When to use:** Point-in-radius lookup. Use when you have exact coordinates
  * and want to check if they fall within any known hub's coverage area.
  * Example: Checking if an overnight stop location is in a city.
- *
- * @param lat - Target latitude
- * @param lng - Target longitude
- * @returns Hub name (e.g., "Fargo, ND") or null if not in any hub
  */
 export function findKnownHub(lat: number, lng: number): string | null {
   const hubs = loadCache();
@@ -189,67 +92,7 @@ export function findKnownHub(lat: number, lng: number): string | null {
   return null;
 }
 
-/**
- * Add a newly discovered hub to the cache.
- * Deduplicates by proximity (won't add if within 20km of existing hub).
- *
- * **When to use:** Internal. Called automatically by `resolveHubName` when
- * POI analysis discovers a new hub. Exported for testing.
- */
-export function cacheDiscoveredHub(hub: Omit<DiscoveredHub, 'lastUsed' | 'useCount'>): void {
-  // Reject administrative placeholder names — they're geographically accurate
-  // but meaningless as stop labels (e.g. "Unorganized Kenora District").
-  if (!isUsableHubName(hub.name)) return;
-
-  const hubs = loadCache();
-
-  // Check for duplicates by proximity
-  const isDuplicate = hubs.some(
-    h => haversineDistance(h.lat, h.lng, hub.lat, hub.lng) < 20
-  );
-
-  if (!isDuplicate) {
-    hubs.push({
-      ...hub,
-      lastUsed: new Date().toISOString(),
-      useCount: 0,
-    });
-    saveCache(hubs);
-  }
-}
-
-/**
- * Seed the cache with initial hub data.
- * Only adds hubs that don't already exist (by proximity).
- *
- * **When to use:** App initialization. Called once on startup via
- * `initializeHubCache()` in hub-seed-data.ts. Pre-populates the cache
- * with 70+ major highway corridor cities.
- */
-export function seedHubCache(seedHubs: Omit<DiscoveredHub, 'lastUsed'>[]): void {
-  const hubs = loadCache();
-  let added = 0;
-
-  for (const seed of seedHubs) {
-    const isDuplicate = hubs.some(
-      h => haversineDistance(h.lat, h.lng, seed.lat, seed.lng) < 20
-    );
-
-    if (!isDuplicate) {
-      hubs.push({
-        ...seed,
-        lastUsed: new Date().toISOString(),
-      });
-      added++;
-    }
-  }
-
-  if (added > 0) {
-    saveCache(hubs);
-  }
-}
-
-// ─── Stop Placement Support ───────────────────────────────────────────────────
+// ─── Window-based nearest lookup ─────────────────────────────────────────────
 
 /**
  * Find the nearest known hub within a distance window of the current position.
@@ -260,11 +103,6 @@ export function seedHubCache(seedHubs: Omit<DiscoveredHub, 'lastUsed'>[]): void 
  *
  * Example: Snapping fuel stops to "Fargo, ND" instead of "~515 km from Winnipeg".
  * Example: Snapping overnight splits to "Thunder Bay, ON" instead of "transit".
- *
- * @param currentLat - Current position latitude
- * @param currentLng - Current position longitude
- * @param windowKm - Search radius in km (default 80km)
- * @returns Nearest hub within window (full DiscoveredHub), or null if none found
  */
 export function findHubInWindow(
   currentLat: number,
@@ -285,13 +123,11 @@ export function findHubInWindow(
     }
   }
 
-  // Record usage — keeps lastUsed fresh and drives promotion
-  if (bestHub) {
-    recordHubUse(bestHub, hubs);
-  }
-
+  if (bestHub) recordHubUse(bestHub, hubs);
   return bestHub;
 }
+
+// ─── Scored lookup (Option-B prewarm suppression) ────────────────────────────
 
 function scorePracticalHubCandidate(hub: DiscoveredHub, distanceKm: number): number {
   const sourceBonus = hub.source === 'seed'
@@ -331,8 +167,6 @@ export function findPreferredHubInWindow(
 ): DiscoveredHub | null {
   const hubs = loadCache();
 
-  // One quick scan to know if any authoritative hub is near enough to suppress
-  // bare prewarm candidates.
   const hasSeedHubNearby = hubs.some(
     hub =>
       (hub.source === 'seed' || hub.source === 'promoted') &&
@@ -349,17 +183,12 @@ export function findPreferredHubInWindow(
 
     const distanceKm = haversineDistance(currentLat, currentLng, hub.lat, hub.lng);
 
-    // Seed/promoted hubs always participate up to SEED_FALLBACK_WINDOW_KM so
-    // they are never hard-excluded by a narrow caller window.
     const effectiveWindow =
       hub.source === 'seed' || hub.source === 'promoted'
         ? Math.max(windowKm, SEED_FALLBACK_WINDOW_KM)
         : windowKm;
     if (distanceKm > effectiveWindow) continue;
 
-    // Suppress bare prewarm-injected discovered hubs when an authoritative
-    // hub is within range. Prewarm hubs start at poiCount=5, radius=25,
-    // useCount=0 — they should not out-compete seeded cities.
     const isMinTierDiscovered =
       hub.source === 'discovered' &&
       hub.poiCount <= 5 &&
@@ -374,10 +203,7 @@ export function findPreferredHubInWindow(
     }
   }
 
-  if (bestHub) {
-    recordHubUse(bestHub, hubs);
-  }
-
+  if (bestHub) recordHubUse(bestHub, hubs);
   return bestHub;
 }
 
@@ -385,9 +211,6 @@ export function findPreferredHubInWindow(
 
 /**
  * Get cache statistics (for debugging).
- *
- * **When to use:** Debugging and analytics. Shows total hub count and
- * breakdown of seed vs discovered hubs.
  */
 export function getHubCacheStats(): {
   totalHubs: number;
@@ -404,18 +227,6 @@ export function getHubCacheStats(): {
   };
 }
 
-/**
- * Clear the hub cache (for testing/reset).
- * Resets both localStorage and in-memory singleton.
- *
- * **When to use:** Testing only. Resets the cache to empty state.
- * In production, prefer letting the LRU eviction manage cache size.
- */
-export function clearHubCache(): void {
-  memoryCache = null;
-  localStorage.removeItem(CACHE_KEY);
-}
-
 // ─── Main Resolver ────────────────────────────────────────────────────────────
 
 /**
@@ -425,22 +236,15 @@ export function clearHubCache(): void {
  *
  * **When to use:** Fuel stop and overnight stop labeling. Call this instead of
  * raw Nominatim when a quick city-name lookup is needed.
- *
- * @param lat - Target latitude
- * @param lng - Target longitude
- * @param pois - Available POI suggestions for density analysis
- * @returns Hub name (e.g., "Fargo, ND") or null if no hub found
  */
 export function resolveHubName(
   lat: number,
   lng: number,
   pois: POISuggestion[] = [],
 ): string | null {
-  // Tier 1: Check known hub cache (instant)
   const known = findKnownHub(lat, lng);
   if (known) return known;
 
-  // Tier 2: Analyze POI density (fast, CPU-only)
   const discovered = analyzeForHub(lat, lng, pois);
   if (discovered) {
     cacheDiscoveredHub(discovered);
@@ -448,16 +252,4 @@ export function resolveHubName(
   }
 
   return null;
-}
-
-// Cross-tab cache invalidation: when another browser tab writes a new hub to
-// localStorage, the in-memory singleton in this tab becomes stale. Listening for
-// the `storage` event and clearing memoryCache forces the next lookup to re-read
-// from localStorage, so both tabs see the same discovered hubs without a page reload.
-if (typeof window !== 'undefined') {
-  window.addEventListener('storage', (e) => {
-    if (e.key === CACHE_KEY) {
-      memoryCache = null; // Cleared — loadCache() will re-parse on next access
-    }
-  });
 }
