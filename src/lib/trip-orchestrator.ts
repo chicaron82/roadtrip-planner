@@ -187,6 +187,10 @@ export async function orchestrateTrip(
     roundTripMidpoint, routeData.fullGeometry,
   );
   tripSummary.days = tripDays;
+  // Patch drivingDays from the actual day splitter (calculations.ts uses a flat
+  // ceiling divide that ignores overflow tolerance, fatigue streaks, and multi-driver
+  // bonuses — on long trips this can drift 1-2 days from the real split count).
+  tripSummary.drivingDays = tripDays.filter(d => d.dayType !== 'free').length;
 
   if (tripDays.length > 0) {
     tripSummary.costBreakdown = calculateCostBreakdown(tripDays, settings.numTravelers);
