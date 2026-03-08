@@ -10,10 +10,10 @@ interface DriverStatsPanelProps {
 // ==================== DRIVER COLORS ====================
 
 const DRIVER_COLORS = [
-  { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700', badge: 'bg-indigo-500', emoji: '🚗' },
-  { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', badge: 'bg-emerald-500', emoji: '🚙' },
-  { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', badge: 'bg-amber-500', emoji: '🏎️' },
-  { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-700', badge: 'bg-rose-500', emoji: '🚐' },
+  { accent: 'border-l-indigo-500', text: 'text-white/60', badge: 'bg-indigo-500', emoji: '🚗' },
+  { accent: 'border-l-emerald-500', text: 'text-white/60', badge: 'bg-emerald-500', emoji: '🚙' },
+  { accent: 'border-l-amber-500', text: 'text-white/60', badge: 'bg-amber-500', emoji: '🏎️' },
+  { accent: 'border-l-rose-500', text: 'text-white/60', badge: 'bg-rose-500', emoji: '🚐' },
 ];
 
 function getDriverColor(driverNum: number) {
@@ -40,7 +40,8 @@ export function DriverStatsPanel({ stats }: DriverStatsPanelProps) {
           return (
             <div
               key={stat.driver}
-              className={`${c.bg} ${c.border} border rounded-xl p-3 shadow-sm`}
+              className={`border border-white/10 border-l-4 ${c.accent} rounded-xl p-3 shadow-sm`}
+              style={{ background: 'rgba(255,255,255,0.04)' }}
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
@@ -54,7 +55,7 @@ export function DriverStatsPanel({ stats }: DriverStatsPanelProps) {
               </div>
 
               {/* Progress bar */}
-              <div className="h-1.5 bg-gray-100 rounded-full mb-2 overflow-hidden">
+              <div className="h-1.5 bg-white/10 rounded-full mb-2 overflow-hidden">
                 <div
                   className={`h-full ${c.badge} rounded-full transition-all duration-500`}
                   style={{ width: `${timePercent}%` }}
@@ -65,7 +66,7 @@ export function DriverStatsPanel({ stats }: DriverStatsPanelProps) {
                 <span className={c.text}>
                   {formatDriveTime(stat.totalMinutes)} ({timePercent}%)
                 </span>
-                <span className="text-gray-500">
+                <span className="text-white/40">
                   {stat.totalKm.toFixed(0)} km ({kmPercent}%)
                 </span>
               </div>
