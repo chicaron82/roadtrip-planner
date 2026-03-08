@@ -10,9 +10,9 @@
  * 💚 My Experience Engine
  */
 
-import type { CostBreakdown, Currency } from '../../types';
-import type { TripBudget } from '../../types/core';
-import { formatCurrency } from '../../lib/trip-formatters';
+import type { CostBreakdown, Currency } from '../../../types';
+import type { TripBudget } from '../../../types/core';
+import { formatCurrency } from '../../../lib/trip-formatters';
 
 interface TripBudgetHealthProps {
   budget: TripBudget;

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import type { TripSummary, TripSettings } from '../../types';
-import { cn } from '../../lib/utils';
-import { TRIP_CONSTANTS } from '../../lib/trip-constants';
+import type { TripSummary, TripSettings } from '../../../types';
+import { cn } from '../../../lib/utils';
+import { TRIP_CONSTANTS } from '../../../lib/trip-constants';
 
 interface HoursTradeoffProps {
   summary: TripSummary;

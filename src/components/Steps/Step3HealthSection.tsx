@@ -1,12 +1,12 @@
 import type { TripJournal, TripSettings, TripSummary, TripMode } from '../../types';
 import type { ViewMode } from '../Trip/Journal/JournalModeToggle';
 import type { Step3ArrivalInfo } from './step3-types';
-import { FeasibilityBanner } from '../Trip/FeasibilityBanner';
+import { FeasibilityBanner } from '../Trip/Health/FeasibilityBanner';
 import { JournalModeToggle } from '../Trip/Journal/JournalModeToggle';
 import { BudgetBar } from '../Trip/Budget/BudgetBar';
-import { TripBudgetHealth } from '../Trip/TripBudgetHealth';
-import { TripArrivalHero } from '../Trip/TripArrivalHero';
-import { PlannerRationaleCard } from '../Trip/PlannerRationaleCard';
+import { TripBudgetHealth } from '../Trip/Health/TripBudgetHealth';
+import { TripArrivalHero } from '../Trip/Health/TripArrivalHero';
+import { PlannerRationaleCard } from '../Trip/Health/PlannerRationaleCard';
 
 interface Step3HealthSectionProps {
   summary: TripSummary;

@@ -2,10 +2,10 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import type { TripSummary, TripSettings } from '../../types';
 import { formatDistance, formatDuration, formatCurrency } from '../../lib/calculations';
 import { Car, Fuel, Users, TrendingDown, TrendingUp, Gauge, ChevronUp, ChevronDown } from 'lucide-react';
-import { TripOverview } from './TripOverview';
-import { FeasibilityBanner } from './FeasibilityBanner';
+import { TripOverview } from './Health/TripOverview';
+import { FeasibilityBanner } from './Health/FeasibilityBanner';
 import { BudgetSensitivity } from './Budget/BudgetSensitivity';
-import { HoursTradeoff } from './HoursTradeoff';
+import { HoursTradeoff } from './Health/HoursTradeoff';
 import { analyzeFeasibility, compareRefinements } from '../../lib/feasibility';
 import type { FeasibilityResult, FeasibilityWarning } from '../../lib/feasibility';
 

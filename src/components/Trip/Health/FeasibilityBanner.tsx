@@ -6,7 +6,7 @@
  */
 
 import { useState } from 'react';
-import { cn } from '../../lib/utils';
+import { cn } from '../../../lib/utils';
 import {
   CheckCircle,
   AlertTriangle,
@@ -27,7 +27,7 @@ import type {
   FeasibilityWarning,
   WarningCategory,
   WarningSeverity,
-} from '../../lib/feasibility';
+} from '../../../lib/feasibility';
 
 // ==================== PROPS ====================
 

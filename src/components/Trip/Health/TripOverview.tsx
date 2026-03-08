@@ -1,7 +1,7 @@
-import type { TripSummary, TripSettings } from '../../types';
-import { generateTripOverview } from '../../lib/trip-analyzer';
+import type { TripSummary, TripSettings } from '../../../types';
+import { generateTripOverview } from '../../../lib/trip-analyzer';
 import { Target, TrendingUp, AlertCircle } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../UI/Tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../UI/Tooltip';
 
 interface TripOverviewProps {
   summary: TripSummary;
