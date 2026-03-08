@@ -2,7 +2,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { Activity, DayOption, DayType, OvernightStop, StopType, TripDay, TripSettings, TripSummary } from '../../../types';
 import { ActivityBadge } from './ActivityEditor';
 import { DaySection } from './DaySection';
-import { SuggestedStopCard } from '../SuggestedStopCard';
+import { SuggestedStopCard } from './SuggestedStopCard';
 import { GasStopNode, StartNode, SuggestedStopNode, WaypointNode } from '../Timeline/TimelineNode';
 import type { SuggestedStop } from '../../../lib/stop-suggestions';
 import type { EditingDayActivity } from './TimelineDialogs';

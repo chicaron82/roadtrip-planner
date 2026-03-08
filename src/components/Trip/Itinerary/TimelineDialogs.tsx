@@ -1,6 +1,6 @@
 import type { Activity, OvernightStop } from '../../../types';
 import { ActivityEditor } from './ActivityEditor';
-import { OvernightEditor } from '../OvernightEditor';
+import { OvernightEditor } from './OvernightEditor';
 
 interface EditingActivity {
   segmentIndex: number;

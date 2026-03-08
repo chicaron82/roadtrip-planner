@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import type { Location, TripChallenge, TripMode, TripSettings } from '../../types';
 import { parseSharedTemplate, type TemplateImportResult } from '../../lib/url';
 import { showToast } from '../../lib/toast';
-import { LocationList } from '../Trip/LocationList';
+import { LocationList } from '../Trip/Location/LocationList';
 import { ChallengeCards } from '../Trip/Adventure/ChallengeCards';
 import { Button } from '../UI/Button';
 import { Label } from '../UI/Label';

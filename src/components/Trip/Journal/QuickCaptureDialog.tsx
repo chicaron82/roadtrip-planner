@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { Camera, MapPin, Type, Tag, X, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../UI/Dialog';
-import { Input } from '../UI/Input';
-import { Label } from '../UI/Label';
-import type { QuickCapture, JournalPhoto } from '../../types';
-import { showToast } from '../../lib/toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../UI/Dialog';
+import { Input } from '../../UI/Input';
+import { Label } from '../../UI/Label';
+import type { QuickCapture, JournalPhoto } from '../../../types';
+import { showToast } from '../../../lib/toast';
 
 interface QuickCaptureDialogProps {
   open: boolean;

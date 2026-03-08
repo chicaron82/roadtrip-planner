@@ -1,12 +1,12 @@
 import { useState, useMemo } from 'react';
 import { Sparkles } from 'lucide-react';
 import type { TripSummary, TripSettings, Vehicle, StopType, TripDay, DayType, Activity, DayOption, OvernightStop, POISuggestion } from '../../../types';
-import { SmartSuggestions } from '../SmartSuggestions';
-import { SuggestedStopCard } from '../SuggestedStopCard';
-import { DriverStatsPanel } from '../DriverStatsPanel';
+import { SmartSuggestions } from './SmartSuggestions';
+import { SuggestedStopCard } from './SuggestedStopCard';
+import { DriverStatsPanel } from './DriverStatsPanel';
 import { useTimelineData, type StopOverrides } from './useTimelineData';
-import { TripHeaderSummary } from '../TripHeaderSummary';
-import { DestinationDiscovery } from '../DestinationDiscovery';
+import { TripHeaderSummary } from './TripHeaderSummary';
+import { DestinationDiscovery } from '../Discovery/DestinationDiscovery';
 import { TimelineDialogs, type EditingDayActivity } from './TimelineDialogs';
 import type { SuggestedStop } from '../../../lib/stop-suggestions';
 import { ItineraryTimelineBody } from './ItineraryTimelineBody';

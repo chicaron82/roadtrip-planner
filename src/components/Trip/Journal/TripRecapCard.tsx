@@ -12,9 +12,9 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import type { TripJournal, TripSummary, TripSettings } from '../../types';
-import { exportJournalAsHTML, exportJournalAsTemplate } from '../../lib/journal-export';
-import { getTripDisplayEndpoints } from '../../lib/trip-summary-view';
+import type { TripJournal, TripSummary, TripSettings } from '../../../types';
+import { exportJournalAsHTML, exportJournalAsTemplate } from '../../../lib/journal-export';
+import { getTripDisplayEndpoints } from '../../../lib/trip-summary-view';
 
 interface TripRecapCardProps {
   journal: TripJournal;

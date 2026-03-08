@@ -1,6 +1,6 @@
 import { Fuel, Hotel, Utensils, TrendingDown, TrendingUp, Minus } from 'lucide-react';
-import type { DayBudget, BudgetMode } from '../../types';
-import { cn } from '../../lib/utils';
+import type { DayBudget, BudgetMode } from '../../../types';
+import { cn } from '../../../lib/utils';
 
 interface DailyBudgetCardProps {
   budget: DayBudget;

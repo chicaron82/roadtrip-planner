@@ -1,5 +1,5 @@
 import { Car, Fuel, Calendar } from 'lucide-react';
-import type { TripSummary } from '../../types';
+import type { TripSummary } from '../../../types';
 
 interface TripHeaderSummaryProps {
   summary: TripSummary;

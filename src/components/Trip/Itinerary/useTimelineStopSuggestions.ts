@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
-import type { TripSummary, TripSettings, Vehicle, TripDay } from '../../types';
-import { generateSmartStops, createStopConfig, type SuggestedStop } from '../../lib/stop-suggestions';
-import { buildPacingSuggestions } from '../../lib/pacing-suggestions-builder';
-import { getTripStartTime, lngToIANA } from '../../lib/trip-timezone';
-import type { StopOverrides } from './timeline-data-types';
+import type { TripSummary, TripSettings, Vehicle, TripDay } from '../../../types';
+import { generateSmartStops, createStopConfig, type SuggestedStop } from '../../../lib/stop-suggestions';
+import { buildPacingSuggestions } from '../../../lib/pacing-suggestions-builder';
+import { getTripStartTime, lngToIANA } from '../../../lib/trip-timezone';
+import type { StopOverrides } from '../timeline-data-types';
 
 interface UseTimelineStopSuggestionsParams {
   summary: TripSummary;

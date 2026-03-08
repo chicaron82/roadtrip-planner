@@ -1,5 +1,5 @@
-import type { DriverStats } from '../../lib/driver-rotation';
-import { formatDriveTime } from '../../lib/driver-rotation';
+import type { DriverStats } from '../../../lib/driver-rotation';
+import { formatDriveTime } from '../../../lib/driver-rotation';
 
 // ==================== TYPES ====================
 

@@ -1,8 +1,8 @@
 import { ExternalLink, Check, X } from 'lucide-react';
-import type { POISuggestionCategory } from '../../types';
-import { Button } from '../UI/Button';
-import { cn } from '../../lib/utils';
-import { TIER_META, type DiscoveredPOI } from '../../lib/discovery-engine';
+import type { POISuggestionCategory } from '../../../types';
+import { Button } from '../../UI/Button';
+import { cn } from '../../../lib/utils';
+import { TIER_META, type DiscoveredPOI } from '../../../lib/discovery-engine';
 
 const CATEGORY_ICONS: Record<POISuggestionCategory, string> = {
   viewpoint: '🌿', attraction: '🎡', museum: '🏛️', park: '🌲',

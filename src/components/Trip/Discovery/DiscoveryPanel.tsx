@@ -11,9 +11,9 @@
 
 import { useState, useMemo } from 'react';
 import { Sparkles, Loader2, Zap } from 'lucide-react';
-import type { POISuggestion } from '../../types';
-import { Button } from '../UI/Button';
-import { cn } from '../../lib/utils';
+import type { POISuggestion } from '../../../types';
+import { Button } from '../../UI/Button';
+import { cn } from '../../../lib/utils';
 import { TierSection } from './TierSection';
 import {
   discoverPOIs,
@@ -22,7 +22,7 @@ import {
   getTierCounts,
   totalDetourMinutes,
   type DiscoveryTier,
-} from '../../lib/discovery-engine';
+} from '../../../lib/discovery-engine';
 
 // ==================== PROPS ====================
 

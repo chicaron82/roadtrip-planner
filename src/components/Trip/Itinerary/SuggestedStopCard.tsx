@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Check, X, Clock, Fuel, Coffee, UtensilsCrossed, Hotel, ChevronDown, ChevronUp } from 'lucide-react';
-import type { SuggestedStop } from '../../lib/stop-suggestions';
-import { getStopColors } from '../../lib/stop-suggestions';
-import { Button } from '../UI/Button';
-import { cn } from '../../lib/utils';
+import type { SuggestedStop } from '../../../lib/stop-suggestions';
+import { getStopColors } from '../../../lib/stop-suggestions';
+import { Button } from '../../UI/Button';
+import { cn } from '../../../lib/utils';
 
 interface SuggestedStopCardProps {
   stop: SuggestedStop;

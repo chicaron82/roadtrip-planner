@@ -1,5 +1,5 @@
-import { cn } from '../../lib/utils';
-import { TIER_META, type DiscoveredPOI, type DiscoveryTier } from '../../lib/discovery-engine';
+import { cn } from '../../../lib/utils';
+import { TIER_META, type DiscoveredPOI, type DiscoveryTier } from '../../../lib/discovery-engine';
 import { DiscoveryCard } from './DiscoveryCard';
 
 export function TierSection({

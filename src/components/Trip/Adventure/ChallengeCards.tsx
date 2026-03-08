@@ -16,7 +16,7 @@
 import { useState } from 'react';
 import { Trophy, Lock, ChevronRight, MapPin } from 'lucide-react';
 import type { TripChallenge, Location } from '../../../types';
-import { LocationSearchInput } from '../LocationSearchInput';
+import { LocationSearchInput } from '../Location/LocationSearchInput';
 import {
   getChallenges,
   getChallengeById,

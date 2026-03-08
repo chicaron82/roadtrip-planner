@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Hotel, DollarSign, Users, Clock } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../UI/Dialog';
-import { Input } from '../UI/Input';
-import { Label } from '../UI/Label';
-import { Button } from '../UI/Button';
-import type { OvernightStop, AccommodationType } from '../../types';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../UI/Dialog';
+import { Input } from '../../UI/Input';
+import { Label } from '../../UI/Label';
+import { Button } from '../../UI/Button';
+import type { OvernightStop, AccommodationType } from '../../../types';
 
 // ==================== ACCOMMODATION TYPES ====================
 

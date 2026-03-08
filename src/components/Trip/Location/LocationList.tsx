@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import type { Location } from '../../types';
-import { Button } from '../UI/Button';
+import type { Location } from '../../../types';
+import { Button } from '../../UI/Button';
 import { LocationSearchInput } from './LocationSearchInput';
 import { MapPin, Flag, Circle, X, Star, GripVertical, Loader2 } from 'lucide-react';
-import { getFavorites, toggleFavorite, type SavedLocation } from '../../lib/storage';
+import { getFavorites, toggleFavorite, type SavedLocation } from '../../../lib/storage';
 import {
   DndContext,
   closestCenter,

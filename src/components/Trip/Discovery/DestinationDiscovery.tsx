@@ -1,4 +1,4 @@
-import type { TripSummary, POISuggestion } from '../../types';
+import type { TripSummary, POISuggestion } from '../../../types';
 import { DiscoveryPanel } from './DiscoveryPanel';
 
 interface DestinationDiscoveryProps {

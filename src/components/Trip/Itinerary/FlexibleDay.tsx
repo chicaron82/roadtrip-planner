@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Shuffle, Coffee, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
-import type { DayType, DayOption, TripDay } from '../../types';
-import { cn } from '../../lib/utils';
-import { Input } from '../UI/Input';
+import type { DayType, DayOption, TripDay } from '../../../types';
+import { cn } from '../../../lib/utils';
+import { Input } from '../../UI/Input';
 
 // Day type selector (planned / flexible / free)
 interface DayTypeToggleProps {

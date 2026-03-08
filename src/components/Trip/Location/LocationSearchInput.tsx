@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { Input } from '../UI/Input';
-import { searchLocations } from '../../lib/api';
-import type { Location } from '../../types';
+import { Input } from '../../UI/Input';
+import { searchLocations } from '../../../lib/api';
+import type { Location } from '../../../types';
 import { Loader2, X } from 'lucide-react';
-import { Card } from '../UI/Card';
+import { Card } from '../../UI/Card';
 
 interface LocationSearchInputProps {
   value: string;
