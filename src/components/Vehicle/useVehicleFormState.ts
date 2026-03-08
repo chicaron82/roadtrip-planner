@@ -73,14 +73,16 @@ export function useVehicleFormState({ vehicle, setVehicle, units }: UseVehicleFo
     if (field === 'year' && typeof value === 'string') {
       const yearNum = parseInt(value);
       const currentYear = new Date().getFullYear();
-      if (value !== '' && (isNaN(yearNum) || yearNum < 1900 || yearNum > currentYear + 2)) return;
+      // Allow partial input while typing; only reject complete invalid years (4+ digits)
+      if (value.length >= 4 && (isNaN(yearNum) || yearNum < 1900 || yearNum > currentYear + 2)) return;
     }
 
     if ((field === 'fuelEconomyCity' || field === 'fuelEconomyHwy' || field === 'tankSize') && typeof value === 'number') {
       if (value < 0 || value > 1000) return;
     }
 
-    setVehicle({ ...vehicle, [field]: value });
+    // Functional update so batched calls (e.g. handleMakeChange) chain correctly
+    setVehicle(prev => ({ ...prev, [field]: value }));
   };
 
   const handleMakeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
