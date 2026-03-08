@@ -39,6 +39,10 @@ const SEED_DATE = '2026-01-01';
  */
 const CACHE_VERSION = '4';
 const CACHE_VERSION_KEY = 'roadtrip-hub-cache-version';
+const HUB_CACHE_INIT_START = 'hub-cache:init:start';
+const HUB_CACHE_INIT_END = 'hub-cache:init:end';
+const HUB_CACHE_INIT_MEASURE = 'hub-cache:init';
+let hubCacheInitializationScheduled = false;
 
 // ─── I-94 / I-29 Corridor (Winnipeg ↔ Chicago) ────────────────────────────────
 
@@ -335,4 +339,36 @@ export function initializeHubCache(): void {
     // localStorage unavailable — proceed anyway
   }
   seedHubCache(SEED_HUBS);
+}
+
+/**
+ * Schedule hub cache seeding after initial paint so startup work does not block React mount.
+ * Records a Performance measure named `hub-cache:init` for later inspection.
+ */
+export function scheduleHubCacheInitialization(): void {
+  if (hubCacheInitializationScheduled) return;
+  hubCacheInitializationScheduled = true;
+
+  const runInitialization = () => {
+    performance.mark(HUB_CACHE_INIT_START);
+    initializeHubCache();
+    performance.mark(HUB_CACHE_INIT_END);
+    performance.measure(HUB_CACHE_INIT_MEASURE, HUB_CACHE_INIT_START, HUB_CACHE_INIT_END);
+  };
+
+  if (typeof window === 'undefined') {
+    runInitialization();
+    return;
+  }
+
+  const hostWindow = window as Window & {
+    requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+  };
+
+  if (typeof hostWindow.requestIdleCallback === 'function') {
+    hostWindow.requestIdleCallback(runInitialization, { timeout: 1200 });
+    return;
+  }
+
+  window.setTimeout(runInitialization, 0);
 }
