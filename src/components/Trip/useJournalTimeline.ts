@@ -4,7 +4,7 @@ import { groupEventsByTripDay } from '../../lib/accepted-itinerary-timeline';
 import { buildDayPlacementMaps } from '../../lib/day-placement-maps';
 import { showToast } from '../../lib/toast';
 import { buildTimedTimeline } from '../../lib/trip-timeline';
-import { lngToIANA, parseLocalDateInTZ } from '../../lib/trip-timezone';
+import { formatDisplayDateInZone, formatTimeInZone, lngToIANA, parseLocalDateInTZ } from '../../lib/trip-timezone';
 
 interface UseJournalTimelineParams {
   summary: TripSummary;
@@ -30,6 +30,11 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
     },
     [settings.departureDate, settings.departureTime, summary.segments],
   );
+
+  const originTimezone = useMemo(() => {
+    const originLng = summary.segments[0]?.from.lng;
+    return originLng !== undefined ? lngToIANA(originLng) : undefined;
+  }, [summary.segments]);
 
   const canonicalDays = useMemo(() => {
     const tripDays = summary.days ?? [];
@@ -165,11 +170,11 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
     setQuickCaptureOpen(true);
   };
 
-  const formatTime = (date: Date) =>
-    date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const formatTime = (date: Date, ianaTimezone: string | undefined = originTimezone) =>
+    formatTimeInZone(date, ianaTimezone);
 
-  const formatDate = (date: Date) =>
-    date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+  const formatDate = (date: Date, ianaTimezone: string | undefined = originTimezone) =>
+    formatDisplayDateInZone(date, ianaTimezone);
 
   // Reset all entries back to 'planned' so the journey can be re-driven.
   // Notes and photos are preserved — only arrival status is cleared.
@@ -185,6 +190,7 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
 
   return {
     startTime,
+    originTimezone,
     dayStartMap,
     freeDaysAfterSegment,
     currentStopIndex,

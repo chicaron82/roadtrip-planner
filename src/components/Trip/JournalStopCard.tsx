@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { shareStop } from '../../lib/share-utils';
 import type { JournalEntry, JournalPhoto, RouteSegment } from '../../types';
+import { formatTimeInZone, normalizeToIANA } from '../../lib/trip-timezone';
 import { Button } from '../UI/Button';
 import { cn } from '../../lib/utils';
 import { dispatchStopArrived } from '../../hooks/useArrivalSnap';
@@ -20,6 +21,7 @@ interface JournalStopCardProps {
   segment: RouteSegment;
   segmentIndex: number;
   entry?: JournalEntry;
+  displayTimezone?: string;
   onUpdateEntry: (entry: Partial<JournalEntry>) => void;
   onAddPhoto: (photo: JournalPhoto) => void;
   onRemovePhoto: (photoId: string) => void;
@@ -30,6 +32,7 @@ export function JournalStopCard({
   segment,
   segmentIndex,
   entry,
+  displayTimezone,
   onUpdateEntry,
   onAddPhoto,
   onRemovePhoto,
@@ -46,11 +49,13 @@ export function JournalStopCard({
   const hasArrived = entry?.status === 'visited';
   const isHighlight = entry?.isHighlight || false;
 
+  const resolvedTimezone = displayTimezone ?? segment.timezone ?? segment.weather?.timezone ?? (segment.weather?.timezoneAbbr ? normalizeToIANA(segment.weather.timezoneAbbr) : undefined);
+
   // Format time
   const formatTime = (date: Date | string | undefined) => {
     if (!date) return '--:--';
     const d = typeof date === 'string' ? new Date(date) : date;
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return formatTimeInZone(d, resolvedTimezone);
   };
 
   const handleArrive = () => {

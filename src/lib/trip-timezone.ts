@@ -151,3 +151,16 @@ export function formatDateInZone(date: Date, ianaTimezone: string): string {
   const pobj = Object.fromEntries(parts.map(p => [p.type, p.value]));
   return `${pobj.year}-${pobj.month}-${pobj.day}`;
 }
+
+/**
+ * Format a UTC Date as a short human-readable label like "Sat, Mar 7" in the
+ * given IANA timezone. Falls back to browser-local formatting when omitted.
+ */
+export function formatDisplayDateInZone(date: Date, ianaTimezone?: string): string {
+  return date.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    ...(ianaTimezone ? { timeZone: ianaTimezone } : {}),
+  });
+}

@@ -19,6 +19,7 @@ interface JournalTimelineProps {
 export function JournalTimeline({ summary, settings, journal, onUpdateJournal, className }: JournalTimelineProps) {
   const {
     startTime,
+    originTimezone,
     dayStartMap,
     freeDaysAfterSegment,
     currentStopIndex,
@@ -139,7 +140,7 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
             <div className="text-xs font-bold text-green-600 uppercase tracking-wider mb-0.5">Start</div>
             <div className="font-bold text-xl">{summary.segments[0]?.from.name || 'Origin'}</div>
             <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
-              <Clock className="h-3 w-3" /> {formatDate(startTime)} • {formatTime(startTime)}
+              <Clock className="h-3 w-3" /> {formatDate(startTime, originTimezone)} • {formatTime(startTime, originTimezone)}
             </div>
           </div>
         </div>
@@ -263,6 +264,7 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
                     segment={segment}
                     segmentIndex={index}
                     entry={entry}
+                    displayTimezone={segment.timezone ?? segment.weather?.timezone}
                     onUpdateEntry={(updates) => handleUpdateEntry(index, updates)}
                     onAddPhoto={(photo) => handleAddPhoto(index, photo)}
                     onRemovePhoto={(photoId) => handleRemovePhoto(index, photoId)}
