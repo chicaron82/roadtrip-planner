@@ -1,5 +1,5 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../UI/Dialog';
-import { ItineraryTimeline } from './ItineraryTimeline';
+import { ItineraryTimeline } from './Itinerary/ItineraryTimeline';
 import type { TripSummary, TripSettings } from '../../types';
 import { X } from 'lucide-react';
 import { Button } from '../UI/Button';

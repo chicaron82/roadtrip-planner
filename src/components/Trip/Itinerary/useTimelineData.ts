@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import type { TripSummary, TripSettings, Vehicle, TripDay, Activity, OvernightStop } from '../../types';
-import type { SuggestedStop } from '../../lib/stop-suggestions';
-import type { SimulationItem } from '../../lib/timeline-simulation';
-import { useTimelineStopSuggestions } from './useTimelineStopSuggestions';
-import { useTimelineDerivedMaps } from './useTimelineDerivedMaps';
-import type { StopOverrides } from './timeline-data-types';
+import type { TripSummary, TripSettings, Vehicle, TripDay, Activity, OvernightStop } from '../../../types';
+import type { SuggestedStop } from '../../../lib/stop-suggestions';
+import type { SimulationItem } from '../../../lib/timeline-simulation';
+import { useTimelineStopSuggestions } from '../useTimelineStopSuggestions';
+import { useTimelineDerivedMaps } from '../useTimelineDerivedMaps';
+import type { StopOverrides } from '../timeline-data-types';
 
 export type { SimulationItem };
 export type { StopOverrides };

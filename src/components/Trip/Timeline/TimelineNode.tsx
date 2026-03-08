@@ -4,8 +4,8 @@ import type { RouteSegment, StopType, Activity } from '../../../types';
 import type { SuggestedStop } from '../../../lib/stop-suggestions';
 import { formatTime as formatTimeWithTz, STOP_LABELS } from '../../../lib/calculations';
 import { formatTimeInZone } from '../../../lib/trip-timezone';
-import { StopDurationPicker } from '../StopDurationPicker';
-import { ActivityBadge } from '../ActivityEditor';
+import { StopDurationPicker } from '../Itinerary/StopDurationPicker';
+import { ActivityBadge } from '../Itinerary/ActivityEditor';
 import { getWeatherEmoji } from '../../../lib/weather-ui-utils';
 
 // ==================== TYPES ====================

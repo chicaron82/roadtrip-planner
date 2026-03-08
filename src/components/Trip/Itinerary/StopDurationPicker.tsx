@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Clock, Fuel, Coffee, Utensils, UtensilsCrossed, Hotel, TrendingUp, TrendingDown } from 'lucide-react';
-import { STOP_DURATIONS, STOP_LABELS } from '../../lib/calculations';
-import type { StopType } from '../../types';
+import { STOP_DURATIONS, STOP_LABELS } from '../../../lib/calculations';
+import type { StopType } from '../../../types';
 
 interface StopDurationPickerProps {
   value: StopType;

@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Calendar, Clock, MapPin, Route, Edit3 } from 'lucide-react';
-import type { TripDay, DayType, AccommodationType } from '../../types';
-import { cn } from '../../lib/utils';
-import { DayTypeToggle, DayTypeBadge } from './FlexibleDay';
-import { Input } from '../UI/Input';
-import { formatTimeInZone, lngToIANA } from '../../lib/trip-timezone';
+import type { TripDay, DayType, AccommodationType } from '../../../types';
+import { cn } from '../../../lib/utils';
+import { DayTypeToggle, DayTypeBadge } from '../FlexibleDay';
+import { Input } from '../../UI/Input';
+import { formatTimeInZone, lngToIANA } from '../../../lib/trip-timezone';
 
 interface DayHeaderProps {
   day: TripDay;

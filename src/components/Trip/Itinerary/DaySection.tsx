@@ -1,7 +1,7 @@
-import type { TripDay, DayType, DayOption, BudgetMode } from '../../types';
+import type { TripDay, DayType, DayOption, BudgetMode } from '../../../types';
 import { DayHeader } from './DayHeader';
-import { DailyBudgetCard } from './DailyBudgetCard';
-import { FreeDayCard, FlexibleDayCard } from './FlexibleDay';
+import { DailyBudgetCard } from '../DailyBudgetCard';
+import { FreeDayCard, FlexibleDayCard } from '../FlexibleDay';
 
 // ==================== TYPES ====================
 

@@ -22,11 +22,11 @@ import type {
 } from '../../types';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
 import type { CanonicalTripTimeline } from '../../lib/canonical-trip';
-import type { StopOverrides } from './useTimelineData';
+import type { StopOverrides } from './Itinerary/useTimelineData';
 import type { ViewMode } from './Journal/JournalModeToggle';
 import { SmartTimeline } from './Timeline/SmartTimeline';
 import { JournalTimeline } from './Journal/JournalTimeline';
-import { ItineraryTimeline } from './ItineraryTimeline';
+import { ItineraryTimeline } from './Itinerary/ItineraryTimeline';
 import { StartJournalCTA } from './Journal/JournalModeToggle';
 
 // ==================== PROPS ====================

@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AcceptedItineraryInput } from '../../lib/canonical-trip';
-import type { SuggestedStop } from '../../lib/stop-suggestions';
-import type { ProcessedSegment, TripDay, TripSettings, TripSummary } from '../../types';
+import type { AcceptedItineraryInput } from '../../../lib/canonical-trip';
+import type { SuggestedStop } from '../../../lib/stop-suggestions';
+import type { ProcessedSegment, TripDay, TripSettings, TripSummary } from '../../../types';
 import { ItineraryTimeline } from './ItineraryTimeline';
 import { useTimelineData } from './useTimelineData';
 

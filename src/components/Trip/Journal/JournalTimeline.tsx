@@ -1,7 +1,7 @@
 import { MapPin, Trophy, Clock, Camera, Star, BookOpen, Plus } from 'lucide-react';
 import type { TripSummary, TripSettings, TripJournal } from '../../../types';
 import { JournalStopCard, QuickArriveButton } from './JournalStopCard';
-import { DayHeader } from '../DayHeader';
+import { DayHeader } from '../Itinerary/DayHeader';
 import { QuickCaptureDialog } from '../QuickCaptureDialog';
 import { TripRecapCard } from '../TripRecapCard';
 import { useJournalTimeline } from './useJournalTimeline';

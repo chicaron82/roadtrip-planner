@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Clock, MapPin, DollarSign, FileText, Link, Star, X } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../UI/Dialog';
-import { Input } from '../UI/Input';
-import { Label } from '../UI/Label';
-import type { Activity, ActivityCategory } from '../../types';
-import { cn } from '../../lib/utils';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../UI/Dialog';
+import { Input } from '../../UI/Input';
+import { Label } from '../../UI/Label';
+import type { Activity, ActivityCategory } from '../../../types';
+import { cn } from '../../../lib/utils';
 
 const ACTIVITY_CATEGORIES: { value: ActivityCategory; label: string; emoji: string }[] = [
   { value: 'photo', label: 'Photo Op', emoji: '📸' },
