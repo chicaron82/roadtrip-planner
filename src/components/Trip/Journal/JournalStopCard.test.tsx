@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { JournalEntry, RouteSegment } from '../../types';
+import type { JournalEntry, RouteSegment } from '../../../types';
 import { JournalStopCard } from './JournalStopCard';
 
 const BASE_SEGMENT: RouteSegment = {

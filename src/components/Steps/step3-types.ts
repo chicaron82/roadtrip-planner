@@ -1,7 +1,7 @@
 import type { Vehicle, TripSettings, TripSummary, POISuggestion, TripJournal, StopType, DayType, OvernightStop, TripMode, TripChallenge } from '../../types';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
 import type { CanonicalTripTimeline } from '../../lib/canonical-trip';
-import type { ViewMode } from '../Trip/JournalModeToggle';
+import type { ViewMode } from '../Trip/Journal/JournalModeToggle';
 
 export interface Step3ArrivalInfo {
   dest: string;

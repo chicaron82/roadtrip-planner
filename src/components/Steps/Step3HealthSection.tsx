@@ -1,8 +1,8 @@
 import type { TripJournal, TripSettings, TripSummary, TripMode } from '../../types';
-import type { ViewMode } from '../Trip/JournalModeToggle';
+import type { ViewMode } from '../Trip/Journal/JournalModeToggle';
 import type { Step3ArrivalInfo } from './step3-types';
 import { FeasibilityBanner } from '../Trip/FeasibilityBanner';
-import { JournalModeToggle } from '../Trip/JournalModeToggle';
+import { JournalModeToggle } from '../Trip/Journal/JournalModeToggle';
 import { BudgetBar } from '../Trip/Budget/BudgetBar';
 import { TripBudgetHealth } from '../Trip/TripBudgetHealth';
 import { TripArrivalHero } from '../Trip/TripArrivalHero';

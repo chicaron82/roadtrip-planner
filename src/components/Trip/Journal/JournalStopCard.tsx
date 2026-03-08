@@ -10,12 +10,12 @@ import {
   X,
   Share2,
 } from 'lucide-react';
-import { shareStop } from '../../lib/share-utils';
-import type { JournalEntry, JournalPhoto, RouteSegment } from '../../types';
-import { formatTimeInZone, normalizeToIANA } from '../../lib/trip-timezone';
-import { Button } from '../UI/Button';
-import { cn } from '../../lib/utils';
-import { dispatchStopArrived } from '../../hooks/useArrivalSnap';
+import { shareStop } from '../../../lib/share-utils';
+import type { JournalEntry, JournalPhoto, RouteSegment } from '../../../types';
+import { formatTimeInZone, normalizeToIANA } from '../../../lib/trip-timezone';
+import { Button } from '../../UI/Button';
+import { cn } from '../../../lib/utils';
+import { dispatchStopArrived } from '../../../hooks/useArrivalSnap';
 
 interface JournalStopCardProps {
   segment: RouteSegment;
@@ -89,7 +89,7 @@ export function JournalStopCard({
     if (!file) return;
 
     // Import compression function dynamically to keep bundle smaller
-    const { createPhotoFromFile } = await import('../../lib/journal-storage');
+    const { createPhotoFromFile } = await import('../../../lib/journal-storage');
     const photo = await createPhotoFromFile(file);
     onAddPhoto(photo);
 

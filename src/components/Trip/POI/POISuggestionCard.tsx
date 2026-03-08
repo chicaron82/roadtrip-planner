@@ -1,7 +1,7 @@
 import { MapPin, Clock, Check, X, Star, Sparkles } from 'lucide-react';
-import type { POISuggestion, POISuggestionCategory } from '../../types';
-import { Button } from '../UI/Button';
-import { cn } from '../../lib/utils';
+import type { POISuggestion, POISuggestionCategory } from '../../../types';
+import { Button } from '../../UI/Button';
+import { cn } from '../../../lib/utils';
 
 interface POISuggestionCardProps {
   poi: POISuggestion;

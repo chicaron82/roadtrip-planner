@@ -1,5 +1,5 @@
-import type { TripJournal, TripSummary, TripSettings } from '../../types';
-import { exportJournalAsHTML, exportJournalAsTemplate } from '../../lib/journal-export';
+import type { TripJournal, TripSummary, TripSettings } from '../../../types';
+import { exportJournalAsHTML, exportJournalAsTemplate } from '../../../lib/journal-export';
 
 interface JournalCompletionCardProps {
   journal: TripJournal;

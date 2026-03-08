@@ -1,10 +1,10 @@
 import { Maximize2, Minimize2, PenLine } from 'lucide-react';
 import type { TripJournal } from '../../types';
-import type { ViewMode } from '../Trip/JournalModeToggle';
+import type { ViewMode } from '../Trip/Journal/JournalModeToggle';
 import type { Step3TimelineSectionProps } from './step3-types';
 import { Button } from '../UI/Button';
 import { TripTimelineView } from '../Trip/TripTimelineView';
-import { JournalFullscreenOverlay } from '../Trip/JournalFullscreenOverlay';
+import { JournalFullscreenOverlay } from '../Trip/Journal/JournalFullscreenOverlay';
 
 interface Props extends Step3TimelineSectionProps {
   isExpanded: boolean;

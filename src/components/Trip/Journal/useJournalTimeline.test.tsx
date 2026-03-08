@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { TripJournal, TripSettings, TripSummary } from '../../types';
+import type { TripJournal, TripSettings, TripSummary } from '../../../types';
 import { useJournalTimeline } from './useJournalTimeline';
 
 const SUMMARY: TripSummary = {

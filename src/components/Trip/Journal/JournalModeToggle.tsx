@@ -1,7 +1,7 @@
 import { useState, type CSSProperties } from 'react';
 import { Map, BookOpen, Lock } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import type { TripMode } from '../../types';
+import { cn } from '../../../lib/utils';
+import type { TripMode } from '../../../types';
 
 export type ViewMode = 'plan' | 'journal';
 

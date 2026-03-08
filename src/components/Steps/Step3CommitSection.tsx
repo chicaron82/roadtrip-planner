@@ -1,6 +1,6 @@
 import type { TimedEvent } from '../../lib/trip-timeline';
 import type { TripSettings, TripSummary, Vehicle } from '../../types';
-import type { ViewMode } from '../Trip/JournalModeToggle';
+import type { ViewMode } from '../Trip/Journal/JournalModeToggle';
 import { ConfirmTripCard } from '../Trip/ConfirmTripCard';
 import { TripBottomActions } from '../Trip/TripBottomActions';
 

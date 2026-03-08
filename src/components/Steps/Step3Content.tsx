@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import type { Location, Vehicle, TripSettings, TripSummary, POISuggestion, TripJournal, StopType, DayType, OvernightStop, TripMode, TripChallenge } from '../../types';
 import { OvernightStopPrompt } from '../Trip/OvernightStopPrompt';
-import { type ViewMode } from '../Trip/JournalModeToggle';
+import { type ViewMode } from '../Trip/Journal/JournalModeToggle';
 import { analyzeFeasibility } from '../../lib/feasibility';
 import { EstimateBreakdown } from '../Trip/EstimateBreakdown';
 import { generateEstimate } from '../../lib/estimate-service';

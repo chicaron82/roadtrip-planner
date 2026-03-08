@@ -1,7 +1,7 @@
 import { ArrowLeft } from 'lucide-react';
-import { Button } from '../UI/Button';
+import { Button } from '../../UI/Button';
 import { JournalTimeline } from './JournalTimeline';
-import type { TripSummary, TripSettings, TripJournal } from '../../types';
+import type { TripSummary, TripSettings, TripJournal } from '../../../types';
 
 interface Props {
   summary: TripSummary;
