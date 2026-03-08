@@ -56,11 +56,14 @@ export function buildAcceptedItineraryProjection({
   if (days) {
     days.forEach((day, index) => {
       if (!day.overnight) return;
-      const nextDriving = days.slice(index + 1).find(nextDay => nextDay.segmentIndices.length > 0);
-      if (!nextDriving) return;
+      // Use immediate next day (not next driving day) — free days get their own
+      // overnight entry, so using nextDriving would span across free days and
+      // over-count nights on the driving day before the free stay.
+      const nextDay = days[index + 1];
+      if (!nextDay) return;
 
       const nights = Math.round(
-        (new Date(nextDriving.date + 'T00:00:00').getTime() - new Date(day.date + 'T00:00:00').getTime())
+        (new Date(nextDay.date + 'T00:00:00').getTime() - new Date(day.date + 'T00:00:00').getTime())
         / (1000 * 60 * 60 * 24),
       );
       if (nights > 0) overnightNightsByDay.set(day.dayNumber, nights);
