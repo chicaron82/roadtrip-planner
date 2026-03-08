@@ -10,7 +10,7 @@
  */
 
 import type { SuggestedStop } from './stop-suggestions';
-import type { TimedEventType } from './trip-timeline';
+import type { TimedEventType } from './trip-timeline-types';
 import { formatTimeInZone } from './trip-timezone';
 
 // ─── Display formatting ────────────────────────────────────────────────────────
