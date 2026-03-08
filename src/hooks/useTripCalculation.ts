@@ -122,8 +122,8 @@ export function useTripCalculation({
       });
 
       fireAndForgetOvernightSnap(
-        tripSummary.days!, tripSummary, geocodeController,
-        setLocalSummary, onSummaryChange,
+        tripSummary.days!, tripSummary, canonicalTimeline, geocodeController,
+        setLocalSummary, setCanonicalTimeline, onSummaryChange,
       );
 
       return tripSummary;

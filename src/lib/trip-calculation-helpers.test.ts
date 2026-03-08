@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import type { CanonicalTripTimeline } from './canonical-trip';
 import type { TripDay } from '../types';
-import { shouldPropagateSnappedOvernightToNextDay } from './trip-calculation-helpers';
+import { applySnappedOvernightsToCanonicalTimeline, shouldPropagateSnappedOvernightToNextDay } from './trip-calculation-helpers';
 
 function makeDay(route: string, fromName: string): TripDay {
   return {
@@ -50,5 +51,71 @@ describe('shouldPropagateSnappedOvernightToNextDay', () => {
 
   it('does not propagate when the next day already has a real snapped departure city', () => {
     expect(shouldPropagateSnappedOvernightToNextDay(makeDay('Munising → Montreal, Quebec', 'Munising'))).toBe(false);
+  });
+});
+
+describe('applySnappedOvernightsToCanonicalTimeline', () => {
+  it('updates overnight and next-day departure labels used by print/export', () => {
+    const dayOne = makeDay('El Paso, TX → Disneyland → Walt Disney World (transit)', 'El Paso, TX');
+    dayOne.dayNumber = 2;
+    dayOne.overnight = {
+      location: { id: 'split', name: 'Disneyland → Walt Disney World (transit)', lat: 30, lng: -94, type: 'waypoint' },
+      cost: 120,
+      roomsNeeded: 1,
+    };
+
+    const dayTwo = makeDay('En route from Disneyland → Walt Disney World, Florida', 'Disneyland → Walt Disney World (transit)');
+    dayTwo.dayNumber = 3;
+
+    const timeline: CanonicalTripTimeline = {
+      summary: { segments: [], days: [dayOne, dayTwo] } as never,
+      days: [
+        {
+          meta: dayOne,
+          events: [
+            {
+              id: 'overnight-day2',
+              type: 'overnight',
+              arrivalTime: new Date('2026-03-09T03:00:00.000Z'),
+              departureTime: new Date('2026-03-09T15:00:00.000Z'),
+              durationMinutes: 720,
+              distanceFromOriginKm: 100,
+              locationHint: 'Disneyland → Walt Disney World (transit)',
+              stops: [],
+              timezone: 'America/Chicago',
+            },
+          ],
+        },
+        {
+          meta: dayTwo,
+          events: [
+            {
+              id: 'departure-day3',
+              type: 'departure',
+              arrivalTime: new Date('2026-03-09T15:00:00.000Z'),
+              departureTime: new Date('2026-03-09T15:00:00.000Z'),
+              durationMinutes: 0,
+              distanceFromOriginKm: 100,
+              locationHint: 'En route from Disneyland',
+              stops: [],
+              timezone: 'America/Chicago',
+            },
+          ],
+        },
+      ],
+      events: [],
+      inputs: { locations: [], vehicle: {} as never, settings: {} as never },
+    };
+
+    const updatedSummary = { ...timeline.summary, days: [dayOne, dayTwo] } as never;
+    const updated = applySnappedOvernightsToCanonicalTimeline(timeline, updatedSummary, [
+      { dayNumber: 2, lat: 30.22, lng: -93.22, name: 'Lake Charles, LA' },
+    ]);
+
+    expect(updated.days[0].meta.route).toBe('El Paso, TX → Lake Charles, LA');
+    expect(updated.days[0].events[0].locationHint).toBe('Lake Charles, LA');
+    expect(updated.days[1].meta.route).toBe('Lake Charles, LA → Walt Disney World, Florida');
+    expect(updated.days[1].meta.segments[0].from.name).toBe('Lake Charles, LA');
+    expect(updated.days[1].events[0].locationHint).toBe('Lake Charles, LA');
   });
 });

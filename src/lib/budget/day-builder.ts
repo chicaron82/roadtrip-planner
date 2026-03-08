@@ -1,7 +1,7 @@
 import type { RouteSegment, TripDay, TripSettings } from '../../types';
 import type { ProcessedSegment } from './segment-processor';
 import type { StrategicFuelStop } from '../fuel-stops';
-import { findHubInWindow } from '../hub-cache';
+import { findPreferredHubInWindow } from '../hub-cache';
 
 /**
  * Round a value UP to the nearest increment.
@@ -97,7 +97,7 @@ export function finalizeTripDay(
     // For transit sub-segments at unnamed split points, resolve the actual city
     // from the hub cache rather than showing "En route from [distant origin]".
     if (n.includes('(transit)') && seg) {
-      const hub = findHubInWindow(seg.from.lat, seg.from.lng, 40);
+      const hub = findPreferredHubInWindow(seg.from.lat, seg.from.lng, 40);
       if (hub) return hub.name;
     }
     if (n.includes('(transit)')) {
@@ -114,7 +114,7 @@ export function finalizeTripDay(
   const cleanTo = (n: string, seg?: ProcessedSegment): string => {
     // Same hub resolution for the TO side of transit sub-segments.
     if (n.includes('(transit)') && seg) {
-      const hub = findHubInWindow(seg.to.lat, seg.to.lng, 40);
+      const hub = findPreferredHubInWindow(seg.to.lat, seg.to.lng, 40);
       if (hub) return hub.name;
     }
     if (n.includes('(transit)')) {

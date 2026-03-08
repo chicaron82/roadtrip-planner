@@ -23,23 +23,45 @@ export function createTimelineLocationResolver(
   iterSegments: ProcessedSegment[],
   iterSegEndKm: number[],
 ): TimelineLocationResolver {
-  const finalDestinationName = segments.at(-1)?.to.name?.trim();
-  const totalRouteKm = segEndKm.at(-1) ?? 0;
+  const normalizedOriginName = originName.trim();
+  const routeEndpointNames = new Set<string>();
+  const endpointBoundariesByName = new Map<string, number[]>();
 
-  const isWaypointLabelUsable = (name?: string, currentKm?: number): boolean => {
+  const addBoundary = (name: string | undefined, km: number): void => {
+    const trimmed = name?.trim();
+    if (!trimmed) return;
+    routeEndpointNames.add(trimmed);
+    const existing = endpointBoundariesByName.get(trimmed);
+    if (existing) {
+      existing.push(km);
+    } else {
+      endpointBoundariesByName.set(trimmed, [km]);
+    }
+  };
+
+  addBoundary(normalizedOriginName, 0);
+  if (segEndKm.length > 0) {
+    segments.forEach((segment, index) => addBoundary(segment.to.name, segEndKm[index] ?? 0));
+  }
+
+  const isNearTrueBoundary = (name: string, currentKm: number): boolean => {
+    const boundaries = endpointBoundariesByName.get(name.trim()) ?? [];
+    return boundaries.some(boundaryKm => Math.abs(currentKm - boundaryKm) <= 60);
+  };
+
+  const isResolvedLabelUsable = (name?: string, currentKm?: number): boolean => {
     if (!name) return false;
     const trimmed = name.trim();
     if (!trimmed || trimmed.includes('(transit)')) return false;
     if (/unorganized/i.test(trimmed)) return false;
 
-    // Long split segments can carry the trip endpoint name on intermediate
-    // transit parts. Don't let an en-route fuel stop near Lake Charles get
-    // labeled as "Disneyland, Anaheim" just because the parent segment ends there.
+    // Only show route endpoint labels when the current stop is actually near one
+    // of that endpoint's real boundaries. This prevents round-trip endpoint names
+    // from leaking onto transit fuel stops due to split-segment naming.
     if (
-      finalDestinationName &&
-      trimmed === finalDestinationName &&
+      routeEndpointNames.has(trimmed) &&
       currentKm !== undefined &&
-      totalRouteKm - currentKm > 60
+      !isNearTrueBoundary(trimmed, currentKm)
     ) {
       return false;
     }
@@ -49,8 +71,8 @@ export function createTimelineLocationResolver(
 
   const makeLocationHint = (km: number, wpName?: string, hubName?: string): string => {
     if (km < 20) return wpName ?? originName;
-    if (isWaypointLabelUsable(wpName, km)) return wpName!;
-    if (hubName && !/unorganized/i.test(hubName)) return `near ${hubName}`;
+    if (isResolvedLabelUsable(wpName, km)) return wpName!;
+    if (isResolvedLabelUsable(hubName, km)) return `near ${hubName!.trim()}`;
     const rounded = Math.round(km / 5) * 5;
     return `~${rounded} km into trip`;
   };
@@ -61,21 +83,21 @@ export function createTimelineLocationResolver(
       const endKm = segEndKm[idx];
       if (endKm !== undefined && Math.abs(currentKm - endKm) <= 30) {
         const candidate = segments[idx].to.name;
-        if (isWaypointLabelUsable(candidate, currentKm)) return candidate;
+        if (isResolvedLabelUsable(candidate, currentKm)) return candidate;
       }
     }
 
     for (let i = 0; i < segments.length; i++) {
       if (Math.abs(currentKm - segEndKm[i]) <= 20) {
         const candidate = segments[i].to.name;
-        if (isWaypointLabelUsable(candidate, currentKm)) return candidate;
+        if (isResolvedLabelUsable(candidate, currentKm)) return candidate;
       }
     }
 
     for (let i = 0; i < iterSegEndKm.length; i++) {
       if (Math.abs(currentKm - iterSegEndKm[i]) <= 20) {
         const name = iterSegments[i]?.to.name;
-        if (isWaypointLabelUsable(name, currentKm)) return name;
+        if (isResolvedLabelUsable(name, currentKm)) return name;
       }
     }
 

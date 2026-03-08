@@ -1,6 +1,6 @@
 import type { TripDay } from '../types';
 import { executeOverpassQuery } from './poi-service/overpass';
-import { cacheDiscoveredHub, findHubInWindow } from './hub-cache';
+import { cacheDiscoveredHub, findPreferredHubInWindow } from './hub-cache';
 import { haversineDistance } from './poi-ranking';
 import { reverseGeocodeTown } from './route-geocoder';
 
@@ -74,7 +74,7 @@ out body;`;
 
   for (const day of transitDays) {
     const { lat, lng } = day.overnight!.location;
-    const nearbyHub = findHubInWindow(lat, lng, HUB_OVERRIDE_WINDOW_KM);
+    const nearbyHub = findPreferredHubInWindow(lat, lng, HUB_OVERRIDE_WINDOW_KM);
 
     if (nearbyHub) {
       const hubDistanceKm = haversineDistance(lat, lng, nearbyHub.lat, nearbyHub.lng);

@@ -2,6 +2,7 @@
  * Pure helpers extracted from useTripCalculation to keep the calculateTrip
  * callback readable. None of these functions use React hooks.
  */
+import type { CanonicalTripTimeline, CanonicalTripDay } from './canonical-trip';
 import type { TripSummary, TripSettings, Vehicle, Location, TripDay, RouteSegment } from '../types';
 import { calculateArrivalTimes, calculateHumanFuelCosts } from './calculations';
 import { getTankSizeLitres, getWeightedFuelEconomyL100km, estimateGasStops } from './unit-conversions';
@@ -132,14 +133,125 @@ export function shouldPropagateSnappedOvernightToNextDay(nextDay: TripDay): bool
   return usesSyntheticTransitDeparture(nextDay);
 }
 
+function patchRouteArrival(route: string, arrivalName: string): string {
+  const parts = route.split(' → ');
+  if (parts.length <= 1) return route;
+  return `${parts[0]} → ${arrivalName}`;
+}
+
+function patchRouteDeparture(route: string, departureName: string): string {
+  const parts = route.split(' → ');
+  if (parts.length <= 1) return route;
+  return `${departureName} → ${parts.slice(1).join(' → ')}`;
+}
+
+function patchDayEventsForOvernight(day: CanonicalTripDay, overnightName: string): CanonicalTripDay {
+  return {
+    ...day,
+    events: day.events.map(event =>
+      event.type === 'overnight'
+        ? { ...event, locationHint: overnightName }
+        : event
+    ),
+  };
+}
+
+function patchDayEventsForDeparture(day: CanonicalTripDay, departureName: string): CanonicalTripDay {
+  return {
+    ...day,
+    events: day.events.map(event =>
+      event.type === 'departure'
+        ? { ...event, locationHint: departureName }
+        : event
+    ),
+  };
+}
+
+export function applySnappedOvernightsToCanonicalTimeline(
+  canonicalTimeline: CanonicalTripTimeline,
+  updatedSummary: TripSummary,
+  snapped: Array<{ dayNumber: number; lat: number; lng: number; name: string }>,
+): CanonicalTripTimeline {
+  let updatedDays = canonicalTimeline.days.map(day => ({
+    ...day,
+    meta: { ...day.meta },
+    events: [...day.events],
+  }));
+
+  for (const snap of snapped) {
+    const dayIndex = updatedDays.findIndex(day => day.meta.dayNumber === snap.dayNumber);
+    if (dayIndex < 0) continue;
+
+    const currentDay = updatedDays[dayIndex];
+    updatedDays[dayIndex] = patchDayEventsForOvernight(
+      {
+        ...currentDay,
+        meta: {
+          ...currentDay.meta,
+          route: patchRouteArrival(currentDay.meta.route, snap.name),
+          overnight: currentDay.meta.overnight
+            ? {
+                ...currentDay.meta.overnight,
+                location: {
+                  ...currentDay.meta.overnight.location,
+                  lat: snap.lat,
+                  lng: snap.lng,
+                  name: snap.name,
+                },
+              }
+            : currentDay.meta.overnight,
+        },
+      },
+      snap.name,
+    );
+
+    const nextDay = updatedDays[dayIndex + 1];
+    if (!nextDay || !shouldPropagateSnappedOvernightToNextDay(nextDay.meta)) continue;
+
+    updatedDays[dayIndex + 1] = patchDayEventsForDeparture(
+      {
+        ...nextDay,
+        meta: {
+          ...nextDay.meta,
+          route: patchRouteDeparture(nextDay.meta.route, snap.name),
+          segments: nextDay.meta.segments.length > 0
+            ? [
+                {
+                  ...nextDay.meta.segments[0],
+                  from: {
+                    ...nextDay.meta.segments[0].from,
+                    lat: snap.lat,
+                    lng: snap.lng,
+                    name: snap.name,
+                  },
+                },
+                ...nextDay.meta.segments.slice(1),
+              ]
+            : nextDay.meta.segments,
+        },
+      },
+      snap.name,
+    );
+  }
+
+  return {
+    ...canonicalTimeline,
+    summary: updatedSummary,
+    days: updatedDays,
+    events: updatedDays.flatMap(day => day.events),
+  };
+}
+
 // ── fireAndForgetOvernightSnap ─────────────────────────────────────────────
 // Async fire-and-forget: snaps transit-split overnight locations to real OSM
 // town centres. Updates summary state once the Overpass query resolves.
 export function fireAndForgetOvernightSnap(
   tripDays: TripDay[],
   tripSummary: TripSummary,
+  canonicalTimeline: CanonicalTripTimeline | null,
   geocodeController: AbortController,
   setLocalSummary: (s: TripSummary) => void,
+  setCanonicalTimeline: (timeline: CanonicalTripTimeline) => void,
   onSummaryChange: (s: TripSummary | null) => void,
 ): void {
   snapOvernightsToTowns(tripDays, geocodeController.signal)
@@ -219,6 +331,9 @@ export function fireAndForgetOvernightSnap(
       if (changed) {
         const updatedSummary = { ...tripSummary, days: enriched };
         setLocalSummary(updatedSummary);
+        if (canonicalTimeline) {
+          setCanonicalTimeline(applySnappedOvernightsToCanonicalTimeline(canonicalTimeline, updatedSummary, snapped));
+        }
         onSummaryChange(updatedSummary);
       }
     })

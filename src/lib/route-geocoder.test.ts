@@ -6,7 +6,7 @@ import {
   enrichSmartStopHubs,
 } from './route-geocoder';
 import type { TimedEvent } from './trip-timeline';
-import { clearHubCache } from './hub-cache';
+import { cacheDiscoveredHub, clearHubCache } from './hub-cache';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -324,5 +324,89 @@ describe('enrichSmartStopHubs', () => {
 
     expect(second[0].hubName).toBe('Baton Rouge, LA');
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('still applies cached hubs to later stops after the reverse-geocode budget is spent', async () => {
+    for (let i = 0; i < 4; i++) {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        mockNominatimResponse({ town: `Town ${i + 1}`, ISO3166_2_lvl4: 'US-TX' }) as Response
+      );
+    }
+
+    cacheDiscoveredHub({
+      name: 'Orlando, FL',
+      lat: 28.54,
+      lng: -81.38,
+      radius: 25,
+      poiCount: 8,
+      discoveredAt: new Date().toISOString(),
+      source: 'discovered',
+    });
+
+    const enriched = await enrichSmartStopHubs([
+      {
+        id: 'fuel-1',
+        type: 'fuel',
+        reason: 'fuel stop',
+        afterSegmentIndex: 0,
+        estimatedTime: BASE_DATE,
+        duration: 15,
+        priority: 'recommended',
+        details: {},
+        lat: 31.0,
+        lng: -100.0,
+      },
+      {
+        id: 'fuel-2',
+        type: 'fuel',
+        reason: 'fuel stop',
+        afterSegmentIndex: 1,
+        estimatedTime: BASE_DATE,
+        duration: 15,
+        priority: 'recommended',
+        details: {},
+        lat: 31.1,
+        lng: -100.1,
+      },
+      {
+        id: 'fuel-3',
+        type: 'fuel',
+        reason: 'fuel stop',
+        afterSegmentIndex: 2,
+        estimatedTime: BASE_DATE,
+        duration: 15,
+        priority: 'recommended',
+        details: {},
+        lat: 31.2,
+        lng: -100.2,
+      },
+      {
+        id: 'fuel-4',
+        type: 'fuel',
+        reason: 'fuel stop',
+        afterSegmentIndex: 3,
+        estimatedTime: BASE_DATE,
+        duration: 15,
+        priority: 'recommended',
+        details: {},
+        lat: 31.3,
+        lng: -100.3,
+      },
+      {
+        id: 'fuel-5',
+        type: 'fuel',
+        reason: 'fuel stop',
+        afterSegmentIndex: 4,
+        estimatedTime: BASE_DATE,
+        duration: 15,
+        priority: 'recommended',
+        details: {},
+        lat: 28.53,
+        lng: -81.37,
+      },
+    ]);
+
+    expect(enriched[4].hubName).toBe('Orlando, FL');
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });

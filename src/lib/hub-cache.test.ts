@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   findKnownHub,
   findHubInWindow,
+  findPreferredHubInWindow,
   resolveHubName,
   analyzeForHub,
   seedHubCache,
@@ -195,6 +196,36 @@ describe('findHubInWindow', () => {
     const outOfWindow = findHubInWindow(47.4, -96.789, 50);
     expect(inWindow).not.toBeNull();
     expect(outOfWindow).toBeNull();
+  });
+});
+
+describe('findPreferredHubInWindow', () => {
+  it('prefers a stronger corridor hub over a slightly closer minor settlement', () => {
+    seedHubCache([
+      {
+        name: 'El Paso, TX',
+        lat: 31.7619,
+        lng: -106.485,
+        radius: 40,
+        poiCount: 20,
+        discoveredAt: '2026-01-01',
+        source: 'seed',
+      },
+      {
+        name: 'Praxedis G. Guerrero',
+        lat: 31.7,
+        lng: -106.3,
+        radius: 12,
+        poiCount: 1,
+        discoveredAt: '2026-01-01',
+        source: 'discovered',
+      },
+    ]);
+
+    const result = findPreferredHubInWindow(31.74, -106.36, 40);
+
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('El Paso, TX');
   });
 });
 

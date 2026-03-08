@@ -4,7 +4,7 @@ import { snapOvernightsToTowns } from './overnight-snapper';
 
 const mocks = vi.hoisted(() => ({
   executeOverpassQuery: vi.fn(),
-  findHubInWindow: vi.fn(),
+  findPreferredHubInWindow: vi.fn(),
   cacheDiscoveredHub: vi.fn(),
   reverseGeocodeTown: vi.fn(),
 }));
@@ -14,7 +14,7 @@ vi.mock('./poi-service/overpass', () => ({
 }));
 
 vi.mock('./hub-cache', () => ({
-  findHubInWindow: mocks.findHubInWindow,
+  findPreferredHubInWindow: mocks.findPreferredHubInWindow,
   cacheDiscoveredHub: mocks.cacheDiscoveredHub,
 }));
 
@@ -65,13 +65,13 @@ function makeTransitDay(): TripDay {
 describe('snapOvernightsToTowns', () => {
   beforeEach(() => {
     mocks.executeOverpassQuery.mockReset();
-    mocks.findHubInWindow.mockReset();
+    mocks.findPreferredHubInWindow.mockReset();
     mocks.cacheDiscoveredHub.mockReset();
     mocks.reverseGeocodeTown.mockReset();
   });
 
   it('prefers a nearby known hub over an awkward border-adjacent settlement', async () => {
-    mocks.findHubInWindow.mockReturnValue({
+    mocks.findPreferredHubInWindow.mockReturnValue({
       name: 'El Paso, TX',
       lat: 31.7619,
       lng: -106.485,
@@ -102,7 +102,7 @@ describe('snapOvernightsToTowns', () => {
   });
 
   it('falls back to reverse geocoding when no hub or Overpass settlement is found', async () => {
-    mocks.findHubInWindow.mockReturnValue(null);
+    mocks.findPreferredHubInWindow.mockReturnValue(null);
     mocks.executeOverpassQuery.mockResolvedValue([]);
     mocks.reverseGeocodeTown.mockResolvedValue('Lake Charles, LA');
 

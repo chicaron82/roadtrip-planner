@@ -1,6 +1,6 @@
 import type { RouteSegment, Location, ProcessedSegment } from '../../types';
 import { interpolateRoutePosition } from '../route-geocoder';
-import { findHubInWindow } from '../hub-cache';
+import { findPreferredHubInWindow } from '../hub-cache';
 import { TRIP_CONSTANTS } from '../trip-constants';
 
 export type { ProcessedSegment };
@@ -112,7 +112,7 @@ export function splitLongSegments(
 
       // Snap to known hub if within 80km — gives real city names like "Thunder Bay, ON"
       // instead of generic "Winnipeg → Toronto (transit)" placeholders.
-      const nearbyHub = findHubInWindow(lat, lng);
+      const nearbyHub = findPreferredHubInWindow(lat, lng);
       const fromCity = seg.from.name.split(',')[0].trim();
       const toCity = seg.to.name.split(',')[0].trim();
       const locationName = nearbyHub

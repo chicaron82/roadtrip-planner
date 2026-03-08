@@ -252,13 +252,13 @@ export async function enrichSmartStopHubs(
   let lookups = 0;
 
   for (let i = 0; i < enrichedStops.length; i++) {
-    if (signal?.aborted || lookups >= MAX_STOP_HUB_LOOKUPS) break;
+    if (signal?.aborted) break;
 
     const stop = enrichedStops[i];
     if (stop.type !== 'fuel' || stop.hubName || stop.lat == null || stop.lng == null) continue;
 
     let hubName = resolveHubName(stop.lat, stop.lng);
-    if (!hubName) {
+    if (!hubName && lookups < MAX_STOP_HUB_LOOKUPS) {
       hubName = await reverseGeocodeTown(stop.lat, stop.lng, signal);
       lookups++;
       if (!hubName) continue;
@@ -273,6 +273,8 @@ export async function enrichSmartStopHubs(
         source: 'discovered',
       });
     }
+
+    if (!hubName) continue;
 
     enrichedStops[i] = { ...stop, hubName };
   }

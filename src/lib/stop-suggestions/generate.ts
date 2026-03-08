@@ -15,10 +15,11 @@ import {
   checkOvernightStop,
   applyTimezoneShift,
 } from './stop-checks';
-import { findHubInWindow, cacheDiscoveredHub } from '../hub-cache';
+import { findPreferredHubInWindow, cacheDiscoveredHub } from '../hub-cache';
 import { interpolateRoutePosition } from '../route-geocoder';
 import { lngToIANA, ianaToAbbr } from '../trip-timezone';
 import { getTimezoneShiftHours } from './timezone';
+import { haversineDistance } from '../poi-ranking';
 
 function createInitialState(config: StopSuggestionConfig, segments: RouteSegment[]): SimState {
   const stopFrequency = config.stopFrequency || 'balanced';
@@ -91,13 +92,25 @@ export function generateSmartStops(
   const totalRouteDistanceKm = segments.reduce((sum, seg) => sum + seg.distanceKm, 0);
   let cumulativeDistanceKm = 0;
 
+  const geometryCoversRoundTrip = !!(
+    isRoundTrip &&
+    fullGeometry &&
+    fullGeometry.length > 1 &&
+    haversineDistance(
+      fullGeometry[0][0],
+      fullGeometry[0][1],
+      fullGeometry[fullGeometry.length - 1][0],
+      fullGeometry[fullGeometry.length - 1][1],
+    ) < 5
+  );
+
   // For round trips, the fullGeometry covers only the outbound leg.
   // Return-leg positions must be mirrored back onto this geometry so
   // hub name lookups resolve correctly (otherwise they fall off the end).
   const outboundTotalKm = isRoundTrip ? totalRouteDistanceKm / 2 : totalRouteDistanceKm;
   /** Map a cumulative-km position onto the outbound geometry, mirroring return-leg positions. */
   const toGeometryKm = (km: number): number => {
-    if (isRoundTrip && km > outboundTotalKm) {
+    if (isRoundTrip && !geometryCoversRoundTrip && km > outboundTotalKm) {
       return Math.max(0, outboundTotalKm - (km - outboundTotalKm));
     }
     return km;
@@ -173,7 +186,7 @@ export function generateSmartStops(
     if (arrivalSug) {
       arrivalSug.afterSegmentIndex += (segOrigIdx - index);
       // Overnight fires before this segment — current position is segment.from
-      const fromHub = findHubInWindow(segment.from.lat, segment.from.lng, 40);
+      const fromHub = findPreferredHubInWindow(segment.from.lat, segment.from.lng, 40);
       if (fromHub) arrivalSug.hubName = fromHub.name;
       suggestions.push(arrivalSug);
     }
@@ -233,13 +246,13 @@ export function generateSmartStops(
     //    has no hub (sparse stretches between seeded cities).
     let hubName: string | undefined;
     if (index > 0) {
-      const fromHub = findHubInWindow(segment.from.lat, segment.from.lng, 40);
+      const fromHub = findPreferredHubInWindow(segment.from.lat, segment.from.lng, 40);
       if (fromHub) hubName = fromHub.name;
     }
     if (!hubName && fullGeometry && fullGeometry.length > 1) {
       const pos = interpolateRoutePosition(fullGeometry, toGeometryKm(segmentStartKm + segment.distanceKm * 0.5));
       if (pos) {
-        const hub = findHubInWindow(pos.lat, pos.lng);
+        const hub = findPreferredHubInWindow(pos.lat, pos.lng);
         if (hub) hubName = hub.name;
       }
     }
@@ -249,7 +262,7 @@ export function generateSmartStops(
     // segment.from = this segment.to = the hub, and it gets correctly labeled.
     // wouldRunCriticallyLow guard: critical stops always fire immediately.
     const endpointHub = (!hubName && !wouldRunCriticallyLow && !inDestinationGraceZone && index > 0)
-      ? findHubInWindow(segment.to.lat, segment.to.lng, 40)
+      ? findPreferredHubInWindow(segment.to.lat, segment.to.lng, 40)
       : null;
 
     // Fuel stop check
@@ -309,7 +322,7 @@ export function generateSmartStops(
       ? (kmIntoSegment: number): string | undefined => {
           const pos = interpolateRoutePosition(fullGeometry!, toGeometryKm(segmentStartKm + kmIntoSegment));
           if (!pos) return undefined;
-          const hub = findHubInWindow(pos.lat, pos.lng);
+          const hub = findPreferredHubInWindow(pos.lat, pos.lng);
           return hub?.name;
         }
       : undefined;
@@ -362,7 +375,7 @@ export function generateSmartStops(
       if (overnightSug) {
         overnightSug.afterSegmentIndex += (segOrigIdx - index);
         // Overnight fires after driving this segment — current position is segment.to
-        const toHub = findHubInWindow(segment.to.lat, segment.to.lng, 40);
+        const toHub = findPreferredHubInWindow(segment.to.lat, segment.to.lng, 40);
         if (toHub) overnightSug.hubName = toHub.name;
         suggestions.push(overnightSug);
       }

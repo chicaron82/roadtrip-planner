@@ -79,4 +79,85 @@ describe('createTimelineLocationResolver', () => {
 
     expect(resolver.resolveWaypointName({ afterSegmentIndex: 0.01 } as never, 1290)).toBe('Lake Charles');
   });
+
+  it('does not leak the trip origin into a mid-route stop on a round trip', () => {
+    const segments: RouteSegment[] = [
+      makeSegment({
+        from: { id: 'dl', name: 'Disneyland, Anaheim', lat: 33.81, lng: -117.92, type: 'waypoint' },
+        to: { id: 'wdw', name: 'Walt Disney World, Florida', lat: 28.38, lng: -81.56, type: 'waypoint' },
+        distanceKm: 4033,
+        durationMinutes: 2230,
+      }),
+      makeSegment({
+        from: { id: 'wdw', name: 'Walt Disney World, Florida', lat: 28.38, lng: -81.56, type: 'waypoint' },
+        to: { id: 'dl', name: 'Disneyland, Anaheim', lat: 33.81, lng: -117.92, type: 'waypoint' },
+        distanceKm: 4033,
+        durationMinutes: 2230,
+      }),
+    ];
+
+    const resolver = createTimelineLocationResolver(
+      'Disneyland, Anaheim',
+      segments,
+      buildSegmentEndKm(segments),
+      [] as ProcessedSegment[],
+      [],
+    );
+
+    expect(resolver.makeLocationHint(4033 - 200, 'Disneyland, Anaheim')).toBe('~3835 km into trip');
+  });
+
+  it('does not leak the trip origin into a mid-route stop via hub names either', () => {
+    const segments: RouteSegment[] = [
+      makeSegment({
+        from: { id: 'dl', name: 'Disneyland, Anaheim', lat: 33.81, lng: -117.92, type: 'waypoint' },
+        to: { id: 'wdw', name: 'Walt Disney World, Florida', lat: 28.38, lng: -81.56, type: 'waypoint' },
+        distanceKm: 4033,
+        durationMinutes: 2230,
+      }),
+      makeSegment({
+        from: { id: 'wdw', name: 'Walt Disney World, Florida', lat: 28.38, lng: -81.56, type: 'waypoint' },
+        to: { id: 'dl', name: 'Disneyland, Anaheim', lat: 33.81, lng: -117.92, type: 'waypoint' },
+        distanceKm: 4033,
+        durationMinutes: 2230,
+      }),
+    ];
+
+    const resolver = createTimelineLocationResolver(
+      'Disneyland, Anaheim',
+      segments,
+      buildSegmentEndKm(segments),
+      [] as ProcessedSegment[],
+      [],
+    );
+
+    expect(resolver.makeLocationHint(4033 - 200, undefined, 'Disneyland, Anaheim')).toBe('~3835 km into trip');
+  });
+
+  it('still allows the turnaround destination name when the stop is actually near that boundary', () => {
+    const segments: RouteSegment[] = [
+      makeSegment({
+        from: { id: 'dl', name: 'Disneyland, Anaheim', lat: 33.81, lng: -117.92, type: 'waypoint' },
+        to: { id: 'wdw', name: 'Walt Disney World, Florida', lat: 28.38, lng: -81.56, type: 'waypoint' },
+        distanceKm: 4033,
+        durationMinutes: 2230,
+      }),
+      makeSegment({
+        from: { id: 'wdw', name: 'Walt Disney World, Florida', lat: 28.38, lng: -81.56, type: 'waypoint' },
+        to: { id: 'dl', name: 'Disneyland, Anaheim', lat: 33.81, lng: -117.92, type: 'waypoint' },
+        distanceKm: 4033,
+        durationMinutes: 2230,
+      }),
+    ];
+
+    const resolver = createTimelineLocationResolver(
+      'Disneyland, Anaheim',
+      segments,
+      buildSegmentEndKm(segments),
+      [] as ProcessedSegment[],
+      [],
+    );
+
+    expect(resolver.makeLocationHint(4033 + 25, undefined, 'Walt Disney World, Florida')).toBe('near Walt Disney World, Florida');
+  });
 });

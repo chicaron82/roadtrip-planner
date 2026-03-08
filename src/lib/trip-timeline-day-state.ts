@@ -1,7 +1,7 @@
 import type { ProcessedSegment, RouteSegment, TripDay, TripSettings } from '../types';
 import type { SuggestedStop } from './stop-suggestions';
 import type { TimedEvent } from './trip-timeline-types';
-import { findHubInWindow } from './hub-cache';
+import { findPreferredHubInWindow } from './hub-cache';
 import { formatDateInZone, parseLocalDateInTZ } from './trip-timezone';
 
 export interface TimelineIterationPlan {
@@ -160,6 +160,12 @@ interface ResolveDayDepartureLocationParams {
   segmentIndex: number;
 }
 
+function isUsableNamedLocation(name?: string | null): name is string {
+  if (!name) return false;
+  const trimmed = name.trim();
+  return !!trimmed && !trimmed.includes('(transit)') && !trimmed.includes(' → ');
+}
+
 function resolveDayDepartureLocation({
   newDay,
   tripDays,
@@ -193,8 +199,15 @@ function resolveDayDepartureLocation({
   let departLocation = rawOvernight ?? null;
   if (!departLocation || departLocation.includes('(transit)') || departLocation.includes(' → ')) {
     const fromSegment = iterSegments[segmentIndex];
-    const fromHub = findHubInWindow(fromSegment.from.lat, fromSegment.from.lng, 40);
-    departLocation = fromHub?.name ?? departLocation ?? fromSegment.from.name;
+    const exactFromName = isUsableNamedLocation(fromSegment.from.name)
+      ? fromSegment.from.name.trim()
+      : null;
+    if (exactFromName) {
+      departLocation = exactFromName;
+    } else {
+      const fromHub = findPreferredHubInWindow(fromSegment.from.lat, fromSegment.from.lng, 40);
+      departLocation = fromHub?.name ?? departLocation ?? fromSegment.from.name;
+    }
   }
 
   if (departLocation.includes(' → ')) departLocation = departLocation.split(' → ')[0].trim();

@@ -293,6 +293,55 @@ export function findHubInWindow(
   return bestHub;
 }
 
+function scorePracticalHubCandidate(hub: DiscoveredHub, distanceKm: number): number {
+  const sourceBonus = hub.source === 'seed'
+    ? 18
+    : hub.source === 'promoted'
+      ? 12
+      : Math.min(6, (hub.useCount ?? 0) * 2);
+  const serviceScore = hub.poiCount * 2.5 + hub.radius * 0.35;
+  const distancePenalty = distanceKm * 1.2;
+  return serviceScore + sourceBonus - distancePenalty;
+}
+
+/**
+ * Find the most practical hub within a window, balancing proximity against
+ * likely services. This favors major corridor cities over tiny nearby border
+ * settlements when the user-facing label should reflect the place they'd
+ * realistically stop.
+ */
+export function findPreferredHubInWindow(
+  currentLat: number,
+  currentLng: number,
+  windowKm: number = 80,
+): DiscoveredHub | null {
+  const hubs = loadCache();
+
+  let bestHub: DiscoveredHub | null = null;
+  let bestScore = -Infinity;
+  let bestDist = Infinity;
+
+  for (const hub of hubs) {
+    if (!isUsableHubName(hub.name)) continue;
+
+    const distanceKm = haversineDistance(currentLat, currentLng, hub.lat, hub.lng);
+    if (distanceKm > windowKm) continue;
+
+    const score = scorePracticalHubCandidate(hub, distanceKm);
+    if (score > bestScore || (score === bestScore && distanceKm < bestDist)) {
+      bestHub = hub;
+      bestScore = score;
+      bestDist = distanceKm;
+    }
+  }
+
+  if (bestHub) {
+    recordHubUse(bestHub, hubs);
+  }
+
+  return bestHub;
+}
+
 // ─── Debug / Admin ────────────────────────────────────────────────────────────
 
 /**
