@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import type { Location, Vehicle, TripSettings, TripSummary, POISuggestion, TripJournal, StopType, DayType, OvernightStop, TripMode, TripChallenge } from '../../types';
-import { Button } from '../UI/Button';
 import { OvernightStopPrompt } from '../Trip/OvernightStopPrompt';
 import { type ViewMode } from '../Trip/JournalModeToggle';
 import { analyzeFeasibility } from '../../lib/feasibility';
@@ -135,7 +134,7 @@ export function Step3Content({
     const time = d.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit', hour12: true });
     if (settings.isRoundTrip && summary.roundTripMidpoint) {
       const destSeg = summary.segments[summary.roundTripMidpoint - 1];
-      return { dest: destSeg?.to.name ?? lastSeg.to.name, time, isRoundTrip: true as const };
+      return { dest: destSeg?.to.name ?? lastSeg?.to.name ?? 'Destination', time, isRoundTrip: true as const };
     }
     return { dest: lastSeg?.to.name ?? 'Destination', time, isRoundTrip: false as const };
   }, [precomputedEvents, summary, settings]);

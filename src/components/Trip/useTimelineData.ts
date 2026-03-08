@@ -56,6 +56,7 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
   });
 
   const {
+    acceptedItinerary,
     simulationItems,
     overnightNightsByDay,
     driverRotation,
@@ -78,6 +79,7 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
     pacingSuggestions,
     pacingSuggestionsByDay,
     activeSuggestions,
+    acceptedItinerary,
     simulationItems,
     pendingSuggestions,
     pendingSuggestionsByDay,

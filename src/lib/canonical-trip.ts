@@ -9,6 +9,7 @@
  * Migration path:
  *   1. ✅ useTripCalculation.ts produces CanonicalTripTimeline alongside TripSummary
  *   2. ItineraryTimeline switches to ItineraryInput (days + summary)
+ *      and accepted-stop editing uses AcceptedItineraryInput (days + summary + events)
  *   3. trip-print-builders switches to PrintInput (days + summary + inputs)
  *   4. useGhostCar switches to GhostCarInput (events)
  *   5. TripSummary reference in calculateTrip() return type → CanonicalTripTimeline
@@ -88,6 +89,19 @@ export type GhostCarInput = Pick<CanonicalTripTimeline, 'events'>;
 
 /** What the itinerary view renders */
 export type ItineraryInput = Pick<CanonicalTripTimeline, 'days' | 'summary'>;
+
+/**
+ * Canonical-shaped itinerary slice used by the editor after user accept/dismiss
+ * choices are applied. This differs from CanonicalTripTimeline because the main
+ * calculation timeline includes the full smart-stop set, while the editor only
+ * advances time through accepted stops.
+ */
+export interface AcceptedItineraryTimeline extends ItineraryInput {
+  events: TimedEvent[];
+}
+
+/** What the editable itinerary surface consumes after accepted-stop filtering */
+export type AcceptedItineraryInput = Pick<AcceptedItineraryTimeline, 'days' | 'summary' | 'events'>;
 
 /** What print / PDF formats */
 export type PrintInput = Pick<CanonicalTripTimeline, 'days' | 'summary' | 'inputs'>;

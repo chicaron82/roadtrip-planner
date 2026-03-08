@@ -28,7 +28,7 @@ interface TripPrintViewProps {
 
 
 export function printTrip(props: TripPrintViewProps): void {
-  const { summary, settings, vehicle } = props;
+  const { summary, settings } = props;
   const days = summary.days || [];
 
   if (!props.precomputedEvents.length) {

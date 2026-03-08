@@ -71,6 +71,7 @@ export function ItineraryTimeline({
   onStopOverridesChange,
 }: ItineraryTimelineProps) {
   const {
+    acceptedItinerary,
     startTime,
     originTimezone,
     pacingSuggestions,
@@ -91,6 +92,8 @@ export function ItineraryTimeline({
     setEditingOvernight,
   } = useTimelineData({ summary, settings, vehicle, days, externalStops, initialOverrides: initialStopOverrides, onStopOverridesChange });
 
+  const itineraryDays = acceptedItinerary.days.map(day => day.meta);
+
   // Collapsible days state — for trips with 5+ days, allow collapse/expand
   const [collapsedDays, setCollapsedDays] = useState<Set<number>>(new Set());
   const toggleDayCollapse = (dayNumber: number) => {
@@ -106,8 +109,8 @@ export function ItineraryTimeline({
   };
 
   // Calculate day counts for header
-  const drivingDays = days?.filter(d => d.segmentIndices.length > 0).length ?? 1;
-  const freeDays = days?.filter(d => d.segmentIndices.length === 0).length ?? 0;
+  const drivingDays = itineraryDays.filter(d => d.segmentIndices.length > 0).length || 1;
+  const freeDays = itineraryDays.filter(d => d.segmentIndices.length === 0).length;
   const totalDays = drivingDays + freeDays;
 
   // Track the standalone activity currently being edited on a Free Day
@@ -115,13 +118,14 @@ export function ItineraryTimeline({
 
   // Last stop's flat index — used for destination detection
   const lastStopFlatIndex = useMemo(() => {
-    for (let i = simulationItems.length - 1; i >= 0; i--) {
-      if (simulationItems[i].type === 'stop' && simulationItems[i].index !== undefined) {
-        return simulationItems[i].index;
+    for (let i = acceptedItinerary.events.length - 1; i >= 0; i--) {
+      const event = acceptedItinerary.events[i];
+      if ((event.type === 'waypoint' || event.type === 'arrival') && event.flatIndex !== undefined) {
+        return event.flatIndex;
       }
     }
     return -1;
-  }, [simulationItems]);
+  }, [acceptedItinerary.events]);
 
   return (
     <div className="space-y-6">
@@ -161,11 +165,11 @@ export function ItineraryTimeline({
       <ItineraryTimelineBody
         summary={summary}
         settings={settings}
-        days={days}
+        days={itineraryDays}
         startTime={startTime}
         originTimezone={originTimezone}
         simulationItems={simulationItems}
-        lastStopFlatIndex={lastStopFlatIndex}
+        lastStopFlatIndex={lastStopFlatIndex ?? -1}
         dayStartMap={dayStartMap}
         freeDaysAfterSegment={freeDaysAfterSegment}
         pacingSuggestionsByDay={pacingSuggestionsByDay}
@@ -185,7 +189,6 @@ export function ItineraryTimeline({
         onUpdateDayType={onUpdateDayType}
         onAddDayActivity={onAddDayActivity}
         onUpdateDayActivity={onUpdateDayActivity}
-        onRemoveDayActivity={onRemoveDayActivity}
         onUpdateDayNotes={onUpdateDayNotes}
         onUpdateDayTitle={onUpdateDayTitle}
         onAddDayOption={onAddDayOption}

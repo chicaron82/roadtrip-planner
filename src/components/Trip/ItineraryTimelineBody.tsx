@@ -35,7 +35,6 @@ interface ItineraryTimelineBodyProps {
   onUpdateDayType?: (dayNumber: number, dayType: DayType) => void;
   onAddDayActivity?: (dayNumber: number, activity: Activity) => void;
   onUpdateDayActivity?: (dayNumber: number, activityIndex: number, activity: Activity) => void;
-  onRemoveDayActivity?: (dayNumber: number, activityIndex: number) => void;
   onUpdateDayNotes?: (dayNumber: number, notes: string) => void;
   onUpdateDayTitle?: (dayNumber: number, title: string) => void;
   onAddDayOption?: (dayNumber: number, option: DayOption) => void;
@@ -71,7 +70,6 @@ export function ItineraryTimelineBody({
   onUpdateDayType,
   onAddDayActivity,
   onUpdateDayActivity,
-  onRemoveDayActivity,
   onUpdateDayNotes,
   onUpdateDayTitle,
   onAddDayOption,

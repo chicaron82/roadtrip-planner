@@ -1,6 +1,6 @@
 import type { TripSummary, TripSettings, Vehicle, TripDay } from '../types';
 import type { SuggestedStop } from './stop-suggestions';
-import { buildTimedTimeline } from './trip-timeline';
+import { buildTimedTimeline, type TimedEvent } from './trip-timeline';
 
 export interface SimulationItem {
   type: 'gas' | 'stop' | 'suggested';
@@ -27,6 +27,7 @@ interface BuildSimulationItemsParams {
   days: TripDay[] | undefined;
   startTime: Date;
   activeSuggestions: SuggestedStop[];
+  precomputedEvents?: TimedEvent[];
 }
 
 /**
@@ -47,21 +48,20 @@ export function buildSimulationItems({
   days,
   startTime,
   activeSuggestions,
+  precomputedEvents,
 }: BuildSimulationItemsParams): SimulationItem[] {
-  // Pass accepted suggestions to the canonical engine.
-  // Overnight stops are included so buildTimedTimeline can advance the clock
-  // to next-morning departure; they are filtered out of the SimulationItem output.
-  const acceptedSuggestions = activeSuggestions.filter(s => s.accepted);
-
-  const timedEvents = buildTimedTimeline(
-    summary.segments,
-    acceptedSuggestions,
-    settings,
-    summary.roundTripMidpoint,
-    undefined,
-    days,
-    startTime,
-  );
+  const timedEvents = precomputedEvents ?? (() => {
+    const acceptedSuggestions = activeSuggestions.filter(s => s.accepted);
+    return buildTimedTimeline(
+      summary.segments,
+      acceptedSuggestions,
+      settings,
+      summary.roundTripMidpoint,
+      undefined,
+      days,
+      startTime,
+    );
+  })();
 
   const items: SimulationItem[] = [];
 

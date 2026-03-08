@@ -8,6 +8,7 @@ import type { StrategicFuelStop } from './calculations';
 import type { SuggestedStop } from './stop-suggestion-types';
 import type { CanonicalTripTimeline, CanonicalTripDay } from './canonical-trip';
 import type { TimedEvent } from './trip-timeline';
+import { groupEventsByTripDay } from './accepted-itinerary-timeline';
 import { calculateRoute } from './api';
 import { calculateTripCosts, calculateArrivalTimes } from './calculations';
 import { buildRoundTripSegments } from './trip-calculation-helpers';
@@ -72,23 +73,7 @@ export function assembleCanonicalTimeline(
   summary: TripSummary,
   inputs: CanonicalTripTimeline['inputs'],
 ): CanonicalTripTimeline {
-  const days: CanonicalTripDay[] = tripDays.map(day => {
-    if (day.segments.length === 0) return { meta: day, events: [] };
-    const dep = events.find(
-      e => e.type === 'departure' && formatDateInZone(e.arrivalTime, e.timezone ?? 'UTC') === day.date
-    );
-    if (!dep) return { meta: day, events: [] };
-    const depMs = dep.arrivalTime.getTime();
-    const nextDepMs = events.find(
-      e => e.type === 'departure' && e.arrivalTime.getTime() > depMs
-    )?.arrivalTime.getTime() ?? Infinity;
-    return {
-      meta: day,
-      events: events.filter(
-        e => e.arrivalTime.getTime() >= depMs && e.arrivalTime.getTime() < nextDepMs
-      ),
-    };
-  });
+  const days: CanonicalTripDay[] = groupEventsByTripDay(events, tripDays);
   return { events, days, summary, inputs };
 }
 

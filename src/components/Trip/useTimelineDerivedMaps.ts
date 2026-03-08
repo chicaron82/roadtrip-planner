@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import type { TripSummary, TripSettings, Vehicle, TripDay } from '../../types';
+import type { AcceptedItineraryInput } from '../../lib/canonical-trip';
 import { assignDrivers, extractFuelStopIndices } from '../../lib/driver-rotation';
-import { flattenDrivingSegments } from '../../lib/flatten-driving-segments';
+import { buildAcceptedItineraryTimeline } from '../../lib/accepted-itinerary-timeline';
 import { buildSimulationItems } from '../../lib/timeline-simulation';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
 
@@ -14,6 +15,16 @@ interface UseTimelineDerivedMapsParams {
   activeSuggestions: SuggestedStop[];
 }
 
+interface UseTimelineDerivedMapsResult {
+  acceptedItinerary: AcceptedItineraryInput;
+  simulationItems: ReturnType<typeof buildSimulationItems>;
+  overnightNightsByDay: Map<number, number>;
+  driverRotation: ReturnType<typeof assignDrivers> | null;
+  driverBySegment: Map<number, number>;
+  dayStartMap: Map<number, { day: TripDay; isFirst: boolean }[]>;
+  freeDaysAfterSegment: Map<number, TripDay[]>;
+}
+
 export function useTimelineDerivedMaps({
   summary,
   settings,
@@ -21,7 +32,17 @@ export function useTimelineDerivedMaps({
   days,
   startTime,
   activeSuggestions,
-}: UseTimelineDerivedMapsParams) {
+}: UseTimelineDerivedMapsParams): UseTimelineDerivedMapsResult {
+  const tripDays = days ?? summary.days ?? [];
+
+  const acceptedItinerary = useMemo(() => buildAcceptedItineraryTimeline({
+    summary,
+    settings,
+    tripDays,
+    startTime,
+    activeSuggestions,
+  }), [summary, settings, tripDays, startTime, activeSuggestions]);
+
   const simulationItems = useMemo(() => buildSimulationItems({
     summary,
     settings,
@@ -29,7 +50,8 @@ export function useTimelineDerivedMaps({
     days,
     startTime,
     activeSuggestions,
-  }), [summary, settings, vehicle, days, startTime, activeSuggestions]);
+    precomputedEvents: acceptedItinerary.events,
+  }), [summary, settings, vehicle, days, startTime, activeSuggestions, acceptedItinerary.events]);
 
   const overnightNightsByDay = useMemo(() => {
     const map = new Map<number, number>();
@@ -73,61 +95,65 @@ export function useTimelineDerivedMaps({
     return new Map(driverRotation.assignments.map(assignment => [assignment.segmentIndex, assignment.driver]));
   }, [driverRotation]);
 
-  const flatResult = useMemo(
-    () => flattenDrivingSegments(summary.segments, days),
-    [summary.segments, days],
-  );
+  const drivingDayFlatBounds = useMemo(() => {
+    const bounds = new Map<number, { start: number; end: number }>();
+    let nextFlatIndex = 0;
+
+    acceptedItinerary.days.forEach(day => {
+      if (day.meta.segmentIndices.length === 0) return;
+      const start = nextFlatIndex;
+      const end = start + Math.max(day.meta.segments.length - 1, 0);
+      bounds.set(day.meta.dayNumber, { start, end });
+      nextFlatIndex += day.meta.segments.length;
+    });
+
+    return bounds;
+  }, [acceptedItinerary.days]);
 
   const dayStartMap = useMemo(() => {
     const map = new Map<number, { day: TripDay; isFirst: boolean }[]>();
-    if (!days) return map;
+    const firstDrivingDayNumber = acceptedItinerary.days.find(day => day.meta.segmentIndices.length > 0)?.meta.dayNumber;
 
-    const drivingDays = days.filter(day => day.segmentIndices.length > 0);
-    if (drivingDays.length > 0) {
-      const firstIndex = days.indexOf(drivingDays[0]);
-      map.set(0, [{ day: drivingDays[0], isFirst: firstIndex === 0 }]);
-    }
+    acceptedItinerary.days.forEach(day => {
+      if (day.meta.segmentIndices.length === 0) return;
+      const startEvent = day.events.find(event =>
+        (event.type === 'waypoint' || event.type === 'arrival') && event.flatIndex !== undefined,
+      );
+      const fallback = drivingDayFlatBounds.get(day.meta.dayNumber)?.start;
+      const flatIndex = startEvent?.flatIndex ?? fallback;
+      if (flatIndex === undefined) return;
 
-    flatResult.dayBoundaries.forEach((day, flatIndex) => {
-      const dayIndex = days.indexOf(day);
       const existing = map.get(flatIndex) ?? [];
-      map.set(flatIndex, [...existing, { day, isFirst: dayIndex === 0 }]);
+      map.set(flatIndex, [...existing, { day: day.meta, isFirst: day.meta.dayNumber === firstDrivingDayNumber }]);
     });
 
     return map;
-  }, [days, flatResult]);
+  }, [acceptedItinerary.days, drivingDayFlatBounds]);
 
   const freeDaysAfterSegment = useMemo(() => {
     const map = new Map<number, TripDay[]>();
-    if (!days) return map;
+    let lastDrivingFlatIndex: number | undefined;
 
-    const dayLastFlat = new Map<number, number>();
-    const drivingDays = days.filter(day => day.segmentIndices.length > 0);
-    let runningIndex = 0;
-    drivingDays.forEach(day => {
-      dayLastFlat.set(day.dayNumber, runningIndex + day.segments.length - 1);
-      runningIndex += day.segments.length;
-    });
+    acceptedItinerary.days.forEach(day => {
+      if (day.meta.segmentIndices.length > 0) {
+        const lastStopEvent = [...day.events].reverse().find(event =>
+          (event.type === 'waypoint' || event.type === 'arrival') && event.flatIndex !== undefined,
+        );
+        lastDrivingFlatIndex = lastStopEvent?.flatIndex ?? drivingDayFlatBounds.get(day.meta.dayNumber)?.end;
+        return;
+      }
 
-    days.forEach(day => {
-      if (day.segmentIndices.length > 0) return;
-      const dayIndex = days.indexOf(day);
-      for (let index = dayIndex - 1; index >= 0; index--) {
-        if (days[index].segmentIndices.length > 0) {
-          const lastFlat = dayLastFlat.get(days[index].dayNumber);
-          if (lastFlat !== undefined) {
-            const existing = map.get(lastFlat) ?? [];
-            map.set(lastFlat, [...existing, day]);
-          }
-          break;
-        }
+      if (lastDrivingFlatIndex !== undefined) {
+        const existing = map.get(lastDrivingFlatIndex) ?? [];
+        map.set(lastDrivingFlatIndex, [...existing, day.meta]);
       }
     });
 
     return map;
-  }, [days]);
+  }, [acceptedItinerary.days, drivingDayFlatBounds]);
 
   return {
+    acceptedItinerary,
     simulationItems,
     overnightNightsByDay,
     driverRotation,
