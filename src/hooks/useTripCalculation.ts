@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useLayoutEffect } from 'react';
 import type { Location, Vehicle, TripSettings, TripSummary, TripDay, RouteStrategy, StopType, DayType, OvernightStop } from '../types';
 import type { StrategicFuelStop } from '../lib/calculations';
 import type { CanonicalTripTimeline } from '../lib/canonical-trip';
@@ -78,6 +78,12 @@ export function useTripCalculation({
   // Retain roundTripMidpoint across calculations so updateStopType can re-split days correctly
   const roundTripMidpointRef = useRef<number | undefined>(undefined);
 
+  // Ref-sync for settings — prevents calculateTrip from getting a new identity on
+  // every settings change (e.g. editing hotel price between calculations).
+  // useLayoutEffect ensures the ref is current before any paint.
+  const settingsRef = useRef(settings);
+  useLayoutEffect(() => { settingsRef.current = settings; });
+
   const calculateTrip = useCallback(async (): Promise<TripSummary | null> => {
     setIsCalculating(true);
     setError(null);
@@ -87,8 +93,12 @@ export function useTripCalculation({
     const geocodeController = new AbortController();
     geocodeAbortRef.current = geocodeController;
 
+    // Read settings from ref so this callback doesn't need settings in its dep array.
+    // The ref is kept current via useLayoutEffect above.
+    const currentSettings = settingsRef.current;
+
     try {
-      const result = await orchestrateTrip(locations, vehicle, settings);
+      const result = await orchestrateTrip(locations, vehicle, currentSettings);
       const { tripSummary, canonicalTimeline, projectedFuelStops } = result;
       roundTripMidpointRef.current = result.roundTripMidpoint;
 
@@ -102,12 +112,12 @@ export function useTripCalculation({
       });
 
       checkAndSetOvernightPrompt(
-        tripSummary, tripSummary.days!, settings,
+        tripSummary, tripSummary.days!, currentSettings,
         setSuggestedOvernightStop, setShowOvernightPrompt,
       );
 
       addToHistory(tripSummary);
-      serializeStateToURL(locations, vehicle, settings);
+      serializeStateToURL(locations, vehicle, currentSettings);
       setShareUrl(window.location.href);
       setLocalSummary(tripSummary);
       onSummaryChange(tripSummary);
@@ -115,7 +125,7 @@ export function useTripCalculation({
 
       setRouteStrategies([]);
       setActiveStrategyIndex(0);
-      fetchAllRouteStrategies(locations, settings.avoidTolls).then(strategies => {
+      fetchAllRouteStrategies(locations, currentSettings.avoidTolls).then(strategies => {
         if (!geocodeController.signal.aborted) {
           setRouteStrategies(strategies);
         }
@@ -138,7 +148,7 @@ export function useTripCalculation({
     } finally {
       setIsCalculating(false);
     }
-  }, [locations, vehicle, settings, onSummaryChange, onCalculationComplete]);
+  }, [locations, vehicle, onSummaryChange, onCalculationComplete]);
 
   // Switch to a named route strategy — swaps geometry + recalculates fuel costs.
   // Day itinerary, weather, and POIs are preserved from the primary calculation.

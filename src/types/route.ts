@@ -169,7 +169,7 @@ export interface TripSummary {
   costPerPerson: number;
   drivingDays: number;
   segments: RouteSegment[];
-  fullGeometry: number[][]; // [lat, lng][]
+  fullGeometry: [number, number][]; // [lat, lng][]
   displayDate?: string;
   // Phase C: Multi-day & budget tracking
   days?: TripDay[];

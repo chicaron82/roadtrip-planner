@@ -128,6 +128,15 @@ export async function fetchRouteGeometry(locations: Location[]): Promise<[number
 }
 
 const routeCache = new Map<string, string>();
+const MAX_ROUTE_CACHE_SIZE = 20;
+
+/** Set a cache entry, evicting the oldest when the cap is exceeded. */
+function setCacheEntry(key: string, value: string): void {
+  routeCache.set(key, value);
+  if (routeCache.size > MAX_ROUTE_CACHE_SIZE) {
+    routeCache.delete(routeCache.keys().next().value!);
+  }
+}
 
 function getRouteCacheKey(locations: Location[], options?: { avoidTolls?: boolean; avoidBorders?: boolean; scenicMode?: boolean }): string {
   const locStr = locations.map(l => `${l.lat.toFixed(4)},${l.lng.toFixed(4)}`).join('|');
@@ -173,7 +182,7 @@ export async function calculateRoute(locations: Location[], options?: { avoidTol
         if (safeResult) {
           // Return the safe route but map segments back to original locations
           // (guard waypoints appear as intermediate stops)
-          routeCache.set(cacheKey, JSON.stringify(safeResult));
+          setCacheEntry(cacheKey, JSON.stringify(safeResult));
           return safeResult;
         }
         // If reroute fails, fall through to the original route
@@ -181,7 +190,7 @@ export async function calculateRoute(locations: Location[], options?: { avoidTol
     }
   }
 
-  routeCache.set(cacheKey, JSON.stringify(result));
+  setCacheEntry(cacheKey, JSON.stringify(result));
   return result;
 }
 
@@ -254,7 +263,8 @@ async function fetchOSRMRoute(
 
   try {
     const response = await fetch(
-      `https://router.project-osrm.org/route/v1/driving/${waypoints}?overview=full&geometries=geojson&steps=false${excludeParam}`
+      `https://router.project-osrm.org/route/v1/driving/${waypoints}?overview=full&geometries=geojson&steps=false${excludeParam}`,
+      { signal: AbortSignal.timeout(15_000) }
     );
     if (!response.ok) return null;
     const data = await response.json();

@@ -148,6 +148,10 @@ function AppContent() {
   // ==================== RENDER ====================
 
   const hasActiveSession = locations.some(loc => loc.name && loc.name.trim() !== '');
+  const lastDestination = (() => {
+    const segs = history[0]?.segments;
+    return segs && segs.length > 0 ? segs[segs.length - 1].to.name : undefined;
+  })();
 
   const mapProps = useMapProps({
     locations, validRouteGeometry, routeFeasibilityStatus,
@@ -194,7 +198,7 @@ function AppContent() {
           onContinueSavedTrip={() => setTripMode('plan')}
           hasActiveSession={hasActiveSession}
           onResumeSession={handleResumeSession}
-          lastDestination={(() => { const segs = history[0]?.segments; return segs && segs.length > 0 ? segs[segs.length - 1].to.name : undefined; })()}
+          lastDestination={lastDestination}
         />
       )}
 

@@ -19,6 +19,8 @@ export interface Location {
 }
 
 export interface Vehicle {
+  /** Optional id — set when a vehicle has been saved to the garage (SavedVehicle extends this). */
+  id?: string;
   year: string;
   make: string;
   model: string;

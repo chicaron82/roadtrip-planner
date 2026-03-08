@@ -139,6 +139,35 @@ export function Step3Content({
     return { dest: lastSeg?.to.name ?? 'Destination', time, isRoundTrip: false as const };
   }, [precomputedEvents, summary, settings]);
 
+  // Overnight stop prompt times — derived from segment data and settings
+  const overnightTimes = useMemo(() => {
+    let arrivalTime = '5:00 PM';
+    let departureTime = '8:00 AM';
+
+    if (suggestedOvernightStop && summary) {
+      const overnightSeg = summary.segments.find(seg => seg.to.name === suggestedOvernightStop.name);
+      if (overnightSeg?.arrivalTime) {
+        const d = new Date(overnightSeg.arrivalTime);
+        if (!isNaN(d.getTime())) {
+          arrivalTime = d.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit', hour12: true });
+        }
+      }
+    }
+
+    if (settings.departureTime) {
+      const [hStr, mStr] = settings.departureTime.split(':');
+      const h = parseInt(hStr, 10);
+      const m = parseInt(mStr, 10);
+      if (!isNaN(h) && !isNaN(m)) {
+        const d = new Date();
+        d.setHours(h, m, 0, 0);
+        departureTime = d.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit', hour12: true });
+      }
+    }
+
+    return { arrivalTime, departureTime };
+  }, [suggestedOvernightStop, summary, settings.departureTime]);
+
   return (
     <div className="space-y-4">
       {estimate && <EstimateBreakdown estimate={estimate} />}
@@ -160,8 +189,8 @@ export function Step3Content({
           hoursBeforeStop={(summary.totalDurationMinutes / 60) * 0.5}
           distanceBeforeStop={summary.totalDistanceKm * 0.5}
           numTravelers={settings.numTravelers}
-          arrivalTime="5:00 PM"
-          departureTime="8:00 AM"
+          arrivalTime={overnightTimes.arrivalTime}
+          departureTime={overnightTimes.departureTime}
           onAccept={() => {
             if (!summary) return;
             const segmentIndex = summary.segments.findIndex(

@@ -78,7 +78,7 @@ export function buildRoundTripSegments(
   // Extend fullGeometry to cover both legs (return follows road in reverse)
   const outboundGeo = tripSummary.fullGeometry ?? [];
   const returnGeo = [...outboundGeo].reverse();
-  tripSummary.fullGeometry = [...outboundGeo, ...returnGeo.slice(1)] as [number, number][];
+  tripSummary.fullGeometry = [...outboundGeo, ...returnGeo.slice(1)];
 
   return { segments, roundTripMidpoint };
 }

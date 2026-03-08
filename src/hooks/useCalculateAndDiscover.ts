@@ -41,7 +41,7 @@ export function useCalculateAndDiscover({
     const destination = locations.find(l => l.type === 'destination');
     if (origin && destination && tripResult.fullGeometry) {
       fetchRoutePOIs(
-        tripResult.fullGeometry as [number, number][],
+        tripResult.fullGeometry,
         origin, destination,
         settings.tripPreferences,
         tripResult.segments,

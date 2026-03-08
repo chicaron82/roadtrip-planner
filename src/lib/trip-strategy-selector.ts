@@ -72,7 +72,7 @@ export function buildStrategyUpdate(
 
   // Calculate strategic fuel stops for this strategy
   const stratFuelStops = calculateStrategicFuelStops(
-    strategy.geometry as [number, number][],
+    strategy.geometry,
     allSegments,
     vehicle,
     settings
@@ -84,7 +84,7 @@ export function buildStrategyUpdate(
     settings.departureDate,
     settings.departureTime,
     outboundLength,
-    strategy.geometry as [number, number][],
+    strategy.geometry,
     stratFuelStops,
   );
 

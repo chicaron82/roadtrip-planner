@@ -250,7 +250,7 @@ export function orchestrateStopUpdate(
   const updatedDays = splitTripByDays(
     segmentsWithTimes, settings,
     settings.departureDate, settings.departureTime,
-    roundTripMidpoint, localSummary.fullGeometry as [number, number][],
+    roundTripMidpoint, localSummary.fullGeometry,
   );
 
   const updatedCostBreakdown = updatedDays.length > 0
@@ -272,7 +272,7 @@ export function orchestrateStopUpdate(
 
   const refreshedSmartStops = generateSmartStops(
     segmentsWithTimes,
-    createStopConfig(vehicle, settings, localSummary.fullGeometry as number[][], localSummary.segments[0]?.from.lng),
+    createStopConfig(vehicle, settings, localSummary.fullGeometry, localSummary.segments[0]?.from.lng),
     updatedDays,
   );
 

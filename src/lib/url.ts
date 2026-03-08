@@ -182,12 +182,62 @@ export const parseStateFromURL = (): { locations?: Location[], vehicle?: Vehicle
     if (!locs && !veh && !set) return null;
 
     try {
-        const parsedLocs = locs ? JSON.parse(locs) : undefined;
-        // Re-add IDs to locations only if missing (preserve existing IDs)
-        const locations = parsedLocs?.map((l: Partial<Location>) => ({ ...l, id: l.id || crypto.randomUUID() }));
+        // ── Locations ────────────────────────────────────────────────────────
+        let locations: Location[] | undefined;
+        if (locs) {
+            const parsedLocs = JSON.parse(locs);
+            if (Array.isArray(parsedLocs)) {
+                const validated = parsedLocs.filter((l: unknown) => {
+                    if (!l || typeof l !== 'object') return false;
+                    const loc = l as Record<string, unknown>;
+                    const lat = loc.lat as number;
+                    const lng = loc.lng as number;
+                    return (
+                        typeof loc.name === 'string' &&
+                        typeof lat === 'number' && Number.isFinite(lat) && Math.abs(lat) <= 90 &&
+                        typeof lng === 'number' && Number.isFinite(lng) && Math.abs(lng) <= 180
+                    );
+                });
+                // Re-add IDs to locations only if missing (preserve existing IDs)
+                locations = validated.map((l: Partial<Location>) => ({ ...l, id: l.id || crypto.randomUUID() })) as Location[];
+            }
+        }
 
-        const vehicle = veh ? JSON.parse(veh) : undefined;
-        const settings = set ? JSON.parse(set) : undefined;
+        // ── Vehicle ──────────────────────────────────────────────────────────
+        let vehicle: Vehicle | undefined;
+        if (veh) {
+            const parsedVeh = JSON.parse(veh);
+            if (parsedVeh && typeof parsedVeh === 'object') {
+                const v = parsedVeh as Record<string, unknown>;
+                const city = v.fuelEconomyCity as number;
+                const hwy = v.fuelEconomyHwy as number;
+                const tank = v.tankSize as number;
+                if (
+                    Number.isFinite(city) && city > 0 &&
+                    Number.isFinite(hwy) && hwy > 0 &&
+                    Number.isFinite(tank) && tank > 0
+                ) {
+                    vehicle = parsedVeh as Vehicle;
+                }
+            }
+        }
+
+        // ── Settings ─────────────────────────────────────────────────────────
+        let settings: TripSettings | undefined;
+        if (set) {
+            const parsedSet = JSON.parse(set);
+            if (parsedSet && typeof parsedSet === 'object') {
+                const s = parsedSet as Record<string, unknown>;
+                // Sanity-check the numeric fields most likely to cause calculation errors
+                const numericChecks = ['maxDriveHours', 'numTravelers', 'numDrivers', 'gasPrice'] as const;
+                const numericOk = numericChecks.every(k =>
+                    s[k] === undefined || (typeof s[k] === 'number' && Number.isFinite(s[k] as number) && (s[k] as number) >= 0)
+                );
+                if (numericOk) {
+                    settings = parsedSet as TripSettings;
+                }
+            }
+        }
 
         return { locations, vehicle, settings };
     } catch (e) {

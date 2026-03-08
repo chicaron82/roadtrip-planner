@@ -73,10 +73,13 @@ export const getHistory = (): TripSummary[] => {
 
 export const addToHistory = (summary: TripSummary) => {
     const history = getHistory();
-    // Add new trip to start
-    const newEntry = {
-        ...summary,
-        // Add a timestamp or ID if needed, but summary usually has data
+    // Strip fullGeometry before storing — it can be thousands of coordinate pairs
+    // per entry and will quickly exhaust the ~5MB localStorage budget.
+    // The history UI only needs segments, costs, and metadata.
+    const { fullGeometry: _geom, ...summaryWithoutGeometry } = summary;
+    const newEntry: TripSummary = {
+        ...summaryWithoutGeometry,
+        fullGeometry: [],
         displayDate: new Date().toISOString()
     };
 

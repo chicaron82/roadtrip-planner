@@ -74,12 +74,13 @@ export function usePOI(): UsePOIReturn {
   const toggleCategory = useCallback(async (id: POICategory, searchLocation: Location | null, routeGeometry?: [number, number][] | null) => {
     setError(null);
 
-    const newCategories = markerCategories.map((c) =>
-      c.id === id ? { ...c, visible: !c.visible } : c
-    );
-    setMarkerCategories(newCategories);
-
-    const targetCategory = newCategories.find((c) => c.id === id);
+    // Functional update — no need for markerCategories in the dep array
+    let targetCategory: MarkerCategory | undefined;
+    setMarkerCategories(prev => {
+      const updated = prev.map((c) => c.id === id ? { ...c, visible: !c.visible } : c);
+      targetCategory = updated.find((c) => c.id === id);
+      return updated;
+    });
 
     if (targetCategory?.visible) {
       // Need either a route or a search location
@@ -120,7 +121,7 @@ export function usePOI(): UsePOIReturn {
       // Hide category - remove those POIs
       setPois((prev) => prev.filter((p) => p.category !== id));
     }
-  }, [markerCategories]);
+  }, []);
 
   const clearError = useCallback(() => {
     setError(null);
