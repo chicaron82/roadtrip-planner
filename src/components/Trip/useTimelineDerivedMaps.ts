@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import type { TripSummary, TripSettings, Vehicle, TripDay } from '../../types';
 import type { AcceptedItineraryInput } from '../../lib/canonical-trip';
 import { assignDrivers, extractFuelStopIndices } from '../../lib/driver-rotation';
+import { buildDayPlacementMaps, type DayStartEntry } from '../../lib/day-placement-maps';
 import { buildAcceptedItineraryTimeline } from '../../lib/accepted-itinerary-timeline';
 import { buildSimulationItems } from '../../lib/timeline-simulation';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
@@ -21,7 +22,7 @@ interface UseTimelineDerivedMapsResult {
   overnightNightsByDay: Map<number, number>;
   driverRotation: ReturnType<typeof assignDrivers> | null;
   driverBySegment: Map<number, number>;
-  dayStartMap: Map<number, { day: TripDay; isFirst: boolean }[]>;
+  dayStartMap: Map<number, DayStartEntry[]>;
   freeDaysAfterSegment: Map<number, TripDay[]>;
 }
 
@@ -95,62 +96,10 @@ export function useTimelineDerivedMaps({
     return new Map(driverRotation.assignments.map(assignment => [assignment.segmentIndex, assignment.driver]));
   }, [driverRotation]);
 
-  const drivingDayFlatBounds = useMemo(() => {
-    const bounds = new Map<number, { start: number; end: number }>();
-    let nextFlatIndex = 0;
-
-    acceptedItinerary.days.forEach(day => {
-      if (day.meta.segmentIndices.length === 0) return;
-      const start = nextFlatIndex;
-      const end = start + Math.max(day.meta.segments.length - 1, 0);
-      bounds.set(day.meta.dayNumber, { start, end });
-      nextFlatIndex += day.meta.segments.length;
-    });
-
-    return bounds;
-  }, [acceptedItinerary.days]);
-
-  const dayStartMap = useMemo(() => {
-    const map = new Map<number, { day: TripDay; isFirst: boolean }[]>();
-    const firstDrivingDayNumber = acceptedItinerary.days.find(day => day.meta.segmentIndices.length > 0)?.meta.dayNumber;
-
-    acceptedItinerary.days.forEach(day => {
-      if (day.meta.segmentIndices.length === 0) return;
-      const startEvent = day.events.find(event =>
-        (event.type === 'waypoint' || event.type === 'arrival') && event.flatIndex !== undefined,
-      );
-      const fallback = drivingDayFlatBounds.get(day.meta.dayNumber)?.start;
-      const flatIndex = startEvent?.flatIndex ?? fallback;
-      if (flatIndex === undefined) return;
-
-      const existing = map.get(flatIndex) ?? [];
-      map.set(flatIndex, [...existing, { day: day.meta, isFirst: day.meta.dayNumber === firstDrivingDayNumber }]);
-    });
-
-    return map;
-  }, [acceptedItinerary.days, drivingDayFlatBounds]);
-
-  const freeDaysAfterSegment = useMemo(() => {
-    const map = new Map<number, TripDay[]>();
-    let lastDrivingFlatIndex: number | undefined;
-
-    acceptedItinerary.days.forEach(day => {
-      if (day.meta.segmentIndices.length > 0) {
-        const lastStopEvent = [...day.events].reverse().find(event =>
-          (event.type === 'waypoint' || event.type === 'arrival') && event.flatIndex !== undefined,
-        );
-        lastDrivingFlatIndex = lastStopEvent?.flatIndex ?? drivingDayFlatBounds.get(day.meta.dayNumber)?.end;
-        return;
-      }
-
-      if (lastDrivingFlatIndex !== undefined) {
-        const existing = map.get(lastDrivingFlatIndex) ?? [];
-        map.set(lastDrivingFlatIndex, [...existing, day.meta]);
-      }
-    });
-
-    return map;
-  }, [acceptedItinerary.days, drivingDayFlatBounds]);
+  const { dayStartMap, freeDaysAfterSegment } = useMemo(
+    () => buildDayPlacementMaps(acceptedItinerary.days, 'flat'),
+    [acceptedItinerary.days],
+  );
 
   return {
     acceptedItinerary,

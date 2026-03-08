@@ -152,11 +152,11 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
           if (isGuard) {
             return dayHeaders.length > 0 ? (
               <div key={`guard-days-${index}`}>
-                {dayHeaders.map(day => (
+                {dayHeaders.map(({ day, isFirst }) => (
                   <DayHeader
                     key={`day-${day.dayNumber}`}
                     day={day}
-                    isFirst={day.dayNumber === 1}
+                    isFirst={isFirst}
                     className="mb-6"
                   />
                 ))}
@@ -173,8 +173,8 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
 
           return (
             <div key={`stop-${index}`}>
-              {dayHeaders.map(day => (
-                <DayHeader key={`day-${day.dayNumber}`} day={day} isFirst={day.dayNumber === 1} className="mb-6" />
+              {dayHeaders.map(({ day, isFirst }) => (
+                <DayHeader key={`day-${day.dayNumber}`} day={day} isFirst={isFirst} className="mb-6" />
               ))}
 
               {/* Inline Add Memory Button */}

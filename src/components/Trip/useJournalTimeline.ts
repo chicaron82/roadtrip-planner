@@ -1,6 +1,10 @@
 import { useState, useMemo } from 'react';
-import type { TripSummary, TripSettings, TripJournal, JournalEntry, JournalPhoto, QuickCapture, TripDay } from '../../types';
+import type { TripSummary, TripSettings, TripJournal, JournalEntry, JournalPhoto, QuickCapture } from '../../types';
+import { groupEventsByTripDay } from '../../lib/accepted-itinerary-timeline';
+import { buildDayPlacementMaps } from '../../lib/day-placement-maps';
 import { showToast } from '../../lib/toast';
+import { buildTimedTimeline } from '../../lib/trip-timeline';
+import { lngToIANA, parseLocalDateInTZ } from '../../lib/trip-timezone';
 
 interface UseJournalTimelineParams {
   summary: TripSummary;
@@ -17,44 +21,37 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
   }>({});
 
   const startTime = useMemo(
-    () => new Date(`${settings.departureDate}T${settings.departureTime}`),
-    [settings.departureDate, settings.departureTime],
+    () => {
+      const originLng = summary.segments[0]?.from.lng;
+      if (originLng !== undefined) {
+        return parseLocalDateInTZ(settings.departureDate, settings.departureTime, lngToIANA(originLng));
+      }
+      return new Date(`${settings.departureDate}T${settings.departureTime}`);
+    },
+    [settings.departureDate, settings.departureTime, summary.segments],
   );
 
-  // Build map: segmentIndex → TripDay[] for days starting at each segment.
-  // Multiple driving days can share the same original segment index when
-  // splitLongSegments splits a single OSRM segment into multi-day sub-segments
-  // (e.g. Dryden → Montreal: Day 1 and Day 2 both reference segment 0).
-  const dayStartMap = useMemo(() => {
-    const map = new Map<number, TripDay[]>();
-    if (summary.days) {
-      for (const day of summary.days) {
-        if (day.segmentIndices.length > 0) {
-          const idx = day.segmentIndices[0];
-          map.set(idx, [...(map.get(idx) ?? []), day]);
-        }
-      }
-    }
-    return map;
-  }, [summary.days]);
+  const canonicalDays = useMemo(() => {
+    const tripDays = summary.days ?? [];
+    if (tripDays.length === 0) return [];
 
-  // Build map: last-segment-index-of-driving-day → free TripDay[]
-  const freeDaysAfterSegment = useMemo(() => {
-    const map = new Map<number, TripDay[]>();
-    if (!summary.days) return map;
-    const drivingDays = summary.days.filter(d => d.segmentIndices.length > 0);
-    const freeDays = summary.days.filter(d => d.dayType === 'free');
-    for (const freeDay of freeDays) {
-      const prevDrivingDay = drivingDays
-        .filter(d => d.dayNumber < freeDay.dayNumber)
-        .sort((a, b) => b.dayNumber - a.dayNumber)[0];
-      if (prevDrivingDay) {
-        const lastIdx = prevDrivingDay.segmentIndices[prevDrivingDay.segmentIndices.length - 1];
-        map.set(lastIdx, [...(map.get(lastIdx) || []), freeDay]);
-      }
-    }
-    return map;
-  }, [summary.days]);
+    const events = buildTimedTimeline(
+      summary.segments,
+      [],
+      settings,
+      summary.roundTripMidpoint,
+      undefined,
+      tripDays,
+      startTime,
+    );
+
+    return groupEventsByTripDay(events, tripDays);
+  }, [summary.segments, summary.days, settings, summary.roundTripMidpoint, startTime]);
+
+  const { dayStartMap, freeDaysAfterSegment } = useMemo(
+    () => buildDayPlacementMaps(canonicalDays, 'original'),
+    [canonicalDays],
+  );
 
   // Find current/next stop (first unvisited non-guard stop)
   const currentStopIndex = useMemo(() => {
