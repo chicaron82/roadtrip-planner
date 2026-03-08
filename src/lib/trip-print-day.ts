@@ -15,6 +15,8 @@ import {
   getWeatherEmoji,
 } from './trip-print-formatters';
 
+// ── Event HTML builder ───────────────────────────────────────────────────────
+
 export function buildEventHTML(
   event: TimedEvent,
   units: 'metric' | 'imperial',
@@ -68,6 +70,8 @@ export function buildEventHTML(
   `;
 }
 
+// ── Segment HTML builder (legacy fallback) ──────────────────────────────────
+
 export function buildSegmentHTML(
   segment: RouteSegment,
   driver: number | undefined,
@@ -107,6 +111,8 @@ export function buildSegmentHTML(
     </div>
   `;
 }
+
+// ── Day HTML builder ─────────────────────────────────────────────────────────
 
 export function buildDayHTML(
   day: TripDay,

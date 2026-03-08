@@ -3,6 +3,8 @@ import type { TimedEvent } from './trip-timeline-types';
 import { formatCurrencySimple as formatCurrency, formatDistance as formatDistanceFull } from './calculations';
 import { formatTimeInZone } from './trip-timezone';
 
+// ── Formatting helpers ───────────────────────────────────────────────────────
+
 export const formatDistance = (km: number, units: 'metric' | 'imperial') =>
   formatDistanceFull(km, units, 0);
 
@@ -20,6 +22,8 @@ export function getDriverForSegment(
   if (!driverRotation) return undefined;
   return driverRotation.assignments.find(assignment => assignment.segmentIndex === segIndex)?.driver;
 }
+
+// ── Event type helpers ───────────────────────────────────────────────────────
 
 export function getEventEmoji(type: TimedEvent['type']): string {
   switch (type) {

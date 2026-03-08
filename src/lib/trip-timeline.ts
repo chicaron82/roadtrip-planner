@@ -1,5 +1,12 @@
 /**
  * trip-timeline.ts — Timed event builder
+ *
+ * Converts raw route segments + smart stop suggestions into a clock-annotated
+ * sequence of events: departure → drive → stop → drive → ... → arrival.
+ *
+ * This is pure data transformation — no React, no I/O. Easy to test.
+ *
+ * 💚 My Experience Engine
  */
 
 import type { RouteSegment, TripSettings, TripDay } from '../types';
@@ -25,6 +32,17 @@ import {
 export { formatTime, formatDuration } from './trip-timeline-helpers';
 export type { TimedEvent, TimedEventType } from './trip-timeline-types';
 
+/**
+ * Build a flat list of timed events for a route.
+ *
+ * Key design:
+ *   1. Stops are placed by their `estimatedTime`, not just `afterSegmentIndex`.
+ *      For single-segment routes (e.g. Winnipeg → Thunder Bay, 700km), all stops
+ *      share the same afterSegmentIndex but have different estimatedTimes.
+ *   2. Long drives are split around mid-segment stops.
+ *   3. Overnight stops advance clock to the next planned departure morning.
+ *   4. Each stop is emitted at most once.
+ */
 export function buildTimedTimeline(
   segments: RouteSegment[],
   suggestions: SuggestedStop[],
