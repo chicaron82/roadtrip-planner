@@ -88,7 +88,7 @@ export function analyzeDriveTime(
         message: `Day 1: departing at ${settings.departureTime} means arriving around ${arrivalLabel}`,
         detail: `With ${formatDuration(day1.totals.driveTimeMinutes)} of driving, you'll arrive ~${overByHours}h past your ${targetArrivalHour}:00 target. ${availableHours < effectiveElapsedHours ? 'The drive is longer than the day allows.' : ''}`,
         dayNumber: 1,
-        suggestion: `Depart by ${suggestedLabel} to arrive near your ${targetArrivalHour}:00 target, or add a planned overnight stop to split the drive.${driverHint}`,
+        suggestion: `Depart by ${suggestedLabel} to arrive near your ${targetArrivalHour}:00 target.${actualDriveHours > settings.maxDriveHours ? ' Or add a planned overnight stop to split the drive.' : ''}${driverHint}`,
       });
     }
   }
