@@ -362,7 +362,7 @@ export const PRINT_STYLES = `
 
   .cover-brand-name {
     font-size: 7.5pt;
-    letter-spacing: 0.2em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: #bbb;
     font-weight: 600;

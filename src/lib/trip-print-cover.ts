@@ -48,7 +48,7 @@ function buildHeroSection(
     `${settings.numTravelers} traveler${settings.numTravelers !== 1 ? 's' : ''}`,
   ];
   if (settings.numDrivers > 1) {
-    metaParts.push(`${settings.numDrivers} drivers`);
+    metaParts.push(`${settings.numDrivers} drivers rotating`);
   }
 
   return `
@@ -79,7 +79,7 @@ function buildBudgetStatusCard(
     // Open mode: just show the estimated cost
     if (!costBreakdown) return '';
     cardClass = 'cover-status-neutral';
-    headline = `📊 Est. cost: ${formatCurrency(costBreakdown.total)}`;
+    headline = `📊 Estimated trip cost: ${formatCurrency(costBreakdown.total)}`;
     detail = perPerson
       ? `≈ ${formatCurrency(perPerson)} per person`
       : '';
