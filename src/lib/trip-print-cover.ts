@@ -223,9 +223,28 @@ export function buildCoverPageHTML(
 
   const dateStr = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
 
+  // "Your MEE time" tagline — personal date range for the brand block
+  const allDays = summary.days ?? [];
+  const firstDay = allDays[0];
+  const lastDay  = allDays[allDays.length - 1];
+  let meeTimeStr = '';
+  if (firstDay?.date && lastDay?.date) {
+    const start     = new Date(firstDay.date + 'T00:00:00');
+    const end       = new Date(lastDay.date  + 'T00:00:00');
+    const startMonth = start.toLocaleDateString('en-US', { month: 'long' });
+    const endMonth   = end.toLocaleDateString('en-US',   { month: 'long' });
+    const endYear    = end.getFullYear();
+    meeTimeStr = startMonth === endMonth
+      ? ` — ${startMonth} ${start.getDate()}–${end.getDate()}, ${endYear}`
+      : ` — ${startMonth} ${start.getDate()} – ${endMonth} ${end.getDate()}, ${endYear}`;
+  }
+
   return `
     <div class="cover-page">
-      <div class="cover-brand">My Experience Engine</div>
+      <div class="cover-brand">
+        <div class="cover-brand-name">My Experience Engine (M.E.E)</div>
+        <div class="cover-brand-tagline">Your MEE time${meeTimeStr}</div>
+      </div>
       <hr class="cover-divider" />
       ${heroHTML}
       ${budgetHTML}

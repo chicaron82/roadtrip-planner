@@ -6,7 +6,12 @@
  */
 
 export const PRINT_STYLES = `
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  @page {
+    size: A4 portrait;
+    margin: 14mm 16mm 14mm 16mm;
+  }
 
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -337,6 +342,9 @@ export const PRINT_STYLES = `
     body { padding: 0; }
     .day-section { page-break-inside: avoid; }
     .overview { border-bottom-color: #000; }
+    .cover-page { page-break-after: always; min-height: auto; }
+    .driver-stats { page-break-inside: avoid; }
+    a { color: inherit; text-decoration: none; }
   }
 
   /* ── Cover page (Page 1) ──────────────────────────────────────────────── */
@@ -349,12 +357,23 @@ export const PRINT_STYLES = `
   }
 
   .cover-brand {
+    margin-bottom: 20px;
+  }
+
+  .cover-brand-name {
     font-size: 7.5pt;
     letter-spacing: 0.2em;
     text-transform: uppercase;
     color: #bbb;
     font-weight: 600;
-    margin-bottom: 20px;
+  }
+
+  .cover-brand-tagline {
+    font-size: 10.5pt;
+    color: #333;
+    font-weight: 400;
+    letter-spacing: 0.03em;
+    margin-top: 5px;
   }
 
   .cover-divider {
