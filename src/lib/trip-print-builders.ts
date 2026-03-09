@@ -11,6 +11,7 @@
 
 import type { TripSummary, TripSettings, TripDay, Vehicle } from '../types';
 import type { DriverRotationResult } from './driver-rotation';
+import { computeSwapAssignments, getDriverName } from './driver-rotation';
 import type { TimedEvent } from './trip-timeline';
 import { buildDayHTML } from './trip-print-day';
 import { PRINT_STYLES } from './trip-print-styles';
@@ -29,6 +30,21 @@ export function buildPrintHTML(
   const units = settings.units;
   let runningTripSpend = 0;
 
+  // Compute driver swap suggestions for accepted fuel/combo events.
+  // Collect accepted fuel stop references in time order, distribute unassigned
+  // drivers round-robin — same logic as the itinerary view's swapSuggestions.
+  const swapSuggestions: Record<string, number> =
+    driverRotation && settings.numDrivers > 1
+      ? computeSwapAssignments(
+          timedEvents
+            .filter(e => (e.type === 'fuel' || e.type === 'combo') && e.stops[0])
+            .sort((a, b) => a.arrivalTime.getTime() - b.arrivalTime.getTime())
+            .map(e => ({ id: e.stops[0].id })),
+          driverRotation,
+          settings.numDrivers,
+        )
+      : {};
+
   const feasibility = analyzeFeasibility(summary, settings);
   const coverHTML = buildCoverPageHTML(tripTitle, summary, settings, feasibility, driverRotation, vehicle);
 
@@ -37,7 +53,7 @@ export function buildPrintHTML(
     const tripBudgetRemaining = settings.budgetMode === 'plan-to-budget' && settings.budget.total > 0
       ? settings.budget.total - runningTripSpend
       : undefined;
-    return buildDayHTML(day, settings, driverRotation, units, timedEvents, tripBudgetRemaining);
+    return buildDayHTML(day, settings, driverRotation, units, timedEvents, tripBudgetRemaining, swapSuggestions, settings.driverNames);
   }).join('\n');
 
   return `<!DOCTYPE html>

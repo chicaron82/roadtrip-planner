@@ -21,6 +21,7 @@ export function buildEventHTML(
   event: TimedEvent,
   units: 'metric' | 'imperial',
   isFirst: boolean,
+  swapDriverName?: string,
 ): string {
   const emoji = getEventEmoji(event.type);
   const label = getEventLabel(event);
@@ -64,6 +65,7 @@ export function buildEventHTML(
         <div class="event-timing">
           Arrive ${formatTime(event.arrivalTime, event.timezone)} · ${formatDuration(event.durationMinutes)}${showDepart ? ` · Depart ${formatTime(event.departureTime, event.timezone)}` : ''}
         </div>
+        ${swapDriverName ? `<div class="swap-annotation">🔁 Driver swap — ${swapDriverName}</div>` : ''}
       </div>
     </div>
   `;
@@ -170,6 +172,8 @@ export function buildDayHTML(
   units: 'metric' | 'imperial',
   timedEvents: TimedEvent[],
   tripBudgetRemaining?: number,
+  swapSuggestions?: Record<string, number>,
+  driverNames?: string[],
 ): string {
   const dayType = day.dayType || 'planned';
   const departureMs = day.totals.departureTime ? new Date(day.totals.departureTime).getTime() : null;
@@ -201,7 +205,15 @@ export function buildDayHTML(
 
   let timelineHTML = '';
   if (normalizedDayEvents.length > 0) {
-    timelineHTML = normalizedDayEvents.map((event, index) => buildEventHTML(event, units, index === 0)).join('');
+    timelineHTML = normalizedDayEvents.map((event, index) => {
+      let swapDriverName: string | undefined;
+      if (swapSuggestions && (event.type === 'fuel' || event.type === 'combo')) {
+        const stopId = event.stops?.[0]?.id;
+        const driverNum = stopId != null ? swapSuggestions[stopId] : undefined;
+        if (driverNum != null) swapDriverName = getDriverName(driverNum, driverNames);
+      }
+      return buildEventHTML(event, units, index === 0, swapDriverName);
+    }).join('');
   } else if (dayType === 'planned' && day.segments.length > 0) {
     timelineHTML = day.segments.map((segment, index) => {
       const globalIndex = day.segmentIndices[index];

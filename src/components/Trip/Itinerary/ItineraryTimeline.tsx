@@ -10,6 +10,7 @@ import { DestinationDiscovery } from '../Discovery/DestinationDiscovery';
 import { TimelineDialogs, type EditingDayActivity } from './TimelineDialogs';
 import type { SuggestedStop } from '../../../lib/stop-suggestions';
 import { ItineraryTimelineBody } from './ItineraryTimelineBody';
+import { computeSwapAssignments, getDriverName } from '../../../lib/driver-rotation';
 
 // ==================== PROPS ====================
 
@@ -127,6 +128,20 @@ export function ItineraryTimeline({
     return -1;
   }, [acceptedItinerary.events]);
 
+  // Swap suggestions — maps stopId → driver number for unassigned drivers.
+  // Collects all pending fuel stops across days, sorts by time, distributes
+  // unassigned drivers round-robin. Empty when all drivers are fully assigned.
+  const swapSuggestions = useMemo((): Record<string, number> => {
+    if (!driverRotation || settings.numDrivers <= 1) return {};
+    const allFuelStops: SuggestedStop[] = [];
+    pendingSuggestionsByDay.forEach(stops =>
+      stops.filter(s => s.type === 'fuel').forEach(s => allFuelStops.push(s)),
+    );
+    pendingSuggestions.filter(s => s.type === 'fuel').forEach(s => allFuelStops.push(s));
+    allFuelStops.sort((a, b) => a.estimatedTime.getTime() - b.estimatedTime.getTime());
+    return computeSwapAssignments(allFuelStops, driverRotation, settings.numDrivers);
+  }, [driverRotation, pendingSuggestionsByDay, pendingSuggestions, settings.numDrivers]);
+
   return (
     <div className="space-y-6">
       {/* Trip Header Summary */}
@@ -156,6 +171,10 @@ export function ItineraryTimeline({
                 stop={stop}
                 onAccept={handleAccept}
                 onDismiss={handleDismiss}
+                swapDriver={swapSuggestions[stop.id] != null ? {
+                  number: swapSuggestions[stop.id],
+                  name: getDriverName(swapSuggestions[stop.id], settings.driverNames),
+                } : undefined}
               />
             ))}
           </div>
@@ -195,6 +214,7 @@ export function ItineraryTimeline({
         onRemoveDayOption={onRemoveDayOption}
         onSelectDayOption={onSelectDayOption}
         onUpdateOvernight={onUpdateOvernight}
+        swapSuggestions={swapSuggestions}
       />
 
       {/* Driver Stats (when multiple drivers) */}

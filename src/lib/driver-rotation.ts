@@ -202,6 +202,35 @@ export function extractFuelIndicesFromTimedEvents(
 }
 
 /**
+ * Compute driver swap suggestions for fuel stops when not all drivers are
+ * assigned segments (i.e. the trip has fewer flat segments than numDrivers).
+ *
+ * Returns a map of stopId → driver number for each fuel stop that should
+ * carry a "swap here" annotation. Unassigned drivers are distributed across
+ * the provided fuel stops in round-robin order by estimated time.
+ *
+ * Returns an empty map when every driver already has assigned segments — the
+ * swap suggestion cleanly retires itself when the rotation covers everyone.
+ */
+export function computeSwapAssignments(
+  fuelStops: Array<{ id: string }>,
+  rotation: DriverRotationResult,
+  numDrivers: number,
+): Record<string, number> {
+  const assignedNums = new Set(rotation.stats.map(s => s.driver));
+  const unassigned = Array.from({ length: numDrivers }, (_, i) => i + 1)
+    .filter(d => !assignedNums.has(d));
+
+  if (unassigned.length === 0 || fuelStops.length === 0) return {};
+
+  const swapMap: Record<string, number> = {};
+  fuelStops.forEach((stop, idx) => {
+    swapMap[stop.id] = unassigned[idx % unassigned.length];
+  });
+  return swapMap;
+}
+
+/**
  * Format driving time for display.
  * e.g., 185 → "3h 5m"
  */

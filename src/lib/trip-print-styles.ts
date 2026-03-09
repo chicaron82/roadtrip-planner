@@ -187,6 +187,19 @@ export const PRINT_STYLES = `
     font-family: ui-monospace, monospace;
   }
 
+  .swap-annotation {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+    font-size: 8pt;
+    font-family: ui-monospace, monospace;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #3b82f6;
+  }
+
   .time-saved {
     display: inline-block;
     background: #dcfce7;

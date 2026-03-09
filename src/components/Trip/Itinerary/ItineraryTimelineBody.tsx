@@ -42,6 +42,8 @@ interface ItineraryTimelineBodyProps {
   onRemoveDayOption?: (dayNumber: number, optionIndex: number) => void;
   onSelectDayOption?: (dayNumber: number, optionIndex: number) => void;
   onUpdateOvernight?: (dayNumber: number, overnight: OvernightStop) => void;
+  /** stopId → driver number for unassigned-driver swap annotations on fuel cards. */
+  swapSuggestions?: Record<string, number>;
 }
 
 export function ItineraryTimelineBody({
@@ -77,6 +79,7 @@ export function ItineraryTimelineBody({
   onRemoveDayOption,
   onSelectDayOption,
   onUpdateOvernight,
+  swapSuggestions = {},
 }: ItineraryTimelineBodyProps) {
   return (
     <div className="space-y-0 pt-2 relative pb-12">
@@ -207,6 +210,10 @@ export function ItineraryTimelineBody({
                               stop={stop}
                               onAccept={handleAccept}
                               onDismiss={handleDismiss}
+                              swapDriver={swapSuggestions[stop.id] != null ? {
+                                number: swapSuggestions[stop.id],
+                                name: getDriverName(swapSuggestions[stop.id], settings.driverNames),
+                              } : undefined}
                             />
                           </div>
                         ))}
