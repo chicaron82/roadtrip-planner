@@ -22,11 +22,22 @@ export function checkRestBreak(
   index: number,
   config: StopSuggestionConfig,
   stopTimeAddedMs: number,
+  fuelFraction?: number,
 ): SuggestedStop | null {
   const hoursSinceBreak = (state.currentTime.getTime() - state.lastBreakTime.getTime()) / (1000 * 60 * 60);
   if (hoursSinceBreak < state.restBreakInterval || segment.durationMinutes <= 30) return null;
 
   const numDriversText = config.numDrivers > 1 ? `${config.numDrivers} drivers` : 'solo driver';
+
+  // Multi-driver fuel top-up hint: if the tank is in the 40–80% range, this rest stop
+  // is a natural opportunity to top up without a dedicated fuel detour.
+  const topUpNote =
+    config.numDrivers >= 2 &&
+    fuelFraction !== undefined &&
+    fuelFraction >= 0.40 &&
+    fuelFraction < 0.80
+      ? ` Tank is at ${Math.round(fuelFraction * 100)}% — good opportunity to top up while you swap drivers.`
+      : '';
 
   state.lastBreakTime = new Date(state.currentTime);
   const restMs = 15 * 60 * 1000;
@@ -38,7 +49,7 @@ export function checkRestBreak(
   return {
     id: `rest-${index}`,
     type: 'rest',
-    reason: `${hoursSinceBreak.toFixed(1)} hours behind the wheel (${numDriversText}). Take a 15-minute break to stretch, use the restroom, and stay alert.`,
+    reason: `${hoursSinceBreak.toFixed(1)} hours behind the wheel (${numDriversText}). Take a 15-minute break to stretch, use the restroom, and stay alert.${topUpNote}`,
     afterSegmentIndex: index - 1,
     estimatedTime: new Date(state.lastBreakTime),
     duration: 15,

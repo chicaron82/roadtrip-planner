@@ -62,9 +62,7 @@ export function createEmptyDay(dayNumber: number, date: Date): TripDay {
       foodEstimate: 0,
       miscCost: 0,
       dayTotal: 0,
-      gasRemaining: 0,
-      hotelRemaining: 0,
-      foodRemaining: 0,
+      bankRemaining: 0,
     },
     totals: {
       distanceKm: 0,
@@ -81,9 +79,7 @@ export function createEmptyDay(dayNumber: number, date: Date): TripDay {
  */
 export function finalizeTripDay(
   day: TripDay,
-  gasRemaining: number,
-  hotelRemaining: number,
-  foodRemaining: number,
+  bankRemaining: number,
   settings: TripSettings,
   fuelStops?: StrategicFuelStop[],
 ): void {
@@ -228,9 +224,7 @@ export function finalizeTripDay(
     foodEstimate: roundedFood,
     miscCost: 0,
     dayTotal: roundedGas + roundedHotel + roundedFood,
-    gasRemaining: Math.round((gasRemaining - roundedGas) * 100) / 100,
-    hotelRemaining: Math.round((hotelRemaining - roundedHotel) * 100) / 100,
-    foodRemaining: Math.round((foodRemaining - roundedFood) * 100) / 100,
+    bankRemaining: Math.round((bankRemaining - (roundedGas + roundedHotel + roundedFood)) * 100) / 100,
   };
 }
 

@@ -3,10 +3,9 @@ import type { ProcessedSegment } from './segment-processor';
 import { TRIP_CONSTANTS } from '../trip-constants';
 import { getHotelMultiplier } from '../regional-costs';
 
+/** Single pool that every category draws from. */
 export interface BudgetRemaining {
-  gasRemaining: number;
-  hotelRemaining: number;
-  foodRemaining: number;
+  bankRemaining: number;
 }
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
@@ -15,21 +14,9 @@ export function formatHour(hour: number): string {
   return `${pad2(hour)}:00`;
 }
 
+/** Seed the bank from the user's total budget. */
 export function deriveBudgetRemaining(settings: TripSettings): BudgetRemaining {
-  const { budget } = settings;
-  const hasExplicitCategoryBudgets = budget.gas > 0 || budget.hotel > 0 || budget.food > 0;
-
-  return {
-    gasRemaining: hasExplicitCategoryBudgets
-      ? budget.gas
-      : budget.total > 0 ? budget.total * budget.weights.gas / 100 : 0,
-    hotelRemaining: hasExplicitCategoryBudgets
-      ? budget.hotel
-      : budget.total > 0 ? budget.total * budget.weights.hotel / 100 : 0,
-    foodRemaining: hasExplicitCategoryBudgets
-      ? budget.food
-      : budget.total > 0 ? budget.total * budget.weights.food / 100 : 0,
-  };
+  return { bankRemaining: settings.budget.total > 0 ? settings.budget.total : 0 };
 }
 
 export function getEffectiveMaxDriveMinutes(maxDriveMinutes: number): number {

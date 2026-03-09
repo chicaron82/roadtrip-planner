@@ -28,7 +28,7 @@ function makeDay(dayNumber: number, date: string, segments: ProcessedSegment[], 
     segments,
     segmentIndices,
     timezoneChanges: [],
-    budget: { gasUsed: 0, hotelCost: 0, foodEstimate: 0, miscCost: 0, dayTotal: 0, gasRemaining: 0, hotelRemaining: 0, foodRemaining: 0 },
+    budget: { gasUsed: 0, hotelCost: 0, foodEstimate: 0, miscCost: 0, dayTotal: 0, bankRemaining: 1000 },
     totals: {
       distanceKm: segments.reduce((sum, segment) => sum + segment.distanceKm, 0),
       driveTimeMinutes: segments.reduce((sum, segment) => sum + segment.durationMinutes, 0),

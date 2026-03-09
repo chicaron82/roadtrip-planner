@@ -26,9 +26,7 @@ function makeDay(route: string, fromName: string): TripDay {
       foodEstimate: 200,
       miscCost: 0,
       dayTotal: 605,
-      gasRemaining: 665,
-      hotelRemaining: 625,
-      foodRemaining: 675,
+      bankRemaining: 1000,
     },
     totals: {
       distanceKm: 1158,

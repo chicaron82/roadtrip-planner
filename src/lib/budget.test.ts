@@ -99,9 +99,7 @@ describe('calculateCostBreakdown', () => {
         foodEstimate: 80,
         miscCost: 10,
         dayTotal: 295,
-        gasRemaining: 100,
-        hotelRemaining: 200,
-        foodRemaining: 150,
+        bankRemaining: 1000,
       },
       totals: {
         distanceKm: 100,
@@ -125,9 +123,7 @@ describe('calculateCostBreakdown', () => {
         foodEstimate: 50,
         miscCost: 20,
         dayTotal: 115,
-        gasRemaining: 55,
-        hotelRemaining: 200,
-        foodRemaining: 100,
+        bankRemaining: 1000,
       },
       totals: {
         distanceKm: 130,

@@ -48,9 +48,7 @@ function makeTransitDay(): TripDay {
       foodEstimate: 0,
       miscCost: 0,
       dayTotal: 120,
-      gasRemaining: 0,
-      hotelRemaining: 0,
-      foodRemaining: 0,
+      bankRemaining: 1000,
     },
     totals: {
       distanceKm: 650,

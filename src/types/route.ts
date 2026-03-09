@@ -116,10 +116,8 @@ export interface DayBudget {
   foodEstimate: number;
   miscCost: number;
   dayTotal: number;
-  // Running totals (remaining from initial budget)
-  gasRemaining: number;
-  hotelRemaining: number;
-  foodRemaining: number;
+  /** Total budget remaining after this day's spend. Single pool — no per-category caps. */
+  bankRemaining: number;
 }
 
 // Per-day itinerary breakdown

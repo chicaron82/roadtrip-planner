@@ -27,22 +27,11 @@ function finalizeAndStoreDay(
   originalSegments: RouteSegment[],
   fuelStops?: StrategicFuelStop[],
 ): BudgetRemaining {
-  finalizeTripDay(
-    day,
-    budget.gasRemaining,
-    budget.hotelRemaining,
-    budget.foodRemaining,
-    settings,
-    fuelStops,
-  );
+  finalizeTripDay(day, budget.bankRemaining, settings, fuelStops);
   labelTransitDay(day, originalSegments);
   days.push(day);
 
-  return {
-    gasRemaining: day.budget.gasRemaining,
-    hotelRemaining: day.budget.hotelRemaining,
-    foodRemaining: day.budget.foodRemaining,
-  };
+  return { bankRemaining: day.budget.bankRemaining };
 }
 
 /**

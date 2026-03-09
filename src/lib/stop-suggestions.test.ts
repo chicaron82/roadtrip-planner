@@ -210,7 +210,7 @@ describe('generateSmartStops — overnight suppression', () => {
           roomsNeeded: 1,
         },
         timezoneChanges: [],
-        budget: { gasUsed: 0, hotelCost: 150, foodEstimate: 0, miscCost: 0, dayTotal: 150, gasRemaining: 0, hotelRemaining: 0, foodRemaining: 0 },
+        budget: { gasUsed: 0, hotelCost: 150, foodEstimate: 0, miscCost: 0, dayTotal: 150, bankRemaining: 1000 },
         totals: { distanceKm: 800, driveTimeMinutes: 480, stopTimeMinutes: 0, departureTime: '2026-08-01T08:00:00', arrivalTime: '2026-08-01T16:00:00' },
       },
     ];
@@ -241,7 +241,7 @@ describe('generateSmartStops — overnight suppression', () => {
           roomsNeeded: 1,
         },
         timezoneChanges: [],
-        budget: { gasUsed: 0, hotelCost: 120, foodEstimate: 0, miscCost: 0, dayTotal: 120, gasRemaining: 0, hotelRemaining: 0, foodRemaining: 0 },
+        budget: { gasUsed: 0, hotelCost: 120, foodEstimate: 0, miscCost: 0, dayTotal: 120, bankRemaining: 1000 },
         totals: { distanceKm: 800, driveTimeMinutes: 480, stopTimeMinutes: 0, departureTime: '2026-08-01T08:00:00', arrivalTime: '2026-08-01T16:00:00' },
       },
     ];
@@ -278,7 +278,7 @@ describe('generateSmartStops — overnight suppression', () => {
         segmentIndices: [0, 1, 2, 3, 4, 5, 6, 7],
         overnight: { location: { id: 'h3', name: 'Hotel', lat: 49.9, lng: -97, type: 'waypoint' as const }, cost: 120, roomsNeeded: 1 },
         timezoneChanges: [],
-        budget: { gasUsed: 0, hotelCost: 120, foodEstimate: 0, miscCost: 0, dayTotal: 120, gasRemaining: 0, hotelRemaining: 0, foodRemaining: 0 },
+        budget: { gasUsed: 0, hotelCost: 120, foodEstimate: 0, miscCost: 0, dayTotal: 120, bankRemaining: 1000 },
         totals: { distanceKm: 800, driveTimeMinutes: 480, stopTimeMinutes: 0, departureTime: '2026-08-01T08:00:00', arrivalTime: '2026-08-01T16:00:00' },
       },
     ];

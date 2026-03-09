@@ -256,7 +256,8 @@ export function generateSmartStops(
     }
 
     // Rest break check
-    const restSug = checkRestBreak(state, segment, index, config, stopTimeAddedMs);
+    const fuelFraction = state.currentFuel / config.tankSizeLitres;
+    const restSug = checkRestBreak(state, segment, index, config, stopTimeAddedMs, fuelFraction);
     if (restSug) {
       restSug.afterSegmentIndex += (segOrigIdx - index);
       suggestions.push(restSug);

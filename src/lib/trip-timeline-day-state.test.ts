@@ -31,9 +31,7 @@ function makeDay(overrides: Partial<TripDay> = {}): TripDay {
       foodEstimate: 0,
       miscCost: 0,
       dayTotal: 0,
-      gasRemaining: 0,
-      hotelRemaining: 0,
-      foodRemaining: 0,
+      bankRemaining: 1000,
     },
     totals: {
       distanceKm: 0,

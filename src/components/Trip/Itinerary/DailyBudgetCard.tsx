@@ -79,13 +79,13 @@ export function DailyBudgetCard({ budget, dayNumber, budgetMode, className }: Da
           <span className="text-sm font-semibold text-foreground">${budget.gasUsed.toFixed(0)}</span>
         </div>
 
-        {/* Gas Remaining — only when gas was actually used today */}
+        {/* Bank remaining — shown once after gas row when gas was used */}
         {showRemaining && budget.gasUsed > 0 && (
           <div className="flex items-center justify-end gap-1.5">
-            <span className="text-xs text-muted-foreground">{formatRemaining(budget.gasRemaining).label}</span>
-            <span className={cn("text-xs font-semibold flex items-center gap-0.5", getBudgetStatus(budget.gasRemaining).color)}>
-              {getBudgetStatus(budget.gasRemaining).icon}
-              {formatRemaining(budget.gasRemaining).text}
+            <span className="text-xs text-muted-foreground">{formatRemaining(budget.bankRemaining).label}</span>
+            <span className={cn("text-xs font-semibold flex items-center gap-0.5", getBudgetStatus(budget.bankRemaining).color)}>
+              {getBudgetStatus(budget.bankRemaining).icon}
+              {formatRemaining(budget.bankRemaining).text}
             </span>
           </div>
         )}
@@ -103,16 +103,6 @@ export function DailyBudgetCard({ budget, dayNumber, budgetMode, className }: Da
           </span>
         </div>
 
-        {/* Hotel Remaining — only when hotel was actually paid today */}
-        {showRemaining && budget.hotelCost > 0 && (
-          <div className="flex items-center justify-end gap-1.5">
-            <span className="text-xs text-muted-foreground">{formatRemaining(budget.hotelRemaining).label}</span>
-            <span className={cn("text-xs font-semibold flex items-center gap-0.5", getBudgetStatus(budget.hotelRemaining).color)}>
-              {getBudgetStatus(budget.hotelRemaining).icon}
-              {formatRemaining(budget.hotelRemaining).text}
-            </span>
-          </div>
-        )}
 
         {/* Food */}
         <div className="flex items-center justify-between">
@@ -125,67 +115,22 @@ export function DailyBudgetCard({ budget, dayNumber, budgetMode, className }: Da
           <span className="text-sm font-semibold text-foreground">${budget.foodEstimate.toFixed(0)}</span>
         </div>
 
-        {/* Food Remaining — only when food was estimated today */}
-        {showRemaining && budget.foodEstimate > 0 && (
-          <div className="flex items-center justify-end gap-1.5">
-            <span className="text-xs text-muted-foreground">{formatRemaining(budget.foodRemaining).label}</span>
-            <span className={cn("text-xs font-semibold flex items-center gap-0.5", getBudgetStatus(budget.foodRemaining).color)}>
-              {getBudgetStatus(budget.foodRemaining).icon}
-              {formatRemaining(budget.foodRemaining).text}
-            </span>
-          </div>
-        )}
       </div>
 
-      {/* Visual Progress Bars */}
+      {/* Trip Bank Progress Bar */}
       {showRemaining && (
-        <div className="mt-4 pt-3 border-t border-border space-y-2">
-          {/* Gas Progress */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Gas Budget</span>
-              <span className="text-[10px] font-semibold text-foreground">
-                {getProgressPercent(budget.gasUsed, budget.gasRemaining).toFixed(0)}%
-              </span>
-            </div>
-            <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
-              <div
-                className={cn("h-full transition-all duration-500", getProgressBarColor(budget.gasUsed, budget.gasRemaining))}
-                style={{ width: `${getProgressPercent(budget.gasUsed, budget.gasRemaining)}%` }}
-              />
-            </div>
+        <div className="mt-4 pt-3 border-t border-border">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Trip Budget</span>
+            <span className="text-[10px] font-semibold text-foreground">
+              {getProgressPercent(budget.dayTotal, budget.bankRemaining).toFixed(0)}% used
+            </span>
           </div>
-
-          {/* Hotel Progress */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Hotel Budget</span>
-              <span className="text-[10px] font-semibold text-foreground">
-                {getProgressPercent(budget.hotelCost, budget.hotelRemaining).toFixed(0)}%
-              </span>
-            </div>
-            <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
-              <div
-                className={cn("h-full transition-all duration-500", getProgressBarColor(budget.hotelCost, budget.hotelRemaining))}
-                style={{ width: `${getProgressPercent(budget.hotelCost, budget.hotelRemaining)}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Food Progress */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Food Budget</span>
-              <span className="text-[10px] font-semibold text-foreground">
-                {getProgressPercent(budget.foodEstimate, budget.foodRemaining).toFixed(0)}%
-              </span>
-            </div>
-            <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
-              <div
-                className={cn("h-full transition-all duration-500", getProgressBarColor(budget.foodEstimate, budget.foodRemaining))}
-                style={{ width: `${getProgressPercent(budget.foodEstimate, budget.foodRemaining)}%` }}
-              />
-            </div>
+          <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+            <div
+              className={cn("h-full transition-all duration-500", getProgressBarColor(budget.dayTotal, budget.bankRemaining))}
+              style={{ width: `${getProgressPercent(budget.dayTotal, budget.bankRemaining)}%` }}
+            />
           </div>
         </div>
       )}

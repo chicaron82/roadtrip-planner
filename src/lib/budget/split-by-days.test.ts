@@ -188,10 +188,10 @@ describe('splitTripByDays — round trip day detection', () => {
   });
 });
 
-// ── 6. Flexible budget mode — derives per-category from total × weights ───────
+// ── 6. Bank model — single pool drawn down each day ──────────────────────────
 
-describe('splitTripByDays — flexible budget mode', () => {
-  it('derives per-category budgets from total when category amounts are 0', () => {
+describe('splitTripByDays — bank model', () => {
+  it('bankRemaining decreases by dayTotal on a short trip', () => {
     const segments: RouteSegment[] = [
       makeSegment({ from: WINNIPEG, to: KENORA, distanceKm: 210, durationMinutes: 150 }),
     ];
@@ -202,7 +202,6 @@ describe('splitTripByDays — flexible budget mode', () => {
         allocation: 'flexible',
         profile: 'balanced',
         weights: { gas: 25, hotel: 35, food: 30, misc: 10 },
-        // All category buckets are 0 → system derives from total × weights
         gas: 0,
         hotel: 0,
         food: 0,
@@ -214,11 +213,10 @@ describe('splitTripByDays — flexible budget mode', () => {
     const days = splitTripByDays(segments, settings, '2025-08-16', '09:00');
     expect(days).toHaveLength(1);
 
-    // gasRemaining should start from $250 (25% of $1000), minus what was spent
-    // Just check it's not 0 or negative on a short trip
-    expect(days[0].budget.gasRemaining).toBeGreaterThan(0);
-    expect(days[0].budget.hotelRemaining).toBeGreaterThan(0);
-    expect(days[0].budget.foodRemaining).toBeGreaterThan(0);
+    // Bank starts at $1000, short trip should leave positive balance
+    expect(days[0].budget.bankRemaining).toBeGreaterThan(0);
+    expect(days[0].budget.bankRemaining).toBeLessThan(1000);
+    expect(days[0].budget.bankRemaining).toBeCloseTo(1000 - days[0].budget.dayTotal, 0);
   });
 });
 

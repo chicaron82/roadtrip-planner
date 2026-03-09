@@ -1,6 +1,5 @@
 import type { TripSummary, TripSettings } from '../../types';
 import type { FeasibilityWarning } from './types';
-import { calculateTotalBudgetUsed } from './helpers';
 import { TRIP_CONSTANTS } from '../trip-constants';
 
 export function analyzeBudget(
@@ -9,14 +8,19 @@ export function analyzeBudget(
 ): FeasibilityWarning[] {
   const warnings: FeasibilityWarning[] = [];
   const budget = settings.budget;
-
-  // Calculate totals before bailout so we can hint in open mode
   const days = summary.days || [];
-  const totalUsed = calculateTotalBudgetUsed(days);
-  const utilization = budget.total > 0 ? totalUsed / budget.total : 0;
 
-  if (settings.budgetMode !== 'plan-to-budget' || budget.total <= 0) {
-    if (budget.total > 0 && utilization > TRIP_CONSTANTS.budget.overThreshold) {
+  if (budget.total <= 0) return warnings;
+
+  // Read the bank balance from the last day — it reflects all spend.
+  const lastDay = days[days.length - 1];
+  const bankRemaining = lastDay?.budget.bankRemaining ?? budget.total;
+  const totalUsed = budget.total - bankRemaining;
+  const utilization = totalUsed / budget.total;
+
+  // Open mode: informational hint only if clearly over reference budget.
+  if (settings.budgetMode !== 'plan-to-budget') {
+    if (utilization > TRIP_CONSTANTS.budget.overThreshold) {
       warnings.push({
         category: 'budget',
         severity: 'info',
@@ -25,52 +29,39 @@ export function analyzeBudget(
         suggestion: 'Consider budgeting a little more for this trip.',
       });
     }
-    return warnings; // No strict budget constraints in open mode
+    return warnings;
   }
 
-  if (utilization > TRIP_CONSTANTS.budget.overThreshold) {
-    const overBy = Math.round(totalUsed - budget.total);
-    warnings.push({
-      category: 'budget',
-      severity: 'warning', // Downgraded from critical to avoid "Not Feasible"
-      message: `Over budget by $${overBy}`,
-      detail: `Total estimated cost: $${Math.round(totalUsed)}. Budget: $${Math.round(budget.total)}.`,
-      suggestion: 'Consider reducing hotel costs, cutting a stop, reducing trip days, or increasing the budget.',
-    });
-  } else if (utilization >= TRIP_CONSTANTS.budget.tightThreshold) {
-    const remaining = Math.round(budget.total - totalUsed);
+  // Plan-to-budget mode: check the bank.
+  if (bankRemaining < 0) {
+    const shortBy = Math.round(Math.abs(bankRemaining));
+    // Find the biggest spend category to give a targeted suggestion.
+    const hotelTotal = days.reduce((sum, d) => sum + d.budget.hotelCost, 0);
+    const foodTotal  = days.reduce((sum, d) => sum + d.budget.foodEstimate, 0);
+    const gasTotal   = days.reduce((sum, d) => sum + d.budget.gasUsed, 0);
+    let suggestion: string;
+    if (hotelTotal >= gasTotal && hotelTotal >= foodTotal) {
+      suggestion = `Hotels are your biggest expense (~$${Math.round(hotelTotal)}). Shopping for better rates or sharing rooms could close the gap.`;
+    } else if (foodTotal >= gasTotal) {
+      suggestion = `Meals are your biggest variable (~$${Math.round(foodTotal)}). Cooking in or picking cheaper stops could help.`;
+    } else {
+      suggestion = `Fuel is your biggest variable (~$${Math.round(gasTotal)}). A more fuel-efficient vehicle or fewer driving days could help.`;
+    }
     warnings.push({
       category: 'budget',
       severity: 'warning',
-      message: `Budget is tight — $${remaining} remaining`,
-      detail: `Using ${Math.round(utilization * 100)}% of your $${Math.round(budget.total)} budget.`,
-      suggestion: 'Leave some buffer for unexpected expenses.',
+      message: `Trip may run ~$${shortBy} over estimate`,
+      detail: `Estimated total: $${Math.round(totalUsed)}. Budget: $${Math.round(budget.total)}. These are estimates — your actual costs may differ.`,
+      suggestion,
     });
-  }
-
-  // Per-category analysis
-  if (budget.gas > 0) {
-    const gasUsed = days.reduce((sum, d) => sum + d.budget.gasUsed, 0);
-    if (gasUsed > budget.gas) {
-      warnings.push({
-        category: 'budget',
-        severity: 'warning',
-        message: `Gas budget exceeded by $${Math.round(gasUsed - budget.gas)}`,
-        detail: `Gas estimate: $${Math.round(gasUsed)}. Gas budget: $${Math.round(budget.gas)}.`,
-      });
-    }
-  }
-
-  if (budget.hotel > 0) {
-    const hotelUsed = days.reduce((sum, d) => sum + d.budget.hotelCost, 0);
-    if (hotelUsed > budget.hotel) {
-      warnings.push({
-        category: 'budget',
-        severity: 'warning',
-        message: `Hotel budget exceeded by $${Math.round(hotelUsed - budget.hotel)}`,
-        detail: `Hotel estimate: $${Math.round(hotelUsed)}. Hotel budget: $${Math.round(budget.hotel)}.`,
-      });
-    }
+  } else if (utilization >= TRIP_CONSTANTS.budget.tightThreshold) {
+    warnings.push({
+      category: 'budget',
+      severity: 'warning',
+      message: `Budget is tight — $${Math.round(bankRemaining)} remaining`,
+      detail: `Using ${Math.round(utilization * 100)}% of your $${Math.round(budget.total)} budget.`,
+      suggestion: 'Leave some buffer for unexpected expenses like parking, activities, or a nice detour.',
+    });
   }
 
   return warnings;

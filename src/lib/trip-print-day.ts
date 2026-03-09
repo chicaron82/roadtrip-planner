@@ -311,8 +311,7 @@ function buildBudgetHTML(day: TripDay, tripBudgetRemaining?: number): string {
       ${tripBudgetHTML}
       <br />
       📊 <strong>Category budgets after this day:</strong>
-      ${budget.gasRemaining < 0 ? `Fuel budget over by ${formatCurrency(Math.abs(budget.gasRemaining))}` : `Fuel budget left: ${formatCurrency(budget.gasRemaining)}`}
-      • ${budget.hotelRemaining < 0 ? `Hotel budget over by ${formatCurrency(Math.abs(budget.hotelRemaining))}` : `Hotel budget left: ${formatCurrency(budget.hotelRemaining)}`}
+      ${budget.bankRemaining < 0 ? `Budget over by ${formatCurrency(Math.abs(budget.bankRemaining))}` : `Budget remaining: ${formatCurrency(budget.bankRemaining)}`}
     </div>
   `;
 }

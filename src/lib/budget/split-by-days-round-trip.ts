@@ -99,20 +99,9 @@ export function maybeInsertRoundTripMidpointDays({
       currentDay.overnight = createDefaultOvernight(lastSeg.to, settings);
     }
 
-    finalizeTripDay(
-      currentDay,
-      nextBudget.gasRemaining,
-      nextBudget.hotelRemaining,
-      nextBudget.foodRemaining,
-      settings,
-      fuelStops,
-    );
+    finalizeTripDay(currentDay, nextBudget.bankRemaining, settings, fuelStops);
     labelTransitDay(currentDay, originalSegments);
-    nextBudget = {
-      gasRemaining: currentDay.budget.gasRemaining,
-      hotelRemaining: currentDay.budget.hotelRemaining,
-      foodRemaining: currentDay.budget.foodRemaining,
-    };
+    nextBudget = { bankRemaining: currentDay.budget.bankRemaining };
     days.push(currentDay);
     currentDay = null;
     currentDayDriveMinutes = 0;
@@ -167,19 +156,17 @@ export function maybeInsertRoundTripMidpointDays({
       freeDay.route = `📍 ${destName}`;
       freeDay.dayType = 'free';
       freeDay.title = `Day ${j + 1} at ${destName}`;
+      const dayTotal = roundedHotel + roundedFood;
       freeDay.budget = {
         gasUsed: 0,
         hotelCost: roundedHotel,
         foodEstimate: roundedFood,
         miscCost: 0,
-        dayTotal: roundedHotel + roundedFood,
-        gasRemaining: Math.round(nextBudget.gasRemaining * 100) / 100,
-        hotelRemaining: Math.round((nextBudget.hotelRemaining - roundedHotel) * 100) / 100,
-        foodRemaining: Math.round((nextBudget.foodRemaining - roundedFood) * 100) / 100,
+        dayTotal,
+        bankRemaining: Math.round((nextBudget.bankRemaining - dayTotal) * 100) / 100,
       };
 
-      nextBudget.hotelRemaining = freeDay.budget.hotelRemaining;
-      nextBudget.foodRemaining = freeDay.budget.foodRemaining;
+      nextBudget = { bankRemaining: freeDay.budget.bankRemaining };
       if (hotel) {
         freeDay.overnight = { ...hotel, cost: roundedHotel };
       }

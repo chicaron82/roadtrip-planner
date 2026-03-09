@@ -73,9 +73,7 @@ const DAY: TripDay = {
     foodEstimate: 200,
     miscCost: 0,
     dayTotal: 605,
-    gasRemaining: 665,
-    hotelRemaining: 625,
-    foodRemaining: 675,
+    bankRemaining: 1000,
   },
   totals: {
     distanceKm: 1158,
@@ -171,9 +169,7 @@ const DAY_TRIP_DAY: TripDay = {
     foodEstimate: 50,
     miscCost: 0,
     dayTotal: 70,
-    gasRemaining: 105,
-    hotelRemaining: 175,
-    foodRemaining: 125,
+    bankRemaining: 1000,
   },
   totals: {
     distanceKm: 170,
@@ -249,15 +245,16 @@ describe('buildDayHTML', () => {
     expect(html).not.toContain('saves 210 min');
   });
 
-  it('labels category budget values explicitly and shows trip budget remaining', () => {
+  it('shows trip budget remaining and per-day cost breakdown', () => {
     const html = buildDayHTML(DAY, SETTINGS, null, 'metric', EVENTS, 2895);
 
     expect(html).toContain('Trip budget remaining: $2895.00');
-    expect(html).toContain('Category budgets after this day:');
-    expect(html).toContain('Fuel budget left: $665.00');
-    expect(html).toContain('Hotel budget left: $625.00');
-    expect(html).not.toContain('Fuel under:');
-    expect(html).not.toContain('Hotel under:');
+    expect(html).toContain('Day Estimate:');
+    expect(html).toContain('fuel est.');
+    expect(html).toContain('hotel est.');
+    expect(html).toContain('meals est.');
+    expect(html).not.toContain('Fuel budget left:');
+    expect(html).not.toContain('Hotel budget left:');
   });
 
   it('shows the turnaround city in same-day round trip route labels', () => {

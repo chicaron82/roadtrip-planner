@@ -45,22 +45,15 @@ export function insertOneWayDestinationFreeDays({
 
   if (!lastDrivingDay.overnight && destination) {
     lastDrivingDay.overnight = createDefaultOvernight(destination, settings);
-    nextBudget.hotelRemaining += lastDrivingDay.budget.hotelCost;
-    nextBudget.gasRemaining += lastDrivingDay.budget.gasUsed;
-    nextBudget.foodRemaining += lastDrivingDay.budget.foodEstimate;
+    // Re-finalize the last driving day now that it has an overnight stop,
+    // restoring the bank to what it was before this day ran (add back dayTotal).
     finalizeTripDay(
       lastDrivingDay,
-      nextBudget.gasRemaining,
-      nextBudget.hotelRemaining,
-      nextBudget.foodRemaining,
+      nextBudget.bankRemaining + lastDrivingDay.budget.dayTotal,
       settings,
       fuelStops,
     );
-    nextBudget = {
-      gasRemaining: lastDrivingDay.budget.gasRemaining,
-      hotelRemaining: lastDrivingDay.budget.hotelRemaining,
-      foodRemaining: lastDrivingDay.budget.foodRemaining,
-    };
+    nextBudget = { bankRemaining: lastDrivingDay.budget.bankRemaining };
   }
 
   for (let k = 1; k < gapDays; k++) {
@@ -70,6 +63,7 @@ export function insertOneWayDestinationFreeDays({
     const hotel = destination ? createDefaultOvernight(destination, settings) : undefined;
     const roundedHotel = ceilToNearest(hotel?.cost ?? 0, 5);
     const roundedFood = ceilToNearest(settings.mealPricePerDay * settings.numTravelers, 5);
+    const dayTotal = roundedHotel + roundedFood;
 
     freeDay.route = `📍 ${destName}`;
     freeDay.dayType = 'free';
@@ -79,14 +73,11 @@ export function insertOneWayDestinationFreeDays({
       hotelCost: roundedHotel,
       foodEstimate: roundedFood,
       miscCost: 0,
-      dayTotal: roundedHotel + roundedFood,
-      gasRemaining: Math.round(nextBudget.gasRemaining * 100) / 100,
-      hotelRemaining: Math.round((nextBudget.hotelRemaining - roundedHotel) * 100) / 100,
-      foodRemaining: Math.round((nextBudget.foodRemaining - roundedFood) * 100) / 100,
+      dayTotal,
+      bankRemaining: Math.round((nextBudget.bankRemaining - dayTotal) * 100) / 100,
     };
 
-    nextBudget.hotelRemaining = freeDay.budget.hotelRemaining;
-    nextBudget.foodRemaining = freeDay.budget.foodRemaining;
+    nextBudget = { bankRemaining: freeDay.budget.bankRemaining };
     if (hotel) {
       freeDay.overnight = { ...hotel, cost: roundedHotel };
     }

@@ -8,7 +8,7 @@ describe('analyzeFeasibility', () => {
   describe('budget analysis', () => {
     it('returns on-track when well within budget', () => {
       const day = makeDay({
-        budget: { gasUsed: 100, hotelCost: 150, foodEstimate: 60, miscCost: 0, dayTotal: 310, gasRemaining: 500, hotelRemaining: 650, foodRemaining: 340 },
+        budget: { gasUsed: 100, hotelCost: 150, foodEstimate: 60, miscCost: 0, dayTotal: 310, bankRemaining: 1000 },
         totals: { distanceKm: 400, driveTimeMinutes: 300, stopTimeMinutes: 30, departureTime: '2025-08-16T09:00:00', arrivalTime: '2025-08-16T15:00:00' },
       });
       const summary = makeSummary([day]);
@@ -20,8 +20,9 @@ describe('analyzeFeasibility', () => {
     });
 
     it('returns tight when budget is 85-100% used', () => {
+      // bankRemaining: 100 → totalUsed = 2000-100 = 1900 → utilization = 95%
       const day = makeDay({
-        budget: { gasUsed: 500, hotelCost: 700, foodEstimate: 300, miscCost: 200, dayTotal: 1700, gasRemaining: 100, hotelRemaining: 100, foodRemaining: 100 },
+        budget: { gasUsed: 500, hotelCost: 700, foodEstimate: 300, miscCost: 200, dayTotal: 1700, bankRemaining: 100 },
         totals: { distanceKm: 400, driveTimeMinutes: 300, stopTimeMinutes: 30, departureTime: '2025-08-17T09:00:00', arrivalTime: '2025-08-17T15:00:00' },
       });
       const summary = makeSummary([day]);
@@ -33,8 +34,9 @@ describe('analyzeFeasibility', () => {
     });
 
     it('returns over when budget is exceeded', () => {
+      // bankRemaining: -300 → bank is negative → "over" warning fires
       const day = makeDay({
-        budget: { gasUsed: 800, hotelCost: 900, foodEstimate: 400, miscCost: 200, dayTotal: 2300, gasRemaining: -200, hotelRemaining: -100, foodRemaining: 0 },
+        budget: { gasUsed: 800, hotelCost: 900, foodEstimate: 400, miscCost: 200, dayTotal: 2300, bankRemaining: -300 },
       });
       const summary = makeSummary([day]);
       const settings = makeSettings({ budget: makeBudget({ total: 2000 }) });
@@ -45,8 +47,9 @@ describe('analyzeFeasibility', () => {
     });
 
     it('skips budget analysis in open mode', () => {
+      // bankRemaining: -50 → totalUsed = 100-(-50) = 150 → utilization 1.5 > overThreshold
       const day = makeDay({
-        budget: { gasUsed: 9999, hotelCost: 9999, foodEstimate: 9999, miscCost: 9999, dayTotal: 39996, gasRemaining: 0, hotelRemaining: 0, foodRemaining: 0 },
+        budget: { gasUsed: 9999, hotelCost: 9999, foodEstimate: 9999, miscCost: 9999, dayTotal: 39996, bankRemaining: -50 },
       });
       const summary = makeSummary([day]);
       const settings = makeSettings({ budgetMode: 'open', budget: makeBudget({ mode: 'open', total: 100 }) });
@@ -58,26 +61,32 @@ describe('analyzeFeasibility', () => {
       expect(budgetWarnings[0].message).toContain('budget estimates');
     });
 
-    it('warns when gas category exceeds gas budget', () => {
+    it('suggests cheaper hotels when hotel is the biggest expense', () => {
+      // Hotel is the biggest cost → suggestion should mention hotels
       const day = makeDay({
-        budget: { gasUsed: 700, hotelCost: 200, foodEstimate: 100, miscCost: 0, dayTotal: 1000, gasRemaining: -100, hotelRemaining: 600, foodRemaining: 300 },
+        budget: { gasUsed: 200, hotelCost: 1800, foodEstimate: 300, miscCost: 0, dayTotal: 2300, bankRemaining: -300 },
       });
       const summary = makeSummary([day]);
-      const settings = makeSettings({ budget: makeBudget({ gas: 600, total: 2000 }) });
+      const settings = makeSettings({ budget: makeBudget({ total: 2000 }) });
 
       const result = analyzeFeasibility(summary, settings);
-      expect(result.warnings.some(w => w.message.includes('Gas budget exceeded'))).toBe(true);
+      const budgetWarning = result.warnings.find(w => w.category === 'budget' && w.severity === 'warning');
+      expect(budgetWarning).toBeDefined();
+      expect(budgetWarning?.suggestion).toContain('Hotels');
     });
 
-    it('warns when hotel category exceeds hotel budget', () => {
+    it('suggests fuel efficiency when gas is the biggest expense', () => {
+      // Gas is the biggest cost → suggestion should mention fuel
       const day = makeDay({
-        budget: { gasUsed: 100, hotelCost: 900, foodEstimate: 100, miscCost: 0, dayTotal: 1100, gasRemaining: 500, hotelRemaining: -100, foodRemaining: 300 },
+        budget: { gasUsed: 1800, hotelCost: 200, foodEstimate: 300, miscCost: 0, dayTotal: 2300, bankRemaining: -300 },
       });
       const summary = makeSummary([day]);
-      const settings = makeSettings({ budget: makeBudget({ hotel: 800, total: 2000 }) });
+      const settings = makeSettings({ budget: makeBudget({ total: 2000 }) });
 
       const result = analyzeFeasibility(summary, settings);
-      expect(result.warnings.some(w => w.message.includes('Hotel budget exceeded'))).toBe(true);
+      const budgetWarning = result.warnings.find(w => w.category === 'budget' && w.severity === 'warning');
+      expect(budgetWarning).toBeDefined();
+      expect(budgetWarning?.suggestion).toContain('Fuel');
     });
   });
 
@@ -197,7 +206,7 @@ describe('analyzeFeasibility', () => {
   describe('per-person cost analysis', () => {
     it('warns when per-person cost exceeds per-person budget', () => {
       const day = makeDay({
-        budget: { gasUsed: 600, hotelCost: 800, foodEstimate: 400, miscCost: 200, dayTotal: 2000, gasRemaining: 0, hotelRemaining: 0, foodRemaining: 0 },
+        budget: { gasUsed: 600, hotelCost: 800, foodEstimate: 400, miscCost: 200, dayTotal: 2000, bankRemaining: 1000 },
       });
       const summary = makeSummary([day]);
       // 3 travelers splitting $2000 = $667/person, but budget is $1500 / 3 = $500/person
@@ -211,7 +220,7 @@ describe('analyzeFeasibility', () => {
   describe('summary calculations', () => {
     it('calculates budget utilization correctly', () => {
       const day = makeDay({
-        budget: { gasUsed: 300, hotelCost: 400, foodEstimate: 200, miscCost: 100, dayTotal: 1000, gasRemaining: 300, hotelRemaining: 400, foodRemaining: 200 },
+        budget: { gasUsed: 300, hotelCost: 400, foodEstimate: 200, miscCost: 100, dayTotal: 1000, bankRemaining: 1000 },
       });
       const summary = makeSummary([day]);
       const settings = makeSettings({ budget: makeBudget({ total: 2000 }) });
@@ -240,7 +249,7 @@ describe('analyzeFeasibility', () => {
 
     it('calculates per-person cost', () => {
       const day = makeDay({
-        budget: { gasUsed: 150, hotelCost: 204, foodEstimate: 80, miscCost: 0, dayTotal: 434, gasRemaining: 450, hotelRemaining: 596, foodRemaining: 320 },
+        budget: { gasUsed: 150, hotelCost: 204, foodEstimate: 80, miscCost: 0, dayTotal: 434, bankRemaining: 1000 },
       });
       const summary = makeSummary([day]);
       const settings = makeSettings({ numTravelers: 4 });
@@ -266,7 +275,7 @@ describe('compareRefinements', () => {
   it('reports per-person cost change when travelers decrease', () => {
     // Real scenario: 4 → 3 travelers
     const dayBefore = makeDay({
-      budget: { gasUsed: 600, hotelCost: 800, foodEstimate: 400, miscCost: 0, dayTotal: 1800, gasRemaining: 0, hotelRemaining: 0, foodRemaining: 0 },
+      budget: { gasUsed: 600, hotelCost: 800, foodEstimate: 400, miscCost: 0, dayTotal: 1800, bankRemaining: 1000 },
     });
     const summaryBefore = makeSummary([dayBefore]);
     const settingsBefore = makeSettings({ numTravelers: 4 });
@@ -308,11 +317,11 @@ describe('compareRefinements', () => {
     };
     const dayUnder = makeDay({
       ...safeDay,
-      budget: { gasUsed: 300, hotelCost: 400, foodEstimate: 200, miscCost: 0, dayTotal: 900, gasRemaining: 300, hotelRemaining: 400, foodRemaining: 200 },
+      budget: { gasUsed: 300, hotelCost: 400, foodEstimate: 200, miscCost: 0, dayTotal: 900, bankRemaining: 1000 },
     });
     const dayOver = makeDay({
       ...safeDay,
-      budget: { gasUsed: 800, hotelCost: 900, foodEstimate: 500, miscCost: 200, dayTotal: 2400, gasRemaining: -200, hotelRemaining: -100, foodRemaining: -100 },
+      budget: { gasUsed: 800, hotelCost: 900, foodEstimate: 500, miscCost: 200, dayTotal: 2400, bankRemaining: 1000 },
     });
 
     const safeSettings = makeSettings({ budget: makeBudget({ total: 2000 }), numDrivers: 2 });
@@ -329,11 +338,11 @@ describe('compareRefinements', () => {
     };
     const dayOver = makeDay({
       ...safeDay,
-      budget: { gasUsed: 800, hotelCost: 900, foodEstimate: 500, miscCost: 200, dayTotal: 2400, gasRemaining: -200, hotelRemaining: -100, foodRemaining: -100 },
+      budget: { gasUsed: 800, hotelCost: 900, foodEstimate: 500, miscCost: 200, dayTotal: 2400, bankRemaining: 1000 },
     });
     const dayUnder = makeDay({
       ...safeDay,
-      budget: { gasUsed: 300, hotelCost: 400, foodEstimate: 200, miscCost: 0, dayTotal: 900, gasRemaining: 300, hotelRemaining: 400, foodRemaining: 200 },
+      budget: { gasUsed: 300, hotelCost: 400, foodEstimate: 200, miscCost: 0, dayTotal: 900, bankRemaining: 1000 },
     });
 
     const safeSettings = makeSettings({ budget: makeBudget({ total: 2000 }), numDrivers: 2 });
@@ -381,7 +390,7 @@ describe('compareRefinements', () => {
   it('rounds per-person cost to nearest dollar', () => {
     // Fractional trip costs should produce integer dollar amounts in messages
     const day = makeDay({
-      budget: { gasUsed: 601, hotelCost: 800, foodEstimate: 400, miscCost: 0, dayTotal: 1801, gasRemaining: 0, hotelRemaining: 0, foodRemaining: 0 },
+      budget: { gasUsed: 601, hotelCost: 800, foodEstimate: 400, miscCost: 0, dayTotal: 1801, bankRemaining: 1000 },
     });
     const summary = makeSummary([day]);
     const before = analyzeFeasibility(summary, makeSettings({ numTravelers: 3 }));
@@ -469,14 +478,14 @@ describe('real scenario: Winnipeg→Toronto trip changes', () => {
     const day1 = makeDay({
       dayNumber: 1,
       totals: { distanceKm: 1421, driveTimeMinutes: 940, stopTimeMinutes: 90, departureTime: '2025-08-16T03:30:00', arrivalTime: '2025-08-16T22:45:00' },
-      budget: { gasUsed: 150, hotelCost: 204, foodEstimate: 120, miscCost: 0, dayTotal: 474, gasRemaining: 450, hotelRemaining: 596, foodRemaining: 280 },
+      budget: { gasUsed: 150, hotelCost: 204, foodEstimate: 120, miscCost: 0, dayTotal: 474, bankRemaining: 1000 },
     });
 
     // Day 2: Sault Ste. Marie → Burlington (9h drive)
     const day2 = makeDay({
       dayNumber: 2,
       totals: { distanceKm: 720, driveTimeMinutes: 540, stopTimeMinutes: 30, departureTime: '2025-08-17T09:00:00', arrivalTime: '2025-08-17T18:00:00' },
-      budget: { gasUsed: 70, hotelCost: 428, foodEstimate: 120, miscCost: 0, dayTotal: 618, gasRemaining: 380, hotelRemaining: 168, foodRemaining: 160 },
+      budget: { gasUsed: 70, hotelCost: 428, foodEstimate: 120, miscCost: 0, dayTotal: 618, bankRemaining: 1000 },
     });
 
     const summary = makeSummary([day1, day2]);
