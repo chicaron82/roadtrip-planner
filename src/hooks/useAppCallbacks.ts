@@ -10,8 +10,10 @@ import type { PlanningStep } from './useWizard';
 interface UseAppCallbacksParams {
   poiError: string | null;
   calcError: string | null;
+  journalError: string | null;
   clearPOIError: () => void;
   clearCalcError: () => void;
+  clearJournalError: () => void;
   triggerCopyShareLink: (url: string | null) => Promise<void>;
   shareUrl: string | null;
   locations: Location[];
@@ -24,17 +26,17 @@ interface UseAppCallbacksParams {
 }
 
 export function useAppCallbacks({
-  poiError, calcError, clearPOIError, clearCalcError,
+  poiError, calcError, journalError, clearPOIError, clearCalcError, clearJournalError,
   triggerCopyShareLink, shareUrl,
   locations, toggleCategory, validRouteGeometry,
   planningStep, calculateAndDiscover, wizardNext,
   setTripMode,
 }: UseAppCallbacksParams) {
-  const error = poiError || calcError;
+  const error = poiError || calcError || journalError;
 
   const clearError = useCallback(
-    () => { clearPOIError(); clearCalcError(); },
-    [clearPOIError, clearCalcError],
+    () => { clearPOIError(); clearCalcError(); clearJournalError(); },
+    [clearPOIError, clearCalcError, clearJournalError],
   );
 
   const copyShareLink = useCallback(

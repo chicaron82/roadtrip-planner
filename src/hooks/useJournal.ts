@@ -31,6 +31,7 @@ interface UseJournalReturn {
   updateActiveJournal: (journal: TripJournal) => Promise<void>;
   setViewMode: (mode: ViewMode) => void;
   clearJournal: () => void;
+  clearError: () => void;
 }
 
 export function useJournal({
@@ -125,6 +126,8 @@ export function useJournal({
     setViewMode('plan');
   }, []);
 
+  const clearError = useCallback(() => setError(null), []);
+
   return {
     activeJournal,
     viewMode,
@@ -134,5 +137,6 @@ export function useJournal({
     updateActiveJournal,
     setViewMode,
     clearJournal,
+    clearError,
   };
 }

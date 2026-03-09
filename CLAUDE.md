@@ -82,7 +82,7 @@ If a component has more than ~10 props, stop and ask:
 - Should this component be split?
 - Is this component doing too much?
 
-`Step3Content` (21 props) is the current known offender — tracked for refactor.
+`Step3Content` (37 props) is the current known offender — tracked for refactor.
 
 ---
 

@@ -20,6 +20,7 @@ interface UsePOIReturn {
   poiSuggestions: POISuggestion[];
   isLoadingPOIs: boolean;
   poiPartialResults: boolean;
+  poiFetchFailed: boolean;
 
   // Inference corpus (unranked gas/hotel/restaurant/cafe — for Tier-2 hub detection)
   poiInference: POISuggestion[];
@@ -63,6 +64,7 @@ export function usePOI(): UsePOIReturn {
     poiInference,
     isLoadingPOIs,
     poiPartialResults,
+    poiFetchFailed,
     addPOI,
     dismissPOI,
     fetchRoutePOIs,
@@ -141,6 +143,7 @@ export function usePOI(): UsePOIReturn {
     poiInference,
     isLoadingPOIs,
     poiPartialResults,
+    poiFetchFailed,
     error,
     toggleCategory,
     addPOI,

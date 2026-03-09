@@ -61,6 +61,7 @@ interface PlanningStepContentProps {
   poiInference?: POISuggestion[];
   isLoadingPOIs: boolean;
   poiPartialResults: boolean;
+  poiFetchFailed: boolean;
   onAddPOI: (poiId: string, segmentIndex?: number) => void;
   onDismissPOI: (poiId: string) => void;
   // Step 3 — actions
@@ -108,7 +109,7 @@ export function PlanningStepContent(p: PlanningStepContentProps) {
       showOvernightPrompt={p.showOvernightPrompt}
       suggestedOvernightStop={p.suggestedOvernightStop}
       poiSuggestions={p.poiSuggestions} poiInference={p.poiInference} isLoadingPOIs={p.isLoadingPOIs}
-      poiPartialResults={p.poiPartialResults}
+      poiPartialResults={p.poiPartialResults} poiFetchFailed={p.poiFetchFailed}
       history={p.history} shareUrl={p.shareUrl}
       precomputedEvents={p.precomputedEvents}
       isCalculating={p.isCalculating}

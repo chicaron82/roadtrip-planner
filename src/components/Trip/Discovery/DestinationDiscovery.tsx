@@ -6,6 +6,7 @@ interface DestinationDiscoveryProps {
   poiSuggestions?: POISuggestion[];
   isLoadingPOIs?: boolean;
   poiPartialResults?: boolean;
+  poiFetchFailed?: boolean;
   onAddPOI: (poiId: string, segmentIndex?: number) => void;
   onDismissPOI: (poiId: string) => void;
 }
@@ -15,6 +16,7 @@ export function DestinationDiscovery({
   poiSuggestions,
   isLoadingPOIs,
   poiPartialResults,
+  poiFetchFailed,
   onAddPOI,
   onDismissPOI,
 }: DestinationDiscoveryProps) {
@@ -33,6 +35,25 @@ export function DestinationDiscovery({
   const destinationSuggestions = (poiSuggestions || []).filter(
     p => p.bucket === 'destination' && p.category !== 'gas'
   );
+
+  if (poiFetchFailed) {
+    return (
+      <div className="mt-4 rounded-xl border-2 border-amber-200 bg-amber-50 p-4 flex items-start gap-2 text-sm text-amber-800">
+        <span className="flex-shrink-0 mt-0.5">⚠️</span>
+        <span>Couldn't load nearby suggestions — recalculate your route to try again.</span>
+      </div>
+    );
+  }
+
+  const nothingFound = !isLoadingPOIs && !alongWaySuggestions.length && !destinationSuggestions.length;
+  if (nothingFound) {
+    return (
+      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/60 p-4 text-center text-sm text-amber-700">
+        <p className="font-medium">Nothing notable found nearby</p>
+        <p className="text-xs mt-1 text-amber-600">Try different trip preferences or adjust your route.</p>
+      </div>
+    );
+  }
 
   return (
     <>

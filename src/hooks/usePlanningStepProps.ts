@@ -70,6 +70,7 @@ interface UsePlanningStepPropsOptions {
   poiInference?: POISuggestion[];
   isLoadingPOIs: boolean;
   poiPartialResults: boolean;
+  poiFetchFailed: boolean;
   addPOI: (id: string) => void;
   addStop: (poi: POI, segments: RouteSegment[], explicitSegmentIndex?: number) => void;
   dismissPOI: (id: string) => void;
@@ -147,6 +148,7 @@ export function usePlanningStepProps(o: UsePlanningStepPropsOptions): PlanningSt
     poiInference: o.poiInference,
     isLoadingPOIs: o.isLoadingPOIs,
     poiPartialResults: o.poiPartialResults,
+    poiFetchFailed: o.poiFetchFailed,
     onAddPOI: handleAddPOI,
     onDismissPOI: o.dismissPOI,
     onOpenGoogleMaps: o.openInGoogleMaps,

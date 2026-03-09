@@ -62,6 +62,7 @@ export interface TripTimelineViewProps {
   poiInference?: POISuggestion[];
   isLoadingPOIs: boolean;
   poiPartialResults?: boolean;
+  poiFetchFailed?: boolean;
   onAddPOI: (poiId: string, segmentIndex?: number) => void;
   onDismissPOI: (poiId: string) => void;
   externalStops?: SuggestedStop[];
@@ -93,6 +94,7 @@ export function TripTimelineView({
   poiInference,
   isLoadingPOIs,
   poiPartialResults,
+  poiFetchFailed,
   onAddPOI,
   onDismissPOI,
   externalStops,
@@ -165,6 +167,7 @@ export function TripTimelineView({
           poiSuggestions={poiSuggestions}
           isLoadingPOIs={isLoadingPOIs}
           poiPartialResults={poiPartialResults}
+          poiFetchFailed={poiFetchFailed}
           onAddPOI={onAddPOI}
           onDismissPOI={onDismissPOI}
           externalStops={externalStops}

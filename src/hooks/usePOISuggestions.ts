@@ -12,6 +12,7 @@ interface UsePOISuggestionsReturn {
   poiInference: POISuggestion[];
   isLoadingPOIs: boolean;
   poiPartialResults: boolean;
+  poiFetchFailed: boolean;
   addPOI: (poiId: string) => void;
   dismissPOI: (poiId: string) => void;
   fetchRoutePOIs: (
@@ -37,6 +38,7 @@ export function usePOISuggestions(): UsePOISuggestionsReturn {
   const [poiInference, setPoiInference] = useState<POISuggestion[]>([]);
   const [isLoadingPOIs, setIsLoadingPOIs] = useState(false);
   const [poiPartialResults, setPoiPartialResults] = useState(false);
+  const [poiFetchFailed, setPoiFetchFailed] = useState(false);
   const rawCorridor = useRef<{ alongWay: POISuggestion[]; atDestination: POISuggestion[] } | null>(null);
 
   const addPOI = useCallback((poiId: string) => {
@@ -59,6 +61,7 @@ export function usePOISuggestions(): UsePOISuggestionsReturn {
 
     setIsLoadingPOIs(true);
     setPoiPartialResults(false);
+    setPoiFetchFailed(false);
 
     try {
       const poiData = await fetchPOISuggestions(routeGeometry, origin, destination, tripPreferences);
@@ -80,6 +83,7 @@ export function usePOISuggestions(): UsePOISuggestionsReturn {
       setPoiInference(inference);
     } catch (error) {
       console.error('Failed to fetch POI suggestions:', error);
+      setPoiFetchFailed(true);
     } finally {
       setIsLoadingPOIs(false);
     }
@@ -112,6 +116,7 @@ export function usePOISuggestions(): UsePOISuggestionsReturn {
     setPoiSuggestions([]);
     setPoiInference([]);
     setPoiPartialResults(false);
+    setPoiFetchFailed(false);
     rawCorridor.current = null;
   }, []);
 
@@ -120,6 +125,7 @@ export function usePOISuggestions(): UsePOISuggestionsReturn {
     poiInference,
     isLoadingPOIs,
     poiPartialResults,
+    poiFetchFailed,
     addPOI,
     dismissPOI,
     fetchRoutePOIs,

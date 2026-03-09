@@ -75,6 +75,7 @@ export function Step3TimelineSection({
   poiInference,
   isLoadingPOIs,
   poiPartialResults,
+  poiFetchFailed,
   onAddPOI,
   onDismissPOI,
   externalStops,
@@ -107,6 +108,7 @@ export function Step3TimelineSection({
       poiInference={poiInference}
       isLoadingPOIs={isLoadingPOIs}
       poiPartialResults={poiPartialResults}
+      poiFetchFailed={poiFetchFailed}
       onAddPOI={onAddPOI}
       onDismissPOI={onDismissPOI}
       externalStops={externalStops}

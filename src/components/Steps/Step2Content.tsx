@@ -73,6 +73,7 @@ export function Step2Content({
                   numTravelers: preset.travelers,
                   numDrivers: preset.drivers,
                   maxDriveHours: preset.hours,
+                  driverNames: Array.from({ length: preset.drivers }, (_, i) => prev.driverNames?.[i] ?? ''),
                 }))
               }
               className="text-xs h-auto py-2 px-2 hover:bg-primary/5 hover:border-primary/50 transition-all"

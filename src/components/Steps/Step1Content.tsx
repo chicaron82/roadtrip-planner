@@ -53,6 +53,8 @@ export function Step1Content({
       return Math.sqrt(dLat * dLat + dLng * dLng) * 111 > 50;
     })();
 
+  const isSingleDay = !!(settings.departureDate && settings.returnDate && settings.departureDate === settings.returnDate);
+
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -103,7 +105,7 @@ export function Step1Content({
         <div className="flex items-center gap-3">
           <div className="flex-1">
             <Label htmlFor="depTime" className="text-xs">
-              {settings.useArrivalTime ? 'Arrive By' : 'Departure Time'}
+              {settings.useArrivalTime ? 'Day 1 Arrival' : 'Day 1 Departure'}
             </Label>
             <ClockPicker
               value={settings.useArrivalTime ? (settings.arrivalTime || '17:00') : settings.departureTime}
@@ -136,13 +138,14 @@ export function Step1Content({
           </div>
         </div>
 
-        {/* Daily Arrival Target */}
+        {/* Daily Arrival Target — hidden for same-day trips */}
+        {!isSingleDay && (
         <div className="border-t pt-4 mt-3">
           <div className="flex items-center justify-between mb-2">
             <div>
               <h3 className="text-sm font-semibold flex items-center gap-2">🕐 Daily Arrival Target</h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Transit days auto-depart so you arrive by this time.
+                Each transit day auto-schedules its departure to hit this time.
               </p>
             </div>
             <span className="text-sm font-semibold tabular-nums">
@@ -174,13 +177,12 @@ export function Step1Content({
           </div>
           <p className="info-banner-blue text-xs mt-3 p-2 rounded-md border">
             {(() => {
-              const depart = Math.max(5, Math.min(10, Math.round(settings.targetArrivalHour - settings.maxDriveHours)));
-              const departLabel = depart === 12 ? '12:00 PM' : depart > 12 ? `${depart - 12}:00 PM` : `${depart}:00 AM`;
               const arriveLabel = settings.targetArrivalHour > 12 ? `${settings.targetArrivalHour - 12}:00 PM` : `${settings.targetArrivalHour}:00 AM`;
-              return `🗓️ Transit days will depart around ${departLabel} to arrive by ${arriveLabel}.`;
+              return `🗓️ Transit days will auto-schedule departure to arrive by ${arriveLabel}.`;
             })()}
           </p>
         </div>
+        )}
 
         {/* Smart Preview */}
         <p className="info-banner-purple text-xs mt-3 rounded-md p-2 border">

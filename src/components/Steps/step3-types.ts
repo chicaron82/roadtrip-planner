@@ -32,6 +32,7 @@ export interface Step3TimelineSectionProps {
   poiInference?: POISuggestion[];
   isLoadingPOIs: boolean;
   poiPartialResults?: boolean;
+  poiFetchFailed?: boolean;
   onAddPOI: (poiId: string, segmentIndex?: number) => void;
   onDismissPOI: (poiId: string) => void;
   externalStops?: SuggestedStop[];

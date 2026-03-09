@@ -105,28 +105,25 @@ export function calculatePopularityScore(tags: Record<string, string>): number {
 }
 
 /**
- * Get relevant categories based on user preferences
- * If no preferences selected, return a balanced default set
+ * Get relevant categories based on user preferences.
+ * If no preferences selected, returns a balanced default set so the
+ * discovery section always has something to show.
  */
 export function getRelevantCategories(tripPreferences: TripPreference[]): POISuggestionCategory[] {
+  // Discovery-friendly categories always included regardless of preferences
+  const always: POISuggestionCategory[] = ['viewpoint', 'landmark', 'waterfall'];
+
   if (tripPreferences.length === 0) {
-    // No preferences selected — skip POI discovery entirely.
-    // Firing Overpass when the user hasn't asked for anything wastes rate-limit
-    // quota and causes unnecessary 429s. Return [] so fetchPOISuggestions
-    // short-circuits before touching the API.
-    return [];
+    // No preferences set — use a balanced default so the discovery section
+    // shows results without requiring the user to configure their trip vibe first.
+    return [...always, 'attraction', 'park'];
   }
 
   // Combine categories from selected preferences
-  const categories = new Set<POISuggestionCategory>();
+  const categories = new Set<POISuggestionCategory>(always);
   tripPreferences.forEach(pref => {
     PREFERENCE_CATEGORY_MAP[pref].forEach(cat => categories.add(cat));
   });
-
-  // Always include discovery-friendly categories
-  categories.add('viewpoint');
-  categories.add('landmark');
-  categories.add('waterfall');
 
   return Array.from(categories);
 }

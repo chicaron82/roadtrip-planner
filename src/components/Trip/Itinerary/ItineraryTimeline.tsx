@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { Sparkles } from 'lucide-react';
 import type { TripSummary, TripSettings, Vehicle, StopType, TripDay, DayType, Activity, DayOption, OvernightStop, POISuggestion } from '../../../types';
 import { SmartSuggestions } from './SmartSuggestions';
@@ -35,6 +35,7 @@ interface ItineraryTimelineProps {
   poiSuggestions?: POISuggestion[];
   isLoadingPOIs?: boolean;
   poiPartialResults?: boolean;
+  poiFetchFailed?: boolean;
   onAddPOI?: (poiId: string, segmentIndex?: number) => void;
   onDismissPOI?: (poiId: string) => void;
   // Map-added stops (pre-accepted SuggestedStops from useAddedStops)
@@ -65,6 +66,7 @@ export function ItineraryTimeline({
   poiSuggestions,
   isLoadingPOIs,
   poiPartialResults,
+  poiFetchFailed,
   onAddPOI,
   onDismissPOI,
   externalStops,
@@ -94,6 +96,11 @@ export function ItineraryTimeline({
   } = useTimelineData({ summary, settings, vehicle, days, externalStops, initialOverrides: initialStopOverrides, onStopOverridesChange });
 
   const itineraryDays = acceptedItinerary.days.map(day => day.meta);
+
+  // Track whether a POI fetch has ever been attempted so we can show the
+  // discovery section even when the result is empty or errored.
+  const poiWasLoaded = useRef(false);
+  if (isLoadingPOIs) poiWasLoaded.current = true;
 
   // Collapsible days state — for trips with 5+ days, allow collapse/expand
   const [collapsedDays, setCollapsedDays] = useState<Set<number>>(new Set());
@@ -223,12 +230,13 @@ export function ItineraryTimeline({
       )}
 
       {/* Destination Discovery */}
-      {onAddPOI && onDismissPOI && (poiSuggestions?.length || isLoadingPOIs) && (
+      {onAddPOI && onDismissPOI && (poiSuggestions?.length || isLoadingPOIs || poiFetchFailed || poiWasLoaded.current) && (
         <DestinationDiscovery
           summary={summary}
           poiSuggestions={poiSuggestions}
           isLoadingPOIs={isLoadingPOIs}
           poiPartialResults={poiPartialResults}
+          poiFetchFailed={poiFetchFailed}
           onAddPOI={onAddPOI}
           onDismissPOI={onDismissPOI}
         />

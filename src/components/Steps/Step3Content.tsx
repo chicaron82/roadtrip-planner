@@ -33,6 +33,7 @@ interface Step3ContentProps {
   poiInference?: POISuggestion[];
   isLoadingPOIs: boolean;
   poiPartialResults?: boolean;
+  poiFetchFailed?: boolean;
   history: TripSummary[];
   shareUrl: string | null;
   onOpenGoogleMaps: () => void;
@@ -73,6 +74,7 @@ export function Step3Content({
   poiInference,
   isLoadingPOIs,
   poiPartialResults,
+  poiFetchFailed,
   history,
   shareUrl,
   onOpenGoogleMaps,
@@ -242,6 +244,7 @@ export function Step3Content({
             poiInference={poiInference}
             isLoadingPOIs={isLoadingPOIs}
             poiPartialResults={poiPartialResults}
+            poiFetchFailed={poiFetchFailed}
             onAddPOI={onAddPOI}
             onDismissPOI={onDismissPOI}
             externalStops={externalStops}
