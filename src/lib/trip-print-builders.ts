@@ -11,7 +11,7 @@
 
 import type { TripSummary, TripSettings, TripDay, Vehicle } from '../types';
 import type { DriverRotationResult } from './driver-rotation';
-import { computeSwapAssignments, getDriverName } from './driver-rotation';
+import { computeSwapAssignments } from './driver-rotation';
 import type { TimedEvent } from './trip-timeline';
 import { buildDayHTML } from './trip-print-day';
 import { PRINT_STYLES } from './trip-print-styles';

@@ -58,7 +58,7 @@ export function printTrip(props: TripPrintViewProps): void {
     // fuel stop flat-segment indices. The previous approach read seg.stopType === 'fuel'
     // which is a user-set waypoint field — auto-generated simulation stops never set it,
     // so rotation always fell back to time-based and hit the flat-segment ceiling.
-    const fuelIndices = extractFuelIndicesFromTimedEvents(precomputedEvents);
+    const fuelIndices = extractFuelIndicesFromTimedEvents(props.precomputedEvents);
     driverRotation = assignDrivers(flatSegments, settings.numDrivers, fuelIndices);
   }
 
