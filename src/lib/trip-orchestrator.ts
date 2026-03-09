@@ -235,13 +235,17 @@ export async function orchestrateTrip(
 
 /** Rebuild canonical timeline + fuel stops after switching a named route strategy.
  *  The summary is already built by buildStrategyUpdate — this just re-runs the
- *  fast synchronous pipeline (generateSmartStops → buildTimedTimeline). */
+ *  fast synchronous pipeline (generateSmartStops → buildTimedTimeline).
+ *
+ *  Pass `externalStops` to merge user-added POI stops into the timeline so they
+ *  appear in both the itinerary view and the print output. */
 export function orchestrateStrategySwap(
   updatedSummary: TripSummary,
   settings: TripSettings,
   vehicle: Vehicle,
   locations: Location[],
   roundTripMidpoint: number | undefined,
+  externalStops?: SuggestedStop[],
 ): { canonicalTimeline: CanonicalTripTimeline; projectedFuelStops: StrategicFuelStop[] } {
   const tripDays = updatedSummary.days ?? [];
   const smartStops = generateSmartStops(
@@ -251,7 +255,9 @@ export function orchestrateStrategySwap(
   );
   const destinationStayMinutes = getRoundTripDayTripStayMinutes(updatedSummary, tripDays.length, settings);
   const timedRaw = buildTimedTimeline(
-    updatedSummary.segments, smartStops, settings,
+    updatedSummary.segments,
+    [...smartStops, ...(externalStops ?? [])],
+    settings,
     roundTripMidpoint, destinationStayMinutes, tripDays,
   );
   const canonicalTimeline = assembleCanonicalTimeline(

@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useLayoutEffect } from 'react';
 import type { Location, Vehicle, TripSettings, TripSummary, TripDay, RouteStrategy, StopType, DayType, OvernightStop } from '../types';
 import type { StrategicFuelStop } from '../lib/calculations';
+import type { SuggestedStop } from '../lib/stop-suggestion-types';
 import { fetchAllRouteStrategies } from '../lib/api';
 import { snapFuelStopsToStations } from '../lib/fuel-stop-snapper';
 import { checkAndSetOvernightPrompt, fireAndForgetOvernightSnap } from './useOvernightSnap';
@@ -40,6 +41,8 @@ interface UseTripCalculationReturn {
   calculateTrip: () => Promise<TripSummary | null>;
   selectStrategy: (index: number) => void;
   updateStopType: (segmentIndex: number, newStopType: StopType) => void;
+  /** Merge user-added POI stops into the canonical timeline without an OSRM recalc. */
+  rebuildCanonicalWithExternals: (externalStops: SuggestedStop[]) => void;
   updateDayNotes: (dayNumber: number, notes: string) => void;
   updateDayTitle: (dayNumber: number, title: string) => void;
   updateDayType: (dayNumber: number, dayType: DayType) => void;
@@ -192,6 +195,22 @@ export function useTripCalculation({
     [localSummary, settings, vehicle, locations, onSummaryChange, setCanonicalTimeline]
   );
 
+  // Rebuild the canonical timeline with user-added POI stops merged in.
+  // Calls the same synchronous pipeline as orchestrateStrategySwap — no OSRM call.
+  // Intentionally does NOT update strategicFuelStops: external POI stops are
+  // overlay stops and don't affect fuel-level projections.
+  const rebuildCanonicalWithExternals = useCallback(
+    (externalStops: SuggestedStop[]) => {
+      if (!localSummary) return;
+      const { canonicalTimeline } = orchestrateStrategySwap(
+        localSummary, settings, vehicle, locations,
+        roundTripMidpointRef.current, externalStops,
+      );
+      setCanonicalTimeline(canonicalTimeline);
+    },
+    [localSummary, settings, vehicle, locations, setCanonicalTimeline]
+  );
+
   // Generic day updater — updates a single day in summary.days
   const updateDay = useCallback(
     (dayNumber: number, patch: Partial<TripDay>) => {
@@ -267,6 +286,7 @@ export function useTripCalculation({
     calculateTrip,
     selectStrategy,
     updateStopType,
+    rebuildCanonicalWithExternals,
     updateDayNotes,
     updateDayTitle,
     updateDayType,

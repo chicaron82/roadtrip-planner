@@ -1,4 +1,4 @@
-import { useRef, useState, useLayoutEffect } from 'react';
+import { useRef, useState, useLayoutEffect, useEffect } from 'react';
 import { StepsBanner } from './components/StepsBanner';
 import { WizardContent } from './components/WizardContent';
 import { Map } from './components/Map/Map';
@@ -51,7 +51,7 @@ function AppContent() {
   // POI system
   const {
     pois, markerCategories, loadingCategory, poiSuggestions, poiInference, isLoadingPOIs,
-    poiPartialResults,
+    poiPartialResults, poiFetchFailed,
     error: poiError, toggleCategory, addPOI, dismissPOI,
     fetchRoutePOIs, clearError: clearPOIError, resetPOIs,
   } = usePOI();
@@ -69,6 +69,7 @@ function AppContent() {
     dismissOvernightPrompt, calculateTrip,
     routeStrategies, activeStrategyIndex, selectStrategy,
     updateStopType, updateDayNotes, updateDayTitle, updateDayType, updateDayOvernight,
+    rebuildCanonicalWithExternals,
     clearError: clearCalcError, clearTripCalculation,
   } = useTripCalculation({
     locations, vehicle, settings,
@@ -108,7 +109,7 @@ function AppContent() {
   });
 
   // Journal
-  const { activeJournal, viewMode, startJournal, updateActiveJournal, setViewMode } =
+  const { activeJournal, viewMode, startJournal, updateActiveJournal, setViewMode, error: journalError, clearError: clearJournalError } =
     useJournal({ summary, settings, vehicle, origin: tripOrigin, defaultTitle: activeChallenge?.title });
 
   // Map interactions (geometry, feasibility, click handlers)
@@ -128,7 +129,7 @@ function AppContent() {
 
   const { error, clearError, copyShareLink, handleToggleCategory, goToNextStep, handleResumeSession } =
     useAppCallbacks({
-      poiError, calcError, clearPOIError, clearCalcError,
+      poiError, calcError, journalError, clearPOIError, clearCalcError, clearJournalError,
       triggerCopyShareLink, shareUrl,
       locations, toggleCategory, validRouteGeometry,
       planningStep, calculateAndDiscover, wizardNext,
@@ -139,6 +140,16 @@ function AppContent() {
   const ghostCar = useGhostCar(canonicalTimeline, summary, settings, asSuggestedStops);
   // Arrival snap — re-anchors ghost car when journal 'Arrived' is tapped
   useArrivalSnap(ghostCar.anchorAt, !!summary && tripConfirmed);
+
+  // Keep canonical timeline in sync with user-added POI stops so print output
+  // matches the itinerary. Fires synchronously (no network) on each add/remove.
+  useEffect(() => {
+    if (!summary) return;
+    rebuildCanonicalWithExternals([...asSuggestedStops, ...mirroredReturnStops]);
+  // rebuildCanonicalWithExternals is stable (useCallback); summary guards the
+  // rebuild but isn't a dep because we only want to re-run on stop changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [asSuggestedStops, mirroredReturnStops]);
 
   const { resetTrip, handleSelectMode } = useAppReset({
     setLocations, setSummary, resetPOIs, resetWizard, clearStops, clearTripCalculation,
@@ -176,7 +187,7 @@ function AppContent() {
     externalStops: [...asSuggestedStops, ...mirroredReturnStops],
     shareUrl, showOvernightPrompt, suggestedOvernightStop, dismissOvernightPrompt,
     updateStopType, updateDayNotes, updateDayTitle, updateDayType, updateDayOvernight,
-    poiSuggestions, poiInference, isLoadingPOIs, poiPartialResults, addPOI, addStop, dismissPOI,
+    poiSuggestions, poiInference, isLoadingPOIs, poiPartialResults, poiFetchFailed, addPOI, addStop, dismissPOI,
     openInGoogleMaps, copyShareLink,
     precomputedEvents: canonicalTimeline?.events,
     isCalculating,
