@@ -177,3 +177,12 @@ export function formatDriveTime(minutes: number): string {
   if (m === 0) return `${h}h`;
   return `${h}h ${m}m`;
 }
+
+/**
+ * Resolve a 1-indexed driver number to its display name.
+ * Falls back to "Driver N" when names are absent or the entry is blank.
+ */
+export function getDriverName(driver: number, names?: string[]): string {
+  const name = names?.[driver - 1]?.trim();
+  return name || `Driver ${driver}`;
+}

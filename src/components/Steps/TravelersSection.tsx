@@ -92,6 +92,7 @@ export function TravelersSection({ settings, setSettings }: TravelersSectionProp
                     ...prev,
                     numDrivers: newDrivers,
                     maxDriveHours: prev.maxDriveHours === prevDefault ? newDefault : prev.maxDriveHours,
+                    driverNames: Array.from({ length: newDrivers }, (_, i) => prev.driverNames?.[i] ?? ''),
                   };
                 })
               }
@@ -114,6 +115,7 @@ export function TravelersSection({ settings, setSettings }: TravelersSectionProp
                     ...prev,
                     numDrivers: newDrivers,
                     maxDriveHours: prev.maxDriveHours === prevDefault ? newDefault : prev.maxDriveHours,
+                    driverNames: Array.from({ length: newDrivers }, (_, i) => prev.driverNames?.[i] ?? ''),
                   };
                 })
               }
@@ -123,6 +125,32 @@ export function TravelersSection({ settings, setSettings }: TravelersSectionProp
           </div>
         </div>
       </div>
+
+      {/* Driver Name Inputs */}
+      {settings.numDrivers >= 2 && (
+        <div className="mt-3">
+          <Label className="text-xs text-muted-foreground">
+            Driver names <span className="opacity-50">(optional)</span>
+          </Label>
+          <div className="flex flex-wrap gap-2 mt-1.5">
+            {Array.from({ length: settings.numDrivers }).map((_, i) => (
+              <input
+                key={i}
+                type="text"
+                maxLength={20}
+                placeholder={`Driver ${i + 1}`}
+                value={settings.driverNames?.[i] ?? ''}
+                onChange={e => setSettings(prev => {
+                  const names = Array.from({ length: prev.numDrivers }, (_, j) => prev.driverNames?.[j] ?? '');
+                  names[i] = e.target.value;
+                  return { ...prev, driverNames: names };
+                })}
+                className="w-24 text-xs border rounded px-2 py-1 bg-background"
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Visual Ratio Indicator */}
       <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">

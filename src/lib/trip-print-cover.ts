@@ -12,7 +12,7 @@ import type { DriverRotationResult } from './driver-rotation';
 import type { FeasibilityResult } from './feasibility/types';
 import type { WarningCategory } from './feasibility/types';
 import { formatCurrency, formatDistance } from './trip-print-formatters';
-import { formatDriveTime } from './driver-rotation';
+import { formatDriveTime, getDriverName } from './driver-rotation';
 
 // ── Emoji map for warning categories ─────────────────────────────────────────
 
@@ -185,7 +185,7 @@ function buildRosterSection(
   const units = settings.units;
   const rows = driverRotation.stats.map(s => `
     <tr>
-      <td>Driver ${s.driver}</td>
+      <td>${getDriverName(s.driver, settings.driverNames)}</td>
       <td>${formatDriveTime(s.totalMinutes)}</td>
       <td>${formatDistance(s.totalKm, units)}</td>
       <td>${s.segmentCount}</td>
@@ -197,7 +197,7 @@ function buildRosterSection(
       <div class="cover-section-label">🔁 Driver Roster</div>
       <table class="cover-roster-table">
         <thead>
-          <tr><th>Driver</th><th>Drive Time</th><th>Distance</th><th>Segments</th></tr>
+          <tr><th>Name</th><th>Drive Time</th><th>Distance</th><th>Segments</th></tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>

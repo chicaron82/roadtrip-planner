@@ -103,6 +103,8 @@ export interface TripSettings {
   maxDriveHours: number;
   numTravelers: number;
   numDrivers: number;
+  /** Optional display names, 0-indexed (driverNames[0] = Driver 1). Falls back to "Driver N". */
+  driverNames?: string[];
   budgetMode: BudgetMode;
   budget: TripBudget; // Enhanced from single number
   departureDate: string;

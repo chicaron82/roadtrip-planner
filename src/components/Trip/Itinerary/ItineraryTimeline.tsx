@@ -199,7 +199,7 @@ export function ItineraryTimeline({
 
       {/* Driver Stats (when multiple drivers) */}
       {driverRotation && driverRotation.stats.length > 1 && (
-        <DriverStatsPanel stats={driverRotation.stats} />
+        <DriverStatsPanel stats={driverRotation.stats} driverNames={settings.driverNames} />
       )}
 
       {/* Destination Discovery */}

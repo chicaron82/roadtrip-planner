@@ -1,10 +1,11 @@
 import type { DriverStats } from '../../../lib/driver-rotation';
-import { formatDriveTime } from '../../../lib/driver-rotation';
+import { formatDriveTime, getDriverName } from '../../../lib/driver-rotation';
 
 // ==================== TYPES ====================
 
 interface DriverStatsPanelProps {
   stats: DriverStats[];
+  driverNames?: string[];
 }
 
 // ==================== DRIVER COLORS ====================
@@ -22,7 +23,7 @@ function getDriverColor(driverNum: number) {
 
 // ==================== COMPONENT ====================
 
-export function DriverStatsPanel({ stats }: DriverStatsPanelProps) {
+export function DriverStatsPanel({ stats, driverNames }: DriverStatsPanelProps) {
   const totalMinutes = stats.reduce((sum, s) => sum + s.totalMinutes, 0);
   const totalKm = stats.reduce((sum, s) => sum + s.totalKm, 0);
 
@@ -46,7 +47,7 @@ export function DriverStatsPanel({ stats }: DriverStatsPanelProps) {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <span className={`${c.badge} text-white text-xs font-bold px-2 py-0.5 rounded-full`}>
-                    {c.emoji} Driver {stat.driver}
+                    {c.emoji} {getDriverName(stat.driver, driverNames)}
                   </span>
                 </div>
                 <span className={`text-xs font-medium ${c.text}`}>

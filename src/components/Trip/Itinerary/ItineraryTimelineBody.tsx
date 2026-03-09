@@ -1,4 +1,5 @@
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { getDriverName } from '../../../lib/driver-rotation';
 import type { Activity, DayOption, DayType, OvernightStop, StopType, TripDay, TripSettings, TripSummary } from '../../../types';
 import { ActivityBadge } from './ActivityEditor';
 import { DaySection } from './DaySection';
@@ -226,6 +227,7 @@ export function ItineraryTimelineBody({
                 } : undefined}
                 activity={item.segment.activity}
                 assignedDriver={driverBySegment.get(item.originalIndex ?? item.index)}
+                driverName={(() => { const d = driverBySegment.get(item.originalIndex ?? item.index); return d ? getDriverName(d, settings.driverNames) : undefined; })()}
               />
 
               {freeDaysAfter.map(freeDay => (

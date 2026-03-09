@@ -33,6 +33,7 @@ interface WaypointNodeProps {
   onEditActivity?: (segmentIndex: number, activity?: Activity, locationName?: string) => void;
   activity?: Activity;
   assignedDriver?: number;
+  driverName?: string;
 }
 
 // ==================== HELPERS ====================
@@ -200,6 +201,7 @@ export function WaypointNode({
   onEditActivity,
   activity,
   assignedDriver,
+  driverName,
 }: WaypointNodeProps) {
   return (
     <div className="flex gap-4 mb-8 group">
@@ -233,7 +235,7 @@ export function WaypointNode({
             <>
               <span className="text-slate-300">•</span>
               <div className="flex items-center gap-1 text-indigo-600 font-medium">
-                <span>🚗</span> Driver {assignedDriver}
+                <span>🚗</span> {driverName ?? `Driver ${assignedDriver}`}
               </div>
             </>
           )}

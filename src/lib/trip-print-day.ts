@@ -1,7 +1,7 @@
 import type { TripDay, TripSettings, RouteSegment } from '../types';
 import type { DriverRotationResult } from './driver-rotation';
 import type { TimedEvent } from './trip-timeline-types';
-import { formatDriveTime } from './driver-rotation';
+import { formatDriveTime, getDriverName } from './driver-rotation';
 import { formatTime, formatDuration } from './trip-timeline';
 import { formatDateInZone, lngToIANA } from './trip-timezone';
 import {
@@ -123,7 +123,7 @@ function normalizeDayEvents(day: TripDay, dayEvents: TimedEvent[]): TimedEvent[]
 
 export function buildSegmentHTML(
   segment: RouteSegment,
-  driver: number | undefined,
+  driverName: string | undefined,
   units: 'metric' | 'imperial',
   isFirst: boolean,
 ): string {
@@ -145,7 +145,7 @@ export function buildSegmentHTML(
   else if (segment.stopType === 'meal') stopLabel = '🍽️ Meal';
   else if (segment.stopType === 'break') stopLabel = '☕ Break';
 
-  const driverLabel = driver ? ` [Driver ${driver}]` : '';
+  const driverLabel = driverName ? ` [${driverName}]` : '';
 
   return `
     <div class="segment ${isFuelStop ? 'fuel-stop' : ''} ${isFirst ? 'first-segment' : ''}">
@@ -165,7 +165,7 @@ export function buildSegmentHTML(
 
 export function buildDayHTML(
   day: TripDay,
-  _settings: TripSettings,
+  settings: TripSettings,
   driverRotation: DriverRotationResult | null,
   units: 'metric' | 'imperial',
   timedEvents: TimedEvent[],
@@ -206,7 +206,8 @@ export function buildDayHTML(
     timelineHTML = day.segments.map((segment, index) => {
       const globalIndex = day.segmentIndices[index];
       const driver = getDriverForSegment(globalIndex, driverRotation);
-      return buildSegmentHTML(segment, driver, units, index === 0);
+      const driverName = driver ? getDriverName(driver, settings.driverNames) : undefined;
+      return buildSegmentHTML(segment, driverName, units, index === 0);
     }).join('');
   }
 

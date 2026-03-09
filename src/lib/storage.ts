@@ -121,7 +121,7 @@ export const getLastOrigin = (): Location | null => {
 // Only persists preference-level fields — NOT trip-specific dates or budget totals.
 
 const SETTINGS_DEFAULTS_KEYS: (keyof TripSettings)[] = [
-  'units', 'currency', 'maxDriveHours', 'numTravelers', 'numDrivers',
+  'units', 'currency', 'maxDriveHours', 'numTravelers', 'numDrivers', 'driverNames',
   'gasPrice', 'hotelPricePerNight', 'mealPricePerDay',
   'budgetMode', 'routePreference', 'stopFrequency',
   'includeStartingLocation',
