@@ -161,10 +161,21 @@ export async function calculateRoute(locations: Location[], options?: { avoidTol
   // If OSRM rejects the exclusion params (e.g. exclude=motorway returns 400 for some
   // cross-country routes on the public demo server), retry without any exclude param
   // so the app never hard-fails just because scenic/toll-avoidance isn't supported.
-  let result = await fetchOSRMRoute(locations, excludeParam);
+  // NOTE: DOMException (timeout / abort) is NOT retried — a slow/unreachable server
+  //       won't improve on a second attempt and would double the wait time.
+  let result: Awaited<ReturnType<typeof fetchOSRMRoute>>;
+  try {
+    result = await fetchOSRMRoute(locations, excludeParam);
+  } catch {
+    return null; // Timeout — don't retry
+  }
   if (!result && excludeParam) {
     console.warn(`[api] OSRM rejected route with "${excludeParam}" — retrying without exclusions`);
-    result = await fetchOSRMRoute(locations, '');
+    try {
+      result = await fetchOSRMRoute(locations, '');
+    } catch {
+      return null;
+    }
   }
   if (!result) return null;
 
@@ -177,7 +188,12 @@ export async function calculateRoute(locations: Location[], options?: { avoidTol
 
       if (guards.length > 0) {
         const reroutedLocations = insertGuardWaypoints(locations, guards);
-        const safeResult = await fetchOSRMRoute(reroutedLocations, excludeParam);
+        let safeResult: Awaited<ReturnType<typeof fetchOSRMRoute>> | null = null;
+        try {
+          safeResult = await fetchOSRMRoute(reroutedLocations, excludeParam);
+        } catch {
+          safeResult = null; // Timeout — fall through to original route
+        }
 
         if (safeResult) {
           // Return the safe route but map segments back to original locations
@@ -297,6 +313,9 @@ async function fetchOSRMRoute(
 
     return { segments, fullGeometry };
   } catch (error) {
+    // Re-throw abort/timeout errors so callers can distinguish them from "bad params"
+    // (TimeoutError = server slow, AbortError = user cancelled — neither should trigger retry)
+    if (error instanceof DOMException) throw error;
     console.error("Route calculation failed:", error);
     return null;
   }

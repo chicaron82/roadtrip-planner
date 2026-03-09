@@ -50,6 +50,7 @@ interface Step3ContentProps {
   onGoToStep: (step: PlanningStep) => void;
   externalStops?: SuggestedStop[];
   precomputedEvents?: TimedEvent[];
+  isCalculating?: boolean;
   tripConfirmed: boolean;
   addedStopCount: number;
   onConfirmTrip: () => void;
@@ -89,6 +90,7 @@ export function Step3Content({
   onGoToStep,
   externalStops,
   precomputedEvents,
+  isCalculating,
   tripConfirmed,
   addedStopCount,
   onConfirmTrip,
@@ -176,6 +178,7 @@ export function Step3Content({
         shareUrl={shareUrl}
         difficulty={overview?.difficulty}
         precomputedEvents={precomputedEvents}
+        isCalculating={isCalculating}
         onOpenGoogleMaps={onOpenGoogleMaps}
         onCopyShareLink={onCopyShareLink}
       />

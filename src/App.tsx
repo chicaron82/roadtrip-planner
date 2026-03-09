@@ -179,6 +179,7 @@ function AppContent() {
     poiSuggestions, poiInference, isLoadingPOIs, poiPartialResults, addPOI, addStop, dismissPOI,
     openInGoogleMaps, copyShareLink,
     precomputedEvents: canonicalTimeline?.events,
+    isCalculating,
   });
 
   return (

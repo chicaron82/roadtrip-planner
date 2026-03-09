@@ -44,6 +44,7 @@ interface PlanningStepContentProps {
   addedStopCount: number;
   externalStops: SuggestedStop[];
   precomputedEvents?: TimedEvent[];
+  isCalculating?: boolean;
   history: TripSummary[];
   shareUrl: string | null;
   // Step 3 — calc
@@ -110,6 +111,7 @@ export function PlanningStepContent(p: PlanningStepContentProps) {
       poiPartialResults={p.poiPartialResults}
       history={p.history} shareUrl={p.shareUrl}
       precomputedEvents={p.precomputedEvents}
+      isCalculating={p.isCalculating}
       onOpenGoogleMaps={p.onOpenGoogleMaps}
       onCopyShareLink={p.onCopyShareLink}
       onStartJournal={p.onStartJournal}

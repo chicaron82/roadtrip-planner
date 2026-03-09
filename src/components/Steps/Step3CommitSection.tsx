@@ -13,6 +13,7 @@ interface Step3CommitSectionProps {
   addedStopCount: number;
   shareUrl: string | null;
   precomputedEvents?: TimedEvent[];
+  isCalculating?: boolean;
   onConfirmTrip: () => void;
   onUnconfirmTrip: () => void;
   onSetJournalMode: () => void;
@@ -29,6 +30,7 @@ export function Step3CommitSection({
   addedStopCount,
   shareUrl,
   precomputedEvents,
+  isCalculating,
   onConfirmTrip,
   onUnconfirmTrip,
   onSetJournalMode,
@@ -54,6 +56,7 @@ export function Step3CommitSection({
         vehicle={vehicle}
         shareUrl={shareUrl}
         precomputedEvents={precomputedEvents}
+        isCalculating={isCalculating}
         onOpenGoogleMaps={onOpenGoogleMaps}
         onCopyShareLink={onCopyShareLink}
       />

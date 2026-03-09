@@ -91,7 +91,7 @@ export async function reverseGeocodeTown(
       `${NOMINATIM_BASE_URL}/reverse?lat=${lat}&lon=${lng}` +
       `&format=json&zoom=10&addressdetails=1`;
 
-    const response = await fetch(url, { signal });
+    const response = await fetch(url, { signal: signal ?? AbortSignal.timeout(5000) });
 
     if (!response.ok) return null;
 

@@ -18,6 +18,7 @@ interface Step3HeaderProps {
   shareUrl: string | null;
   difficulty?: Difficulty | null;
   precomputedEvents?: TimedEvent[];
+  isCalculating?: boolean;
   onOpenGoogleMaps: () => void;
   onCopyShareLink: () => void;
 }
@@ -29,6 +30,7 @@ export function Step3Header({
   shareUrl,
   difficulty,
   precomputedEvents,
+  isCalculating,
   onOpenGoogleMaps,
   onCopyShareLink,
 }: Step3HeaderProps) {
@@ -61,6 +63,7 @@ export function Step3Header({
               size="sm"
               variant="outline"
               className="gap-1"
+              disabled={isCalculating || !precomputedEvents?.length}
               onClick={() => printTrip({ summary, settings, vehicle, precomputedEvents: precomputedEvents ?? [] })}
             >
               <Printer className="h-3 w-3" /> Print

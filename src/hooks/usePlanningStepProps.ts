@@ -75,6 +75,7 @@ interface UsePlanningStepPropsOptions {
   dismissPOI: (id: string) => void;
   // Print
   precomputedEvents?: TimedEvent[];
+  isCalculating?: boolean;
   // Actions
   openInGoogleMaps: () => void;
   copyShareLink: () => void;
@@ -157,5 +158,6 @@ export function usePlanningStepProps(o: UsePlanningStepPropsOptions): PlanningSt
     onUnconfirmTrip,
     onLoadHistoryTrip: o.setSummary,
     precomputedEvents: o.precomputedEvents,
+    isCalculating: o.isCalculating,
   };
 }
