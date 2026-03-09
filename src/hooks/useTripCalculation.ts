@@ -8,7 +8,7 @@ import { addToHistory } from '../lib/storage';
 import { serializeStateToURL } from '../lib/url';
 import { buildStrategyUpdate } from '../lib/trip-strategy-selector';
 import {
-  orchestrateTrip, orchestrateStopUpdate, TripCalculationError,
+  orchestrateTrip, orchestrateStopUpdate, orchestrateStrategySwap, TripCalculationError,
 } from '../lib/trip-orchestrator';
 import { useTripContext } from '../contexts/TripContext';
 
@@ -157,12 +157,16 @@ export function useTripCalculation({
       const strategy = routeStrategies[index];
       if (!strategy || !localSummary) return;
       setActiveStrategyIndex(index);
-      setCanonicalTimeline(null); // Strategy swap: cleared until next full calculation
       const updatedSummary = buildStrategyUpdate(strategy, localSummary, vehicle, settings);
+      const { canonicalTimeline, projectedFuelStops } = orchestrateStrategySwap(
+        updatedSummary, settings, vehicle, locations, roundTripMidpointRef.current,
+      );
       setLocalSummary(updatedSummary);
       onSummaryChange(updatedSummary);
+      setCanonicalTimeline(canonicalTimeline);
+      setStrategicFuelStops(projectedFuelStops);
     },
-    [routeStrategies, localSummary, vehicle, settings, onSummaryChange, setCanonicalTimeline]
+    [routeStrategies, localSummary, vehicle, settings, locations, onSummaryChange, setCanonicalTimeline]
   );
 
   const updateStopType = useCallback(

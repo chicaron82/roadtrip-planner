@@ -233,6 +233,34 @@ export async function orchestrateTrip(
   };
 }
 
+/** Rebuild canonical timeline + fuel stops after switching a named route strategy.
+ *  The summary is already built by buildStrategyUpdate — this just re-runs the
+ *  fast synchronous pipeline (generateSmartStops → buildTimedTimeline). */
+export function orchestrateStrategySwap(
+  updatedSummary: TripSummary,
+  settings: TripSettings,
+  vehicle: Vehicle,
+  locations: Location[],
+  roundTripMidpoint: number | undefined,
+): { canonicalTimeline: CanonicalTripTimeline; projectedFuelStops: StrategicFuelStop[] } {
+  const tripDays = updatedSummary.days ?? [];
+  const smartStops = generateSmartStops(
+    updatedSummary.segments,
+    createStopConfig(vehicle, settings, updatedSummary.fullGeometry, updatedSummary.segments[0]?.from.lng),
+    tripDays,
+  );
+  const destinationStayMinutes = getRoundTripDayTripStayMinutes(updatedSummary, tripDays.length, settings);
+  const timedRaw = buildTimedTimeline(
+    updatedSummary.segments, smartStops, settings,
+    roundTripMidpoint, destinationStayMinutes, tripDays,
+  );
+  const canonicalTimeline = assembleCanonicalTimeline(
+    applyComboOptimization(timedRaw), tripDays, updatedSummary,
+    { locations: [...locations], vehicle, settings },
+  );
+  return { canonicalTimeline, projectedFuelStops: projectFuelStopsFromSimulation(smartStops) };
+}
+
 /** Recalculate trip after changing a segment's stop type. Pure — no React state. */
 export function orchestrateStopUpdate(
   localSummary: TripSummary,
