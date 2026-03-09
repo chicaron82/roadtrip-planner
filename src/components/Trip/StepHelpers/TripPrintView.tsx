@@ -68,7 +68,7 @@ export function printTrip(props: TripPrintViewProps): void {
   const destination = endpoints.destination?.name || 'Destination';
   const tripTitle = `${origin} → ${destination}`;
 
-  const html = buildPrintHTML(tripTitle, summary, settings, days, driverRotation, timedEvents);
+  const html = buildPrintHTML(tripTitle, summary, settings, days, driverRotation, timedEvents, props.vehicle);
 
   // Open print window
   const printWindow = window.open('', '_blank', 'width=800,height=600');

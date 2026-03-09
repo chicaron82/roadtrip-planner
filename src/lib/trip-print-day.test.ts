@@ -265,10 +265,22 @@ describe('buildDayHTML', () => {
 });
 
 describe('buildPrintHTML budget messaging', () => {
-  it('shows the overall trip budget target and remaining amount in the overview', () => {
+  it('renders cover page with budget health, BEAST MODE badge, and itinerary header', () => {
     const html = buildPrintHTML('Winnipeg → Montreal', SUMMARY, SETTINGS, [DAY], null, EVENTS);
 
-    expect(html).toContain('Budget target: $3500.00');
-    expect(html).toContain('Total budget remaining: $30.00');
+    // Cover page budget card
+    expect(html).toContain('Budget is sound');
+    expect(html).toContain('$3470.00');   // est. cost from costBreakdown.total
+    expect(html).toContain('$3500.00');   // budget target
+
+    // BEAST MODE — maxDriveHours is 16 in SETTINGS
+    expect(html).toContain('BEAST MODE');
+
+    // Itinerary section header
+    expect(html).toContain('Day-by-Day Itinerary');
+
+    // Old overview format removed
+    expect(html).not.toContain('Budget target:');
+    expect(html).not.toContain('Total budget remaining:');
   });
 });

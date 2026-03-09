@@ -338,4 +338,154 @@ export const PRINT_STYLES = `
     .day-section { page-break-inside: avoid; }
     .overview { border-bottom-color: #000; }
   }
+
+  /* ── Cover page (Page 1) ──────────────────────────────────────────────── */
+
+  .cover-page {
+    page-break-after: always;
+    padding: 32px 24px;
+    min-height: 100vh;
+    box-sizing: border-box;
+  }
+
+  .cover-brand {
+    font-size: 7.5pt;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #bbb;
+    font-weight: 600;
+    margin-bottom: 20px;
+  }
+
+  .cover-divider {
+    border: none;
+    border-top: 2px solid #e5e5e5;
+    margin: 0 0 24px 0;
+  }
+
+  .cover-hero h1 {
+    font-size: 22pt;
+    line-height: 1.25;
+    margin-bottom: 8px;
+  }
+
+  .cover-dates {
+    font-size: 13pt;
+    color: #444;
+    margin-bottom: 4px;
+  }
+
+  .cover-meta {
+    font-size: 10pt;
+    color: #777;
+  }
+
+  .cover-section {
+    margin-top: 22px;
+  }
+
+  .cover-section-label {
+    font-size: 7.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: #999;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+
+  .cover-status-card {
+    padding: 14px 18px;
+    border-radius: 8px;
+    margin-top: 4px;
+  }
+
+  .cover-status-ok      { background: #f0fff4; border: 1px solid #86efac; }
+  .cover-status-tight   { background: #fffbeb; border: 1px solid #fbbf24; }
+  .cover-status-over    { background: #fef2f2; border: 1px solid #fca5a5; }
+  .cover-status-neutral { background: #f5f5f5; border: 1px solid #e0e0e0; }
+
+  .cover-status-headline {
+    font-size: 13pt;
+    font-weight: 700;
+  }
+
+  .cover-status-detail {
+    font-size: 10pt;
+    color: #555;
+    margin-top: 5px;
+  }
+
+  .cover-warning-item {
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+  }
+
+  .cover-warning-msg {
+    font-size: 10.5pt;
+    font-weight: 600;
+  }
+
+  .cover-warning-tip {
+    font-size: 9.5pt;
+    color: #666;
+    margin-top: 3px;
+  }
+
+  .cover-pacing {
+    font-size: 10.5pt;
+    color: #333;
+    margin-top: 4px;
+    line-height: 1.8;
+  }
+
+  .beast-badge {
+    display: inline-block;
+    background: #fbbf24;
+    color: #78350f;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-size: 9.5pt;
+    letter-spacing: 0.05em;
+  }
+
+  .cover-roster-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10pt;
+    margin-top: 8px;
+  }
+
+  .cover-roster-table th,
+  .cover-roster-table td {
+    border: 1px solid #ddd;
+    padding: 7px 12px;
+    text-align: left;
+  }
+
+  .cover-roster-table th {
+    background: #f9f9f9;
+    font-weight: 600;
+  }
+
+  .cover-footer {
+    margin-top: 32px;
+    padding-top: 12px;
+    border-top: 1px solid #eee;
+    font-size: 8pt;
+    color: #bbb;
+  }
+
+  /* Itinerary section header (top of Page 2) */
+  .itinerary-header {
+    font-size: 13pt;
+    font-weight: 700;
+    color: #444;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #333;
+  }
 `;
