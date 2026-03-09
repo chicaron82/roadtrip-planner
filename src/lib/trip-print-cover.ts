@@ -180,17 +180,24 @@ function buildRosterSection(
   driverRotation: DriverRotationResult | null,
   settings: TripSettings,
 ): string {
-  if (settings.numDrivers <= 1 || !driverRotation || driverRotation.stats.length <= 1) return '';
+  if (settings.numDrivers <= 1) return '';
 
   const units = settings.units;
-  const rows = driverRotation.stats.map(s => `
-    <tr>
-      <td>${getDriverName(s.driver, settings.driverNames)}</td>
-      <td>${formatDriveTime(s.totalMinutes)}</td>
-      <td>${formatDistance(s.totalKm, units)}</td>
-      <td>${s.segmentCount}</td>
-    </tr>
-  `).join('');
+  // Index stats by driver number so unassigned drivers (0 segments) still appear
+  const statsById = new Map((driverRotation?.stats ?? []).map(s => [s.driver, s]));
+
+  const rows = Array.from({ length: settings.numDrivers }, (_, i) => {
+    const driver = i + 1;
+    const s = statsById.get(driver);
+    return `
+      <tr>
+        <td>${getDriverName(driver, settings.driverNames)}</td>
+        <td>${s ? formatDriveTime(s.totalMinutes) : '—'}</td>
+        <td>${s ? formatDistance(s.totalKm, units) : '—'}</td>
+        <td>${s ? s.segmentCount : '—'}</td>
+      </tr>
+    `;
+  }).join('');
 
   return `
     <div class="cover-section">

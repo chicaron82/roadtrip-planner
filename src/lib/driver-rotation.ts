@@ -89,15 +89,20 @@ export function assignDrivers(
 ): DriverRotationResult {
   if (numDrivers < 1) numDrivers = 1;
 
+  // Deduplicate fuel stop indices: multiple en-route stops within one flat segment
+  // all resolve to the same flatIndex. Without dedup, [0,0,0].length=3 triggers the
+  // fuel-only path for 4 drivers, then new Set collapses to {0} — one real swap point.
+  const uniqueFuelIndices = [...new Set(fuelStopIndices)];
+
   // Determine rotation points: fuel stops if they create enough rotations,
   // otherwise fall back to time-based even distribution
   const effectiveIndices =
-    fuelStopIndices.length >= numDrivers - 1
-      ? fuelStopIndices
+    uniqueFuelIndices.length >= numDrivers - 1
+      ? uniqueFuelIndices
       : [
-          ...fuelStopIndices,
+          ...uniqueFuelIndices,
           ...buildTimeBasedRotationIndices(segments, numDrivers).filter(
-            i => !fuelStopIndices.includes(i),
+            i => !uniqueFuelIndices.includes(i),
           ),
         ];
 
@@ -158,6 +163,36 @@ export function extractFuelStopIndices(
       for (let j = i + 1; j < simulationItems.length; j++) {
         if (simulationItems[j].type === 'stop' && typeof simulationItems[j].index === 'number') {
           indices.push(simulationItems[j].index!);
+          break;
+        }
+      }
+    }
+  }
+  return indices;
+}
+
+/**
+ * Extract fuel stop flat-segment indices from the pre-built TimedEvent array.
+ * Used by the print path, which has precomputedEvents but not raw simulation items.
+ *
+ * TimedEvent uses type='fuel'|'combo' for fuel events; flatIndex is only set on
+ * subsequent waypoint/arrival/destination events, so we scan forward (mirrors the
+ * simulation-item logic in extractFuelStopIndices).
+ */
+export function extractFuelIndicesFromTimedEvents(
+  events: Array<{ type: string; flatIndex?: number }>,
+): number[] {
+  const indices: number[] = [];
+  for (let i = 0; i < events.length; i++) {
+    const ev = events[i];
+    if (ev.type === 'fuel' || ev.type === 'combo') {
+      for (let j = i + 1; j < events.length; j++) {
+        const next = events[j];
+        if (
+          (next.type === 'waypoint' || next.type === 'arrival' || next.type === 'destination') &&
+          typeof next.flatIndex === 'number'
+        ) {
+          indices.push(next.flatIndex);
           break;
         }
       }

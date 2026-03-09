@@ -10,7 +10,7 @@
 
 import type { TripSummary, TripSettings, Vehicle } from '../../../types';
 import type { DriverRotationResult } from '../../../lib/driver-rotation';
-import { assignDrivers } from '../../../lib/driver-rotation';
+import { assignDrivers, extractFuelIndicesFromTimedEvents } from '../../../lib/driver-rotation';
 import { showToast } from '../../../lib/toast';
 import { type TimedEvent } from '../../../lib/trip-timeline';
 import { buildPrintHTML } from '../../../lib/trip-print-builders';
@@ -54,10 +54,11 @@ export function printTrip(props: TripPrintViewProps): void {
       flatSegments.push(...summary.segments);
     }
     
-    // We need simulationItems to extract fuel indices, but for print we can use segment stopTypes directly
-    const fuelIndices = flatSegments
-      .map((seg, i) => seg.stopType === 'fuel' ? i : -1)
-      .filter(i => i >= 0);
+    // Use precomputed timed events (same source the itinerary view uses) to locate
+    // fuel stop flat-segment indices. The previous approach read seg.stopType === 'fuel'
+    // which is a user-set waypoint field — auto-generated simulation stops never set it,
+    // so rotation always fell back to time-based and hit the flat-segment ceiling.
+    const fuelIndices = extractFuelIndicesFromTimedEvents(precomputedEvents);
     driverRotation = assignDrivers(flatSegments, settings.numDrivers, fuelIndices);
   }
 
