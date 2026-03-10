@@ -19,8 +19,11 @@
 
 If something violates this, it goes in a hook or a controller — not App.tsx.
 
-**This limit is enforced by ESLint (`max-lines: error` on `src/App.tsx`).
-The build will fail if App.tsx exceeds 300 lines.**
+**This limit is enforced by ESLint (`max-lines: error` on `src/App.tsx`).**
+
+> **Temporary cap: ESLint currently enforces 320 lines while the Step 3 / Viewer refactor
+> is in progress. Once that refactor lands, the cap tightens back to 300.
+> Do not treat 320 as a permanent ceiling — 300 is the law.**
 
 ---
 
