@@ -14,3 +14,5 @@ export { addPoiToTimeline, dismissPoi } from './poi-mutations';
 export { updateDayMetadata, updateDayTitle, updateDayNotes, updateDayType } from './day-metadata';
 export { addDayActivity, updateDayActivity, removeDayActivity } from './day-activities';
 export { updateOvernight } from './overnight';
+
+// End of canonical mutation helpers
