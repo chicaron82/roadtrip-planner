@@ -1,24 +1,23 @@
-import { useState, useEffect } from 'react';
 import { Compass, MapPin, Sparkles, X } from 'lucide-react';
-import type { Location, AdventureDestination, TripPreference } from '../../../types';
-import { findAdventureDestinations, calculateMaxDistance } from '../../../lib/adventure/adventure-service';
+import type { Location, TripPreference } from '../../../types';
 import { LocationSearchInput } from '../Location/LocationSearchInput';
 import { AdventureFormPanel } from './AdventureFormPanel';
 import { AdventureResultsPanel } from './AdventureResultsPanel';
-import { cn, formatLocalYMD } from '../../../lib/utils';
+import { cn } from '../../../lib/utils';
+import { useAdventureModeController } from '../../../hooks/useAdventureModeController';
 
 // Settings to carry over when selecting a destination
 export interface AdventureSelection {
   destination: Location;
   travelers: number;
   days: number;
-  budget: number; // Total trip budget amount
+  budget: number;
   isRoundTrip: boolean;
   accommodationType: 'budget' | 'moderate' | 'comfort';
-  preferences: TripPreference[]; // Trip style preferences for budget profile mapping
-  departureDate: string; // ISO date string
-  departureTime: string; // HH:MM format
-  estimatedDistanceKm: number; // For gas calculation
+  preferences: TripPreference[];
+  departureDate: string;
+  departureTime: string;
+  estimatedDistanceKm: number;
 }
 
 interface AdventureModeProps {
@@ -27,8 +26,6 @@ interface AdventureModeProps {
   onSelectDestination: (selection: AdventureSelection) => void;
   onClose: () => void;
   className?: string;
-  /** Fuel cost per km derived from user's vehicle + gas price settings.
-   *  When provided, overrides the hardcoded $0.12/km estimate in adventure-service. */
   fuelCostPerKm?: number;
 }
 
@@ -40,61 +37,29 @@ export function AdventureMode({
   className,
   fuelCostPerKm,
 }: AdventureModeProps) {
-  const [localOrigin, setLocalOrigin] = useState<Location | null>(externalOrigin);
-  const origin = localOrigin;
-
-  const [budget, setBudget] = useState(1000);
-  const [days, setDays] = useState(3);
-  const [travelers, setTravelers] = useState(2);
-  const [preferences, setPreferences] = useState<TripPreference[]>([]);
-  const [accommodationType, setAccommodationType] = useState<'budget' | 'moderate' | 'comfort'>('moderate');
-  const [isRoundTrip, setIsRoundTrip] = useState(true);
-
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const [departureDate, setDepartureDate] = useState(formatLocalYMD(tomorrow));
-  const [departureTime, setDepartureTime] = useState('09:00');
-
-  const [destinations, setDestinations] = useState<AdventureDestination[]>([]);
-  const [isCalculating, setIsCalculating] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
-
-  useEffect(() => {
-    if (!origin || origin.lat === 0) return;
-    const timer = setTimeout(async () => {
-      setIsCalculating(true);
-      try {
-        const result = await findAdventureDestinations({
-          origin, budget, days, travelers, preferences, accommodationType, isRoundTrip, fuelCostPerKm,
-        });
-        setDestinations(result.destinations);
-        setHasSearched(true);
-      } catch (error) {
-        console.error('Adventure search failed:', error);
-      } finally {
-        setIsCalculating(false);
-      }
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [origin, budget, days, travelers, preferences, accommodationType, isRoundTrip, fuelCostPerKm]);
-
-  const previewMaxKm = origin && origin.lat !== 0
-    ? calculateMaxDistance({ origin, budget, days, travelers, preferences, accommodationType, isRoundTrip, fuelCostPerKm })
-    : 0;
-
-  const togglePreference = (pref: TripPreference) => {
-    setPreferences(prev => prev.includes(pref) ? prev.filter(p => p !== pref) : [...prev, pref]);
-  };
-
-  const handleSelectDestination = (dest: AdventureDestination) => {
-    onSelectDestination({
-      destination: dest.location,
-      travelers, days, budget, isRoundTrip, accommodationType, preferences,
-      departureDate, departureTime,
-      estimatedDistanceKm: dest.distanceKm * (isRoundTrip ? 2 : 1),
-    });
-    onClose();
-  };
+  const {
+    origin,
+    setLocalOrigin,
+    handleOriginSelect,
+    budget, setBudget,
+    days, setDays,
+    travelers, setTravelers,
+    preferences,
+    accommodationType, setAccommodationType,
+    isRoundTrip, setIsRoundTrip,
+    departureDate, setDepartureDate,
+    departureTime, setDepartureTime,
+    destinations, isCalculating, hasSearched,
+    previewMaxKm,
+    togglePreference,
+    handleSelectDestination,
+  } = useAdventureModeController({
+    initialOrigin: externalOrigin,
+    onOriginChange,
+    onSelectDestination,
+    onClose,
+    fuelCostPerKm,
+  });
 
   return (
     <div className={cn('fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4', className)}>
@@ -118,7 +83,7 @@ export function AdventureMode({
           </div>
         </div>
 
-        {/* Origin Search — inline when no starting location */}
+        {/* Origin Search — shown when no starting location */}
         {(!origin || origin.lat === 0) && (
           <div className="px-4 pt-4 pb-3 md:px-6 md:pt-5 md:pb-4 border-b border-purple-200 bg-purple-50 flex-shrink-0">
             <div className="flex items-center gap-2 mb-2 text-purple-800">
@@ -128,20 +93,7 @@ export function AdventureMode({
             <LocationSearchInput
               value=""
               placeholder="Search a city…"
-              onSelect={(loc) => {
-                if (loc.lat && loc.lng) {
-                  const newOrigin: Location = {
-                    id: 'origin',
-                    name: loc.name || '',
-                    address: loc.address,
-                    lat: loc.lat,
-                    lng: loc.lng,
-                    type: 'origin',
-                  };
-                  setLocalOrigin(newOrigin);
-                  onOriginChange?.(newOrigin);
-                }
-              }}
+              onSelect={handleOriginSelect}
             />
           </div>
         )}
@@ -196,7 +148,9 @@ export function AdventureMode({
   );
 }
 
-// Adventure Mode Trigger Button
+// ── Adventure Mode Trigger Button ────────────────────────────────────────────
+// Pure display component — no controller needed.
+
 interface AdventureButtonProps {
   onClick: () => void;
   className?: string;
