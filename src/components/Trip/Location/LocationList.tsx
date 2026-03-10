@@ -6,10 +6,12 @@ import { MapPin, Flag, Circle, X, Star, GripVertical, Loader2 } from 'lucide-rea
 import type { SavedLocation } from '../../../lib/storage';
 import {
   DndContext,
+} from '@dnd-kit/core';
+import {
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
-} from '@dnd-kit/core';
+} from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useLocationListController } from '../../../hooks/useLocationListController';
 
