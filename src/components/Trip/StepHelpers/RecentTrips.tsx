@@ -1,3 +1,4 @@
+import { cn } from '../../../lib/utils';
 import type { HistoryTripSnapshot } from '../../../types';
 
 interface Props {
@@ -24,21 +25,10 @@ export function RecentTrips({ history, onLoadHistoryTrip }: Props) {
             <div
               key={i}
               onClick={() => onLoadHistoryTrip?.(trip)}
-              className="p-2 border rounded text-xs bg-muted/20"
-              style={{
-                cursor: clickable ? 'pointer' : 'default',
-                transition: 'background 0.15s ease, border-color 0.15s ease',
-              }}
-              onMouseEnter={e => {
-                if (clickable) {
-                  (e.currentTarget as HTMLDivElement).style.background = 'rgba(245,158,11,0.08)';
-                  (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(245,158,11,0.4)';
-                }
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLDivElement).style.background = '';
-                (e.currentTarget as HTMLDivElement).style.borderColor = '';
-              }}
+              className={cn(
+                "p-2 border rounded text-xs bg-muted/20 transition-all duration-150",
+                clickable ? "cursor-pointer hover:bg-amber-500/10 hover:border-amber-500/40" : "cursor-default"
+              )}
             >
               <div className="flex items-center justify-between mb-1">
                 <span className="font-semibold text-foreground truncate mr-2">

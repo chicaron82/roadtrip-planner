@@ -32,15 +32,7 @@ export function LandingFooter({ activeDot }: Props) {
           href="https://chicaron82.github.io/Version-848/#who"
           target="_blank"
           rel="noopener noreferrer"
-          style={{
-            color: 'rgba(255,255,255,0.35)',
-            textDecoration: 'underline',
-            textDecorationColor: 'rgba(255,255,255,0.15)',
-            textUnderlineOffset: '3px',
-            transition: 'color 0.2s',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.6)')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.35)')}
+          className="text-white/40 hover:text-white/60 underline decoration-white/20 underline-offset-4 transition-colors duration-200"
         >
           United Voices 7 (UV7) crew
         </a>.
