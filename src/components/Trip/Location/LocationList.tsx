@@ -3,24 +3,15 @@ import type { Location } from '../../../types';
 import { Button } from '../../UI/Button';
 import { LocationSearchInput } from './LocationSearchInput';
 import { MapPin, Flag, Circle, X, Star, GripVertical, Loader2 } from 'lucide-react';
-import { getFavorites, toggleFavorite, type SavedLocation } from '../../../lib/storage';
+import type { SavedLocation } from '../../../lib/storage';
 import {
   DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
   SortableContext,
-  sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
+} from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
+import { useLocationListController } from '../../../hooks/useLocationListController';
 
 interface LocationListProps {
   locations: Location[];
@@ -54,12 +45,7 @@ function SortableLocationItem({
   loadFavorite,
 }: SortableLocationItemProps) {
   const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
+    attributes, listeners, setNodeRef, transform, transition, isDragging,
   } = useSortable({ id: loc.id });
 
   const style = {
@@ -71,13 +57,10 @@ function SortableLocationItem({
   const [favOpen, setFavOpen] = useState(false);
   const favRef = useRef<HTMLDivElement>(null);
 
-  // Close on outside click
   useEffect(() => {
     if (!favOpen) return;
     const handler = (e: MouseEvent) => {
-      if (favRef.current && !favRef.current.contains(e.target as Node)) {
-        setFavOpen(false);
-      }
+      if (favRef.current && !favRef.current.contains(e.target as Node)) setFavOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -112,12 +95,11 @@ function SortableLocationItem({
             <button
               onClick={() => onToggleFavorite(loc)}
               className={`text-xs transition-colors p-1 rounded hover:bg-muted ${isFavorite(loc) ? 'text-yellow-500' : 'text-muted-foreground hover:text-yellow-500'}`}
-              title={isFavorite(loc) ? "Remove from Favorites" : "Save to Favorites"}
+              title={isFavorite(loc) ? 'Remove from Favorites' : 'Save to Favorites'}
             >
               <Star className={`h-3 w-3 ${isFavorite(loc) ? 'fill-current' : ''}`} />
             </button>
           )}
-
           {loc.type === 'waypoint' && (
             <button
               onClick={() => onRemove(index)}
@@ -135,7 +117,7 @@ function SortableLocationItem({
           <LocationSearchInput
             value={loc.name}
             onSelect={(l) => onUpdate(index, l)}
-            placeholder={loc.type === 'origin' ? "Where are you starting?" : loc.type === 'destination' ? "Where are you going?" : "Add a stop..."}
+            placeholder={loc.type === 'origin' ? 'Where are you starting?' : loc.type === 'destination' ? 'Where are you going?' : 'Add a stop...'}
           />
         </div>
         {!loc.name && favorites.length > 0 && (
@@ -176,108 +158,47 @@ function SortableLocationItem({
 }
 
 export function LocationList({ locations, setLocations, onCalculate, isCalculating, hideCalculateButton }: LocationListProps) {
-  const [favorites, setFavorites] = useState<SavedLocation[]>(() => getFavorites());
-
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  const updateLocation = (index: number, newLoc: Partial<Location>) => {
-    const updated = [...locations];
-    updated[index] = { ...updated[index], ...newLoc };
-    setLocations(updated);
-  };
-
-  const removeLocation = (index: number) => {
-    const updated = locations.filter((_, i) => i !== index);
-    setLocations(updated);
-  };
-
-  const addWaypoint = () => {
-    const newLoc: Location = {
-      id: crypto.randomUUID(),
-      name: '',
-      lat: 0,
-      lng: 0,
-       type: 'waypoint',
-    };
-    // Insert before the destination (last item)
-    const updated = [...locations];
-    updated.splice(updated.length - 1, 0, newLoc);
-    setLocations(updated);
-  };
-
-  const handleToggleFavorite = (loc: Location) => {
-      if (!loc.name) return;
-      const updated = toggleFavorite(loc);
-      setFavorites(updated);
-  };
-
-  const isFavorite = (loc: Location) => {
-      return favorites.some(f => f.name === loc.name); // Simple check
-  };
-
-  const loadFavorite = (index: number, fav: SavedLocation) => {
-      const { ...locData } = fav;
-      // Preserve the type (origin/destination/waypoint) of the slot we are filling
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { type, isFavorite, ...data } = locData;
-
-      updateLocation(index, data);
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (over && active.id !== over.id) {
-      const oldIndex = locations.findIndex((loc) => loc.id === active.id);
-      const newIndex = locations.findIndex((loc) => loc.id === over.id);
-
-      const reordered = arrayMove(locations, oldIndex, newIndex);
-      const reTyped = reordered.map((loc, i, arr) => ({
-        ...loc,
-        type: (i === 0 ? 'origin' : i === arr.length - 1 ? 'destination' : 'waypoint') as Location['type'],
-      }));
-      setLocations(reTyped);
-    }
-  };
+  const {
+    favorites,
+    isFavorite,
+    handleToggleFavorite,
+    loadFavorite,
+    loadFavoriteIntoFirstEmpty,
+    updateLocation,
+    removeLocation,
+    addWaypoint,
+    sensors,
+    collisionDetection,
+    handleDragEnd,
+  } = useLocationListController({ locations, setLocations });
 
   return (
     <div className="space-y-4">
       {/* Favorites Quick Bar */}
       {favorites.length > 0 && (
-          <div 
-            className="flex gap-2 overflow-x-auto pb-2 no-scrollbar touch-pan-x"
-            data-no-drag="true"
-            onPointerDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-          >
-              {favorites.map((fav, i) => (
-                  <button
-                    key={i}
-                    onClick={() => {
-                        // Click to fill the *first empty slot*
-                        const emptyIndex = locations.findIndex(l => !l.name);
-                        if (emptyIndex !== -1) {
-                            loadFavorite(emptyIndex, fav);
-                        }
-                    }}
-                    className="flex items-center gap-1 px-2 py-1 bg-yellow-50 text-yellow-700 text-xs rounded border border-yellow-200 whitespace-nowrap hover:bg-yellow-100 dark:bg-yellow-500/10 dark:border-yellow-500/20 dark:text-yellow-500 hover:dark:bg-yellow-500/20"
-                    title="Click to fill first empty slot"
-                  >
-                      <Star className="h-3 w-3 fill-current" />
-                      {fav.name.split(',')[0]}
-                  </button>
-              ))}
-          </div>
+        <div
+          className="flex gap-2 overflow-x-auto pb-2 no-scrollbar touch-pan-x"
+          data-no-drag="true"
+          onPointerDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+        >
+          {favorites.map((fav, i) => (
+            <button
+              key={i}
+              onClick={() => loadFavoriteIntoFirstEmpty(fav)}
+              className="flex items-center gap-1 px-2 py-1 bg-yellow-50 text-yellow-700 text-xs rounded border border-yellow-200 whitespace-nowrap hover:bg-yellow-100 dark:bg-yellow-500/10 dark:border-yellow-500/20 dark:text-yellow-500 hover:dark:bg-yellow-500/20"
+              title="Click to fill first empty slot"
+            >
+              <Star className="h-3 w-3 fill-current" />
+              {fav.name.split(',')[0]}
+            </button>
+          ))}
+        </div>
       )}
 
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCenter}
+        collisionDetection={collisionDetection}
         onDragEnd={handleDragEnd}
       >
         <SortableContext
@@ -303,7 +224,7 @@ export function LocationList({ locations, setLocations, onCalculate, isCalculati
         </SortableContext>
       </DndContext>
 
-       <Button variant="outline" size="sm" onClick={addWaypoint} className="w-full border-dashed border-primary/30 text-primary hover:bg-primary/5">
+      <Button variant="outline" size="sm" onClick={addWaypoint} className="w-full border-dashed border-primary/30 text-primary hover:bg-primary/5">
         + Add Stop
       </Button>
 
@@ -315,7 +236,7 @@ export function LocationList({ locations, setLocations, onCalculate, isCalculati
         >
           {isCalculating ? (
             <><Loader2 className="h-4 w-4 animate-spin mr-2" />Calculating...</>
-          ) : "🗺️ Calculate Route"}
+          ) : '🗺️ Calculate Route'}
         </Button>
       )}
     </div>
