@@ -16,10 +16,10 @@
  *
  * Truth model:
  *   - CanonicalTripTimeline is the intended source of truth for completed trips.
- *   - summary is currently bridged in TripContext for compatibility, but it must
- *     not diverge from canonicalTimeline.summary.
- *   - New mutations should prefer updating canonicalTimeline and treat summary as
- *     a compatibility read surface during the migration.
+ *   - TripContext.summary is now a derived read surface over
+ *     canonicalTimeline.summary, not separately stored state.
+ *   - New mutations should patch canonicalTimeline.summary directly through the
+ *     timeline helpers until remaining consumers stop depending on summary props.
  *
  * 💚 My Experience Engine
  */

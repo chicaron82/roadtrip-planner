@@ -141,30 +141,29 @@ export function TripProvider({
   }));
 
   // ── Timeline State ──────────────────────────────────────────────────────────
-  const [summaryState, setSummaryState] = useState<TripSummary | null>(null);
   const [canonicalTimelineState, setCanonicalTimelineState] = useState<CanonicalTripTimeline | null>(null);
-  const summaryRef = useRef<TripSummary | null>(summaryState);
   const canonicalTimelineRef = useRef<CanonicalTripTimeline | null>(canonicalTimelineState);
 
-  useEffect(() => {
-    summaryRef.current = summaryState;
-  }, [summaryState]);
+  const summary = canonicalTimelineState?.summary ?? null;
 
   useEffect(() => {
     canonicalTimelineRef.current = canonicalTimelineState;
   }, [canonicalTimelineState]);
 
   const setSummary: React.Dispatch<React.SetStateAction<TripSummary | null>> = useCallback((nextSummaryAction) => {
-    const prevSummary = summaryRef.current;
+    const prevTimeline = canonicalTimelineRef.current;
+    const prevSummary = prevTimeline?.summary ?? null;
     const nextSummary = typeof nextSummaryAction === 'function'
       ? nextSummaryAction(prevSummary)
       : nextSummaryAction;
 
-    summaryRef.current = nextSummary;
-    setSummaryState(nextSummary);
-
-    const prevTimeline = canonicalTimelineRef.current;
-    if (!prevTimeline) return;
+    if (!prevTimeline) {
+      if (nextSummary === null) {
+        canonicalTimelineRef.current = null;
+        setCanonicalTimelineState(null);
+      }
+      return;
+    }
 
     const nextTimeline = nextSummary
       ? { ...prevTimeline, summary: nextSummary }
@@ -182,10 +181,6 @@ export function TripProvider({
 
     canonicalTimelineRef.current = nextTimeline;
     setCanonicalTimelineState(nextTimeline);
-
-    const nextSummary = nextTimeline?.summary ?? null;
-    summaryRef.current = nextSummary;
-    setSummaryState(nextSummary);
   }, []);
 
   // ── Core side-effects ───────────────────────────────────────────────────────
@@ -260,9 +255,8 @@ export function TripProvider({
   }, []);
 
   // ── Timeline / Day Mutation Helpers ─────────────────────────────────────────
-  // All route through canonical-updates pure functions.
-  // Bridge state keeps summary and canonicalTimeline.summary synchronized until
-  // the broader canonical-first migration removes the duplicate summary state.
+  // All route through canonical-updates pure functions and patch
+  // canonicalTimeline.summary directly.
   const patchSummaryDays = useCallback((patcher: (days: TripDay[]) => TripDay[]) => {
     setSummary(prev => {
       if (!prev?.days) return prev;
@@ -311,12 +305,12 @@ export function TripProvider({
   ]);
 
   const timelineValue = useMemo<TimelineContextType>(() => ({
-    summary: summaryState, canonicalTimeline: canonicalTimelineState,
+    summary, canonicalTimeline: canonicalTimelineState,
     setSummary, setCanonicalTimeline,
     addDayActivity, updateDayActivity, removeDayActivity,
     updateDayNotes, updateDayTitle, updateDayType, updateDayOvernight,
   }), [
-    summaryState, canonicalTimelineState,
+    summary, canonicalTimelineState,
     setSummary, setCanonicalTimeline,
     addDayActivity, updateDayActivity, removeDayActivity,
     updateDayNotes, updateDayTitle, updateDayType, updateDayOvernight,
