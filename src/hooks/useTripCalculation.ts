@@ -78,6 +78,10 @@ export function useTripCalculation({
   // Cancelled when a new calculation starts so stale results never overwrite.
   const geocodeAbortRef = useRef<AbortController | null>(null);
 
+  // Generation counter for guarding unabortable async work (e.g. Overpass snaps).
+  // Increment before any async op; capture the value; discard results if stale.
+  const calcRunIdRef = useRef(0);
+
   // Retain roundTripMidpoint across calculations so updateStopType can re-split days correctly
   const roundTripMidpointRef = useRef<number | undefined>(undefined);
 
@@ -96,6 +100,10 @@ export function useTripCalculation({
     const geocodeController = new AbortController();
     geocodeAbortRef.current = geocodeController;
 
+    // Increment run ID so stale async results (Overpass snaps, strategy fetch)
+    // from any prior calculation are discarded when they eventually resolve.
+    const runId = ++calcRunIdRef.current;
+
     // Read settings from ref so this callback doesn't need settings in its dep array.
     // The ref is kept current via useLayoutEffect above.
     const currentSettings = settingsRef.current;
@@ -109,7 +117,7 @@ export function useTripCalculation({
       setStrategicFuelStops(projectedFuelStops);
 
       snapFuelStopsToStations(projectedFuelStops).then(snapped => {
-        setStrategicFuelStops(snapped);
+        if (calcRunIdRef.current === runId) setStrategicFuelStops(snapped);
       }).catch((err) => {
         console.warn('[fuel-snap] Overpass unavailable — keeping simulation-interpolated positions', err);
       });
@@ -186,8 +194,9 @@ export function useTripCalculation({
       setStrategicFuelStops(result.projectedFuelStops);
       setCanonicalTimeline(result.canonicalTimeline);
 
+      const snapRunId = ++calcRunIdRef.current;
       snapFuelStopsToStations(result.projectedFuelStops).then(snapped => {
-        setStrategicFuelStops(snapped);
+        if (calcRunIdRef.current === snapRunId) setStrategicFuelStops(snapped);
       }).catch((err) => {
         console.warn('[fuel-snap] Overpass unavailable — keeping simulation-interpolated positions', err);
       });
