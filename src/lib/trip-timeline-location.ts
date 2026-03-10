@@ -72,7 +72,11 @@ export function createTimelineLocationResolver(
   const makeLocationHint = (km: number, wpName?: string, hubName?: string): string => {
     if (km < 20) return wpName ?? originName;
     if (isResolvedLabelUsable(wpName, km)) return wpName!;
-    if (isResolvedLabelUsable(hubName, km)) return `near ${hubName!.trim()}`;
+    // Hub names come from a geographic proximity lookup and are already position-
+    // validated — skip the endpoint-boundary guard that isResolvedLabelUsable applies,
+    // which incorrectly rejects names that happen to match a route waypoint (e.g.
+    // "Thunder Bay" for a stop 80 km before Thunder Bay).
+    if (hubName && hubName.trim() && !/unorganized/i.test(hubName)) return `near ${hubName.trim()}`;
     const rounded = Math.round(km / 5) * 5;
     return `~${rounded} km into trip`;
   };

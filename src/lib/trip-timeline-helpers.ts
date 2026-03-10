@@ -141,7 +141,7 @@ export function classifyStops({
       if (flooredIdx === i - 1) {
         boundaryBefore.push(s);
       } else if (flooredIdx === i) {
-        const isEnRouteFuel = s.id.includes('enroute');
+        const isEnRouteFuel = /^fuel-enroute-/.test(s.id);
         if (isEnRouteFuel && i + 1 < iterSegmentsLength) {
           // Deferred to next segment's midDrive classification
         } else {

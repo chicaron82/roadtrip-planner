@@ -199,12 +199,20 @@ export function buildDayHTML(
   const destinationEvent = normalizedDayEvents.find(event => event.type === 'destination');
 
   const hotelHTML = day.overnight ? buildHotelHTML(day) : '';
-  const timezoneHTML = day.timezoneChanges.map(change => `
-    <div class="tz-alert">⏰ ${change.message}</div>
-  `).join('');
+
+  // Map drive-event index (0 = first segment in this day) → timezone banner HTML.
+  // Banners are injected inline after the corresponding drive event rather than
+  // dumped as a block above the whole timeline.
+  const tzAfterDriveIndex = new Map<number, string>(
+    day.timezoneChanges.map(c => [
+      c.afterSegmentIndex,
+      `<div class="tz-alert">⏰ ${c.message}</div>`,
+    ])
+  );
 
   let timelineHTML = '';
   if (normalizedDayEvents.length > 0) {
+    let driveEventCount = 0;
     timelineHTML = normalizedDayEvents.map((event, index) => {
       let swapDriverName: string | undefined;
       if (swapSuggestions && (event.type === 'fuel' || event.type === 'combo')) {
@@ -212,7 +220,13 @@ export function buildDayHTML(
         const driverNum = stopId != null ? swapSuggestions[stopId] : undefined;
         if (driverNum != null) swapDriverName = getDriverName(driverNum, driverNames);
       }
-      return buildEventHTML(event, units, index === 0, swapDriverName);
+      const html = buildEventHTML(event, units, index === 0, swapDriverName);
+      if (event.type === 'drive') {
+        const tzBanner = tzAfterDriveIndex.get(driveEventCount) ?? '';
+        driveEventCount++;
+        return html + tzBanner;
+      }
+      return html;
     }).join('');
   } else if (dayType === 'planned' && day.segments.length > 0) {
     timelineHTML = day.segments.map((segment, index) => {
@@ -274,7 +288,6 @@ export function buildDayHTML(
         <div class="day-stats">${statsLine}</div>
       </div>
       ${hotelHTML}
-      ${timezoneHTML}
       ${specialContent}
       ${timelineHTML}
       ${notesHTML}
@@ -322,9 +335,11 @@ function buildBudgetHTML(day: TripDay, tripBudgetRemaining?: number): string {
       • 🍽️ ${formatCurrency(budget.foodEstimate)} meals est.
       • Est. total: <strong>${formatCurrency(budget.dayTotal)}</strong>
       ${tripBudgetHTML}
+      ${tripBudgetRemaining === undefined ? `
       <br />
-      📊 <strong>Budget after this day:</strong>
-      ${budget.bankRemaining < 0 ? `Budget over by ${formatCurrency(Math.abs(budget.bankRemaining))}` : `Budget remaining: ${formatCurrency(budget.bankRemaining)}`}
+      📊 <strong>Trip budget after Day ${day.dayNumber}:</strong>
+      ${budget.bankRemaining < 0 ? `Over by ${formatCurrency(Math.abs(budget.bankRemaining))}` : `${formatCurrency(budget.bankRemaining)} remaining`}
+      ` : ''}
     </div>
   `;
 }

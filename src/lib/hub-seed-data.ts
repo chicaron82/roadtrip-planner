@@ -88,6 +88,10 @@ const TRANS_CANADA_CENTRAL: SeedHub[] = [
   { name: 'Saskatoon, SK', lat: 52.157, lng: -106.670, radius: 35, poiCount: 15, discoveredAt: SEED_DATE, source: 'seed' },
   { name: 'Calgary, AB', lat: 51.049, lng: -114.071, radius: 50, poiCount: 30, discoveredAt: SEED_DATE, source: 'seed' },
   { name: 'Edmonton, AB', lat: 53.546, lng: -113.494, radius: 50, poiCount: 30, discoveredAt: SEED_DATE, source: 'seed' },
+  // Fill the ~165 km gap on Hwy 1 between Winnipeg and Kenora where OSM addr:city
+  // tags incorrectly resolve to "Pinawa" (an off-highway nuclear-research town).
+  { name: 'Hadashville, MB', lat: 49.948, lng: -96.010, radius: 20, poiCount: 4, discoveredAt: SEED_DATE, source: 'seed' },
+  { name: 'West Hawk Lake, MB', lat: 49.761, lng: -95.183, radius: 20, poiCount: 5, discoveredAt: SEED_DATE, source: 'seed' },
   { name: 'Kenora, ON', lat: 49.767, lng: -94.490, radius: 20, poiCount: 8, discoveredAt: SEED_DATE, source: 'seed' },
   { name: 'Thunder Bay, ON', lat: 48.382, lng: -89.246, radius: 30, poiCount: 12, discoveredAt: SEED_DATE, source: 'seed' },
   { name: 'Sault Ste. Marie, ON', lat: 46.522, lng: -84.346, radius: 25, poiCount: 10, discoveredAt: SEED_DATE, source: 'seed' },
