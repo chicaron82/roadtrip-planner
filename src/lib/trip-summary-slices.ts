@@ -27,7 +27,7 @@ export type ViewerRouteSummary = RoutePlanningSummary & AcceptedItineraryRouteSu
 
 export type Step3HealthSummary = Pick<
   TripSummary,
-  'days' | 'totalDurationMinutes' | 'costBreakdown' | 'gasStops'
+  'days' | 'totalDurationMinutes' | 'totalDistanceKm' | 'costBreakdown' | 'gasStops'
 >;
 
 export type SegmentLookupSummary = Pick<TripSummary, 'segments'>;
@@ -59,5 +59,7 @@ export type HoursTradeoffSummary = Pick<TripSummary, 'days' | 'totalDurationMinu
 
 export type TripRecapSummary = Pick<
   TripSummary,
-  'segments' | 'roundTripMidpoint' | 'days' | 'totalDistanceKm'
+  'segments' | 'roundTripMidpoint' | 'days' | 'totalDistanceKm' | 'totalFuelCost' | 'costBreakdown'
 >;
+
+export type JournalTimelineSummary = RoutePlanningSummary & AcceptedItineraryRouteSummary & TripRecapSummary;

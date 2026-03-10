@@ -28,10 +28,16 @@ export interface TripPrintViewProps {
 
 export function printTrip(props: TripPrintViewProps): void {
   const {
-    printInput: { summary, settings, days },
+    printInput,
+    precomputedEvents,
   } = props;
+  const {
+    summary,
+    days,
+    inputs: { settings },
+  } = printInput;
 
-  if (!props.precomputedEvents.length) {
+  if (!precomputedEvents.length) {
     showToast({
       message: 'Print is unavailable until the trip timeline is ready.',
       type: 'warning',
@@ -45,8 +51,8 @@ export function printTrip(props: TripPrintViewProps): void {
     const flatSegments: typeof summary.segments = [];
     if (days && days.length > 0) {
       days.forEach(day => {
-        if (day.segmentIndices.length > 0) {
-          flatSegments.push(...day.segments);
+        if (day.meta.segmentIndices.length > 0) {
+          flatSegments.push(...day.meta.segments);
         }
       });
     } else {
@@ -57,11 +63,11 @@ export function printTrip(props: TripPrintViewProps): void {
     // fuel stop flat-segment indices. The previous approach read seg.stopType === 'fuel'
     // which is a user-set waypoint field — auto-generated simulation stops never set it,
     // so rotation always fell back to time-based and hit the flat-segment ceiling.
-    const fuelIndices = extractFuelIndicesFromTimedEvents(props.precomputedEvents);
+    const fuelIndices = extractFuelIndicesFromTimedEvents(precomputedEvents);
     driverRotation = assignDrivers(flatSegments, settings.numDrivers, fuelIndices);
   }
 
-  const timedEvents = props.precomputedEvents;
+  const timedEvents = precomputedEvents;
 
   const endpoints = getTripDisplayEndpoints(summary);
   const origin = endpoints.origin?.name || 'Origin';

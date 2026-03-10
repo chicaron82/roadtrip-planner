@@ -2,10 +2,10 @@ import { ArrowLeft } from 'lucide-react';
 import { Button } from '../../UI/Button';
 import { JournalTimeline } from './JournalTimeline';
 import type { TripSettings, TripJournal } from '../../../types';
-import type { RoutePlanningSummary, AcceptedItineraryRouteSummary } from '../../../lib/trip-summary-slices';
+import type { JournalTimelineSummary } from '../../../lib/trip-summary-slices';
 
 interface Props {
-  summary: RoutePlanningSummary & AcceptedItineraryRouteSummary;
+  summary: JournalTimelineSummary;
   settings: TripSettings;
   journal: TripJournal;
   onUpdateJournal: (journal: TripJournal) => void;

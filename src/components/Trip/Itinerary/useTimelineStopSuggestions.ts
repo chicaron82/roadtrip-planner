@@ -57,8 +57,9 @@ export function useTimelineStopSuggestions({
     if (!days || pacingSuggestions.length === 0) return map;
 
     let returnDayNumber: number | null = null;
-    if (routeSummary.roundTripMidpoint != null && routeSummary.roundTripMidpoint > 0) {
-      const returnDay = days.find(day => day.segmentIndices.includes(routeSummary.roundTripMidpoint));
+    const roundTripMidpoint = routeSummary.roundTripMidpoint;
+    if (roundTripMidpoint != null && roundTripMidpoint > 0) {
+      const returnDay = days.find(day => day.segmentIndices.includes(roundTripMidpoint));
       if (returnDay) returnDayNumber = returnDay.dayNumber;
     }
 

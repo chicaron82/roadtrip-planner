@@ -9,10 +9,10 @@ import {
   findJournalEntry,
   resolveJournalTimelineStop,
 } from '../../../lib/journal-trip-view';
-import type { RoutePlanningSummary, AcceptedItineraryRouteSummary } from '../../../lib/trip-summary-slices';
+import type { JournalTimelineSummary } from '../../../lib/trip-summary-slices';
 
 interface UseJournalTimelineParams {
-  summary: RoutePlanningSummary & AcceptedItineraryRouteSummary;
+  summary: JournalTimelineSummary;
   settings: TripSettings;
   journal: TripJournal;
   onUpdateJournal: (journal: TripJournal) => void;

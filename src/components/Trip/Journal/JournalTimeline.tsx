@@ -8,10 +8,10 @@ import { TripRecapCard } from './TripRecapCard';
 import { useJournalTimeline } from './useJournalTimeline';
 import { cn } from '../../../lib/utils';
 import { dispatchStopArrived } from '../../../hooks/useArrivalSnap';
-import type { RoutePlanningSummary, AcceptedItineraryRouteSummary } from '../../../lib/trip-summary-slices';
+import type { JournalTimelineSummary } from '../../../lib/trip-summary-slices';
 
 interface JournalTimelineProps {
-  summary: RoutePlanningSummary & AcceptedItineraryRouteSummary;
+  summary: JournalTimelineSummary;
   settings: TripSettings;
   journal: TripJournal;
   onUpdateJournal: (journal: TripJournal) => void;

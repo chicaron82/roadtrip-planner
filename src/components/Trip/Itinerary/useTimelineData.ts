@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { TripSettings, Vehicle, TripDay, Activity, OvernightStop } from '../../../types';
+import type { AcceptedItineraryInput } from '../../../lib/canonical-trip';
 import type { SuggestedStop } from '../../../lib/stop-suggestions';
 import type { SimulationItem } from '../../../lib/timeline-simulation';
 import { useTimelineStopSuggestions } from './useTimelineStopSuggestions';

@@ -2,7 +2,7 @@ import type { HistoryTripSnapshot } from '../../types';
 import { OvernightStopPrompt } from '../Trip/StepHelpers/OvernightStopPrompt';
 import { EstimateBreakdown } from '../Trip/StepHelpers/EstimateBreakdown';
 import type { PlanningStep } from '../../hooks';
-import type { UseStep3ControllerReturn } from '../../hooks/useStep3Controller';
+import type { UseStep3ControllerReturn } from '../../hooks/useStep3Derivations';
 import { TripViewer } from '../Trip/Viewer/TripViewer';
 import { Step3Header } from './Step3Header';
 import { Step3HealthSection } from './Step3HealthSection';

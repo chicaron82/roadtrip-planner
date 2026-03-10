@@ -27,6 +27,7 @@
 import type { TripSummary, TripDay, TripSettings, Vehicle } from '../types';
 import type { Location } from '../types';
 import type { TimedEvent } from './trip-timeline';
+import type { AcceptedItineraryRouteSummary } from './trip-summary-slices';
 
 // ─── Grouped day container ────────────────────────────────────────────────────
 
@@ -103,7 +104,9 @@ export type ItineraryInput = Pick<CanonicalTripTimeline, 'days' | 'summary'>;
  * calculation timeline includes the full smart-stop set, while the editor only
  * advances time through accepted stops.
  */
-export interface AcceptedItineraryTimeline extends ItineraryInput {
+export interface AcceptedItineraryTimeline {
+  days: CanonicalTripDay[];
+  summary: AcceptedItineraryRouteSummary;
   events: TimedEvent[];
 }
 
