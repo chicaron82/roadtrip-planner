@@ -1,22 +1,19 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import type { Location, Vehicle, TripSettings, TripSummary, POISuggestion, TripJournal, StopType, DayType, OvernightStop, TripMode, TripChallenge } from '../../types';
 import { OvernightStopPrompt } from '../Trip/StepHelpers/OvernightStopPrompt';
 import { type ViewMode } from '../Trip/Journal/JournalModeToggle';
-import { analyzeFeasibility } from '../../lib/feasibility';
 import { EstimateBreakdown } from '../Trip/StepHelpers/EstimateBreakdown';
-import { generateEstimate } from '../../lib/estimate-service';
-import { generateTripOverview } from '../../lib/trip-analyzer';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
 import type { PlanningStep } from '../../hooks';
 import type { TimedEvent } from '../../lib/trip-timeline';
 import { useTripContext } from '../../contexts/TripContext';
+import { useStep3Controller } from '../../hooks/useStep3Controller';
 import { Step3Header } from './Step3Header';
 import { Step3HealthSection } from './Step3HealthSection';
 import { Step3TimelineSection } from './Step3TimelineSection';
 import { Step3CommitSection } from './Step3CommitSection';
 import { Step3HistorySection } from './Step3HistorySection';
 import { Step3EmptyState } from './Step3EmptyState';
-import type { Step3ArrivalInfo } from './step3-types';
 
 interface Step3ContentProps {
   summary: TripSummary | null;
@@ -103,71 +100,9 @@ export function Step3Content({
   const [isJournalFullscreen, setIsJournalFullscreen] = useState(false);
   const { addDayActivity, updateDayActivity, removeDayActivity, canonicalTimeline } = useTripContext();
 
-  const feasibility = useMemo(
-    () => summary ? analyzeFeasibility(summary, settings) : null,
-    [summary, settings],
-  );
-
-  // Generate estimate when in estimate mode
-  const estimate = useMemo(() => {
-    if (tripMode !== 'estimate' || !summary) return null;
-    return generateEstimate(summary, vehicle, settings);
-  }, [tripMode, summary, vehicle, settings]);
-
-  // Trip difficulty badge
-  const overview = useMemo(
-    () => summary ? generateTripOverview(summary, settings) : null,
-    [summary, settings],
-  );
-
-  // Arrival hero: destination name + ETA
-  const arrivalInfo = useMemo<Step3ArrivalInfo | null>(() => {
-    if (!summary) return null;
-    const lastSeg = summary.segments.at(-1);
-    const canonicalArrival = precomputedEvents
-      ?.filter(event => event.type === 'arrival')
-      .at(-1);
-    const arrivalTime = canonicalArrival?.arrivalTime
-      ?? (lastSeg?.arrivalTime ? new Date(lastSeg.arrivalTime) : null);
-    if (!arrivalTime) return null;
-    const d = new Date(arrivalTime);
-    if (isNaN(d.getTime())) return null;
-    const time = d.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit', hour12: true });
-    if (settings.isRoundTrip && summary.roundTripMidpoint) {
-      const destSeg = summary.segments[summary.roundTripMidpoint - 1];
-      return { dest: destSeg?.to.name ?? lastSeg?.to.name ?? 'Destination', time, isRoundTrip: true as const };
-    }
-    return { dest: lastSeg?.to.name ?? 'Destination', time, isRoundTrip: false as const };
-  }, [precomputedEvents, summary, settings]);
-
-  // Overnight stop prompt times — derived from segment data and settings
-  const overnightTimes = useMemo(() => {
-    let arrivalTime = '5:00 PM';
-    let departureTime = '8:00 AM';
-
-    if (suggestedOvernightStop && summary) {
-      const overnightSeg = summary.segments.find(seg => seg.to.name === suggestedOvernightStop.name);
-      if (overnightSeg?.arrivalTime) {
-        const d = new Date(overnightSeg.arrivalTime);
-        if (!isNaN(d.getTime())) {
-          arrivalTime = d.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit', hour12: true });
-        }
-      }
-    }
-
-    if (settings.departureTime) {
-      const [hStr, mStr] = settings.departureTime.split(':');
-      const h = parseInt(hStr, 10);
-      const m = parseInt(mStr, 10);
-      if (!isNaN(h) && !isNaN(m)) {
-        const d = new Date();
-        d.setHours(h, m, 0, 0);
-        departureTime = d.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit', hour12: true });
-      }
-    }
-
-    return { arrivalTime, departureTime };
-  }, [suggestedOvernightStop, summary, settings.departureTime]);
+  const { feasibility, estimate, overview, arrivalInfo, overnightTimes } = useStep3Controller({
+    summary, settings, vehicle, tripMode, precomputedEvents, suggestedOvernightStop,
+  });
 
   return (
     <div className="space-y-4">
