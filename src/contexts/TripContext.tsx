@@ -62,35 +62,39 @@ export const DEFAULT_SETTINGS: TripSettings = {
   dayTripDurationHours: 0,
 };
 
-// ==================== CONTEXT TYPE ====================
+// ==================== CORE CONTEXT ====================
+// Owns: locations, vehicle, settings — the "input" side of trip planning.
 
-interface TripContextType {
-  // Core State
+interface TripCoreContextType {
   locations: Location[];
   vehicle: Vehicle;
   settings: TripSettings;
-  summary: TripSummary | null;
-  /** Canonical trip timeline (set after a successful calculation). Promoted to context
-   *  so deep consumers (Step3, SmartTimeline) can read it without prop drilling. */
-  canonicalTimeline: CanonicalTripTimeline | null;
 
-  // Core Setters
   setLocations: React.Dispatch<React.SetStateAction<Location[]>>;
   setVehicle: React.Dispatch<React.SetStateAction<Vehicle>>;
   setSettings: React.Dispatch<React.SetStateAction<TripSettings>>;
-  setSummary: React.Dispatch<React.SetStateAction<TripSummary | null>>;
-  setCanonicalTimeline: React.Dispatch<React.SetStateAction<CanonicalTripTimeline | null>>;
 
-  // Location Helpers
   updateLocation: (index: number, updates: Partial<Location>) => void;
   addWaypoint: () => void;
   removeLocation: (index: number) => void;
   reorderLocations: (fromIndex: number, toIndex: number) => void;
-
-  // Budget Helpers
   updateBudget: (updates: Partial<TripBudget>) => void;
+}
 
-  // Day Mutation Helpers (all route through canonical-updates pure functions)
+const TripCoreContext = createContext<TripCoreContextType | null>(null);
+
+// ==================== TIMELINE CONTEXT ====================
+// Owns: summary, canonicalTimeline — the "output" side + all day mutations.
+
+interface TimelineContextType {
+  summary: TripSummary | null;
+  /** Canonical trip timeline (set after a successful calculation). */
+  canonicalTimeline: CanonicalTripTimeline | null;
+
+  setSummary: React.Dispatch<React.SetStateAction<TripSummary | null>>;
+  setCanonicalTimeline: React.Dispatch<React.SetStateAction<CanonicalTripTimeline | null>>;
+
+  /** Day mutation helpers — all route through canonical-updates pure functions. */
   addDayActivity: (dayNumber: number, activity: Activity) => void;
   updateDayActivity: (dayNumber: number, activityIndex: number, activity: Activity) => void;
   removeDayActivity: (dayNumber: number, activityIndex: number) => void;
@@ -100,9 +104,7 @@ interface TripContextType {
   updateDayOvernight: (dayNumber: number, overnight: OvernightStop) => void;
 }
 
-// ==================== CONTEXT ====================
-
-const TripContext = createContext<TripContextType | null>(null);
+const TimelineContext = createContext<TimelineContextType | null>(null);
 
 // ==================== PROVIDER ====================
 
@@ -119,10 +121,9 @@ export function TripProvider({
   initialVehicle,
   initialSettings,
 }: TripProviderProps) {
-  // Core State
+  // ── Core State ─────────────────────────────────────────────────────────────
   const [locations, setLocations] = useState<Location[]>(initialLocations || DEFAULT_LOCATIONS);
   const [vehicle, setVehicle] = useState<Vehicle>(() => {
-    // Try to load default vehicle from garage
     if (initialVehicle) return initialVehicle;
     const defaultId = getDefaultVehicleId();
     if (defaultId) {
@@ -137,16 +138,17 @@ export function TripProvider({
     ...loadSettingsDefaults(),
     ...(initialSettings || {}),
   }));
+
+  // ── Timeline State ──────────────────────────────────────────────────────────
   const [summary, setSummary] = useState<TripSummary | null>(null);
   const [canonicalTimeline, setCanonicalTimeline] = useState<CanonicalTripTimeline | null>(null);
 
-  // Auto-persist preference fields whenever settings change
+  // ── Core side-effects ───────────────────────────────────────────────────────
   useEffect(() => {
     saveSettingsDefaults(settings);
   }, [settings]);
 
   // Auto-populate gasPrice from regional data when origin changes.
-  // Uses a ref to track the last auto-set value so user overrides are respected.
   const lastAutoFuelPrice = useRef<number | null>(null);
   const originName = locations.find(l => l.type === 'origin')?.name ?? '';
   useEffect(() => {
@@ -154,7 +156,6 @@ export function TripProvider({
     const suggested = getFuelPriceDefault(originName, settings.currency);
     if (suggested === null) return;
     setSettings(prev => {
-      // If the user has manually changed gasPrice since our last auto-set, leave it alone.
       const userModified = lastAutoFuelPrice.current !== null && prev.gasPrice !== lastAutoFuelPrice.current;
       if (userModified) return prev;
       lastAutoFuelPrice.current = suggested;
@@ -162,7 +163,7 @@ export function TripProvider({
     });
   }, [originName, settings.currency]);
 
-  // Location Helpers
+  // ── Core Helpers ────────────────────────────────────────────────────────────
   const updateLocation = useCallback((index: number, updates: Partial<Location>) => {
     setLocations(prev => prev.map((loc, i) =>
       i === index ? { ...loc, ...updates } : loc
@@ -178,7 +179,6 @@ export function TripProvider({
         lng: 0,
         type: 'waypoint',
       };
-      // Insert before destination
       const newLocations = [...prev];
       newLocations.splice(newLocations.length - 1, 0, newWaypoint);
       return newLocations;
@@ -187,9 +187,7 @@ export function TripProvider({
 
   const removeLocation = useCallback((index: number) => {
     setLocations(prev => {
-      // Don't allow removing origin or destination
       if (prev[index].type === 'origin' || prev[index].type === 'destination') {
-        // Instead, clear the location
         return prev.map((loc, i) =>
           i === index ? { ...loc, name: '', lat: 0, lng: 0 } : loc
         );
@@ -207,7 +205,6 @@ export function TripProvider({
     });
   }, []);
 
-  // Budget Helpers
   const updateBudget = useCallback((updates: Partial<TripBudget>) => {
     setSettings(prev => ({
       ...prev,
@@ -215,9 +212,9 @@ export function TripProvider({
     }));
   }, []);
 
-  // Day Mutation Helpers — all use canonical-updates pure functions as the
-  // single source of mutation rules. setSummary is the state write target
-  // until the context split (B2) promotes canonicalTimeline.days as primary.
+  // ── Timeline / Day Mutation Helpers ─────────────────────────────────────────
+  // All route through canonical-updates pure functions. setSummary is the write
+  // target until the B2 follow-up promotes canonicalTimeline.days as primary.
   const patchSummaryDays = useCallback((patcher: (days: TripDay[]) => TripDay[]) => {
     setSummary(prev => {
       if (!prev?.days) return prev;
@@ -254,59 +251,70 @@ export function TripProvider({
     patchSummaryDays(days => canonicalUpdateOvernight(days, dayNumber, overnight));
   }, [patchSummaryDays]);
 
-  // Memoize so consumers only re-render when state they care about changes,
-  // not on every unrelated TripProvider render.
-  // TODO: split into TripCoreContext + TimelineContext once the Step 3 / Viewer
-  //       refactor defines clear consumer boundaries (per arch ticket backlog).
-  const value = useMemo<TripContextType>(() => ({
-    locations,
-    vehicle,
-    settings,
-    summary,
-    canonicalTimeline,
-    setLocations,
-    setVehicle,
-    setSettings,
-    setSummary,
-    setCanonicalTimeline,
-    updateLocation,
-    addWaypoint,
-    removeLocation,
-    reorderLocations,
-    updateBudget,
-    addDayActivity,
-    updateDayActivity,
-    removeDayActivity,
-    updateDayNotes,
-    updateDayTitle,
-    updateDayType,
-    updateDayOvernight,
+  // ── Memoized context values ─────────────────────────────────────────────────
+  const coreValue = useMemo<TripCoreContextType>(() => ({
+    locations, vehicle, settings,
+    setLocations, setVehicle, setSettings,
+    updateLocation, addWaypoint, removeLocation, reorderLocations, updateBudget,
   }), [
-    locations, vehicle, settings, summary, canonicalTimeline,
-    setLocations, setVehicle, setSettings, setSummary, setCanonicalTimeline,
-    updateLocation, addWaypoint, removeLocation, reorderLocations,
-    updateBudget, addDayActivity, updateDayActivity, removeDayActivity,
+    locations, vehicle, settings,
+    setLocations, setVehicle, setSettings,
+    updateLocation, addWaypoint, removeLocation, reorderLocations, updateBudget,
+  ]);
+
+  const timelineValue = useMemo<TimelineContextType>(() => ({
+    summary, canonicalTimeline,
+    setSummary, setCanonicalTimeline,
+    addDayActivity, updateDayActivity, removeDayActivity,
+    updateDayNotes, updateDayTitle, updateDayType, updateDayOvernight,
+  }), [
+    summary, canonicalTimeline,
+    setSummary, setCanonicalTimeline,
+    addDayActivity, updateDayActivity, removeDayActivity,
     updateDayNotes, updateDayTitle, updateDayType, updateDayOvernight,
   ]);
 
   return (
-    <TripContext.Provider value={value}>
-      {children}
-    </TripContext.Provider>
+    <TripCoreContext.Provider value={coreValue}>
+      <TimelineContext.Provider value={timelineValue}>
+        {children}
+      </TimelineContext.Provider>
+    </TripCoreContext.Provider>
   );
 }
 
-// ==================== HOOK ====================
+// ==================== FOCUSED HOOKS ====================
 
-export function useTripContext() {
-  const context = useContext(TripContext);
-  if (!context) {
-    throw new Error('useTripContext must be used within a TripProvider');
-  }
-  return context;
+/** Read from the core (input) slice: locations, vehicle, settings. */
+export function useTripCore(): TripCoreContextType {
+  const ctx = useContext(TripCoreContext);
+  if (!ctx) throw new Error('useTripCore must be used within a TripProvider');
+  return ctx;
 }
 
-// Also export a hook that doesn't throw (for optional usage)
+/** Read from the timeline (output) slice: summary, canonicalTimeline, day mutations. */
+export function useTimeline(): TimelineContextType {
+  const ctx = useContext(TimelineContext);
+  if (!ctx) throw new Error('useTimeline must be used within a TripProvider');
+  return ctx;
+}
+
+// ==================== SHIM HOOKS ====================
+// Keep the old useTripContext() API alive so App.tsx doesn't need to split its
+// destructure today. Consumers that only need one slice should prefer the
+// focused hooks above for better render isolation.
+
+/** @deprecated Prefer useTripCore() or useTimeline() for better render isolation. */
+export function useTripContext() {
+  const core = useTripCore();
+  const timeline = useTimeline();
+  return useMemo(() => ({ ...core, ...timeline }), [core, timeline]);
+}
+
+/** Optional variant — returns null if called outside TripProvider. */
 export function useTripContextOptional() {
-  return useContext(TripContext);
+  const core = useContext(TripCoreContext);
+  const timeline = useContext(TimelineContext);
+  if (!core || !timeline) return null;
+  return { ...core, ...timeline };
 }

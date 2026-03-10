@@ -5,7 +5,7 @@ import { EstimateBreakdown } from '../Trip/StepHelpers/EstimateBreakdown';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
 import type { PlanningStep } from '../../hooks';
 import type { TimedEvent } from '../../lib/trip-timeline';
-import { useTripContext } from '../../contexts/TripContext';
+import { useTimeline } from '../../contexts/TripContext';
 import { useStep3Controller } from '../../hooks/useStep3Controller';
 import { TripViewer } from '../Trip/Viewer/TripViewer';
 import { Step3Header } from './Step3Header';
@@ -91,7 +91,7 @@ export function Step3Content({
     addDayActivity, updateDayActivity, removeDayActivity,
     updateDayNotes, updateDayTitle, updateDayType, updateDayOvernight,
     canonicalTimeline,
-  } = useTripContext();
+  } = useTimeline();
 
   const { feasibility, estimate, overview, arrivalInfo, overnightTimes } = useStep3Controller({
     summary, settings, vehicle, tripMode, precomputedEvents, suggestedOvernightStop,

@@ -11,7 +11,7 @@ import { buildStrategyUpdate } from '../lib/trip-strategy-selector';
 import {
   orchestrateTrip, orchestrateStopUpdate, orchestrateStrategySwap, TripCalculationError,
 } from '../lib/trip-orchestrator';
-import { useTripContext } from '../contexts/TripContext';
+import { useTimeline } from '../contexts/TripContext';
 
 interface UseTripCalculationOptions {
   locations: Location[];
@@ -72,7 +72,7 @@ export function useTripCalculation({
   // Store summary locally for updateStopType
   const [localSummary, setLocalSummary] = useState<TripSummary | null>(null);
   // canonicalTimeline lives in TripContext so deep consumers don't need prop drilling.
-  const { setCanonicalTimeline } = useTripContext();
+  const { setCanonicalTimeline } = useTimeline();
 
   // Abort controller for background overnight-stop geocoding.
   // Cancelled when a new calculation starts so stale results never overwrite.
