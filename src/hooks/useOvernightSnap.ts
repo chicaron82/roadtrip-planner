@@ -13,13 +13,14 @@ import {
   applySnappedOvernightsToCanonicalTimeline,
   shouldPropagateSnappedOvernightToNextDay,
 } from '../lib/trip-calculation-helpers';
+import type { AcceptedItineraryRouteSummary } from '../lib/trip-summary-slices';
 
 /**
  * Shows an overnight-stop suggestion if the trip exceeds maxDriveHours and
  * the day-splitter hasn't already split it into multiple days.
  */
 export function checkAndSetOvernightPrompt(
-  tripSummary: TripSummary,
+  tripSummary: AcceptedItineraryRouteSummary & Pick<TripSummary, 'totalDistanceKm' | 'totalDurationMinutes'>,
   tripDays: TripDay[],
   settings: TripSettings,
   setSuggestedOvernightStop: (loc: Location | null) => void,

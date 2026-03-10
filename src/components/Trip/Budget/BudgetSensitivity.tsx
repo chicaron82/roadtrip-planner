@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import type { TripSummary, TripSettings } from '../../../types';
+import type { TripSettings } from '../../../types';
 import { computeSensitivity, getSensitivityStatus } from '../../../lib/feasibility/sensitivity';
 import { formatCurrency } from '../../../lib/calculations';
 import { cn } from '../../../lib/utils';
+import type { BudgetSensitivitySummary } from '../../../lib/trip-summary-slices';
 
 interface BudgetSensitivityProps {
-  summary: TripSummary;
+  summary: BudgetSensitivitySummary;
   settings: TripSettings;
   className?: string;
 }

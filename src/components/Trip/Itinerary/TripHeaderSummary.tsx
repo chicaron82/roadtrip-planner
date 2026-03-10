@@ -1,8 +1,8 @@
 import { Car, Fuel, Calendar } from 'lucide-react';
-import type { TripSummary } from '../../../types';
+import type { TripHeaderSummaryData } from '../../../lib/trip-summary-slices';
 
 interface TripHeaderSummaryProps {
-  summary: TripSummary;
+  summary: TripHeaderSummaryData;
   drivingDays: number;
   freeDays: number;
 }

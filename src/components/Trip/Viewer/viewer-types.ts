@@ -1,10 +1,11 @@
 import type {
-  Vehicle, TripSettings, TripSummary, POISuggestion, TripJournal,
+  Vehicle, TripSettings, POISuggestion, TripJournal,
   StopType, DayType, OvernightStop, TripMode, TripChallenge, Activity,
 } from '../../../types';
 import type { CanonicalTripTimeline } from '../../../lib/canonical-trip';
 import type { ViewMode } from '../Journal/JournalModeToggle';
 import type { SuggestedStop } from '../../../lib/stop-suggestions';
+import type { ViewerRouteSummary } from '../../../lib/trip-summary-slices';
 
 /**
  * Props for TripViewer — the dumb renderer + intent emitter surface.
@@ -18,7 +19,7 @@ import type { SuggestedStop } from '../../../lib/stop-suggestions';
  */
 export interface TripViewerProps {
   // Trip data (read-only from canonical source)
-  summary: TripSummary;
+  summary: ViewerRouteSummary;
   settings: TripSettings;
   vehicle: Vehicle;
   canonicalTimeline?: CanonicalTripTimeline | null;

@@ -1,9 +1,10 @@
-import type { TripSummary, TripSettings } from '../../types';
+import type { TripSettings } from '../../types';
 import type { FeasibilityWarning } from './types';
 import { TRIP_CONSTANTS } from '../trip-constants';
+import type { FeasibilitySummary } from '../trip-summary-slices';
 
 export function analyzeBudget(
-  summary: TripSummary,
+  summary: FeasibilitySummary,
   settings: TripSettings,
 ): FeasibilityWarning[] {
   const warnings: FeasibilityWarning[] = [];

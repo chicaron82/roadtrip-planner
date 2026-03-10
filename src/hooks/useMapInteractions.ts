@@ -1,15 +1,15 @@
 import { useMemo, useCallback } from 'react';
-import type { Location, TripSummary, TripSettings, POI, RouteSegment } from '../types';
+import type { Location, TripSettings, POI, RouteSegment } from '../types';
 import { analyzeFeasibility, type FeasibilityStatus } from '../lib/feasibility';
 import { showToast } from '../lib/toast';
 import { NOMINATIM_BASE_URL } from '../lib/constants';
-import type { MapInteractionRouteSummary } from '../lib/trip-summary-slices';
+import type { FeasibilitySummary, MapInteractionRouteSummary } from '../lib/trip-summary-slices';
 
 interface UseMapInteractionsOptions {
   locations: Location[];
   setLocations: React.Dispatch<React.SetStateAction<Location[]>>;
   routeSummary: MapInteractionRouteSummary | null;
-  feasibilitySummary: TripSummary | null;
+  feasibilitySummary: FeasibilitySummary | null;
   settings: TripSettings;
   addStop: (poi: POI, segments: RouteSegment[], afterSegmentIndex?: number) => void;
 }

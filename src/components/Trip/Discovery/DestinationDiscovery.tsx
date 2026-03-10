@@ -1,8 +1,9 @@
-import type { TripSummary, POISuggestion } from '../../../types';
+import type { POISuggestion } from '../../../types';
+import type { DiscoverySummary } from '../../../lib/trip-summary-slices';
 import { DiscoveryPanel } from './DiscoveryPanel';
 
 interface DestinationDiscoveryProps {
-  summary: TripSummary;
+  summary: DiscoverySummary;
   poiSuggestions?: POISuggestion[];
   isLoadingPOIs?: boolean;
   poiPartialResults?: boolean;

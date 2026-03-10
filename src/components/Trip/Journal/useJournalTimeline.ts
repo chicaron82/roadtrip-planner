@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import type { TripSummary, TripSettings, TripJournal, JournalEntry, JournalPhoto, QuickCapture } from '../../../types';
+import type { TripSettings, TripJournal, JournalEntry, JournalPhoto, QuickCapture } from '../../../types';
 import { showToast } from '../../../lib/toast';
 import { formatDisplayDateInZone, formatTimeInZone, getTripStartTime, lngToIANA } from '../../../lib/trip-timezone';
 import { buildAcceptedItineraryProjection } from '../../../lib/accepted-itinerary-projection';
@@ -9,9 +9,10 @@ import {
   findJournalEntry,
   resolveJournalTimelineStop,
 } from '../../../lib/journal-trip-view';
+import type { RoutePlanningSummary, AcceptedItineraryRouteSummary } from '../../../lib/trip-summary-slices';
 
 interface UseJournalTimelineParams {
-  summary: TripSummary;
+  summary: RoutePlanningSummary & AcceptedItineraryRouteSummary;
   settings: TripSettings;
   journal: TripJournal;
   onUpdateJournal: (journal: TripJournal) => void;

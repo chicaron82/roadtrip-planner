@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { getDriverName } from '../../../lib/driver-rotation';
-import type { Activity, DayOption, DayType, OvernightStop, StopType, TripDay, TripSettings, TripSummary } from '../../../types';
+import type { Activity, DayOption, DayType, OvernightStop, StopType, TripDay, TripSettings } from '../../../types';
 import { ActivityBadge } from './ActivityEditor';
 import { DaySection } from './DaySection';
 import { SuggestedStopCard } from './SuggestedStopCard';
@@ -8,9 +8,10 @@ import { GasStopNode, StartNode, SuggestedStopNode, WaypointNode } from '../Time
 import type { SuggestedStop } from '../../../lib/stop-suggestions';
 import type { EditingDayActivity } from './TimelineDialogs';
 import type { SimulationItem } from './useTimelineData';
+import type { SegmentLookupSummary } from '../../../lib/trip-summary-slices';
 
 interface ItineraryTimelineBodyProps {
-  summary: TripSummary;
+  summary: SegmentLookupSummary;
   settings: TripSettings;
   days?: TripDay[];
   startTime: Date;

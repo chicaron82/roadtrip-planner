@@ -1,4 +1,5 @@
-import type { TripSummary, TripSettings } from '../types';
+import type { TripSettings } from '../types';
+import type { TripOverviewSummary } from './trip-summary-slices';
 
 export type DifficultyLevel = 'easy' | 'moderate' | 'challenging' | 'extreme';
 
@@ -20,7 +21,7 @@ export interface RouteConfidence {
  * Calculate trip difficulty based on various factors
  */
 export function calculateTripDifficulty(
-  summary: TripSummary,
+  summary: TripOverviewSummary,
   settings: TripSettings
 ): TripDifficulty {
   let score = 0;
@@ -127,7 +128,7 @@ export function calculateTripDifficulty(
  * Calculate route confidence score
  */
 export function calculateRouteConfidence(
-  summary: TripSummary,
+  summary: TripOverviewSummary,
   settings: TripSettings
 ): RouteConfidence {
   let score = 100; // Start at perfect confidence
@@ -183,7 +184,7 @@ export function calculateRouteConfidence(
  * Generate trip overview statistics
  */
 export function generateTripOverview(
-  summary: TripSummary,
+  summary: TripOverviewSummary,
   settings: TripSettings
 ): {
   difficulty: TripDifficulty;

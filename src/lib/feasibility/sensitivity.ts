@@ -1,5 +1,6 @@
-import type { TripSummary, TripSettings } from '../../types';
+import type { TripSettings } from '../../types';
 import { TRIP_CONSTANTS } from '../trip-constants';
+import type { BudgetSensitivitySummary } from '../trip-summary-slices';
 
 export interface SensitivityScenario {
   label: string;
@@ -19,7 +20,7 @@ export interface SensitivityScenario {
  *   +1 Night  — one extra overnight (missed connection, weather delay)
  */
 export function computeSensitivity(
-  summary: TripSummary,
+  summary: BudgetSensitivitySummary,
   settings: TripSettings,
 ): SensitivityScenario[] {
   const breakdown = summary.costBreakdown;

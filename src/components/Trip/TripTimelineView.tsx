@@ -8,7 +8,6 @@
 import { useState } from 'react';
 import { Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import type {
-  TripSummary,
   TripSettings,
   Vehicle,
   TripJournal,
@@ -28,11 +27,12 @@ import { SmartTimeline } from './Timeline/SmartTimeline';
 import { JournalTimeline } from './Journal/JournalTimeline';
 import { ItineraryTimelineContent } from './Itinerary/ItineraryTimeline';
 import { StartJournalCTA } from './Journal/JournalModeToggle';
+import type { ViewerRouteSummary } from '../../lib/trip-summary-slices';
 
 // ==================== PROPS ====================
 
 export interface TripTimelineViewProps {
-  summary: TripSummary;
+  summary: ViewerRouteSummary;
   settings: TripSettings;
   vehicle: Vehicle;
   canonicalTimeline?: CanonicalTripTimeline | null;

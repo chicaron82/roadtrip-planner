@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Sparkles } from 'lucide-react';
-import type { TripSummary, TripSettings, Vehicle, StopType, TripDay, DayType, Activity, DayOption, OvernightStop, POISuggestion } from '../../../types';
+import type { TripSettings, Vehicle, StopType, TripDay, DayType, Activity, DayOption, OvernightStop, POISuggestion } from '../../../types';
 import { SmartSuggestions } from './SmartSuggestions';
 import { SuggestedStopCard } from './SuggestedStopCard';
 import { DriverStatsPanel } from './DriverStatsPanel';
@@ -12,9 +12,10 @@ import type { SuggestedStop } from '../../../lib/stop-suggestions';
 import { ItineraryTimelineBody } from './ItineraryTimelineBody';
 import { computeSwapAssignments, getDriverName } from '../../../lib/driver-rotation';
 import type { CanonicalTripDay } from '../../../lib/canonical-trip';
+import type { ViewerRouteSummary } from '../../../lib/trip-summary-slices';
 
 interface ItineraryTimelineProps {
-  summary: TripSummary;
+  summary: ViewerRouteSummary;
   settings: TripSettings;
   vehicle?: Vehicle;
   days?: TripDay[];

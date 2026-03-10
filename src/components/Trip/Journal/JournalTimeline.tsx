@@ -1,5 +1,5 @@
 import { MapPin, Trophy, Clock, Camera, Star, BookOpen, Plus } from 'lucide-react';
-import type { TripSummary, TripSettings, TripJournal } from '../../../types';
+import type { TripSettings, TripJournal } from '../../../types';
 import { JournalStopCard } from './JournalStopCard';
 import { QuickArriveButton } from './QuickArriveButton';
 import { DayHeader } from '../Itinerary/DayHeader';
@@ -8,9 +8,10 @@ import { TripRecapCard } from './TripRecapCard';
 import { useJournalTimeline } from './useJournalTimeline';
 import { cn } from '../../../lib/utils';
 import { dispatchStopArrived } from '../../../hooks/useArrivalSnap';
+import type { RoutePlanningSummary, AcceptedItineraryRouteSummary } from '../../../lib/trip-summary-slices';
 
 interface JournalTimelineProps {
-  summary: TripSummary;
+  summary: RoutePlanningSummary & AcceptedItineraryRouteSummary;
   settings: TripSettings;
   journal: TripJournal;
   onUpdateJournal: (journal: TripJournal) => void;

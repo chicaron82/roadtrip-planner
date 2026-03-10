@@ -1,7 +1,8 @@
 import { useState, useCallback, useMemo } from 'react';
-import type { POI, POICategory, RouteSegment, TripSummary } from '../types';
+import type { POI, POICategory, RouteSegment } from '../types';
 import type { SuggestedStop, SuggestionStopType } from '../lib/stop-suggestions';
 import { findNearestSegmentIndex, haversineDistance, estimateDetourTime } from '../lib/poi-ranking';
+import type { SegmentLookupSummary } from '../lib/trip-summary-slices';
 
 // ==================== TYPES ====================
 
@@ -26,7 +27,7 @@ const CATEGORY_DEFAULTS: Record<POICategory, { stopType: SuggestionStopType; dur
 
 // ==================== HOOK ====================
 
-export function useAddedStops(summary?: TripSummary | null, isRoundTrip?: boolean) {
+export function useAddedStops(routeSummary?: SegmentLookupSummary | null, isRoundTrip?: boolean) {
   const [addedStops, setAddedStops] = useState<AddedStop[]>([]);
 
   const addedPOIIds = useMemo(
@@ -85,8 +86,8 @@ export function useAddedStops(summary?: TripSummary | null, isRoundTrip?: boolea
 
   /** Mirror gas/hotel stops onto the return leg for round trips */
   const mirroredReturnStops = useMemo((): SuggestedStop[] => {
-    if (!summary || !isRoundTrip || addedStops.length === 0) return [];
-    const total = summary.segments.length;
+    if (!routeSummary || !isRoundTrip || addedStops.length === 0) return [];
+    const total = routeSummary.segments.length;
     const midpoint = total / 2;
     return addedStops
       .filter(s => s.afterSegmentIndex < midpoint && (s.poi.category === 'gas' || s.poi.category === 'hotel'))
@@ -101,7 +102,7 @@ export function useAddedStops(summary?: TripSummary | null, isRoundTrip?: boolea
         details: { fuelCost: s.stopType === 'fuel' ? s.estimatedCost : undefined },
         accepted: true,
       }));
-  }, [addedStops, summary, isRoundTrip]);
+  }, [addedStops, routeSummary, isRoundTrip]);
 
   return {
     addedStops,

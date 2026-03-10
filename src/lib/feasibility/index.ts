@@ -13,8 +13,9 @@
  * 2→1 drivers, and a Montreal cut all cascaded through the plan.
  */
 
-import type { TripSummary, TripSettings } from '../../types';
+import type { TripSettings } from '../../types';
 import type { FeasibilityResult, FeasibilityWarning } from './types';
+import type { FeasibilitySummary } from '../trip-summary-slices';
 import { analyzeBudget } from './analyze-budget';
 import { analyzeDriveTime, analyzeDriverFatigue } from './analyze-drive-time';
 import { analyzeTiming, analyzeDateWindow } from './analyze-timing';
@@ -33,7 +34,7 @@ export { compareRefinements } from './refinements';
  * @returns Feasibility result with status and warnings
  */
 export function analyzeFeasibility(
-  summary: TripSummary,
+  summary: FeasibilitySummary,
   settings: TripSettings,
 ): FeasibilityResult {
   const warnings: FeasibilityWarning[] = [];
