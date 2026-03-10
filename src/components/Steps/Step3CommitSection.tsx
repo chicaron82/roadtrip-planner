@@ -1,13 +1,12 @@
 import type { TimedEvent } from '../../lib/trip-timeline';
-import type { TripSettings, TripSummary, Vehicle } from '../../types';
+import type { TripPrintViewProps } from '../Trip/StepHelpers/TripPrintView';
 import type { ViewMode } from '../Trip/Journal/JournalModeToggle';
 import { ConfirmTripCard } from '../Trip/StepHelpers/ConfirmTripCard';
 import { TripBottomActions } from '../Trip/StepHelpers/TripBottomActions';
 
 interface Step3CommitSectionProps {
-  summary: TripSummary;
-  settings: TripSettings;
-  vehicle: Vehicle;
+  totalDays: number;
+  printInput: TripPrintViewProps['printInput'];
   viewMode: ViewMode;
   tripConfirmed: boolean;
   addedStopCount: number;
@@ -22,9 +21,8 @@ interface Step3CommitSectionProps {
 }
 
 export function Step3CommitSection({
-  summary,
-  settings,
-  vehicle,
+  totalDays,
+  printInput,
   viewMode,
   tripConfirmed,
   addedStopCount,
@@ -43,7 +41,7 @@ export function Step3CommitSection({
         <ConfirmTripCard
           confirmed={tripConfirmed}
           addedStopCount={addedStopCount}
-          totalDays={summary.days?.length ?? 1}
+          totalDays={totalDays}
           onConfirm={onConfirmTrip}
           onUnconfirm={onUnconfirmTrip}
           onGoToJournal={onSetJournalMode}
@@ -51,9 +49,7 @@ export function Step3CommitSection({
       )}
 
       <TripBottomActions
-        summary={summary}
-        settings={settings}
-        vehicle={vehicle}
+        printInput={printInput}
         shareUrl={shareUrl}
         precomputedEvents={precomputedEvents}
         isCalculating={isCalculating}

@@ -12,13 +12,14 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import type { TripJournal, TripSummary, TripSettings } from '../../../types';
+import type { TripJournal, TripSettings } from '../../../types';
 import { exportJournalAsHTML, exportJournalAsTemplate } from '../../../lib/journal-export';
 import { getTripDisplayEndpoints } from '../../../lib/trip-summary-view';
+import type { TripRecapSummary } from '../../../lib/trip-summary-slices';
 
 interface TripRecapCardProps {
   journal: TripJournal;
-  summary: TripSummary;
+  summary: TripRecapSummary;
   settings: TripSettings;
   totalStops: number;
 }

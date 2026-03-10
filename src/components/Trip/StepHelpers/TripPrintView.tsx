@@ -8,20 +8,18 @@
  * CSS:             trip-print-styles.ts
  */
 
-import type { TripSummary, TripSettings, Vehicle } from '../../../types';
 import type { DriverRotationResult } from '../../../lib/driver-rotation';
 import { assignDrivers, extractFuelIndicesFromTimedEvents } from '../../../lib/driver-rotation';
 import { showToast } from '../../../lib/toast';
 import { type TimedEvent } from '../../../lib/trip-timeline';
+import type { PrintInput } from '../../../lib/canonical-trip';
 import { buildPrintHTML } from '../../../lib/trip-print-builders';
 import { getTripDisplayEndpoints } from '../../../lib/trip-summary-view';
 
 // ==================== TYPES ====================
 
-interface TripPrintViewProps {
-  summary: TripSummary;
-  settings: TripSettings;
-  vehicle?: Vehicle;
+export interface TripPrintViewProps {
+  printInput: PrintInput;
   /** Canonical timed events from the main trip calculation.
    *  Print must render from the same timeline the UI uses. */
   precomputedEvents: TimedEvent[];
@@ -29,8 +27,9 @@ interface TripPrintViewProps {
 
 
 export function printTrip(props: TripPrintViewProps): void {
-  const { summary, settings } = props;
-  const days = summary.days || [];
+  const {
+    printInput: { summary, settings, inputs, days },
+  } = props;
 
   if (!props.precomputedEvents.length) {
     showToast({
@@ -69,7 +68,15 @@ export function printTrip(props: TripPrintViewProps): void {
   const destination = endpoints.destination?.name || 'Destination';
   const tripTitle = `${origin} → ${destination}`;
 
-  const html = buildPrintHTML(tripTitle, summary, settings, days, driverRotation, timedEvents, props.vehicle);
+  const html = buildPrintHTML(
+    tripTitle,
+    summary,
+    settings,
+    days.map(day => day.meta),
+    driverRotation,
+    timedEvents,
+    inputs.vehicle,
+  );
 
   // Open print window
   const printWindow = window.open('', '_blank', 'width=800,height=600');

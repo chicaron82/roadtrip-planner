@@ -116,10 +116,19 @@ export function useStep3Controller({
     onDismissOvernight();
   }, [summary, suggestedOvernightStop, onUpdateStopType, onDismissOvernight]);
 
+  const printInput = useMemo(() => (
+    canonicalTimeline
+      ? {
+          summary: canonicalTimeline.summary,
+          days: canonicalTimeline.days,
+          inputs: canonicalTimeline.inputs,
+        }
+      : undefined
+  ), [canonicalTimeline]);
+
   const header = useMemo(() => buildStep3HeaderModel({
-    summary,
-    settings,
-    vehicle,
+    hasTrip: !!summary,
+    printInput,
     shareUrl,
     difficulty: overview?.difficulty,
     precomputedEvents,
@@ -128,8 +137,7 @@ export function useStep3Controller({
     onCopyShareLink,
   }), [
     summary,
-    settings,
-    vehicle,
+    printInput,
     shareUrl,
     overview,
     precomputedEvents,
@@ -236,9 +244,7 @@ export function useStep3Controller({
   ]);
 
   const commit = useMemo(() => buildStep3CommitModel({
-    summary,
-    settings,
-    vehicle,
+    printInput,
     viewMode,
     tripConfirmed,
     addedStopCount,
@@ -251,9 +257,7 @@ export function useStep3Controller({
     onOpenGoogleMaps,
     onCopyShareLink,
   }), [
-    summary,
-    settings,
-    vehicle,
+    printInput,
     viewMode,
     tripConfirmed,
     addedStopCount,

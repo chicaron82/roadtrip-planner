@@ -21,3 +21,8 @@ export type Step3HealthSummary = Pick<
 >;
 
 export type SegmentLookupSummary = Pick<TripSummary, 'segments'>;
+
+export type TripRecapSummary = Pick<
+  TripSummary,
+  'segments' | 'roundTripMidpoint' | 'days' | 'totalDistanceKm'
+>;

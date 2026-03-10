@@ -13,6 +13,7 @@ import type {
   Vehicle,
 } from '../types';
 import type { CanonicalTripTimeline } from '../lib/canonical-trip';
+import type { PrintInput } from '../lib/canonical-trip';
 import type { TimedEvent } from '../lib/trip-timeline';
 import type { FeasibilityResult } from '../lib/feasibility/types';
 import type { Step3ArrivalInfo } from '../components/Steps/step3-types';
@@ -22,9 +23,8 @@ import { generateTripOverview } from '../lib/trip-analyzer';
 import type { Step3HealthSummary } from '../lib/trip-summary-slices';
 
 export interface Step3HeaderModel {
-  summary: TripSummary | null;
-  settings: TripSettings;
-  vehicle: Vehicle;
+  hasTrip: boolean;
+  printInput?: PrintInput;
   shareUrl: string | null;
   difficulty?: ReturnType<typeof generateTripOverview>['difficulty'] | null;
   precomputedEvents?: TimedEvent[];
@@ -86,9 +86,8 @@ export interface Step3ViewerModel {
 }
 
 export interface Step3CommitModel {
-  summary: TripSummary;
-  settings: TripSettings;
-  vehicle: Vehicle;
+  totalDays: number;
+  printInput: PrintInput;
   viewMode: ViewMode;
   tripConfirmed: boolean;
   addedStopCount: number;
@@ -103,9 +102,8 @@ export interface Step3CommitModel {
 }
 
 interface BuildStep3HeaderModelOptions {
-  summary: TripSummary | null;
-  settings: TripSettings;
-  vehicle: Vehicle;
+  hasTrip: boolean;
+  printInput?: PrintInput;
   shareUrl: string | null;
   difficulty?: ReturnType<typeof generateTripOverview>['difficulty'] | null;
   precomputedEvents?: TimedEvent[];
@@ -229,9 +227,7 @@ export function buildStep3ViewerModel({
 }
 
 interface BuildStep3CommitModelOptions {
-  summary: TripSummary | null;
-  settings: TripSettings;
-  vehicle: Vehicle;
+  printInput?: PrintInput;
   viewMode: ViewMode;
   tripConfirmed: boolean;
   addedStopCount: number;
@@ -246,9 +242,13 @@ interface BuildStep3CommitModelOptions {
 }
 
 export function buildStep3CommitModel({
-  summary,
+  printInput,
   ...rest
 }: BuildStep3CommitModelOptions): Step3CommitModel | null {
-  if (!summary) return null;
-  return { summary, ...rest };
+  if (!printInput) return null;
+  return {
+    totalDays: printInput.days.length || 1,
+    printInput,
+    ...rest,
+  };
 }

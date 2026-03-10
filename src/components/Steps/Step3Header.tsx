@@ -1,5 +1,5 @@
 import { Share2, Printer } from 'lucide-react';
-import type { TripSettings, TripSummary, Vehicle } from '../../types';
+import type { TripPrintViewProps } from '../Trip/StepHelpers/TripPrintView';
 import type { TimedEvent } from '../../lib/trip-timeline';
 import { Button } from '../UI/Button';
 import { DifficultyBadge } from '../Trip/StepHelpers/DifficultyBadge';
@@ -12,9 +12,8 @@ interface Difficulty {
 }
 
 interface Step3HeaderProps {
-  summary: TripSummary | null;
-  settings: TripSettings;
-  vehicle: Vehicle;
+  hasTrip: boolean;
+  printInput?: TripPrintViewProps['printInput'];
   shareUrl: string | null;
   difficulty?: Difficulty | null;
   precomputedEvents?: TimedEvent[];
@@ -24,9 +23,8 @@ interface Step3HeaderProps {
 }
 
 export function Step3Header({
-  summary,
-  settings,
-  vehicle,
+  hasTrip,
+  printInput,
   shareUrl,
   difficulty,
   precomputedEvents,
@@ -45,7 +43,7 @@ export function Step3Header({
           <p className="text-sm text-muted-foreground">Review your route and itinerary.</p>
         </div>
         <div className="flex gap-2">
-          {summary && (
+          {hasTrip && (
             <Button size="sm" variant="outline" className="gap-1" onClick={onOpenGoogleMaps}>
               <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
@@ -58,13 +56,13 @@ export function Step3Header({
               <Share2 className="h-3 w-3" /> Share
             </Button>
           )}
-          {summary && (
+          {printInput && (
             <Button
               size="sm"
               variant="outline"
               className="gap-1"
               disabled={isCalculating || !precomputedEvents?.length}
-              onClick={() => printTrip({ summary, settings, vehicle, precomputedEvents: precomputedEvents ?? [] })}
+              onClick={() => printTrip({ printInput, precomputedEvents: precomputedEvents ?? [] })}
             >
               <Printer className="h-3 w-3" /> Print
             </Button>
