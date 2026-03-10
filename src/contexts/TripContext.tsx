@@ -1,7 +1,7 @@
 // Context files intentionally export both the provider component and hooks/constants
 // in the same file. Splitting them would scatter the API across multiple files.
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef, type ReactNode } from 'react';
 import type { Location, Vehicle, TripSettings, TripSummary, TripBudget, Activity, TripDay } from '../types';
 import type { CanonicalTripTimeline } from '../lib/canonical-trip';
 import { DEFAULT_BUDGET } from '../lib/budget';
@@ -238,7 +238,11 @@ export function TripProvider({
     });
   }, [updateSummaryDays]);
 
-  const value: TripContextType = {
+  // Memoize so consumers only re-render when state they care about changes,
+  // not on every unrelated TripProvider render.
+  // TODO: split into TripCoreContext + TimelineContext once the Step 3 / Viewer
+  //       refactor defines clear consumer boundaries (per arch ticket backlog).
+  const value = useMemo<TripContextType>(() => ({
     locations,
     vehicle,
     settings,
@@ -257,7 +261,12 @@ export function TripProvider({
     addDayActivity,
     updateDayActivity,
     removeDayActivity,
-  };
+  }), [
+    locations, vehicle, settings, summary, canonicalTimeline,
+    setLocations, setVehicle, setSettings, setSummary, setCanonicalTimeline,
+    updateLocation, addWaypoint, removeLocation, reorderLocations,
+    updateBudget, addDayActivity, updateDayActivity, removeDayActivity,
+  ]);
 
   return (
     <TripContext.Provider value={value}>
