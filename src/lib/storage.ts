@@ -1,4 +1,4 @@
-import type { Location, TripSummary, TripSettings } from '../types';
+import type { Location, TripSummary, TripSettings, HistoryTripSnapshot } from '../types';
 
 const KEYS = {
   FAVORITES: 'roadtrip_favorites',
@@ -63,28 +63,33 @@ export const toggleFavorite = (location: Location) => {
 };
 
 // --- History (Trips) ---
-// We'll store a simplified summary to avoid hitting storage limits
-export const getHistory = (): TripSummary[] => {
+// We store a simplified snapshot to avoid hitting storage limits with massive geometry arrays
+export const getHistory = (): HistoryTripSnapshot[] => {
     try {
         const data = localStorage.getItem(KEYS.HISTORY);
         return data ? JSON.parse(data) : [];
     } catch { return []; }
 };
 
-export const addToHistory = (summary: TripSummary) => {
+export const addToHistory = (summary: TripSummary, locations: Location[], isRoundTrip: boolean, waypointCount: number) => {
     const history = getHistory();
-    // Strip fullGeometry before storing — it can be thousands of coordinate pairs
-    // per entry and will quickly exhaust the ~5MB localStorage budget.
-    // The history UI only needs segments, costs, and metadata.
-    const { fullGeometry: _geom, ...summaryWithoutGeometry } = summary;
-    const newEntry: TripSummary = {
-        ...summaryWithoutGeometry,
-        fullGeometry: [],
-        displayDate: new Date().toISOString()
+    
+    // Create a lightweight snapshot for the UI
+    const snapshot: HistoryTripSnapshot = {
+      id: `trip-${Date.now()}`,
+      savedAt: new Date().toISOString(),
+      locations: locations,
+      totalDistanceKm: summary.totalDistanceKm,
+      totalDurationMinutes: summary.totalDurationMinutes,
+      totalFuelCost: summary.totalFuelCost,
+      isRoundTrip,
+      waypointCount,
+      costPerPerson: summary.costPerPerson,
+      drivingDays: summary.drivingDays,
     };
 
     // Keep last 5
-    const updated = [newEntry, ...history].slice(0, 5);
+    const updated = [snapshot, ...history].slice(0, 5);
     try {
       localStorage.setItem(KEYS.HISTORY, JSON.stringify(updated));
     } catch (e) {

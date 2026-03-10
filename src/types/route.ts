@@ -179,6 +179,19 @@ export interface TripSummary {
   roundTripMidpoint?: number;
 }
 
+export interface HistoryTripSnapshot {
+  id: string;                      // Unique ID for the history entry
+  savedAt: string;                 // ISO date when the trip was calculated
+  locations: Location[];           // Raw locations to enable full recalculation on restore
+  totalDistanceKm: number;
+  totalDurationMinutes: number;
+  totalFuelCost: number;
+  isRoundTrip: boolean;
+  waypointCount: number;
+  costPerPerson?: number;
+  drivingDays?: number;
+}
+
 export interface RouteStrategy {
   id: 'fastest' | 'canada-only' | 'scenic';
   label: string;

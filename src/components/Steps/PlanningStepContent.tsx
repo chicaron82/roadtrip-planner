@@ -3,7 +3,7 @@ import { Step1Content } from './Step1Content';
 import { Step2Content } from './Step2Content';
 import { Step3Content } from './Step3Content';
 import type {
-  Location, Vehicle, TripSettings, TripSummary, TripMode, TripChallenge,
+  Location, Vehicle, TripSettings, TripSummary, HistoryTripSnapshot, TripMode, TripChallenge,
   POISuggestion, TripJournal, StopType,
 } from '../../types';
 import type { StylePreset } from '../../lib/style-presets';
@@ -44,7 +44,7 @@ interface PlanningStepContentProps {
   externalStops: SuggestedStop[];
   precomputedEvents?: TimedEvent[];
   isCalculating?: boolean;
-  history: TripSummary[];
+  history: HistoryTripSnapshot[];
   shareUrl: string | null;
   // Step 3 — calc
   showOvernightPrompt: boolean;
@@ -67,7 +67,7 @@ interface PlanningStepContentProps {
   onGoToStep: (step: PlanningStep) => void;
   onConfirmTrip: () => void;
   onUnconfirmTrip: () => void;
-  onLoadHistoryTrip?: (trip: TripSummary) => void;
+  onLoadHistoryTrip?: (trip: HistoryTripSnapshot) => void;
 }
 
 export function PlanningStepContent(p: PlanningStepContentProps) {

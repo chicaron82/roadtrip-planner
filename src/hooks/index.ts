@@ -16,3 +16,4 @@ export { useMapProps } from './useMapProps';
 export { useGhostCar, type GhostCarState } from './useGhostCar';
 export { useAppCallbacks } from './useAppCallbacks';
 export { useTripRestore } from './useTripRestore';
+export { useDebounce } from './useDebounce';

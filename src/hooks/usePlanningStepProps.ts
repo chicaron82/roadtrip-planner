@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import type React from 'react';
 import { PlanningStepContent } from '../components/Steps/PlanningStepContent';
-import type { Location, Vehicle, TripSettings, TripSummary, TripMode, TripChallenge, POISuggestion, TripJournal, POI, POICategory, RouteSegment } from '../types';
+import type { Location, Vehicle, TripSettings, TripSummary, HistoryTripSnapshot, TripMode, TripChallenge, POISuggestion, TripJournal, POI, POICategory, RouteSegment } from '../types';
 import type { StylePreset } from '../lib/style-presets';
 import type { ViewMode } from './useJournal';
 import type { TemplateImportResult } from '../lib/url';
@@ -51,7 +51,7 @@ interface UsePlanningStepPropsOptions {
   // Trip state
   tripConfirmed: boolean;
   setTripConfirmed: (v: boolean) => void;
-  history: TripSummary[];
+  history: HistoryTripSnapshot[];
   // Added stops
   addedStopCount: number;
   externalStops: SuggestedStop[];
@@ -76,7 +76,7 @@ interface UsePlanningStepPropsOptions {
   // Actions
   openInGoogleMaps: () => void;
   copyShareLink: () => void;
-  onLoadHistoryTrip: (trip: TripSummary) => void;
+  onLoadHistoryTrip: (trip: HistoryTripSnapshot) => void;
 }
 
 /**

@@ -19,7 +19,7 @@ import {
 import { useArrivalSnap } from './hooks/useArrivalSnap';
 import { getHistory } from './lib/storage';
 import { getWeightedFuelEconomyL100km } from './lib/unit-conversions';
-import type { TripSummary } from './types';
+import type { HistoryTripSnapshot } from './types';
 
 /** App.tsx — Root orchestrator. Full-bleed map + floating glass panel. 💚 My Experience Engine */
 function AppContent() {
@@ -29,7 +29,7 @@ function AppContent() {
   const onCalcCompleteRef = useRef<() => void>(() => {});
   const [tripConfirmed, setTripConfirmed] = useState(false);
   const [mapRevealed, setMapRevealed] = useState(false);
-  const [history] = useState<TripSummary[]>(() => getHistory());
+  const [history] = useState<HistoryTripSnapshot[]>(() => getHistory());
 
   // Mode management (plan/adventure/estimate)
   const {
@@ -167,8 +167,8 @@ function AppContent() {
 
   const hasActiveSession = locations.some(loc => loc.name && loc.name.trim() !== '');
   const lastDestination = (() => {
-    const segs = history[0]?.segments;
-    return segs && segs.length > 0 ? segs[segs.length - 1].to.name : undefined;
+    const locs = history[0]?.locations;
+    return locs && locs.length > 0 ? locs[locs.length - 1].name : undefined;
   })();
 
   const mapProps = useMapProps({

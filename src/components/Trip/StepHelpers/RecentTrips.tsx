@@ -1,8 +1,8 @@
-import type { TripSummary } from '../../../types';
+import type { HistoryTripSnapshot } from '../../../types';
 
 interface Props {
-  history: TripSummary[];
-  onLoadHistoryTrip?: (trip: TripSummary) => void;
+  history: HistoryTripSnapshot[];
+  onLoadHistoryTrip?: (trip: HistoryTripSnapshot) => void;
 }
 
 export function RecentTrips({ history, onLoadHistoryTrip }: Props) {
@@ -13,10 +13,11 @@ export function RecentTrips({ history, onLoadHistoryTrip }: Props) {
       <h3 className="text-sm font-semibold mb-2">Recent Trips</h3>
       <div className="space-y-2 max-h-48 overflow-y-auto">
         {history.slice(0, 5).map((trip, i) => {
-          const origin = trip.segments[0]?.from.name ?? 'Unknown';
-          const dest = trip.segments[trip.segments.length - 1]?.to.name ?? 'Unknown';
-          const date = trip.displayDate
-            ? new Date(trip.displayDate).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })
+          const locs = trip.locations;
+          const origin = locs?.[0]?.name ?? 'Unknown';
+          const dest = locs?.[locs.length - 1]?.name ?? 'Unknown';
+          const date = trip.savedAt
+            ? new Date(trip.savedAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })
             : null;
           const clickable = !!onLoadHistoryTrip;
           return (

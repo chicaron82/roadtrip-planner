@@ -1,4 +1,4 @@
-import type { Location, Vehicle, TripSettings, TripSummary, POISuggestion, TripJournal, StopType, TripMode, TripChallenge } from '../../types';
+import type { Location, Vehicle, TripSettings, TripSummary, HistoryTripSnapshot, POISuggestion, TripJournal, StopType, TripMode, TripChallenge } from '../../types';
 import { OvernightStopPrompt } from '../Trip/StepHelpers/OvernightStopPrompt';
 import { type ViewMode } from '../Trip/Journal/JournalModeToggle';
 import { EstimateBreakdown } from '../Trip/StepHelpers/EstimateBreakdown';
@@ -30,7 +30,7 @@ interface Step3ContentProps {
   isLoadingPOIs: boolean;
   poiPartialResults?: boolean;
   poiFetchFailed?: boolean;
-  history: TripSummary[];
+  history: HistoryTripSnapshot[];
   shareUrl: string | null;
   onOpenGoogleMaps: () => void;
   onCopyShareLink: () => void;
@@ -48,7 +48,7 @@ interface Step3ContentProps {
   addedStopCount: number;
   onConfirmTrip: () => void;
   onUnconfirmTrip: () => void;
-  onLoadHistoryTrip?: (trip: TripSummary) => void;
+  onLoadHistoryTrip?: (trip: HistoryTripSnapshot) => void;
 }
 
 export function Step3Content({

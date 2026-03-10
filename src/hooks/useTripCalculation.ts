@@ -127,7 +127,12 @@ export function useTripCalculation({
         setSuggestedOvernightStop, setShowOvernightPrompt,
       );
 
-      addToHistory(tripSummary);
+      addToHistory(
+        tripSummary,
+        locations,
+        currentSettings.isRoundTrip,
+        locations.length - 2
+      );
       serializeStateToURL(locations, vehicle, currentSettings);
       setShareUrl(window.location.href);
       setLocalSummary(tripSummary);

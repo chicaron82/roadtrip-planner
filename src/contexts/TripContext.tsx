@@ -2,6 +2,7 @@
 // in the same file. Splitting them would scatter the API across multiple files.
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef, type ReactNode } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
 import type { Location, Vehicle, TripSettings, TripSummary, TripBudget, Activity, DayType, OvernightStop, TripDay } from '../types';
 import type { CanonicalTripTimeline } from '../lib/canonical-trip';
 import { DEFAULT_BUDGET } from '../lib/budget';
@@ -144,9 +145,11 @@ export function TripProvider({
   const [canonicalTimeline, setCanonicalTimeline] = useState<CanonicalTripTimeline | null>(null);
 
   // ── Core side-effects ───────────────────────────────────────────────────────
+  const debouncedSettings = useDebounce(settings, 500);
+
   useEffect(() => {
-    saveSettingsDefaults(settings);
-  }, [settings]);
+    saveSettingsDefaults(debouncedSettings);
+  }, [debouncedSettings]);
 
   // Auto-populate gasPrice from regional data when origin changes.
   const lastAutoFuelPrice = useRef<number | null>(null);
