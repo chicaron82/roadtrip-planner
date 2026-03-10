@@ -85,9 +85,6 @@ interface TripContextType {
   addDayActivity: (dayNumber: number, activity: Activity) => void;
   updateDayActivity: (dayNumber: number, activityIndex: number, activity: Activity) => void;
   removeDayActivity: (dayNumber: number, activityIndex: number) => void;
-
-  // Reset
-  resetTrip: () => void;
 }
 
 // ==================== CONTEXT ====================
@@ -241,13 +238,6 @@ export function TripProvider({
     });
   }, [updateSummaryDays]);
 
-  // Reset
-  const resetTrip = useCallback(() => {
-    setLocations(DEFAULT_LOCATIONS);
-    setSettings(DEFAULT_SETTINGS);
-    setSummary(null);
-  }, []);
-
   const value: TripContextType = {
     locations,
     vehicle,
@@ -267,7 +257,6 @@ export function TripProvider({
     addDayActivity,
     updateDayActivity,
     removeDayActivity,
-    resetTrip,
   };
 
   return (

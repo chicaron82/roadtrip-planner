@@ -41,6 +41,22 @@ export function useAppReset({
   setTripMode,
   setShowAdventureMode,
 }: UseAppResetOptions): UseAppResetReturn {
+  /**
+   * Canonical trip reset — the single authoritative reset path for the app.
+   *
+   * Intentionally PRESERVES (user preferences that survive between trips):
+   *   - vehicle            (keep last-used vehicle selection)
+   *   - settings           (keep units, currency, gas price, traveler count, etc.)
+   *
+   * Clears all trip-specific calculated and interaction state:
+   *   - locations → DEFAULT_LOCATIONS
+   *   - summary, canonicalTimeline, strategicFuelStops (via clearTripCalculation)
+   *   - route strategies + share URL (via clearTripCalculation)
+   *   - POI state (via resetPOIs)
+   *   - wizard step state (via resetWizard)
+   *   - user-added map stops (via clearStops)
+   *   - active challenge, trip origin, trip confirmed flag
+   */
   const resetTrip = useCallback(() => {
     setLocations(DEFAULT_LOCATIONS);
     setSummary(null);
