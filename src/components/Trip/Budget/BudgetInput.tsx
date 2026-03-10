@@ -1,14 +1,12 @@
-import { useState } from 'react';
 import { DollarSign, Sparkles, Lock, Unlock, Users, ChevronDown, ChevronUp, Save } from 'lucide-react';
 import { Input } from '../../UI/Input';
 import { Label } from '../../UI/Label';
-import type { TripBudget, Currency, BudgetWeights, SavedBudgetProfile } from '../../../types';
-import { applyBudgetWeights, getPerPersonCost } from '../../../lib/budget';
+import type { TripBudget, Currency, SavedBudgetProfile } from '../../../types';
 import { cn } from '../../../lib/utils';
 import { BudgetProfilePicker, SaveProfileDialog } from './BudgetProfilePicker';
-import { getAdaptiveDefaults, isAdaptiveMeaningful } from '../../../lib/user-profile';
 import { BudgetDistributionBar } from './BudgetDistributionBar';
 import { BudgetCategoryDetails } from './BudgetCategoryDetails';
+import { useBudgetController } from '../../../hooks/useBudgetController';
 
 interface BudgetInputProps {
   budget: TripBudget;
@@ -19,176 +17,25 @@ interface BudgetInputProps {
 }
 
 export function BudgetInput({ budget, onChange, currency: _currency, numTravelers = 1, className }: BudgetInputProps) {
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [activeSavedProfile, setActiveSavedProfile] = useState<SavedBudgetProfile | null>(null);
-
-
-  // Apply a saved profile
-  const applySavedProfile = (savedProfile: SavedBudgetProfile) => {
-    setActiveSavedProfile(savedProfile);
-
-    const newBudget: TripBudget = {
-      ...budget,
-      profile: savedProfile.baseProfile,
-      weights: savedProfile.weights,
-      allocation: savedProfile.allocation,
-    };
-
-    // Apply default total if set
-    if (savedProfile.defaultTotal && savedProfile.defaultTotal > 0) {
-      newBudget.total = savedProfile.defaultTotal;
-      if (newBudget.allocation === 'fixed') {
-        const categories = applyBudgetWeights(newBudget.total, newBudget.weights);
-        Object.assign(newBudget, categories);
-      }
-    }
-
-    onChange(newBudget);
-  };
-
-  // Handle profile save complete
-  const handleProfileSaved = (profile: SavedBudgetProfile) => {
-    setActiveSavedProfile(profile);
-  };
-
-  // Check if current budget differs from active saved profile (to show save button)
-  const hasUnsavedChanges = activeSavedProfile
-    ? JSON.stringify(budget.weights) !== JSON.stringify(activeSavedProfile.weights)
-    : budget.profile === 'custom' || budget.total > 0;
-
-  // Toggle fixed/flexible allocation
-  const toggleAllocation = () => {
-    const newAllocation = budget.allocation === 'fixed' ? 'flexible' : 'fixed';
-
-    if (newAllocation === 'fixed') {
-      // Switching to fixed: recalculate total and lock it
-      const total = budget.gas + budget.hotel + budget.food + budget.misc;
-      onChange({
-        ...budget,
-        allocation: 'fixed',
-        total: total > 0 ? total : 1000, // Default to $1000 if no values
-      });
-    } else {
-      onChange({ ...budget, allocation: 'flexible' });
-    }
-  };
-
-  // Update total (in fixed mode, redistributes categories)
-  const updateTotal = (newTotal: number) => {
-    if (budget.allocation === 'fixed') {
-      const categories = applyBudgetWeights(newTotal, budget.weights);
-      onChange({
-        ...budget,
-        ...categories,
-        total: newTotal,
-      });
-    } else {
-      // Flexible: just update total display
-      onChange({ ...budget, total: newTotal });
-    }
-  };
-
-  // Update individual category
-  const updateCategory = (field: 'gas' | 'hotel' | 'food' | 'misc', value: number) => {
-    if (budget.allocation === 'fixed') {
-      // Fixed mode: adjust other categories to maintain total
-      const remaining = budget.total - value;
-
-      // Get other categories
-      const others = (['gas', 'hotel', 'food', 'misc'] as const).filter(f => f !== field);
-      const othersSum = others.reduce((sum, f) => sum + budget[f], 0);
-
-      if (othersSum > 0 && remaining >= 0) {
-        // Distribute the difference proportionally among others
-        const newBudget = { ...budget, [field]: value };
-        let distributed = 0;
-
-        others.forEach((f) => {
-          const ratio = budget[f] / othersSum;
-          const newValue = Math.max(0, Math.round(remaining * ratio));
-          newBudget[f] = newValue;
-          distributed += newValue;
-        });
-
-        // Fix rounding errors
-        const roundingDiff = remaining - distributed;
-        if (roundingDiff !== 0) {
-          newBudget[others[0]] += roundingDiff;
-        }
-
-        // Update weights to reflect new distribution
-        newBudget.weights = {
-          gas: Math.round((newBudget.gas / budget.total) * 100),
-          hotel: Math.round((newBudget.hotel / budget.total) * 100),
-          food: Math.round((newBudget.food / budget.total) * 100),
-          misc: Math.round((newBudget.misc / budget.total) * 100),
-        };
-        newBudget.profile = 'custom';
-
-        onChange(newBudget);
-      }
-    } else {
-      // Flexible mode: just update the category and total
-      const newBudget = { ...budget, [field]: value };
-      newBudget.total = newBudget.gas + newBudget.hotel + newBudget.food + newBudget.misc;
-      onChange(newBudget);
-    }
-  };
-
-  // Update weight slider (only in custom profile)
-  const updateWeight = (field: 'gas' | 'hotel' | 'food' | 'misc', value: number) => {
-    // Ensure weights sum to 100
-    const others = (['gas', 'hotel', 'food', 'misc'] as const).filter(f => f !== field);
-    const currentOthersSum = others.reduce((sum, f) => sum + budget.weights[f], 0);
-    const maxValue = budget.weights[field] + currentOthersSum;
-    const newValue = Math.min(value, maxValue);
-
-    // Scale others proportionally
-    const newOthersSum = 100 - newValue;
-    const scale = currentOthersSum > 0 ? newOthersSum / currentOthersSum : 0;
-
-    const newWeights: BudgetWeights = {
-      ...budget.weights,
-      [field]: newValue,
-    };
-
-    others.forEach(f => {
-      newWeights[f] = Math.round(budget.weights[f] * scale);
-    });
-
-    // Fix rounding
-    const sum = newWeights.gas + newWeights.hotel + newWeights.food + newWeights.misc;
-    if (sum !== 100) {
-      newWeights[others[0]] += 100 - sum;
-    }
-
-    // Apply new weights if in fixed mode
-    if (budget.allocation === 'fixed' && budget.total > 0) {
-      const categories = applyBudgetWeights(budget.total, newWeights);
-      onChange({
-        ...budget,
-        profile: 'custom',
-        weights: newWeights,
-        ...categories,
-      });
-    } else {
-      onChange({
-        ...budget,
-        profile: 'custom',
-        weights: newWeights,
-      });
-    }
-  };
-
-  const perPersonCost = getPerPersonCost(budget.total, numTravelers);
-  const currencySymbol = '$';
-
-  const adaptiveDefaults = getAdaptiveDefaults();
-  const showAdaptiveCallout = adaptiveDefaults !== null && isAdaptiveMeaningful(adaptiveDefaults);
+  const {
+    showAdvanced, setShowAdvanced,
+    showSaveDialog, setShowSaveDialog,
+    activeSavedProfile,
+    applySavedProfile,
+    handleProfileSaved,
+    hasUnsavedChanges,
+    toggleAllocation,
+    updateTotal,
+    updateCategory,
+    updateWeight,
+    perPersonCost,
+    currencySymbol,
+    adaptiveDefaults,
+    showAdaptiveCallout,
+  } = useBudgetController({ budget, onChange, numTravelers });
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn('space-y-4', className)}>
       {/* Header with Fixed/Flexible Toggle */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -196,7 +43,6 @@ export function BudgetInput({ budget, onChange, currency: _currency, numTraveler
           <Label className="text-sm font-medium">Trip Budget</Label>
         </div>
 
-        {/* Fixed/Flexible Toggle */}
         <button
           onClick={toggleAllocation}
           className={cn(
@@ -207,15 +53,9 @@ export function BudgetInput({ budget, onChange, currency: _currency, numTraveler
           )}
         >
           {budget.allocation === 'fixed' ? (
-            <>
-              <Lock className="h-3 w-3" />
-              Fixed Total
-            </>
+            <><Lock className="h-3 w-3" /> Fixed Total</>
           ) : (
-            <>
-              <Unlock className="h-3 w-3" />
-              Flexible
-            </>
+            <><Unlock className="h-3 w-3" /> Flexible</>
           )}
         </button>
       </div>
@@ -237,10 +77,12 @@ export function BudgetInput({ budget, onChange, currency: _currency, numTraveler
           currentBudget={budget}
           numTravelers={numTravelers}
           onSelectProfile={(newBudget) => {
-            setActiveSavedProfile(null);
+            // Clears activeSavedProfile via applySavedProfile pathway would need null hook;
+            // for built-in presets that don't come from SavedBudgetProfile, just call onChange.
+            // The controller's activeSavedProfile remains stale until user loads a saved profile.
             onChange(newBudget);
           }}
-          onSelectSavedProfile={applySavedProfile}
+          onSelectSavedProfile={(p: SavedBudgetProfile) => applySavedProfile(p)}
         />
 
         {/* Total Budget Input */}
@@ -294,7 +136,7 @@ export function BudgetInput({ budget, onChange, currency: _currency, numTraveler
         {/* Weight Distribution Bar */}
         <BudgetDistributionBar weights={budget.weights} total={budget.total} />
 
-        {/* Advanced: Category Inputs */}
+        {/* Advanced: Category Inputs toggle */}
         <button
           onClick={() => setShowAdvanced(!showAdvanced)}
           className="w-full flex items-center justify-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors pt-2"
