@@ -1,29 +1,21 @@
-import { useMemo } from 'react';
-import type { TripSummary, TripSettings, Vehicle, TripMode, Location } from '../types';
-import type { TimedEvent } from '../lib/trip-timeline';
+import { useMemo, useCallback } from 'react';
 import { analyzeFeasibility } from '../lib/feasibility';
-import type { FeasibilityResult } from '../lib/feasibility/types';
 import { generateEstimate } from '../lib/estimate-service';
-import type { TripEstimate } from '../lib/estimate-service';
 import { generateTripOverview } from '../lib/trip-analyzer';
-import type { Step3ArrivalInfo } from '../components/Steps/step3-types';
-
-interface UseStep3ControllerOptions {
-  summary: TripSummary | null;
-  settings: TripSettings;
-  vehicle: Vehicle;
-  tripMode: TripMode;
-  precomputedEvents?: TimedEvent[];
-  suggestedOvernightStop: Location | null;
-}
-
-export interface UseStep3ControllerReturn {
-  feasibility: FeasibilityResult | null;
-  estimate: TripEstimate | null;
-  overview: ReturnType<typeof generateTripOverview> | null;
-  arrivalInfo: Step3ArrivalInfo | null;
-  overnightTimes: { arrivalTime: string; departureTime: string };
-}
+import { useTimeline } from '../contexts/TripContext';
+import {
+  buildStep3ArrivalInfo,
+  buildStep3OvernightTimes,
+  type UseStep3ControllerOptions,
+  type UseStep3ControllerReturn,
+} from './useStep3Derivations';
+import {
+  buildStep3CommitModel,
+  buildStep3HeaderModel,
+  buildStep3HealthModel,
+  buildStep3OvernightPromptModel,
+  buildStep3ViewerModel,
+} from './useStep3Models';
 
 /**
  * Step 3 derived-state controller.
@@ -44,9 +36,45 @@ export function useStep3Controller({
   settings,
   vehicle,
   tripMode,
+  viewMode,
+  setViewMode,
+  activeJournal,
+  activeChallenge,
+  tripConfirmed,
+  addedStopCount,
+  shareUrl,
   precomputedEvents,
+  isCalculating,
   suggestedOvernightStop,
+  showOvernightPrompt,
+  poiSuggestions,
+  poiInference,
+  isLoadingPOIs,
+  poiPartialResults,
+  poiFetchFailed,
+  externalStops,
+  onOpenGoogleMaps,
+  onCopyShareLink,
+  onStartJournal,
+  onUpdateJournal,
+  onUpdateStopType,
+  onDismissOvernight,
+  onAddPOI,
+  onDismissPOI,
+  onConfirmTrip,
+  onUnconfirmTrip,
 }: UseStep3ControllerOptions): UseStep3ControllerReturn {
+  const {
+    addDayActivity,
+    updateDayActivity,
+    removeDayActivity,
+    updateDayNotes,
+    updateDayTitle,
+    updateDayType,
+    updateDayOvernight,
+    canonicalTimeline,
+  } = useTimeline();
+
   const feasibility = useMemo(
     () => (summary ? analyzeFeasibility(summary, settings) : null),
     [summary, settings],
@@ -62,52 +90,193 @@ export function useStep3Controller({
     [summary, settings],
   );
 
-  const arrivalInfo = useMemo<Step3ArrivalInfo | null>(() => {
-    if (!summary) return null;
-    const lastSeg = summary.segments.at(-1);
-    const canonicalArrival = precomputedEvents
-      ?.filter(event => event.type === 'arrival')
-      .at(-1);
-    const arrivalTime = canonicalArrival?.arrivalTime
-      ?? (lastSeg?.arrivalTime ? new Date(lastSeg.arrivalTime) : null);
-    if (!arrivalTime) return null;
-    const d = new Date(arrivalTime);
-    if (isNaN(d.getTime())) return null;
-    const time = d.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit', hour12: true });
-    if (settings.isRoundTrip && summary.roundTripMidpoint) {
-      const destSeg = summary.segments[summary.roundTripMidpoint - 1];
-      return { dest: destSeg?.to.name ?? lastSeg?.to.name ?? 'Destination', time, isRoundTrip: true as const };
-    }
-    return { dest: lastSeg?.to.name ?? 'Destination', time, isRoundTrip: false as const };
-  }, [precomputedEvents, summary, settings]);
+  const arrivalInfo = useMemo(() => buildStep3ArrivalInfo({
+    summary,
+    precomputedEvents,
+    isRoundTrip: settings.isRoundTrip,
+  }), [summary, precomputedEvents, settings.isRoundTrip]);
 
-  const overnightTimes = useMemo(() => {
-    let arrivalTime = '5:00 PM';
-    let departureTime = '8:00 AM';
+  const overnightTimes = useMemo(() => buildStep3OvernightTimes({
+    suggestedOvernightStop,
+    summary,
+    departureTime: settings.departureTime,
+  }), [suggestedOvernightStop, summary, settings.departureTime]);
 
-    if (suggestedOvernightStop && summary) {
-      const overnightSeg = summary.segments.find(seg => seg.to.name === suggestedOvernightStop.name);
-      if (overnightSeg?.arrivalTime) {
-        const d = new Date(overnightSeg.arrivalTime);
-        if (!isNaN(d.getTime())) {
-          arrivalTime = d.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit', hour12: true });
-        }
-      }
+  const handleAcceptSuggestedOvernight = useCallback(() => {
+    if (!summary || !suggestedOvernightStop) return;
+
+    const segmentIndex = summary.segments.findIndex(
+      (segment) => segment.to.name === suggestedOvernightStop.name,
+    );
+
+    if (segmentIndex >= 0) {
+      onUpdateStopType(segmentIndex, 'overnight');
     }
 
-    if (settings.departureTime) {
-      const [hStr, mStr] = settings.departureTime.split(':');
-      const h = parseInt(hStr, 10);
-      const m = parseInt(mStr, 10);
-      if (!isNaN(h) && !isNaN(m)) {
-        const d = new Date();
-        d.setHours(h, m, 0, 0);
-        departureTime = d.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit', hour12: true });
-      }
-    }
+    onDismissOvernight();
+  }, [summary, suggestedOvernightStop, onUpdateStopType, onDismissOvernight]);
 
-    return { arrivalTime, departureTime };
-  }, [suggestedOvernightStop, summary, settings.departureTime]);
+  const header = useMemo(() => buildStep3HeaderModel({
+    summary,
+    settings,
+    vehicle,
+    shareUrl,
+    difficulty: overview?.difficulty,
+    precomputedEvents,
+    isCalculating,
+    onOpenGoogleMaps,
+    onCopyShareLink,
+  }), [
+    summary,
+    settings,
+    vehicle,
+    shareUrl,
+    overview,
+    precomputedEvents,
+    isCalculating,
+    onOpenGoogleMaps,
+    onCopyShareLink,
+  ]);
 
-  return { feasibility, estimate, overview, arrivalInfo, overnightTimes };
+  const overnightPrompt = useMemo(() => buildStep3OvernightPromptModel({
+    showOvernightPrompt,
+    suggestedOvernightStop,
+    summary,
+    numTravelers: settings.numTravelers,
+    arrivalTime: overnightTimes.arrivalTime,
+    departureTime: overnightTimes.departureTime,
+    onAccept: handleAcceptSuggestedOvernight,
+    onDecline: onDismissOvernight,
+  }), [
+    showOvernightPrompt,
+    suggestedOvernightStop,
+    summary,
+    settings.numTravelers,
+    overnightTimes,
+    handleAcceptSuggestedOvernight,
+    onDismissOvernight,
+  ]);
+
+  const health = useMemo(() => buildStep3HealthModel({
+    summary,
+    settings,
+    viewMode,
+    tripMode,
+    activeJournal,
+    tripConfirmed,
+    arrivalInfo,
+    feasibility,
+    setViewMode,
+  }), [
+    summary,
+    settings,
+    viewMode,
+    tripMode,
+    activeJournal,
+    tripConfirmed,
+    arrivalInfo,
+    feasibility,
+    setViewMode,
+  ]);
+
+  const viewer = useMemo(() => buildStep3ViewerModel({
+    summary,
+    settings,
+    vehicle,
+    canonicalTimeline,
+    viewMode,
+    activeJournal,
+    activeChallenge,
+    tripMode,
+    onStartJournal,
+    onUpdateJournal,
+    onUpdateStopType,
+    onUpdateDayNotes: updateDayNotes,
+    onUpdateDayTitle: updateDayTitle,
+    onUpdateDayType: updateDayType,
+    onAddDayActivity: addDayActivity,
+    onUpdateDayActivity: updateDayActivity,
+    onRemoveDayActivity: removeDayActivity,
+    onUpdateOvernight: updateDayOvernight,
+    poiSuggestions,
+    poiInference,
+    isLoadingPOIs,
+    poiPartialResults,
+    poiFetchFailed,
+    onAddPOI,
+    onDismissPOI,
+    externalStops,
+  }), [
+    summary,
+    settings,
+    vehicle,
+    canonicalTimeline,
+    viewMode,
+    activeJournal,
+    activeChallenge,
+    tripMode,
+    onStartJournal,
+    onUpdateJournal,
+    onUpdateStopType,
+    updateDayNotes,
+    updateDayTitle,
+    updateDayType,
+    addDayActivity,
+    updateDayActivity,
+    removeDayActivity,
+    updateDayOvernight,
+    poiSuggestions,
+    poiInference,
+    isLoadingPOIs,
+    poiPartialResults,
+    poiFetchFailed,
+    onAddPOI,
+    onDismissPOI,
+    externalStops,
+  ]);
+
+  const commit = useMemo(() => buildStep3CommitModel({
+    summary,
+    settings,
+    vehicle,
+    viewMode,
+    tripConfirmed,
+    addedStopCount,
+    shareUrl,
+    precomputedEvents,
+    isCalculating,
+    onConfirmTrip,
+    onUnconfirmTrip,
+    onSetJournalMode: () => setViewMode('journal'),
+    onOpenGoogleMaps,
+    onCopyShareLink,
+  }), [
+    summary,
+    settings,
+    vehicle,
+    viewMode,
+    tripConfirmed,
+    addedStopCount,
+    shareUrl,
+    precomputedEvents,
+    isCalculating,
+    onConfirmTrip,
+    onUnconfirmTrip,
+    setViewMode,
+    onOpenGoogleMaps,
+    onCopyShareLink,
+  ]);
+
+  return {
+    feasibility,
+    estimate,
+    overview,
+    arrivalInfo,
+    overnightTimes,
+    header,
+    overnightPrompt,
+    health,
+    viewer,
+    commit,
+  };
 }

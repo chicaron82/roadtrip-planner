@@ -59,9 +59,8 @@ export function fireAndForgetOvernightSnap(
   tripSummary: TripSummary,
   canonicalTimeline: CanonicalTripTimeline | null,
   geocodeController: AbortController,
-  setLocalSummary: (s: TripSummary) => void,
+  setSummary: (s: TripSummary) => void,
   setCanonicalTimeline: (timeline: CanonicalTripTimeline) => void,
-  onSummaryChange: (s: TripSummary | null) => void,
 ): void {
   snapOvernightsToTowns(tripDays, geocodeController.signal)
     .then(snapped => {
@@ -139,13 +138,12 @@ export function fireAndForgetOvernightSnap(
 
       if (changed) {
         const updatedSummary = { ...tripSummary, days: enriched };
-        setLocalSummary(updatedSummary);
+        setSummary(updatedSummary);
         if (canonicalTimeline) {
           setCanonicalTimeline(
             applySnappedOvernightsToCanonicalTimeline(canonicalTimeline, updatedSummary, snapped),
           );
         }
-        onSummaryChange(updatedSummary);
       }
     })
     .catch((err) => {

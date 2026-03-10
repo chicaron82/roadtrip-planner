@@ -1,17 +1,13 @@
 import React from 'react';
 import { Step1Content } from './Step1Content';
 import { Step2Content } from './Step2Content';
-import { Step3Content } from './Step3Content';
+import { Step3Content, type Step3ContentProps } from './Step3Content';
 import type {
-  Location, Vehicle, TripSettings, TripSummary, HistoryTripSnapshot, TripMode, TripChallenge,
-  POISuggestion, TripJournal, StopType,
+  Location, Vehicle, TripSettings, TripSummary, TripMode, TripChallenge,
 } from '../../types';
 import type { StylePreset } from '../../lib/style-presets';
-import type { ViewMode } from '../../hooks/useJournal';
 import type { TemplateImportResult } from '../../lib/url';
-import type { SuggestedStop } from '../../lib/stop-suggestions';
 import type { PlanningStep } from '../../hooks/useWizard';
-import type { TimedEvent } from '../../lib/trip-timeline';
 
 interface PlanningStepContentProps {
   planningStep: PlanningStep;
@@ -34,40 +30,7 @@ interface PlanningStepContentProps {
   onPresetChange: (p: StylePreset) => void;
   onSharePreset: () => Promise<void>;
   shareJustCopied: boolean;
-  // Step 3 — journal & state
-  viewMode: ViewMode;
-  setViewMode: (m: ViewMode) => void;
-  activeJournal: TripJournal | null;
-  activeChallenge: TripChallenge | null;
-  tripConfirmed: boolean;
-  addedStopCount: number;
-  externalStops: SuggestedStop[];
-  precomputedEvents?: TimedEvent[];
-  isCalculating?: boolean;
-  history: HistoryTripSnapshot[];
-  shareUrl: string | null;
-  // Step 3 — calc
-  showOvernightPrompt: boolean;
-  suggestedOvernightStop: Location | null;
-  onDismissOvernight: () => void;
-  onUpdateStopType: (idx: number, t: StopType) => void;
-  // Step 3 — POI
-  poiSuggestions: POISuggestion[];
-  poiInference?: POISuggestion[];
-  isLoadingPOIs: boolean;
-  poiPartialResults: boolean;
-  poiFetchFailed: boolean;
-  onAddPOI: (poiId: string, segmentIndex?: number) => void;
-  onDismissPOI: (poiId: string) => void;
-  // Step 3 — actions
-  onOpenGoogleMaps: () => void;
-  onCopyShareLink: () => void;
-  onStartJournal: (title?: string) => void;
-  onUpdateJournal: (j: TripJournal) => void;
-  onGoToStep: (step: PlanningStep) => void;
-  onConfirmTrip: () => void;
-  onUnconfirmTrip: () => void;
-  onLoadHistoryTrip?: (trip: HistoryTripSnapshot) => void;
+  step3Props: Step3ContentProps;
 }
 
 export function PlanningStepContent(p: PlanningStepContentProps) {
@@ -97,31 +60,6 @@ export function PlanningStepContent(p: PlanningStepContentProps) {
     );
   }
   return (
-    <Step3Content
-      summary={p.summary} settings={p.settings} vehicle={p.vehicle}
-      tripMode={p.tripMode} viewMode={p.viewMode} setViewMode={p.setViewMode}
-      activeJournal={p.activeJournal} activeChallenge={p.activeChallenge}
-      showOvernightPrompt={p.showOvernightPrompt}
-      suggestedOvernightStop={p.suggestedOvernightStop}
-      poiSuggestions={p.poiSuggestions} poiInference={p.poiInference} isLoadingPOIs={p.isLoadingPOIs}
-      poiPartialResults={p.poiPartialResults} poiFetchFailed={p.poiFetchFailed}
-      history={p.history} shareUrl={p.shareUrl}
-      precomputedEvents={p.precomputedEvents}
-      isCalculating={p.isCalculating}
-      onOpenGoogleMaps={p.onOpenGoogleMaps}
-      onCopyShareLink={p.onCopyShareLink}
-      onStartJournal={p.onStartJournal}
-      onUpdateJournal={p.onUpdateJournal}
-      onUpdateStopType={p.onUpdateStopType}
-      onDismissOvernight={p.onDismissOvernight}
-      onAddPOI={p.onAddPOI} onDismissPOI={p.onDismissPOI}
-      onGoToStep={p.onGoToStep}
-      externalStops={p.externalStops}
-      tripConfirmed={p.tripConfirmed}
-      addedStopCount={p.addedStopCount}
-      onConfirmTrip={p.onConfirmTrip}
-      onUnconfirmTrip={p.onUnconfirmTrip}
-      onLoadHistoryTrip={p.onLoadHistoryTrip}
-    />
+    <Step3Content {...p.step3Props} />
   );
 }

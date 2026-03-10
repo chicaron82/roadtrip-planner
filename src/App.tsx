@@ -1,13 +1,10 @@
 import { useRef, useState, useLayoutEffect, useEffect } from 'react';
-import { StepsBanner } from './components/StepsBanner';
-import { WizardContent } from './components/WizardContent';
 import { Map } from './components/Map/Map';
 import { TripSummaryCard } from './components/Trip/TripSummary';
 import { RouteStrategyPicker } from './components/Trip/RouteStrategyPicker';
 import { AdventureMode } from './components/Trip/Adventure/AdventureMode';
 import { LandingScreen } from './components/Landing/LandingScreen';
-import { PlanningStepContent } from './components/Steps/PlanningStepContent';
-import { SwipeableWizard } from './components/UI/SwipeableWizard';
+import { PlannerSidebarShell } from './components/App/PlannerSidebarShell';
 import './styles/sidebar.css';
 import { TripProvider, useTimeline, useTripCore } from './contexts';
 import {
@@ -24,7 +21,7 @@ import type { HistoryTripSnapshot } from './types';
 /** App.tsx — Root orchestrator. Full-bleed map + floating glass panel. 💚 My Experience Engine */
 function AppContent() {
   const { locations, setLocations, vehicle, setVehicle, settings, setSettings } = useTripCore();
-  const { summary, setSummary, canonicalTimeline } = useTimeline();
+  const { summary, canonicalTimeline } = useTimeline();
 
   const previewGeometry = useEagerRoute(locations);
   const onCalcCompleteRef = useRef<() => void>(() => {});
@@ -32,7 +29,6 @@ function AppContent() {
   const [mapRevealed, setMapRevealed] = useState(false);
   const [history] = useState<HistoryTripSnapshot[]>(() => getHistory());
 
-  // Mode management (plan/adventure/estimate)
   const {
     tripMode, setTripMode,
     showAdventureMode, setShowAdventureMode,
@@ -42,14 +38,12 @@ function AppContent() {
     handleSwitchMode,
   } = useTripMode();
 
-  // Style preset (travel style / hotel+meal defaults)
   const {
     activePreset, presetOptions, shareJustCopied,
     handlePresetChange, handleSharePreset,
     setAdaptiveDefaults, refreshAdaptiveDefaults,
   } = useStylePreset({ setSettings });
 
-  // POI system
   const {
     pois, markerCategories, loadingCategory, poiSuggestions, poiInference, isLoadingPOIs,
     poiPartialResults, poiFetchFailed,
@@ -57,13 +51,9 @@ function AppContent() {
     fetchRoutePOIs, clearError: clearPOIError, resetPOIs,
   } = usePOI();
 
-  // Map-click added stops + return-leg mirroring
   const { addedStops, addedPOIIds, addStop, clearStops, asSuggestedStops, mirroredReturnStops } =
     useAddedStops(summary, settings.isRoundTrip);
 
-  // ─── Layer 2: Calculation & Navigation ───────────────────────────────────────
-
-  // Trip calculation
   const {
     isCalculating, error: calcError, shareUrl,
     strategicFuelStops, showOvernightPrompt, suggestedOvernightStop,
@@ -74,7 +64,6 @@ function AppContent() {
     clearError: clearCalcError, clearTripCalculation,
   } = useTripCalculation({
     locations, vehicle, settings,
-    onSummaryChange: setSummary,
     onCalculationComplete: () => onCalcCompleteRef.current(),
   });
 
@@ -83,7 +72,6 @@ function AppContent() {
     fetchRoutePOIs, refreshAdaptiveDefaults, setAdaptiveDefaults,
   });
 
-  // Wizard (step navigation)
   const {
     planningStep, completedSteps, canProceedFromStep1, canProceedFromStep2,
     goToNextStep: wizardNext, goToPrevStep, goToStep, forceStep,
@@ -95,10 +83,6 @@ function AppContent() {
       markStepComplete(1); markStepComplete(2); markStepComplete(3); forceStep(3);
     };
   });
-
-  // ─── Layer 3: Dependent on Calculation Results ──────────────────────────────
-
-  // Trip loader (templates, challenges, adventure mode)
   const {
     activeChallenge, tripOrigin,
     setActiveChallenge, setTripOrigin,
@@ -109,18 +93,15 @@ function AppContent() {
     onAdventureComplete: () => setShowAdventureMode(false),
   });
 
-  // Journal
   const { activeJournal, viewMode, startJournal, updateActiveJournal, setViewMode, error: journalError, clearError: clearJournalError } =
     useJournal({ summary, settings, vehicle, origin: tripOrigin, defaultTitle: activeChallenge?.title });
 
-  // Map interactions (geometry, feasibility, click handlers)
   const {
     validRouteGeometry, routeFeasibilityStatus, mapDayOptions,
     handleMapClick, handleAddPOIFromMap, openInGoogleMaps,
     copyShareLink: triggerCopyShareLink,
   } = useMapInteractions({ locations, setLocations, summary, settings, addStop });
 
-  // URL hydration (mount load, origin persist, arrive-by recalc)
   useURLHydration({
     setLocations, setVehicle, setSettings,
     locations, settings, summary,
@@ -137,9 +118,7 @@ function AppContent() {
       setTripMode,
     });
 
-  // Ghost car — time-based trip progress simulation
   const ghostCar = useGhostCar(canonicalTimeline, summary, settings, asSuggestedStops);
-  // Arrival snap — re-anchors ghost car when journal 'Arrived' is tapped
   useArrivalSnap(ghostCar.anchorAt, !!summary && tripConfirmed);
 
   // Keep canonical timeline in sync with user-added POI stops so print output
@@ -164,8 +143,6 @@ function AppContent() {
     markStepComplete,
   });
 
-  // ==================== RENDER ====================
-
   const hasActiveSession = locations.some(loc => loc.name && loc.name.trim() !== '');
   const lastDestination = (() => {
     const locs = history[0]?.locations;
@@ -185,7 +162,7 @@ function AppContent() {
   const stepProps = usePlanningStepProps({
     planningStep, goToStep,
     locations, setLocations, vehicle, setVehicle, settings, setSettings,
-    summary, setSummary, tripMode: tripMode ?? 'plan',
+    summary, tripMode: tripMode ?? 'plan',
     setShowAdventureMode,
     handleImportTemplate, handleSelectChallenge, activeChallenge,
     activePreset, presetOptions, handlePresetChange, handleSharePreset, shareJustCopied,
@@ -204,13 +181,10 @@ function AppContent() {
 
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden">
-
-      {/* ── Full-bleed map — always mounted (landing floats above it) ── */}
       <div className="absolute inset-0">
         <Map {...mapProps} />
       </div>
 
-      {/* ── Landing overlay — floats over map when no trip mode selected ── */}
       {!tripMode && (
         <LandingScreen
           onSelectMode={selectTripMode}
@@ -222,49 +196,34 @@ function AppContent() {
         />
       )}
 
-      {/* ── Planner UI — only when a trip mode is active ── */}
       {tripMode && (
         <>
-          {/* Vignette overlay (left opaque → right transparent) */}
           <div className="mee-vignette absolute inset-0 pointer-events-none z-[1]" />
 
-          <div className="absolute inset-0 z-20 md:inset-auto md:left-6 md:top-6 md:bottom-6 md:w-[420px] pointer-events-none">
-            {/* Floating glass panel via SwipeableWizard */}
-            <SwipeableWizard tripMode={tripMode} onRevealChange={setMapRevealed}>
-              <div className="sidebar-dark mee-panel w-full h-full flex flex-col pointer-events-auto md:rounded-[20px]">
-              <StepsBanner
-                currentStep={planningStep}
-                completedSteps={completedSteps}
-                tripMode={tripMode}
-                isCalculating={isCalculating}
-                onStepClick={goToStep}
-                showModeSwitcher={showModeSwitcher}
-                setShowModeSwitcher={setShowModeSwitcher}
-                modeSwitcherRef={modeSwitcherRef}
-                onSwitchMode={handleSwitchMode}
-                ghostCar={summary && planningStep === 3 && tripConfirmed ? ghostCar : null}
-              />
-              <WizardContent
-                planningStep={planningStep}
-                canProceed={canProceed}
-                isCalculating={isCalculating}
-                onNext={goToNextStep}
-                onBack={goToPrevStep}
-                onReset={resetTripSession}
-                tripMode={tripMode}
-                markerCategories={markerCategories}
-                loadingCategory={loadingCategory}
-                onToggleCategory={handleToggleCategory}
-                error={error}
-                onClearError={clearError}
-              >
-                {tripMode && <PlanningStepContent {...stepProps} />}
-              </WizardContent>
-              </div>
-            </SwipeableWizard>
-          </div>
+          <PlannerSidebarShell
+            tripMode={tripMode}
+            onRevealChange={setMapRevealed}
+            planningStep={planningStep}
+            completedSteps={completedSteps}
+            isCalculating={isCalculating}
+            onStepClick={goToStep}
+            showModeSwitcher={showModeSwitcher}
+            setShowModeSwitcher={setShowModeSwitcher}
+            modeSwitcherRef={modeSwitcherRef}
+            onSwitchMode={handleSwitchMode}
+            ghostCar={summary && planningStep === 3 && tripConfirmed ? ghostCar : null}
+            canProceed={canProceed}
+            onNext={goToNextStep}
+            onBack={goToPrevStep}
+            onReset={resetTripSession}
+            markerCategories={markerCategories}
+            loadingCategory={loadingCategory}
+            onToggleCategory={handleToggleCategory}
+            error={error}
+            onClearError={clearError}
+            stepProps={stepProps}
+          />
 
-          {/* Route strategy pills — fixed at top-center of map */}
           {summary && planningStep === 3 && (
             <div className="hidden md:flex absolute top-4 left-0 right-0 z-20 justify-center pointer-events-none px-4">
               <RouteStrategyPicker
@@ -277,7 +236,6 @@ function AppContent() {
             </div>
           )}
 
-          {/* Trip summary card — bottom-right on desktop; bottom of map on mobile when revealed */}
           {summary && planningStep === 3 && (
             <div className={`absolute z-20 pointer-events-none bottom-4 left-14 right-2 md:bottom-6 md:right-6 md:left-auto md:w-[380px] ${mapRevealed ? 'flex' : 'hidden md:flex'}`}>
               <div className="pointer-events-auto w-full">
@@ -292,7 +250,6 @@ function AppContent() {
             </div>
           )}
 
-          {/* Adventure mode modal */}
           {showAdventureMode && (
             <AdventureMode
               origin={locations.find(l => l.type === 'origin') || null}
@@ -309,8 +266,6 @@ function AppContent() {
     </div>
   );
 }
-
-// ==================== APP WRAPPER ====================
 
 function App() {
   return (

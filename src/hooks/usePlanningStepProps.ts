@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import type React from 'react';
 import { PlanningStepContent } from '../components/Steps/PlanningStepContent';
+import { useStep3Controller } from './useStep3Controller';
 import type { Location, Vehicle, TripSettings, TripSummary, HistoryTripSnapshot, TripMode, TripChallenge, POISuggestion, TripJournal, POI, POICategory, RouteSegment } from '../types';
 import type { StylePreset } from '../lib/style-presets';
 import type { ViewMode } from './useJournal';
@@ -28,7 +29,6 @@ interface UsePlanningStepPropsOptions {
   settings: TripSettings;
   setSettings: React.Dispatch<React.SetStateAction<TripSettings>>;
   summary: TripSummary | null;
-  setSummary: (s: TripSummary | null) => void;
   tripMode: TripMode;
   // Mode
   setShowAdventureMode: (v: boolean) => void;
@@ -106,6 +106,40 @@ export function usePlanningStepProps(o: UsePlanningStepPropsOptions): PlanningSt
     }
   }, [addPOI, poiSuggestions, addStop, summary]);
 
+  const step3Controller = useStep3Controller({
+    summary: o.summary,
+    settings: o.settings,
+    vehicle: o.vehicle,
+    tripMode: o.tripMode,
+    viewMode: o.viewMode,
+    setViewMode: o.setViewMode,
+    activeJournal: o.activeJournal,
+    activeChallenge: o.activeChallenge,
+    tripConfirmed: o.tripConfirmed,
+    addedStopCount: o.addedStopCount,
+    shareUrl: o.shareUrl,
+    precomputedEvents: o.precomputedEvents,
+    isCalculating: o.isCalculating,
+    suggestedOvernightStop: o.suggestedOvernightStop,
+    showOvernightPrompt: o.showOvernightPrompt,
+    poiSuggestions: o.poiSuggestions,
+    poiInference: o.poiInference,
+    isLoadingPOIs: o.isLoadingPOIs,
+    poiPartialResults: o.poiPartialResults,
+    poiFetchFailed: o.poiFetchFailed,
+    externalStops: o.externalStops,
+    onOpenGoogleMaps: o.openInGoogleMaps,
+    onCopyShareLink: o.copyShareLink,
+    onStartJournal: o.startJournal,
+    onUpdateJournal: o.updateActiveJournal,
+    onUpdateStopType: o.updateStopType,
+    onDismissOvernight: o.dismissOvernightPrompt,
+    onAddPOI: handleAddPOI,
+    onDismissPOI: o.dismissPOI,
+    onConfirmTrip,
+    onUnconfirmTrip,
+  });
+
   return {
     planningStep: o.planningStep,
     locations: o.locations,
@@ -124,35 +158,11 @@ export function usePlanningStepProps(o: UsePlanningStepPropsOptions): PlanningSt
     onPresetChange: o.handlePresetChange,
     onSharePreset: o.handleSharePreset,
     shareJustCopied: o.shareJustCopied,
-    viewMode: o.viewMode,
-    setViewMode: o.setViewMode,
-    activeJournal: o.activeJournal,
-    activeChallenge: o.activeChallenge,
-    tripConfirmed: o.tripConfirmed,
-    addedStopCount: o.addedStopCount,
-    externalStops: o.externalStops,
-    history: o.history,
-    shareUrl: o.shareUrl,
-    showOvernightPrompt: o.showOvernightPrompt,
-    suggestedOvernightStop: o.suggestedOvernightStop,
-    onDismissOvernight: o.dismissOvernightPrompt,
-    onUpdateStopType: o.updateStopType,
-    poiSuggestions: o.poiSuggestions,
-    poiInference: o.poiInference,
-    isLoadingPOIs: o.isLoadingPOIs,
-    poiPartialResults: o.poiPartialResults,
-    poiFetchFailed: o.poiFetchFailed,
-    onAddPOI: handleAddPOI,
-    onDismissPOI: o.dismissPOI,
-    onOpenGoogleMaps: o.openInGoogleMaps,
-    onCopyShareLink: o.copyShareLink,
-    onStartJournal: o.startJournal,
-    onUpdateJournal: o.updateActiveJournal,
-    onGoToStep: o.goToStep,
-    onConfirmTrip,
-    onUnconfirmTrip,
-    onLoadHistoryTrip: o.onLoadHistoryTrip,
-    precomputedEvents: o.precomputedEvents,
-    isCalculating: o.isCalculating,
+    step3Props: {
+      controller: step3Controller,
+      history: o.history,
+      onGoToStep: o.goToStep,
+      onLoadHistoryTrip: o.onLoadHistoryTrip,
+    },
   };
 }

@@ -17,7 +17,6 @@ interface UseTripCalculationOptions {
   locations: Location[];
   vehicle: Vehicle;
   settings: TripSettings;
-  onSummaryChange: (summary: TripSummary | null) => void;
   onCalculationComplete?: () => void;
 }
 
@@ -55,7 +54,6 @@ export function useTripCalculation({
   locations,
   vehicle,
   settings,
-  onSummaryChange,
   onCalculationComplete,
 }: UseTripCalculationOptions): UseTripCalculationReturn {
   const [isCalculating, setIsCalculating] = useState(false);
@@ -69,10 +67,8 @@ export function useTripCalculation({
   const [showOvernightPrompt, setShowOvernightPrompt] = useState(false);
   const [suggestedOvernightStop, setSuggestedOvernightStop] = useState<Location | null>(null);
 
-  // Store summary locally for updateStopType
-  const [localSummary, setLocalSummary] = useState<TripSummary | null>(null);
-  // canonicalTimeline lives in TripContext so deep consumers don't need prop drilling.
-  const { setCanonicalTimeline } = useTimeline();
+  // summary/canonicalTimeline live in TripContext so deep consumers don't need prop drilling.
+  const { summary, setSummary, setCanonicalTimeline } = useTimeline();
 
   // Abort controller for background overnight-stop geocoding.
   // Cancelled when a new calculation starts so stale results never overwrite.
@@ -85,11 +81,19 @@ export function useTripCalculation({
   // Retain roundTripMidpoint across calculations so updateStopType can re-split days correctly
   const roundTripMidpointRef = useRef<number | undefined>(undefined);
 
+  const summaryRef = useRef<TripSummary | null>(summary);
+
   // Ref-sync for settings — prevents calculateTrip from getting a new identity on
   // every settings change (e.g. editing hotel price between calculations).
   // useLayoutEffect ensures the ref is current before any paint.
   const settingsRef = useRef(settings);
   useLayoutEffect(() => { settingsRef.current = settings; });
+  useLayoutEffect(() => { summaryRef.current = summary; }, [summary]);
+
+  const commitSummary = useCallback((nextSummary: TripSummary | null) => {
+    summaryRef.current = nextSummary;
+    setSummary(nextSummary);
+  }, [setSummary]);
 
   const calculateTrip = useCallback(async (): Promise<TripSummary | null> => {
     setIsCalculating(true);
@@ -135,8 +139,7 @@ export function useTripCalculation({
       );
       serializeStateToURL(locations, vehicle, currentSettings);
       setShareUrl(window.location.href);
-      setLocalSummary(tripSummary);
-      onSummaryChange(tripSummary);
+      commitSummary(tripSummary);
       onCalculationComplete?.();
 
       setRouteStrategies([]);
@@ -149,7 +152,7 @@ export function useTripCalculation({
 
       fireAndForgetOvernightSnap(
         tripSummary.days!, tripSummary, canonicalTimeline, geocodeController,
-        setLocalSummary, setCanonicalTimeline, onSummaryChange,
+        commitSummary, setCanonicalTimeline,
       );
 
       return tripSummary;
@@ -164,38 +167,38 @@ export function useTripCalculation({
     } finally {
       setIsCalculating(false);
     }
-  }, [locations, vehicle, onSummaryChange, onCalculationComplete, setCanonicalTimeline]);
+  }, [locations, vehicle, onCalculationComplete, setCanonicalTimeline, commitSummary]);
 
   // Switch to a named route strategy — swaps geometry + recalculates fuel costs.
   // Day itinerary, weather, and POIs are preserved from the primary calculation.
   const selectStrategy = useCallback(
     (index: number) => {
       const strategy = routeStrategies[index];
-      if (!strategy || !localSummary) return;
+      const currentSummary = summaryRef.current;
+      if (!strategy || !currentSummary) return;
       setActiveStrategyIndex(index);
-      const updatedSummary = buildStrategyUpdate(strategy, localSummary, vehicle, settings);
+      const updatedSummary = buildStrategyUpdate(strategy, currentSummary, vehicle, settings);
       const { canonicalTimeline, projectedFuelStops } = orchestrateStrategySwap(
         updatedSummary, settings, vehicle, locations, roundTripMidpointRef.current,
       );
-      setLocalSummary(updatedSummary);
-      onSummaryChange(updatedSummary);
+      commitSummary(updatedSummary);
       setCanonicalTimeline(canonicalTimeline);
       setStrategicFuelStops(projectedFuelStops);
     },
-    [routeStrategies, localSummary, vehicle, settings, locations, onSummaryChange, setCanonicalTimeline]
+    [routeStrategies, vehicle, settings, locations, setCanonicalTimeline, commitSummary]
   );
 
   const updateStopType = useCallback(
     (segmentIndex: number, newStopType: StopType) => {
-      if (!localSummary) return;
+      const currentSummary = summaryRef.current;
+      if (!currentSummary) return;
 
       const result = orchestrateStopUpdate(
-        localSummary, segmentIndex, newStopType,
+        currentSummary, segmentIndex, newStopType,
         settings, vehicle, locations, roundTripMidpointRef.current,
       );
 
-      setLocalSummary(result.updatedSummary);
-      onSummaryChange(result.updatedSummary);
+      commitSummary(result.updatedSummary);
       setStrategicFuelStops(result.projectedFuelStops);
       setCanonicalTimeline(result.canonicalTimeline);
 
@@ -206,7 +209,7 @@ export function useTripCalculation({
         console.warn('[fuel-snap] Overpass unavailable — keeping simulation-interpolated positions', err);
       });
     },
-    [localSummary, settings, vehicle, locations, onSummaryChange, setCanonicalTimeline]
+    [settings, vehicle, locations, setCanonicalTimeline, commitSummary]
   );
 
   // Rebuild the canonical timeline with user-added POI stops merged in.
@@ -215,34 +218,35 @@ export function useTripCalculation({
   // overlay stops and don't affect fuel-level projections.
   const rebuildCanonicalWithExternals = useCallback(
     (externalStops: SuggestedStop[]) => {
-      if (!localSummary) return;
+      const currentSummary = summaryRef.current;
+      if (!currentSummary) return;
       const { canonicalTimeline } = orchestrateStrategySwap(
-        localSummary, settings, vehicle, locations,
+        currentSummary, settings, vehicle, locations,
         roundTripMidpointRef.current, externalStops,
       );
       setCanonicalTimeline(canonicalTimeline);
     },
-    [localSummary, settings, vehicle, locations, setCanonicalTimeline]
+    [settings, vehicle, locations, setCanonicalTimeline]
   );
 
   // Generic day updater — updates a single day in summary.days
   const updateDay = useCallback(
     (dayNumber: number, patch: Partial<TripDay>) => {
-      if (!localSummary?.days) return;
+      const currentSummary = summaryRef.current;
+      if (!currentSummary?.days) return;
 
-      const updatedDays = localSummary.days.map(day =>
+      const updatedDays = currentSummary.days.map(day =>
         day.dayNumber === dayNumber ? { ...day, ...patch } : day
       );
 
       const updatedSummary = {
-        ...localSummary,
+        ...currentSummary,
         days: updatedDays,
       };
 
-      setLocalSummary(updatedSummary);
-      onSummaryChange(updatedSummary);
+      commitSummary(updatedSummary);
     },
-    [localSummary, onSummaryChange]
+    [commitSummary]
   );
 
   // Convenience wrappers
@@ -278,14 +282,13 @@ export function useTripCalculation({
     setStrategicFuelStops([]);
     setRouteStrategies([]);
     setActiveStrategyIndex(0);
-    setLocalSummary(null);
+    commitSummary(null);
     setCanonicalTimeline(null); // clears context value
     setShareUrl(null);
     setError(null);
     setShowOvernightPrompt(false);
     setSuggestedOvernightStop(null);
-    onSummaryChange(null);
-  }, [onSummaryChange, setCanonicalTimeline]);
+  }, [setCanonicalTimeline, commitSummary]);
 
   return {
     isCalculating,
