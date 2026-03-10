@@ -4,6 +4,7 @@ import { parseStateFromURL } from '../lib/url';
 import { saveLastOrigin, getLastOrigin } from '../lib/storage';
 import { getAdaptiveDefaults } from '../lib/user-profile';
 import { parsePresetFromURL } from '../lib/style-presets';
+import { applyAdaptiveCostDefaults, applyLastOriginToTripInputs, bootTripInputsFromURLState } from '../lib/boot-sequence';
 import type { AdaptiveDefaults } from '../lib/user-profile';
 import type { PlanningStep } from './useWizard';
 
@@ -33,63 +34,25 @@ export function useURLHydration({
 
   // Load state from URL on mount — or pre-fill last-used origin for return users
   useEffect(() => {
-    // 1. URL Hydration
-    const hydrateFromURL = (): boolean => {
-      const parsedState = parseStateFromURL();
-      if (!parsedState) return false;
+    const urlBooted = bootTripInputsFromURLState({
+      parsedState: parseStateFromURL(),
+      setLocations,
+      setVehicle,
+      setSettings,
+      markStepComplete,
+      forceStep,
+    });
 
-      if (parsedState.locations) setLocations(parsedState.locations);
-      if (parsedState.vehicle) setVehicle(parsedState.vehicle);
-      if (parsedState.settings) setSettings(parsedState.settings);
+    if (!urlBooted) {
+      applyLastOriginToTripInputs(setLocations, getLastOrigin());
 
-      // Only jump to the map step when the URL carries a real calculable route:
-      // at least 2 stops, with origin and destination both having valid coordinates.
-      const locs = parsedState.locations;
-      const hasValidRoute =
-        locs &&
-        locs.length >= 2 &&
-        locs[0].lat !== 0 && locs[0].lng !== 0 &&
-        locs[locs.length - 1].lat !== 0 && locs[locs.length - 1].lng !== 0;
-
-      if (hasValidRoute) {
-        markStepComplete(1);
-        markStepComplete(2);
-        markStepComplete(3);
-        forceStep(3);
-      }
-      return true;
-    };
-
-    // 2. Last Origin Hydration
-    const hydrateFromLastOrigin = (): void => {
-      const lastOrigin = getLastOrigin();
-      if (lastOrigin) {
-        setLocations(prev =>
-          prev.map((loc, i) => (i === 0 ? { ...lastOrigin, id: loc.id, type: 'origin' } : loc))
-        );
-      }
-    };
-
-    // 3. Adaptive Defaults Hydration
-    const hydrateAdaptiveDefaults = (): void => {
       const defaults = getAdaptiveDefaults();
       if (defaults) {
         setAdaptiveDefaults(defaults);
         if (!parsePresetFromURL()) {
-          setSettings(prev => ({
-            ...prev,
-            hotelPricePerNight: defaults.hotelPricePerNight,
-            mealPricePerDay: defaults.mealPricePerDay,
-          }));
+          applyAdaptiveCostDefaults(setSettings, defaults);
         }
       }
-    };
-
-    // --- Master Boot Sequence ---
-    const isURLHydrated = hydrateFromURL();
-    if (!isURLHydrated) {
-      hydrateFromLastOrigin();
-      hydrateAdaptiveDefaults();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

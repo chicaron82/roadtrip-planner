@@ -14,6 +14,13 @@
  *   4. useGhostCar switches to GhostCarInput (events)
  *   5. TripSummary reference in calculateTrip() return type → CanonicalTripTimeline
  *
+ * Truth model:
+ *   - CanonicalTripTimeline is the intended source of truth for completed trips.
+ *   - summary is currently bridged in TripContext for compatibility, but it must
+ *     not diverge from canonicalTimeline.summary.
+ *   - New mutations should prefer updating canonicalTimeline and treat summary as
+ *     a compatibility read surface during the migration.
+ *
  * 💚 My Experience Engine
  */
 

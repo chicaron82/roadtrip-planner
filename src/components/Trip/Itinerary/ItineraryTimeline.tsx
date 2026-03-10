@@ -1,18 +1,17 @@
-import { useState, useMemo, useRef } from 'react';
+import { useMemo, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import type { TripSummary, TripSettings, Vehicle, StopType, TripDay, DayType, Activity, DayOption, OvernightStop, POISuggestion } from '../../../types';
 import { SmartSuggestions } from './SmartSuggestions';
 import { SuggestedStopCard } from './SuggestedStopCard';
 import { DriverStatsPanel } from './DriverStatsPanel';
-import { useTimelineData, type StopOverrides } from './useTimelineData';
+import { useTimelineData, type StopOverrides, type UseTimelineDataResult } from './useTimelineData';
 import { TripHeaderSummary } from './TripHeaderSummary';
 import { DestinationDiscovery } from '../Discovery/DestinationDiscovery';
 import { TimelineDialogs, type EditingDayActivity } from './TimelineDialogs';
 import type { SuggestedStop } from '../../../lib/stop-suggestions';
 import { ItineraryTimelineBody } from './ItineraryTimelineBody';
 import { computeSwapAssignments, getDriverName } from '../../../lib/driver-rotation';
-
-// ==================== PROPS ====================
+import type { CanonicalTripDay } from '../../../lib/canonical-trip';
 
 interface ItineraryTimelineProps {
   summary: TripSummary;
@@ -31,25 +30,24 @@ interface ItineraryTimelineProps {
   onRemoveDayOption?: (dayNumber: number, optionIndex: number) => void;
   onSelectDayOption?: (dayNumber: number, optionIndex: number) => void;
   onUpdateOvernight?: (dayNumber: number, overnight: OvernightStop) => void;
-  // Destination discovery
   poiSuggestions?: POISuggestion[];
   isLoadingPOIs?: boolean;
   poiPartialResults?: boolean;
   poiFetchFailed?: boolean;
   onAddPOI?: (poiId: string, segmentIndex?: number) => void;
   onDismissPOI?: (poiId: string) => void;
-  // Map-added stops (pre-accepted SuggestedStops from useAddedStops)
   externalStops?: SuggestedStop[];
-  /** Seed from journal — hydrates accept/dismiss/duration state on load. */
   initialStopOverrides?: StopOverrides;
-  /** Called whenever accept/dismiss/duration changes — caller persists to journal. */
   onStopOverridesChange?: (overrides: StopOverrides) => void;
 }
 
-export function ItineraryTimeline({
+interface ItineraryTimelineContentProps extends Omit<ItineraryTimelineProps, 'initialStopOverrides' | 'onStopOverridesChange' | 'externalStops'> {
+  timelineData: UseTimelineDataResult;
+}
+
+export function ItineraryTimelineContent({
   summary,
   settings,
-  vehicle,
   days,
   onUpdateStopType,
   onUpdateActivity,
@@ -69,10 +67,8 @@ export function ItineraryTimeline({
   poiFetchFailed,
   onAddPOI,
   onDismissPOI,
-  externalStops,
-  initialStopOverrides,
-  onStopOverridesChange,
-}: ItineraryTimelineProps) {
+  timelineData,
+}: ItineraryTimelineContentProps) {
   const {
     acceptedItinerary,
     startTime,
@@ -93,16 +89,10 @@ export function ItineraryTimeline({
     setEditingActivity,
     editingOvernight,
     setEditingOvernight,
-  } = useTimelineData({ summary, settings, vehicle, days, externalStops, initialOverrides: initialStopOverrides, onStopOverridesChange });
+  } = timelineData;
 
-  const itineraryDays = acceptedItinerary.days.map(day => day.meta);
+  const itineraryDays: TripDay[] = acceptedItinerary.days.map((day: CanonicalTripDay) => day.meta);
 
-  // Track whether a POI fetch has ever been attempted so we can show the
-  // discovery section even when the result is empty or errored.
-  const poiWasLoaded = useRef(false);
-  if (isLoadingPOIs) poiWasLoaded.current = true;
-
-  // Collapsible days state — for trips with 5+ days, allow collapse/expand
   const [collapsedDays, setCollapsedDays] = useState<Set<number>>(new Set());
   const toggleDayCollapse = (dayNumber: number) => {
     setCollapsedDays(prev => {
@@ -116,18 +106,15 @@ export function ItineraryTimeline({
     });
   };
 
-  // Calculate day counts for header
-  const drivingDays = itineraryDays.filter(d => d.segmentIndices.length > 0).length || 1;
-  const freeDays = itineraryDays.filter(d => d.segmentIndices.length === 0).length;
+  const drivingDays = itineraryDays.filter(day => day.segmentIndices.length > 0).length || 1;
+  const freeDays = itineraryDays.filter(day => day.segmentIndices.length === 0).length;
   const totalDays = drivingDays + freeDays;
 
-  // Track the standalone activity currently being edited on a Free Day
   const [editingDayActivity, setEditingDayActivity] = useState<EditingDayActivity | null>(null);
 
-  // Last stop's flat index — used for destination detection
   const lastStopFlatIndex = useMemo(() => {
-    for (let i = acceptedItinerary.events.length - 1; i >= 0; i--) {
-      const event = acceptedItinerary.events[i];
+    for (let index = acceptedItinerary.events.length - 1; index >= 0; index--) {
+      const event = acceptedItinerary.events[index];
       if ((event.type === 'waypoint' || event.type === 'arrival') && event.flatIndex !== undefined) {
         return event.flatIndex;
       }
@@ -135,33 +122,27 @@ export function ItineraryTimeline({
     return -1;
   }, [acceptedItinerary.events]);
 
-  // Swap suggestions — maps stopId → driver number for unassigned drivers.
-  // Collects all pending fuel stops across days, sorts by time, distributes
-  // unassigned drivers round-robin. Empty when all drivers are fully assigned.
   const swapSuggestions = useMemo((): Record<string, number> => {
     if (!driverRotation || settings.numDrivers <= 1) return {};
     const allFuelStops: SuggestedStop[] = [];
     pendingSuggestionsByDay.forEach(stops =>
-      stops.filter(s => s.type === 'fuel').forEach(s => allFuelStops.push(s)),
+      stops.filter(stop => stop.type === 'fuel').forEach(stop => allFuelStops.push(stop)),
     );
-    pendingSuggestions.filter(s => s.type === 'fuel').forEach(s => allFuelStops.push(s));
-    allFuelStops.sort((a, b) => a.estimatedTime.getTime() - b.estimatedTime.getTime());
+    pendingSuggestions.filter(stop => stop.type === 'fuel').forEach(stop => allFuelStops.push(stop));
+    allFuelStops.sort((left, right) => left.estimatedTime.getTime() - right.estimatedTime.getTime());
     return computeSwapAssignments(allFuelStops, driverRotation, settings.numDrivers);
   }, [driverRotation, pendingSuggestionsByDay, pendingSuggestions, settings.numDrivers]);
 
   return (
     <div className="space-y-6">
-      {/* Trip Header Summary */}
       <TripHeaderSummary
         summary={summary}
         drivingDays={drivingDays}
         freeDays={freeDays}
       />
 
-      {/* Smart Suggestions — global fallback when no day structure exists */}
       {!days && <SmartSuggestions suggestions={pacingSuggestions} />}
 
-      {/* Smart Stop Suggestions: inline per-day when days exist, global fallback otherwise */}
       {!days && pendingSuggestions.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
@@ -195,7 +176,7 @@ export function ItineraryTimeline({
         startTime={startTime}
         originTimezone={originTimezone}
         simulationItems={simulationItems}
-        lastStopFlatIndex={lastStopFlatIndex ?? -1}
+        lastStopFlatIndex={lastStopFlatIndex}
         dayStartMap={dayStartMap}
         freeDaysAfterSegment={freeDaysAfterSegment}
         pacingSuggestionsByDay={pacingSuggestionsByDay}
@@ -224,13 +205,11 @@ export function ItineraryTimeline({
         swapSuggestions={swapSuggestions}
       />
 
-      {/* Driver Stats (when multiple drivers) */}
       {driverRotation && driverRotation.stats.length > 1 && (
         <DriverStatsPanel stats={driverRotation.stats} driverNames={settings.driverNames} />
       )}
 
-      {/* Destination Discovery */}
-      {onAddPOI && onDismissPOI && (poiSuggestions?.length || isLoadingPOIs || poiFetchFailed || poiWasLoaded.current) && (
+      {onAddPOI && onDismissPOI && (poiSuggestions?.length || isLoadingPOIs || poiFetchFailed) && (
         <DestinationDiscovery
           summary={summary}
           poiSuggestions={poiSuggestions}
@@ -256,5 +235,71 @@ export function ItineraryTimeline({
         setEditingDayActivity={setEditingDayActivity}
       />
     </div>
+  );
+}
+
+export function ItineraryTimeline({
+  summary,
+  settings,
+  vehicle,
+  days,
+  onUpdateStopType,
+  onUpdateActivity,
+  onUpdateDayType,
+  onAddDayActivity,
+  onUpdateDayActivity,
+  onRemoveDayActivity,
+  onUpdateDayNotes,
+  onUpdateDayTitle,
+  onAddDayOption,
+  onRemoveDayOption,
+  onSelectDayOption,
+  onUpdateOvernight,
+  poiSuggestions,
+  isLoadingPOIs,
+  poiPartialResults,
+  poiFetchFailed,
+  onAddPOI,
+  onDismissPOI,
+  externalStops,
+  initialStopOverrides,
+  onStopOverridesChange,
+}: ItineraryTimelineProps) {
+  const timelineData = useTimelineData({
+    summary,
+    settings,
+    vehicle,
+    days,
+    externalStops,
+    initialOverrides: initialStopOverrides,
+    onStopOverridesChange,
+  });
+
+  return (
+    <ItineraryTimelineContent
+      summary={summary}
+      settings={settings}
+      vehicle={vehicle}
+      days={days}
+      onUpdateStopType={onUpdateStopType}
+      onUpdateActivity={onUpdateActivity}
+      onUpdateDayType={onUpdateDayType}
+      onAddDayActivity={onAddDayActivity}
+      onUpdateDayActivity={onUpdateDayActivity}
+      onRemoveDayActivity={onRemoveDayActivity}
+      onUpdateDayNotes={onUpdateDayNotes}
+      onUpdateDayTitle={onUpdateDayTitle}
+      onAddDayOption={onAddDayOption}
+      onRemoveDayOption={onRemoveDayOption}
+      onSelectDayOption={onSelectDayOption}
+      onUpdateOvernight={onUpdateOvernight}
+      poiSuggestions={poiSuggestions}
+      isLoadingPOIs={isLoadingPOIs}
+      poiPartialResults={poiPartialResults}
+      poiFetchFailed={poiFetchFailed}
+      onAddPOI={onAddPOI}
+      onDismissPOI={onDismissPOI}
+      timelineData={timelineData}
+    />
   );
 }

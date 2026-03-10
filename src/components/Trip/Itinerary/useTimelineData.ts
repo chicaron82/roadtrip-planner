@@ -21,9 +21,47 @@ interface UseTimelineDataParams {
   onStopOverridesChange?: (overrides: StopOverrides) => void;
 }
 
+export interface UseTimelineDataResult {
+  userOverrides: StopOverrides;
+  startTime: Date;
+  originTimezone?: string;
+  pacingSuggestions: string[];
+  pacingSuggestionsByDay: Map<number, string[]>;
+  activeSuggestions: SuggestedStop[];
+  acceptedItinerary: AcceptedItineraryInput;
+  simulationItems: SimulationItem[];
+  pendingSuggestions: SuggestedStop[];
+  pendingSuggestionsByDay: Map<number, SuggestedStop[]>;
+  overnightNightsByDay: Map<number, number>;
+  driverRotation: ReturnType<typeof useTimelineDerivedMaps>['driverRotation'];
+  driverBySegment: Map<number, number>;
+  dayStartMap: ReturnType<typeof useTimelineDerivedMaps>['dayStartMap'];
+  freeDaysAfterSegment: Map<number, TripDay[]>;
+  handleAccept: (stopId: string, customDuration?: number) => void;
+  handleDismiss: (stopId: string) => void;
+  editingActivity: {
+    segmentIndex: number;
+    activity?: Activity;
+    locationName?: string;
+  } | null;
+  setEditingActivity: React.Dispatch<React.SetStateAction<{
+    segmentIndex: number;
+    activity?: Activity;
+    locationName?: string;
+  } | null>>;
+  editingOvernight: {
+    dayNumber: number;
+    overnight: OvernightStop;
+  } | null;
+  setEditingOvernight: React.Dispatch<React.SetStateAction<{
+    dayNumber: number;
+    overnight: OvernightStop;
+  } | null>>;
+}
+
 // ---------------------------------------------------------------------------
 
-export function useTimelineData({ summary, settings, vehicle, days, externalStops, initialOverrides, onStopOverridesChange }: UseTimelineDataParams) {
+export function useTimelineData({ summary, settings, vehicle, days, externalStops, initialOverrides, onStopOverridesChange }: UseTimelineDataParams): UseTimelineDataResult {
   const [editingActivity, setEditingActivity] = useState<{
     segmentIndex: number;
     activity?: Activity;

@@ -141,8 +141,52 @@ export function TripProvider({
   }));
 
   // ── Timeline State ──────────────────────────────────────────────────────────
-  const [summary, setSummary] = useState<TripSummary | null>(null);
-  const [canonicalTimeline, setCanonicalTimeline] = useState<CanonicalTripTimeline | null>(null);
+  const [summaryState, setSummaryState] = useState<TripSummary | null>(null);
+  const [canonicalTimelineState, setCanonicalTimelineState] = useState<CanonicalTripTimeline | null>(null);
+  const summaryRef = useRef<TripSummary | null>(summaryState);
+  const canonicalTimelineRef = useRef<CanonicalTripTimeline | null>(canonicalTimelineState);
+
+  useEffect(() => {
+    summaryRef.current = summaryState;
+  }, [summaryState]);
+
+  useEffect(() => {
+    canonicalTimelineRef.current = canonicalTimelineState;
+  }, [canonicalTimelineState]);
+
+  const setSummary: React.Dispatch<React.SetStateAction<TripSummary | null>> = useCallback((nextSummaryAction) => {
+    const prevSummary = summaryRef.current;
+    const nextSummary = typeof nextSummaryAction === 'function'
+      ? nextSummaryAction(prevSummary)
+      : nextSummaryAction;
+
+    summaryRef.current = nextSummary;
+    setSummaryState(nextSummary);
+
+    const prevTimeline = canonicalTimelineRef.current;
+    if (!prevTimeline) return;
+
+    const nextTimeline = nextSummary
+      ? { ...prevTimeline, summary: nextSummary }
+      : null;
+
+    canonicalTimelineRef.current = nextTimeline;
+    setCanonicalTimelineState(nextTimeline);
+  }, []);
+
+  const setCanonicalTimeline: React.Dispatch<React.SetStateAction<CanonicalTripTimeline | null>> = useCallback((nextTimelineAction) => {
+    const prevTimeline = canonicalTimelineRef.current;
+    const nextTimeline = typeof nextTimelineAction === 'function'
+      ? nextTimelineAction(prevTimeline)
+      : nextTimelineAction;
+
+    canonicalTimelineRef.current = nextTimeline;
+    setCanonicalTimelineState(nextTimeline);
+
+    const nextSummary = nextTimeline?.summary ?? null;
+    summaryRef.current = nextSummary;
+    setSummaryState(nextSummary);
+  }, []);
 
   // ── Core side-effects ───────────────────────────────────────────────────────
   const debouncedSettings = useDebounce(settings, 500);
@@ -216,15 +260,16 @@ export function TripProvider({
   }, []);
 
   // ── Timeline / Day Mutation Helpers ─────────────────────────────────────────
-  // All route through canonical-updates pure functions. setSummary is the write
-  // target until the B2 follow-up promotes canonicalTimeline.days as primary.
+  // All route through canonical-updates pure functions.
+  // Bridge state keeps summary and canonicalTimeline.summary synchronized until
+  // the broader canonical-first migration removes the duplicate summary state.
   const patchSummaryDays = useCallback((patcher: (days: TripDay[]) => TripDay[]) => {
     setSummary(prev => {
       if (!prev?.days) return prev;
       const next = patcher(prev.days);
       return next === prev.days ? prev : { ...prev, days: next };
     });
-  }, []);
+  }, [setSummary]);
 
   const addDayActivity = useCallback((dayNumber: number, activity: Activity) => {
     patchSummaryDays(days => canonicalAddDayActivity(days, dayNumber, activity));
@@ -266,12 +311,12 @@ export function TripProvider({
   ]);
 
   const timelineValue = useMemo<TimelineContextType>(() => ({
-    summary, canonicalTimeline,
+    summary: summaryState, canonicalTimeline: canonicalTimelineState,
     setSummary, setCanonicalTimeline,
     addDayActivity, updateDayActivity, removeDayActivity,
     updateDayNotes, updateDayTitle, updateDayType, updateDayOvernight,
   }), [
-    summary, canonicalTimeline,
+    summaryState, canonicalTimelineState,
     setSummary, setCanonicalTimeline,
     addDayActivity, updateDayActivity, removeDayActivity,
     updateDayNotes, updateDayTitle, updateDayType, updateDayOvernight,

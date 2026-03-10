@@ -22,11 +22,11 @@ import type {
 } from '../../types';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
 import type { CanonicalTripTimeline } from '../../lib/canonical-trip';
-import type { StopOverrides } from './Itinerary/useTimelineData';
+import { useTimelineData, type StopOverrides } from './Itinerary/useTimelineData';
 import type { ViewMode } from './Journal/JournalModeToggle';
 import { SmartTimeline } from './Timeline/SmartTimeline';
 import { JournalTimeline } from './Journal/JournalTimeline';
-import { ItineraryTimeline } from './Itinerary/ItineraryTimeline';
+import { ItineraryTimelineContent } from './Itinerary/ItineraryTimeline';
 import { StartJournalCTA } from './Journal/JournalModeToggle';
 
 // ==================== PROPS ====================
@@ -102,6 +102,21 @@ export function TripTimelineView({
   // Toggle for SmartTimeline (simulation view) — hidden by default, available for power users
   const [showSimulation, setShowSimulation] = useState(false);
 
+  const handleStopOverridesChange = (overrides: StopOverrides) => {
+    if (activeJournal) onUpdateJournal({ ...activeJournal, stopOverrides: overrides });
+    onStopOverridesChange?.(overrides);
+  };
+
+  const itineraryData = useTimelineData({
+    summary,
+    settings,
+    vehicle,
+    days: summary.days,
+    externalStops,
+    initialOverrides: activeJournal?.stopOverrides,
+    onStopOverridesChange: handleStopOverridesChange,
+  });
+
   return (
     <>
       {/* Simulation View Toggle (plan mode only) */}
@@ -146,16 +161,11 @@ export function TripTimelineView({
           />
         )
       ) : (
-        <ItineraryTimeline
+        <ItineraryTimelineContent
           summary={summary}
           settings={settings}
           vehicle={vehicle}
           days={summary.days}
-          initialStopOverrides={activeJournal?.stopOverrides}
-          onStopOverridesChange={overrides => {
-            if (activeJournal) onUpdateJournal({ ...activeJournal, stopOverrides: overrides });
-            onStopOverridesChange?.(overrides);
-          }}
           onUpdateStopType={onUpdateStopType}
           onUpdateDayNotes={onUpdateDayNotes}
           onUpdateDayTitle={onUpdateDayTitle}
@@ -170,7 +180,7 @@ export function TripTimelineView({
           poiFetchFailed={poiFetchFailed}
           onAddPOI={onAddPOI}
           onDismissPOI={onDismissPOI}
-          externalStops={externalStops}
+          timelineData={itineraryData}
         />
       )}
     </>

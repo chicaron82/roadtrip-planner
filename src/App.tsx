@@ -9,7 +9,7 @@ import { LandingScreen } from './components/Landing/LandingScreen';
 import { PlanningStepContent } from './components/Steps/PlanningStepContent';
 import { SwipeableWizard } from './components/UI/SwipeableWizard';
 import './styles/sidebar.css';
-import { TripProvider, useTripContext } from './contexts';
+import { TripProvider, useTimeline, useTripCore } from './contexts';
 import {
   useWizard, useTripCalculation, useJournal, usePOI, useEagerRoute, useAddedStops,
   useStylePreset, useTripMode, useTripLoader, useMapInteractions, useURLHydration,
@@ -23,7 +23,8 @@ import type { HistoryTripSnapshot } from './types';
 
 /** App.tsx — Root orchestrator. Full-bleed map + floating glass panel. 💚 My Experience Engine */
 function AppContent() {
-  const { locations, setLocations, vehicle, setVehicle, settings, setSettings, summary, setSummary, canonicalTimeline } = useTripContext();
+  const { locations, setLocations, vehicle, setVehicle, settings, setSettings } = useTripCore();
+  const { summary, setSummary, canonicalTimeline } = useTimeline();
 
   const previewGeometry = useEagerRoute(locations);
   const onCalcCompleteRef = useRef<() => void>(() => {});
@@ -151,12 +152,12 @@ function AppContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [asSuggestedStops, mirroredReturnStops]);
 
-  const { resetTrip, handleSelectMode } = useAppReset({
-    setLocations, setSummary, resetPOIs, resetWizard, clearStops, clearTripCalculation,
+  const { resetTripSession, selectTripMode } = useAppReset({
+    setLocations, resetPOIs, resetWizard, clearStops, clearTripCalculation,
     setActiveChallenge, setTripOrigin, setTripConfirmed, setTripMode, setShowAdventureMode,
   });
 
-  const { restoreTripSession } = useTripRestore({
+  const { restoreHistoryTripSession } = useTripRestore({
     setLocations,
     calculateAndDiscover,
     forceStep,
@@ -196,7 +197,7 @@ function AppContent() {
     updateStopType,
     poiSuggestions, poiInference, isLoadingPOIs, poiPartialResults, poiFetchFailed, addPOI, addStop, dismissPOI,
     openInGoogleMaps, copyShareLink,
-    onLoadHistoryTrip: restoreTripSession,
+    onLoadHistoryTrip: restoreHistoryTripSession,
     precomputedEvents: canonicalTimeline?.events,
     isCalculating,
   });
@@ -212,7 +213,7 @@ function AppContent() {
       {/* ── Landing overlay — floats over map when no trip mode selected ── */}
       {!tripMode && (
         <LandingScreen
-          onSelectMode={handleSelectMode}
+          onSelectMode={selectTripMode}
           hasSavedTrip={history.length > 0}
           onContinueSavedTrip={() => setTripMode('plan')}
           hasActiveSession={hasActiveSession}
@@ -249,7 +250,7 @@ function AppContent() {
                 isCalculating={isCalculating}
                 onNext={goToNextStep}
                 onBack={goToPrevStep}
-                onReset={resetTrip}
+                onReset={resetTripSession}
                 tripMode={tripMode}
                 markerCategories={markerCategories}
                 loadingCategory={loadingCategory}

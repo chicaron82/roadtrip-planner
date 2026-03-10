@@ -29,16 +29,21 @@ interface UseTripRestoreOptions {
   markStepComplete: (step: number) => void;
 }
 
+interface UseTripRestoreReturn {
+  restoreHistoryTripSession: (snapshot: HistoryTripSnapshot) => Promise<void>;
+  restoreTripSession: (snapshot: HistoryTripSnapshot) => Promise<void>;
+}
+
 export function useTripRestore({
   setLocations,
   calculateAndDiscover,
   forceStep,
   markStepComplete,
-}: UseTripRestoreOptions) {
-  const restoreTripSession = useCallback(async (summary: HistoryTripSnapshot): Promise<void> => {
-    const locations = summary.locations;
+}: UseTripRestoreOptions): UseTripRestoreReturn {
+  const restoreHistoryTripSession = useCallback(async (snapshot: HistoryTripSnapshot): Promise<void> => {
+    const locations = snapshot.locations;
     if (!locations || locations.length < 2) {
-      console.warn('[restoreTripSession] valid locations missing from summary', summary);
+      console.warn('[restoreTripSession] valid locations missing from snapshot', snapshot);
       return;
     }
 
@@ -54,5 +59,8 @@ export function useTripRestore({
     await calculateAndDiscover();
   }, [setLocations, calculateAndDiscover, forceStep, markStepComplete]);
 
-  return { restoreTripSession };
+  return {
+    restoreHistoryTripSession,
+    restoreTripSession: restoreHistoryTripSession,
+  };
 }
