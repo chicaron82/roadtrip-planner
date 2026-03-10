@@ -1,4 +1,5 @@
-import type { TripSummary, TripSettings, Vehicle } from '../types';
+import type { TripSettings, Vehicle } from '../types';
+import type { RoutePlanningSummary } from './trip-summary-slices';
 import { generatePacingSuggestions } from './segment-analyzer';
 import { findOptimalReturnDeparture } from './return-departure-optimizer';
 import { findOptimalOutboundDeparture } from './outbound-departure-optimizer';
@@ -8,7 +9,7 @@ interface Params {
   maxDayMinutes: number;
   settings: TripSettings;
   isAlreadySplit: boolean;
-  summary: TripSummary;
+  routeSummary: RoutePlanningSummary;
   vehicle: Vehicle | undefined;
   startTime: Date;
 }
@@ -18,7 +19,7 @@ export function buildPacingSuggestions({
   maxDayMinutes,
   settings,
   isAlreadySplit,
-  summary,
+  routeSummary,
   vehicle,
   startTime,
 }: Params): string[] {
@@ -26,15 +27,15 @@ export function buildPacingSuggestions({
 
   // Check if tweaking the outbound departure would create a Fuel + Lunch combo
   // at a major hub city ~4h out (e.g., depart 8:00 AM → arrive Dryden at noon).
-  if (vehicle && summary.fullGeometry?.length > 1) {
-    const outboundSegments = summary.roundTripMidpoint != null && summary.roundTripMidpoint > 0
-      ? summary.segments.slice(0, summary.roundTripMidpoint)
-      : summary.segments;
+  if (vehicle && routeSummary.fullGeometry?.length > 1) {
+    const outboundSegments = routeSummary.roundTripMidpoint != null && routeSummary.roundTripMidpoint > 0
+      ? routeSummary.segments.slice(0, routeSummary.roundTripMidpoint)
+      : routeSummary.segments;
 
     const outboundSuggestion = findOptimalOutboundDeparture(
       outboundSegments,
       startTime,
-      summary.fullGeometry as number[][],
+      routeSummary.fullGeometry as number[][],
       vehicle,
       settings,
     );
@@ -49,15 +50,15 @@ export function buildPacingSuggestions({
   // For round trips with a vehicle, check if tweaking the return departure
   // would create a Fuel + Lunch combo at a real hub city.
   if (
-    summary.roundTripMidpoint != null &&
-    summary.roundTripMidpoint > 0 &&
+    routeSummary.roundTripMidpoint != null &&
+    routeSummary.roundTripMidpoint > 0 &&
     vehicle &&
-    summary.fullGeometry?.length > 1
+    routeSummary.fullGeometry?.length > 1
   ) {
-    const returnSegments = summary.segments.slice(summary.roundTripMidpoint);
+    const returnSegments = routeSummary.segments.slice(routeSummary.roundTripMidpoint);
 
-    const returnStartKm = summary.segments
-      .slice(0, summary.roundTripMidpoint)
+    const returnStartKm = routeSummary.segments
+      .slice(0, routeSummary.roundTripMidpoint)
       .reduce((sum, s) => sum + s.distanceKm, 0);
 
     const firstReturnSeg = returnSegments[0];
@@ -69,7 +70,7 @@ export function buildPacingSuggestions({
     const suggestion = findOptimalReturnDeparture(
       returnSegments,
       returnDeparture,
-      summary.fullGeometry as number[][],
+      routeSummary.fullGeometry as number[][],
       returnStartKm,
       vehicle,
       settings,

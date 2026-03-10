@@ -1,6 +1,7 @@
 import type React from 'react';
 import { Map } from '../components/Map/Map';
-import type { TripSummary, TripMode, RouteStrategy } from '../types';
+import type { TripMode, RouteStrategy } from '../types';
+import type { MapRouteDetails } from '../lib/trip-summary-slices';
 
 type MapComponentProps = React.ComponentProps<typeof Map>;
 
@@ -15,7 +16,7 @@ interface UseMapPropsOptions {
   addedPOIIds: MapComponentProps['addedPOIIds'];
   mapDayOptions: MapComponentProps['dayOptions'];
   handleMapClick: MapComponentProps['onMapClick'];
-  summary: TripSummary | null;
+  routeDetails: MapRouteDetails | null;
   handleAddPOIFromMap: MapComponentProps['onAddPOI'];
   previewGeometry: MapComponentProps['previewGeometry'];
   tripMode: TripMode | null;
@@ -41,7 +42,7 @@ export function useMapProps(o: UseMapPropsOptions): MapComponentProps {
     addedPOIIds: o.addedPOIIds,
     dayOptions: o.mapDayOptions,
     onMapClick: o.handleMapClick,
-    onAddPOI: o.summary ? o.handleAddPOIFromMap : undefined,
+    onAddPOI: o.routeDetails ? o.handleAddPOIFromMap : undefined,
     previewGeometry: o.validRouteGeometry ? undefined : o.previewGeometry,
     tripMode: o.tripMode || undefined,
     alternateGeometries: o.routeStrategies
@@ -52,9 +53,9 @@ export function useMapProps(o: UseMapPropsOptions): MapComponentProps {
         emoji: s.emoji,
         onSelect: () => o.selectStrategy(o.routeStrategies.indexOf(s)),
       })),
-    tripDays: o.summary?.days,
-    routeSegments: o.summary?.segments,
-    routeTotals: o.summary ? { distanceKm: o.summary.totalDistanceKm, durationMinutes: o.summary.totalDurationMinutes } : undefined,
+    tripDays: o.routeDetails?.days,
+    routeSegments: o.routeDetails?.segments,
+    routeTotals: o.routeDetails ? { distanceKm: o.routeDetails.totalDistanceKm, durationMinutes: o.routeDetails.totalDurationMinutes } : undefined,
     units: o.units,
   };
 }

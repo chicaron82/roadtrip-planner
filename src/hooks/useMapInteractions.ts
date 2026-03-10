@@ -3,11 +3,13 @@ import type { Location, TripSummary, TripSettings, POI, RouteSegment } from '../
 import { analyzeFeasibility, type FeasibilityStatus } from '../lib/feasibility';
 import { showToast } from '../lib/toast';
 import { NOMINATIM_BASE_URL } from '../lib/constants';
+import type { MapInteractionRouteSummary } from '../lib/trip-summary-slices';
 
 interface UseMapInteractionsOptions {
   locations: Location[];
   setLocations: React.Dispatch<React.SetStateAction<Location[]>>;
-  summary: TripSummary | null;
+  routeSummary: MapInteractionRouteSummary | null;
+  feasibilitySummary: TripSummary | null;
   settings: TripSettings;
   addStop: (poi: POI, segments: RouteSegment[], afterSegmentIndex?: number) => void;
 }
@@ -25,12 +27,13 @@ interface UseMapInteractionsReturn {
 export function useMapInteractions({
   locations,
   setLocations,
-  summary,
+  routeSummary,
+  feasibilitySummary,
   settings,
   addStop,
 }: UseMapInteractionsOptions): UseMapInteractionsReturn {
   const validRouteGeometry = useMemo(() => {
-    const geometry = summary?.fullGeometry;
+    const geometry = routeSummary?.fullGeometry;
     if (!geometry) return null;
     const filtered = geometry.filter(coord =>
       coord && Array.isArray(coord) && coord.length === 2 &&
@@ -38,21 +41,21 @@ export function useMapInteractions({
       !isNaN(coord[0]) && !isNaN(coord[1]) && !(coord[0] === 0 && coord[1] === 0)
     );
     return filtered.length >= 2 ? filtered as [number, number][] : null;
-  }, [summary]);
+  }, [routeSummary]);
 
   const routeFeasibilityStatus = useMemo(
-    () => summary ? analyzeFeasibility(summary, settings).status : null,
-    [summary, settings],
+    () => feasibilitySummary ? analyzeFeasibility(feasibilitySummary, settings).status : null,
+    [feasibilitySummary, settings],
   );
 
   const mapDayOptions = useMemo(() => {
-    if (!summary?.days || summary.days.length <= 1) return undefined;
-    return summary.days.map(day => ({
+    if (!routeSummary?.days || routeSummary.days.length <= 1) return undefined;
+    return routeSummary.days.map(day => ({
       dayNumber: day.dayNumber,
       label: `Day ${day.dayNumber} — ${day.route}`,
       segmentIndex: day.segmentIndices[day.segmentIndices.length - 1] ?? 0,
     }));
-  }, [summary]);
+  }, [routeSummary]);
 
   const handleMapClick = useCallback(async (lat: number, lng: number) => {
     try {
@@ -88,9 +91,9 @@ export function useMapInteractions({
   }, [locations, setLocations]);
 
   const handleAddPOIFromMap = useCallback((poi: POI, afterSegmentIndex?: number) => {
-    if (!summary) return;
-    addStop(poi, summary.segments, afterSegmentIndex);
-  }, [addStop, summary]);
+    if (!routeSummary) return;
+    addStop(poi, routeSummary.segments, afterSegmentIndex);
+  }, [addStop, routeSummary]);
 
   const openInGoogleMaps = useCallback(() => {
     const validLocations = locations.filter(loc => loc.lat !== 0 && loc.lng !== 0);

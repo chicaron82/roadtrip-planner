@@ -100,7 +100,14 @@ function AppContent() {
     validRouteGeometry, routeFeasibilityStatus, mapDayOptions,
     handleMapClick, handleAddPOIFromMap, openInGoogleMaps,
     copyShareLink: triggerCopyShareLink,
-  } = useMapInteractions({ locations, setLocations, summary, settings, addStop });
+  } = useMapInteractions({
+    locations,
+    setLocations,
+    routeSummary: summary,
+    feasibilitySummary: summary,
+    settings,
+    addStop,
+  });
 
   useURLHydration({
     setLocations, setVehicle, setSettings,
@@ -152,7 +159,7 @@ function AppContent() {
   const mapProps = useMapProps({
     locations, validRouteGeometry, routeFeasibilityStatus,
     pois, markerCategories, tripActive, strategicFuelStops, addedPOIIds,
-    mapDayOptions, handleMapClick, summary, handleAddPOIFromMap,
+    mapDayOptions, handleMapClick, routeDetails: summary, handleAddPOIFromMap,
     previewGeometry, tripMode, routeStrategies, activeStrategyIndex, selectStrategy,
     units: settings.units,
   });

@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react';
-import type { TripSummary, TripSettings, Vehicle, TripDay } from '../../../types';
+import type { TripSettings, Vehicle, TripDay } from '../../../types';
 import { generateSmartStops, createStopConfig, type SuggestedStop } from '../../../lib/stop-suggestions';
 import { buildPacingSuggestions } from '../../../lib/pacing-suggestions-builder';
 import { getTripStartTime, lngToIANA } from '../../../lib/trip-timezone';
+import type { RoutePlanningSummary } from '../../../lib/trip-summary-slices';
 import type { StopOverrides } from '../timeline-data-types';
 
 interface UseTimelineStopSuggestionsParams {
-  summary: TripSummary;
+  routeSummary: RoutePlanningSummary;
   settings: TripSettings;
   vehicle?: Vehicle;
   days?: TripDay[];
@@ -16,7 +17,7 @@ interface UseTimelineStopSuggestionsParams {
 }
 
 export function useTimelineStopSuggestions({
-  summary,
+  routeSummary,
   settings,
   vehicle,
   days,
@@ -25,13 +26,13 @@ export function useTimelineStopSuggestions({
   onStopOverridesChange,
 }: UseTimelineStopSuggestionsParams) {
   const originTimezone = useMemo(() => {
-    const originLng = summary.segments[0]?.from.lng;
+    const originLng = routeSummary.segments[0]?.from.lng;
     return originLng !== undefined ? lngToIANA(originLng) : undefined;
-  }, [summary.segments]);
+  }, [routeSummary.segments]);
 
   const startTime = useMemo(() => {
-    return getTripStartTime(settings.departureDate, settings.departureTime, summary.segments[0]?.from.lng);
-  }, [settings.departureDate, settings.departureTime, summary.segments]);
+    return getTripStartTime(settings.departureDate, settings.departureTime, routeSummary.segments[0]?.from.lng);
+  }, [settings.departureDate, settings.departureTime, routeSummary.segments]);
 
   const drivingDays = useMemo(
     () => days?.filter(day => day.segmentIndices.length > 0) ?? [],
@@ -40,24 +41,24 @@ export function useTimelineStopSuggestions({
   const isAlreadySplit = drivingDays.length > 1;
   const maxDayMinutes = isAlreadySplit
     ? Math.max(...drivingDays.map(day => day.totals?.driveTimeMinutes ?? 0))
-    : summary.totalDurationMinutes;
+    : routeSummary.totalDurationMinutes;
 
   const pacingSuggestions = useMemo(() => buildPacingSuggestions({
     maxDayMinutes,
     settings,
     isAlreadySplit,
-    summary,
+    routeSummary,
     vehicle,
     startTime,
-  }), [maxDayMinutes, settings, isAlreadySplit, summary, vehicle, startTime]);
+  }), [maxDayMinutes, settings, isAlreadySplit, routeSummary, vehicle, startTime]);
 
   const pacingSuggestionsByDay = useMemo(() => {
     const map = new Map<number, string[]>();
     if (!days || pacingSuggestions.length === 0) return map;
 
     let returnDayNumber: number | null = null;
-    if (summary.roundTripMidpoint != null && summary.roundTripMidpoint > 0) {
-      const returnDay = days.find(day => day.segmentIndices.includes(summary.roundTripMidpoint!));
+    if (routeSummary.roundTripMidpoint != null && routeSummary.roundTripMidpoint > 0) {
+      const returnDay = days.find(day => day.segmentIndices.includes(routeSummary.roundTripMidpoint));
       if (returnDay) returnDayNumber = returnDay.dayNumber;
     }
 
@@ -75,13 +76,13 @@ export function useTimelineStopSuggestions({
     });
 
     return map;
-  }, [days, drivingDays, pacingSuggestions, summary.roundTripMidpoint]);
+  }, [days, drivingDays, pacingSuggestions, routeSummary.roundTripMidpoint]);
 
   const baseSuggestions = useMemo(() => {
     if (!vehicle) return [];
-    const config = createStopConfig(vehicle, settings, summary.fullGeometry, summary.segments[0]?.from.lng);
-    return generateSmartStops(summary.segments, config, days);
-  }, [summary.segments, summary.fullGeometry, vehicle, settings, days]);
+    const config = createStopConfig(vehicle, settings, routeSummary.fullGeometry, routeSummary.segments[0]?.from.lng);
+    return generateSmartStops(routeSummary.segments, config, days);
+  }, [routeSummary.segments, routeSummary.fullGeometry, vehicle, settings, days]);
 
   // Lazy init so the prop value is consumed once on mount, matching the original
   // one-shot hydration guard without needing an effect.

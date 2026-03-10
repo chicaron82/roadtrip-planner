@@ -84,7 +84,7 @@ export function useTimelineData({ summary, settings, vehicle, days, externalStop
     handleAccept,
     handleDismiss,
   } = useTimelineStopSuggestions({
-    summary,
+    routeSummary: summary,
     settings,
     vehicle,
     days,
