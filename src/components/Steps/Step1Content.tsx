@@ -1,8 +1,7 @@
 import { Calendar, Upload } from 'lucide-react';
-import { useRef, useState } from 'react';
 import type { Location, TripChallenge, TripMode, TripSettings } from '../../types';
-import { parseSharedTemplate, type TemplateImportResult } from '../../lib/url';
-import { showToast } from '../../lib/toast';
+import type { TemplateImportResult } from '../../lib/url';
+import { useStep1Controller } from '../../hooks/useStep1Controller';
 import { LocationList } from '../Trip/Location/LocationList';
 import { ChallengeCards } from '../Trip/Adventure/ChallengeCards';
 import { Button } from '../UI/Button';
@@ -38,49 +37,13 @@ export function Step1Content({
   onImportTemplate,
   onSelectChallenge,
 }: Step1ContentProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [openEndedDismissed, setOpenEndedDismissed] = useState(false);
-
-  // Detect open-ended manual trip (last stop far from origin)
-  const origin = locations.find(l => l.type === 'origin');
-  const lastDest = locations.filter(l => l.type === 'destination').at(-1);
-  const isOpenEnded = !settings.isRoundTrip
-    && !!origin && !!lastDest
-    && origin.lat !== 0 && lastDest.lat !== 0
-    && (() => {
-      const dLat = Math.abs(lastDest.lat - origin.lat);
-      const dLng = Math.abs(lastDest.lng - origin.lng);
-      return Math.sqrt(dLat * dLat + dLng * dLng) * 111 > 50;
-    })();
-
-  const isSingleDay = !!(settings.departureDate && settings.returnDate && settings.departureDate === settings.returnDate);
-
-  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const result = parseSharedTemplate(reader.result as string);
-        onImportTemplate?.(result);
-        showToast({
-          message: `MEE time loaded — "${result.meta.title}" by ${result.meta.author}!`,
-          type: 'success',
-          duration: 4000,
-        });
-      } catch {
-        showToast({
-          message: 'Not a valid MEE time template. Make sure it was exported from My Experience Engine.',
-          type: 'error',
-          duration: 5000,
-        });
-      }
-    };
-    reader.readAsText(file);
-    // Reset input so same file can be re-imported
-    e.target.value = '';
-  };
+  const {
+    openEndedDismissed, setOpenEndedDismissed,
+    isOpenEnded, isSingleDay,
+    origin, lastDest,
+    targetArrivalLabel, smartPreview,
+    fileInputRef, handleImportFile,
+  } = useStep1Controller({ locations, settings, onImportTemplate });
 
   return (
     <div className="space-y-6">
@@ -148,13 +111,7 @@ export function Step1Content({
                 Each transit day auto-schedules its departure to hit this time.
               </p>
             </div>
-            <span className="text-sm font-semibold tabular-nums">
-              {settings.targetArrivalHour < 12
-                ? `${settings.targetArrivalHour}:00 AM`
-                : settings.targetArrivalHour === 12
-                  ? '12:00 PM'
-                  : `${settings.targetArrivalHour - 12}:00 PM`}
-            </span>
+            <span className="text-sm font-semibold tabular-nums">{targetArrivalLabel}</span>
           </div>
           <div className="grid grid-cols-5 gap-1.5">
             {([17, 18, 19, 20, 21] as const).map((hour) => {
@@ -176,59 +133,31 @@ export function Step1Content({
             })}
           </div>
           <p className="info-banner-blue text-xs mt-3 p-2 rounded-md border">
-            {(() => {
-              const arriveLabel = settings.targetArrivalHour > 12 ? `${settings.targetArrivalHour - 12}:00 PM` : `${settings.targetArrivalHour}:00 AM`;
-              return `🗓️ Transit days will auto-schedule departure to arrive by ${arriveLabel}.`;
-            })()}
+            🗓️ Transit days will auto-schedule departure to arrive by {targetArrivalLabel}.
           </p>
         </div>
         )}
 
         {/* Smart Preview */}
         <p className="info-banner-purple text-xs mt-3 rounded-md p-2 border">
-          {(() => {
-            const depDate = settings.departureDate;
-            const retDate = settings.returnDate;
-            // Append T00:00:00 to parse as local time, not UTC
-            // (bare 'YYYY-MM-DD' is parsed as UTC midnight → rolls back a day in western timezones)
-            const parseLocal = (d: string) => new Date(d + 'T00:00:00');
-            const tripDays = depDate && retDate
-              ? Math.max(1, Math.ceil((parseLocal(retDate).getTime() - parseLocal(depDate).getTime()) / (1000 * 60 * 60 * 24)))
-              : 0;
-            const daysUntilTrip = depDate && parseLocal(depDate) > new Date()
-              ? Math.ceil((parseLocal(depDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-              : 0;
-
-            const depFormatted = depDate
-              ? parseLocal(depDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-              : '';
-            const retFormatted = retDate
-              ? parseLocal(retDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-              : '';
-
-            if (depDate && retDate) {
-              return (
-                <>
-                  🗓️ <strong>{depFormatted}</strong> → <strong>{retFormatted}</strong>
-                  {' · '}{tripDays}-day trip
-                  {settings.useArrivalTime && settings.arrivalTime && ` · Arrive by ${settings.arrivalTime}`}
-                  {!settings.useArrivalTime && settings.departureTime && ` · Leaving at ${settings.departureTime}`}
-                  {daysUntilTrip > 0 && ` · ${daysUntilTrip} days away!`}
-                </>
-              );
-            }
-            if (depDate) {
-              return (
-                <>
-                  🚗 <strong>Depart:</strong> {depFormatted}
-                  {settings.departureTime && ` at ${settings.departureTime}`}
-                  {daysUntilTrip > 0 && ` · ${daysUntilTrip} days away!`}
-                  {' · '}Set a return date for trip duration
-                </>
-              );
-            }
-            return <>Set your departure and return dates</>;
-          })()}
+          {smartPreview.hasDateRange ? (
+            <>
+              🗓️ <strong>{smartPreview.depFormatted}</strong> → <strong>{smartPreview.retFormatted}</strong>
+              {' · '}{smartPreview.tripDays}-day trip
+              {settings.useArrivalTime && settings.arrivalTime && ` · Arrive by ${settings.arrivalTime}`}
+              {!settings.useArrivalTime && settings.departureTime && ` · Leaving at ${settings.departureTime}`}
+              {smartPreview.daysUntilTrip > 0 && ` · ${smartPreview.daysUntilTrip} days away!`}
+            </>
+          ) : smartPreview.hasDepartureOnly ? (
+            <>
+              🚗 <strong>Depart:</strong> {smartPreview.depFormatted}
+              {settings.departureTime && ` at ${settings.departureTime}`}
+              {smartPreview.daysUntilTrip > 0 && ` · ${smartPreview.daysUntilTrip} days away!`}
+              {' · '}Set a return date for trip duration
+            </>
+          ) : (
+            <>Set your departure and return dates</>
+          )}
         </p>
       </div>
 
@@ -278,7 +207,7 @@ export function Step1Content({
             </button>
           </div>
 
-          {/* Day trip duration — how long to spend at the destination before heading back */}
+          {/* Day trip duration */}
           {settings.isRoundTrip && (
             <div className="mt-3">
               <div className="text-xs text-muted-foreground mb-1.5">Time at destination</div>
@@ -314,7 +243,7 @@ export function Step1Content({
           )}
         </div>
 
-        {/* Adventure Mode Button — only show in plan mode as secondary option */}
+        {/* Adventure Mode Button */}
         {tripMode === 'plan' && (
           <button
             onClick={onShowAdventure}
