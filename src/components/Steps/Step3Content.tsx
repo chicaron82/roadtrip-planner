@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import type { Location, Vehicle, TripSettings, TripSummary, POISuggestion, TripJournal, StopType, DayType, OvernightStop, TripMode, TripChallenge } from '../../types';
 import { OvernightStopPrompt } from '../Trip/StepHelpers/OvernightStopPrompt';
 import { type ViewMode } from '../Trip/Journal/JournalModeToggle';
@@ -8,9 +7,9 @@ import type { PlanningStep } from '../../hooks';
 import type { TimedEvent } from '../../lib/trip-timeline';
 import { useTripContext } from '../../contexts/TripContext';
 import { useStep3Controller } from '../../hooks/useStep3Controller';
+import { TripViewer } from '../Trip/Viewer/TripViewer';
 import { Step3Header } from './Step3Header';
 import { Step3HealthSection } from './Step3HealthSection';
-import { Step3TimelineSection } from './Step3TimelineSection';
 import { Step3CommitSection } from './Step3CommitSection';
 import { Step3HistorySection } from './Step3HistorySection';
 import { Step3EmptyState } from './Step3EmptyState';
@@ -96,8 +95,6 @@ export function Step3Content({
   onUnconfirmTrip,
   onLoadHistoryTrip,
 }: Step3ContentProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isJournalFullscreen, setIsJournalFullscreen] = useState(false);
   const { addDayActivity, updateDayActivity, removeDayActivity, canonicalTimeline } = useTripContext();
 
   const { feasibility, estimate, overview, arrivalInfo, overnightTimes } = useStep3Controller({
@@ -156,7 +153,7 @@ export function Step3Content({
             setViewMode={setViewMode}
           />
 
-          <Step3TimelineSection
+          <TripViewer
             summary={summary}
             settings={settings}
             vehicle={vehicle}
@@ -183,10 +180,6 @@ export function Step3Content({
             onAddPOI={onAddPOI}
             onDismissPOI={onDismissPOI}
             externalStops={externalStops}
-            isExpanded={isExpanded}
-            isJournalFullscreen={isJournalFullscreen}
-            setIsExpanded={setIsExpanded}
-            setIsJournalFullscreen={setIsJournalFullscreen}
           />
 
           <Step3CommitSection

@@ -1,28 +1,22 @@
+import { useState } from 'react';
 import { Maximize2, Minimize2, PenLine } from 'lucide-react';
-import type { TripJournal } from '../../types';
-import type { ViewMode } from '../Trip/Journal/JournalModeToggle';
-import type { Step3TimelineSectionProps } from './step3-types';
-import { Button } from '../UI/Button';
-import { TripTimelineView } from '../Trip/TripTimelineView';
-import { JournalFullscreenOverlay } from '../Trip/Journal/JournalFullscreenOverlay';
-
-interface Props extends Step3TimelineSectionProps {
-  isExpanded: boolean;
-  isJournalFullscreen: boolean;
-  setIsExpanded: (value: boolean) => void;
-  setIsJournalFullscreen: (value: boolean) => void;
-}
+import type { TripJournal } from '../../../types';
+import type { ViewMode } from '../Journal/JournalModeToggle';
+import type { TripViewerProps } from './viewer-types';
+import { Button } from '../../UI/Button';
+import { TripTimelineView } from '../TripTimelineView';
+import { JournalFullscreenOverlay } from '../Journal/JournalFullscreenOverlay';
 
 function TimelineHeading({
   viewMode,
   activeJournal,
-  setIsExpanded,
-  setIsJournalFullscreen,
+  onExpand,
+  onOpenFullscreen,
 }: {
   viewMode: ViewMode;
   activeJournal: TripJournal | null;
-  setIsExpanded: (value: boolean) => void;
-  setIsJournalFullscreen: (value: boolean) => void;
+  onExpand: () => void;
+  onOpenFullscreen: () => void;
 }) {
   return (
     <div className="flex items-center justify-between">
@@ -34,7 +28,7 @@ function TimelineHeading({
           size="sm"
           variant="ghost"
           className="gap-1 h-7 text-xs text-muted-foreground hover:text-foreground"
-          onClick={() => setIsJournalFullscreen(true)}
+          onClick={onOpenFullscreen}
         >
           <PenLine className="h-3 w-3" /> Write
         </Button>
@@ -43,7 +37,7 @@ function TimelineHeading({
           size="sm"
           variant="ghost"
           className="gap-1 h-7 text-xs text-muted-foreground hover:text-foreground"
-          onClick={() => setIsExpanded(true)}
+          onClick={onExpand}
         >
           <Maximize2 className="h-3 w-3" /> Expand
         </Button>
@@ -52,7 +46,16 @@ function TimelineHeading({
   );
 }
 
-export function Step3TimelineSection({
+/**
+ * TripViewer — the dumb renderer + intent emitter for the trip workspace.
+ *
+ * Receives canonical trip truth as props, renders the timeline/journal/POI
+ * discovery surface, and emits user intents upward via callbacks.
+ *
+ * Owns only lightweight UI-only state (expand/collapse, journal fullscreen)
+ * per the Results Gate architecture spec. Does not own or mutate itinerary truth.
+ */
+export function TripViewer({
   summary,
   settings,
   vehicle,
@@ -61,6 +64,12 @@ export function Step3TimelineSection({
   activeJournal,
   activeChallenge,
   tripMode,
+  poiSuggestions,
+  poiInference,
+  isLoadingPOIs,
+  poiPartialResults,
+  poiFetchFailed,
+  externalStops,
   onStartJournal,
   onUpdateJournal,
   onUpdateStopType,
@@ -71,19 +80,13 @@ export function Step3TimelineSection({
   onUpdateDayActivity,
   onRemoveDayActivity,
   onUpdateOvernight,
-  poiSuggestions,
-  poiInference,
-  isLoadingPOIs,
-  poiPartialResults,
-  poiFetchFailed,
   onAddPOI,
   onDismissPOI,
-  externalStops,
-  isExpanded,
-  isJournalFullscreen,
-  setIsExpanded,
-  setIsJournalFullscreen,
-}: Props) {
+}: TripViewerProps) {
+  // Viewer-local UI state — per arch spec, lives here, not in the parent gate
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isJournalFullscreen, setIsJournalFullscreen] = useState(false);
+
   const timeline = (
     <TripTimelineView
       summary={summary}
@@ -140,8 +143,8 @@ export function Step3TimelineSection({
       <TimelineHeading
         viewMode={viewMode}
         activeJournal={activeJournal}
-        setIsExpanded={setIsExpanded}
-        setIsJournalFullscreen={setIsJournalFullscreen}
+        onExpand={() => setIsExpanded(true)}
+        onOpenFullscreen={() => setIsJournalFullscreen(true)}
       />
       {isJournalFullscreen && activeJournal && (
         <JournalFullscreenOverlay
