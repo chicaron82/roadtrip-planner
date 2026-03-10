@@ -1,4 +1,5 @@
-import type { Location, TripSummary } from '../types';
+import type { Location } from '../types';
+import type { SegmentLookupSummary } from './trip-summary-slices';
 
 export interface TripDayCounts {
   drivingDays: number;
@@ -6,7 +7,7 @@ export interface TripDayCounts {
   totalDays: number;
 }
 
-export function getTripDayCounts(summary: TripSummary): TripDayCounts {
+export function getTripDayCounts(summary: Pick<SegmentLookupSummary & { days?: { segmentIndices: number[] }[] }, 'days'>): TripDayCounts {
   const days = summary.days ?? [];
   if (days.length === 0) {
     return { drivingDays: 1, freeDays: 0, totalDays: 1 };
@@ -22,7 +23,7 @@ export function getTripDayCounts(summary: TripSummary): TripDayCounts {
   };
 }
 
-export function getPrimaryDestination(summary: TripSummary): Location | undefined {
+export function getPrimaryDestination(summary: { roundTripMidpoint?: number | null; segments: SegmentLookupSummary['segments'] }): Location | undefined {
   const midpointIndex = summary.roundTripMidpoint;
   if (midpointIndex != null && midpointIndex > 0) {
     return summary.segments[midpointIndex - 1]?.to;
@@ -31,7 +32,7 @@ export function getPrimaryDestination(summary: TripSummary): Location | undefine
   return summary.segments.at(-1)?.to;
 }
 
-export function getTripDisplayEndpoints(summary: TripSummary): {
+export function getTripDisplayEndpoints(summary: { roundTripMidpoint?: number | null; segments: SegmentLookupSummary['segments'] }): {
   origin?: Location;
   destination?: Location;
 } {
@@ -41,7 +42,7 @@ export function getTripDisplayEndpoints(summary: TripSummary): {
   };
 }
 
-export function getExportBudgetBreakdown(summary: TripSummary): {
+export function getExportBudgetBreakdown(summary: { costBreakdown?: { fuel?: number; accommodation?: number; meals?: number; misc?: number }; totalFuelCost?: number }): {
   fuel: number;
   accommodation: number;
   meals: number;

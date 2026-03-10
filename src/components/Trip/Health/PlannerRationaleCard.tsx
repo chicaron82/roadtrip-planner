@@ -1,9 +1,10 @@
-import type { TripSettings, TripSummary } from '../../../types';
+import type { TripSettings } from '../../../types';
 import type { FeasibilityResult } from '../../../lib/feasibility';
 import { buildPlannerRationale } from '../../../lib/planner-rationale';
+import type { Step3HealthSummary } from '../../../lib/trip-summary-slices';
 
 interface PlannerRationaleCardProps {
-  summary: TripSummary;
+  summary: Step3HealthSummary;
   settings: TripSettings;
   feasibility: FeasibilityResult | null;
 }

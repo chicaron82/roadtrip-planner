@@ -19,6 +19,7 @@ import type { Step3ArrivalInfo } from '../components/Steps/step3-types';
 import type { ViewMode } from '../components/Trip/Journal/JournalModeToggle';
 import type { SuggestedStop } from '../lib/stop-suggestions';
 import { generateTripOverview } from '../lib/trip-analyzer';
+import type { Step3HealthSummary } from '../lib/trip-summary-slices';
 
 export interface Step3HeaderModel {
   summary: TripSummary | null;
@@ -44,7 +45,7 @@ export interface Step3OvernightPromptModel {
 }
 
 export interface Step3HealthModel {
-  summary: TripSummary;
+  summary: Step3HealthSummary;
   settings: TripSettings;
   viewMode: ViewMode;
   tripMode: TripMode;
@@ -153,7 +154,7 @@ export function buildStep3OvernightPromptModel({
 }
 
 interface BuildStep3HealthModelOptions {
-  summary: TripSummary | null;
+  summary: Step3HealthSummary | null;
   settings: TripSettings;
   viewMode: ViewMode;
   tripMode: TripMode;

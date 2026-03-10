@@ -1,8 +1,9 @@
-import type { JournalEntry, Location, RouteSegment, TripSummary, Vehicle, TripDay, TripSettings } from '../types';
+import type { JournalEntry, Location, RouteSegment, Vehicle, TripDay, TripSettings } from '../types';
 import type { SuggestedStop } from './stop-suggestion-types';
 import type { StopOverrides } from '../components/Trip/timeline-data-types';
 import { createStopConfig, generateSmartStops } from './stop-suggestions';
 import type { SimulationItem } from './timeline-simulation';
+import type { RoutePlanningSummary, SegmentLookupSummary } from './trip-summary-slices';
 
 export interface JournalTimelineStop {
   flatIndex: number;
@@ -28,9 +29,9 @@ export function findJournalEntry(
     ?? entries.find(entry => entry.segmentIndex === stop.originalIndex);
 }
 
-export function resolveJournalEntryLocation(summary: TripSummary, entry: Pick<JournalEntry, 'stopId' | 'segmentIndex'>): Location | undefined {
-  return summary.segments.find(segment => segment.to.id === entry.stopId)?.to
-    ?? summary.segments[entry.segmentIndex]?.to;
+export function resolveJournalEntryLocation(routeSummary: SegmentLookupSummary, entry: Pick<JournalEntry, 'stopId' | 'segmentIndex'>): Location | undefined {
+  return routeSummary.segments.find(segment => segment.to.id === entry.stopId)?.to
+    ?? routeSummary.segments[entry.segmentIndex]?.to;
 }
 
 export function applyStopOverrides<T extends { id: string; accepted?: boolean; dismissed?: boolean; duration: number }>(
@@ -52,14 +53,14 @@ export function applyStopOverrides<T extends { id: string; accepted?: boolean; d
 }
 
 export function buildJournalActiveSuggestions(
-  summary: TripSummary,
+  routeSummary: RoutePlanningSummary,
   settings: TripSettings,
   vehicle: Vehicle,
   days: TripDay[] | undefined,
   stopOverrides?: StopOverrides,
 ): SuggestedStop[] {
-  const config = createStopConfig(vehicle, settings, summary.fullGeometry, summary.segments[0]?.from.lng);
-  const baseSuggestions = generateSmartStops(summary.segments, config, days);
+  const config = createStopConfig(vehicle, settings, routeSummary.fullGeometry, routeSummary.segments[0]?.from.lng);
+  const baseSuggestions = generateSmartStops(routeSummary.segments, config, days);
   const overridden = applyStopOverrides(baseSuggestions, stopOverrides);
   return overridden.filter(suggestion => !suggestion.dismissed);
 }

@@ -1,5 +1,6 @@
-import type { TripSettings, TripSummary } from '../types';
+import type { TripSettings } from '../types';
 import type { FeasibilityResult } from './feasibility';
+import type { Step3HealthSummary } from './trip-summary-slices';
 import { getTripDayCounts } from './trip-summary-view';
 
 export interface PlannerRationaleItem {
@@ -12,7 +13,7 @@ function formatHours(totalMinutes: number): string {
   return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`;
 }
 
-function buildDaySplitReason(summary: TripSummary, settings: TripSettings): PlannerRationaleItem {
+function buildDaySplitReason(summary: Step3HealthSummary, settings: TripSettings): PlannerRationaleItem {
   const { drivingDays, freeDays } = getTripDayCounts(summary);
   const totalHours = formatHours(summary.totalDurationMinutes);
   const freeDayText = freeDays > 0 ? ` plus ${freeDays} free day${freeDays !== 1 ? 's' : ''}` : '';
@@ -30,7 +31,7 @@ function buildDaySplitReason(summary: TripSummary, settings: TripSettings): Plan
   };
 }
 
-function buildPaceReason(summary: TripSummary, feasibility: FeasibilityResult | null): PlannerRationaleItem | null {
+function buildPaceReason(summary: Step3HealthSummary, feasibility: FeasibilityResult | null): PlannerRationaleItem | null {
   if (!feasibility) return null;
 
   const leadWarning = feasibility.warnings.find(w => w.category === 'drive-time' || w.category === 'driver' || w.category === 'timing')
@@ -50,7 +51,7 @@ function buildPaceReason(summary: TripSummary, feasibility: FeasibilityResult | 
   };
 }
 
-function buildOvernightReason(summary: TripSummary): PlannerRationaleItem | null {
+function buildOvernightReason(summary: Step3HealthSummary): PlannerRationaleItem | null {
   const overnightDays = summary.days?.filter(day => day.segmentIndices.length > 0 && day.overnight)?.length ?? 0;
   if (overnightDays === 0) return null;
 
@@ -60,7 +61,7 @@ function buildOvernightReason(summary: TripSummary): PlannerRationaleItem | null
   };
 }
 
-function buildBudgetReason(summary: TripSummary, settings: TripSettings): PlannerRationaleItem | null {
+function buildBudgetReason(summary: Step3HealthSummary, settings: TripSettings): PlannerRationaleItem | null {
   if (settings.budgetMode !== 'plan-to-budget' || !summary.costBreakdown) return null;
 
   const categoryDeltas = [
@@ -86,7 +87,7 @@ function buildBudgetReason(summary: TripSummary, settings: TripSettings): Planne
   };
 }
 
-function buildFuelReason(summary: TripSummary, settings: TripSettings): PlannerRationaleItem | null {
+function buildFuelReason(summary: Step3HealthSummary, settings: TripSettings): PlannerRationaleItem | null {
   if (summary.gasStops <= 0) return null;
 
   const averageKm = Math.round(summary.totalDistanceKm / summary.gasStops);
@@ -97,7 +98,7 @@ function buildFuelReason(summary: TripSummary, settings: TripSettings): PlannerR
 }
 
 export function buildPlannerRationale(
-  summary: TripSummary,
+  summary: Step3HealthSummary,
   settings: TripSettings,
   feasibility: FeasibilityResult | null,
 ): PlannerRationaleItem[] {
