@@ -1,4 +1,4 @@
-import type { Location, Vehicle, TripSettings, TripSummary, POISuggestion, TripJournal, StopType, DayType, OvernightStop, TripMode, TripChallenge } from '../../types';
+import type { Location, Vehicle, TripSettings, TripSummary, POISuggestion, TripJournal, StopType, TripMode, TripChallenge } from '../../types';
 import { OvernightStopPrompt } from '../Trip/StepHelpers/OvernightStopPrompt';
 import { type ViewMode } from '../Trip/Journal/JournalModeToggle';
 import { EstimateBreakdown } from '../Trip/StepHelpers/EstimateBreakdown';
@@ -37,10 +37,6 @@ interface Step3ContentProps {
   onStartJournal: (title?: string) => void;
   onUpdateJournal: (journal: TripJournal) => void;
   onUpdateStopType: (segmentIndex: number, stopType: StopType) => void;
-  onUpdateDayNotes?: (dayNumber: number, notes: string) => void;
-  onUpdateDayTitle?: (dayNumber: number, title: string) => void;
-  onUpdateDayType?: (dayNumber: number, dayType: DayType) => void;
-  onUpdateOvernight?: (dayNumber: number, overnight: OvernightStop) => void;
   onDismissOvernight: () => void;
   onAddPOI: (poiId: string, segmentIndex?: number) => void;
   onDismissPOI: (poiId: string) => void;
@@ -78,10 +74,6 @@ export function Step3Content({
   onStartJournal,
   onUpdateJournal,
   onUpdateStopType,
-  onUpdateDayNotes,
-  onUpdateDayTitle,
-  onUpdateDayType,
-  onUpdateOvernight,
   onDismissOvernight,
   onAddPOI,
   onDismissPOI,
@@ -95,7 +87,11 @@ export function Step3Content({
   onUnconfirmTrip,
   onLoadHistoryTrip,
 }: Step3ContentProps) {
-  const { addDayActivity, updateDayActivity, removeDayActivity, canonicalTimeline } = useTripContext();
+  const {
+    addDayActivity, updateDayActivity, removeDayActivity,
+    updateDayNotes, updateDayTitle, updateDayType, updateDayOvernight,
+    canonicalTimeline,
+  } = useTripContext();
 
   const { feasibility, estimate, overview, arrivalInfo, overnightTimes } = useStep3Controller({
     summary, settings, vehicle, tripMode, precomputedEvents, suggestedOvernightStop,
@@ -165,13 +161,13 @@ export function Step3Content({
             onStartJournal={onStartJournal}
             onUpdateJournal={onUpdateJournal}
             onUpdateStopType={onUpdateStopType}
-            onUpdateDayNotes={onUpdateDayNotes}
-            onUpdateDayTitle={onUpdateDayTitle}
-            onUpdateDayType={onUpdateDayType}
+            onUpdateDayNotes={updateDayNotes}
+            onUpdateDayTitle={updateDayTitle}
+            onUpdateDayType={updateDayType}
             onAddDayActivity={addDayActivity}
             onUpdateDayActivity={updateDayActivity}
             onRemoveDayActivity={removeDayActivity}
-            onUpdateOvernight={onUpdateOvernight}
+            onUpdateOvernight={updateDayOvernight}
             poiSuggestions={poiSuggestions}
             poiInference={poiInference}
             isLoadingPOIs={isLoadingPOIs}

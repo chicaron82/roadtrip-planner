@@ -7,7 +7,7 @@ import type { ViewMode } from './useJournal';
 import type { TemplateImportResult } from '../lib/url';
 import type { SuggestedStop } from '../lib/stop-suggestions';
 import type { PlanningStep } from './useWizard';
-import type { StopType, DayType, OvernightStop } from '../types';
+import type { StopType } from '../types';
 import type { TimedEvent } from '../lib/trip-timeline';
 
 const POI_CATEGORY_MAP: Partial<Record<string, POICategory>> = {
@@ -61,10 +61,6 @@ interface UsePlanningStepPropsOptions {
   suggestedOvernightStop: Location | null;
   dismissOvernightPrompt: () => void;
   updateStopType: (idx: number, t: StopType) => void;
-  updateDayNotes: (day: number, notes: string) => void;
-  updateDayTitle: (day: number, title: string) => void;
-  updateDayType: (day: number, t: DayType) => void;
-  updateDayOvernight: (day: number, o: OvernightStop) => void;
   // POI
   poiSuggestions: POISuggestion[];
   poiInference?: POISuggestion[];
@@ -80,6 +76,7 @@ interface UsePlanningStepPropsOptions {
   // Actions
   openInGoogleMaps: () => void;
   copyShareLink: () => void;
+  onLoadHistoryTrip: (trip: TripSummary) => void;
 }
 
 /**
@@ -140,10 +137,6 @@ export function usePlanningStepProps(o: UsePlanningStepPropsOptions): PlanningSt
     suggestedOvernightStop: o.suggestedOvernightStop,
     onDismissOvernight: o.dismissOvernightPrompt,
     onUpdateStopType: o.updateStopType,
-    onUpdateDayNotes: o.updateDayNotes,
-    onUpdateDayTitle: o.updateDayTitle,
-    onUpdateDayType: o.updateDayType,
-    onUpdateOvernight: o.updateDayOvernight,
     poiSuggestions: o.poiSuggestions,
     poiInference: o.poiInference,
     isLoadingPOIs: o.isLoadingPOIs,
@@ -158,7 +151,7 @@ export function usePlanningStepProps(o: UsePlanningStepPropsOptions): PlanningSt
     onGoToStep: o.goToStep,
     onConfirmTrip,
     onUnconfirmTrip,
-    onLoadHistoryTrip: o.setSummary,
+    onLoadHistoryTrip: o.onLoadHistoryTrip,
     precomputedEvents: o.precomputedEvents,
     isCalculating: o.isCalculating,
   };

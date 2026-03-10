@@ -137,7 +137,7 @@ export function useTripCalculation({
       setRouteStrategies([]);
       setActiveStrategyIndex(0);
       fetchAllRouteStrategies(locations, currentSettings.avoidTolls).then(strategies => {
-        if (!geocodeController.signal.aborted) {
+        if (calcRunIdRef.current === runId) {
           setRouteStrategies(strategies);
         }
       });

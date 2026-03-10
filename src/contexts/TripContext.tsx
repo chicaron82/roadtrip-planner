@@ -2,12 +2,21 @@
 // in the same file. Splitting them would scatter the API across multiple files.
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef, type ReactNode } from 'react';
-import type { Location, Vehicle, TripSettings, TripSummary, TripBudget, Activity, TripDay } from '../types';
+import type { Location, Vehicle, TripSettings, TripSummary, TripBudget, Activity, DayType, OvernightStop, TripDay } from '../types';
 import type { CanonicalTripTimeline } from '../lib/canonical-trip';
 import { DEFAULT_BUDGET } from '../lib/budget';
 import { getDefaultVehicleId, getGarage, loadSettingsDefaults, saveSettingsDefaults } from '../lib/storage';
 import { formatLocalYMD } from '../lib/utils';
 import { getFuelPriceDefault } from '../lib/regional-costs';
+import {
+  addDayActivity as canonicalAddDayActivity,
+  updateDayActivity as canonicalUpdateDayActivity,
+  removeDayActivity as canonicalRemoveDayActivity,
+  updateDayNotes as canonicalUpdateDayNotes,
+  updateDayTitle as canonicalUpdateDayTitle,
+  updateDayType as canonicalUpdateDayType,
+  updateOvernight as canonicalUpdateOvernight,
+} from '../lib/canonical-updates';
 
 // ==================== DEFAULT VALUES ====================
 
@@ -81,10 +90,14 @@ interface TripContextType {
   // Budget Helpers
   updateBudget: (updates: Partial<TripBudget>) => void;
 
-  // Day Activity Helpers
+  // Day Mutation Helpers (all route through canonical-updates pure functions)
   addDayActivity: (dayNumber: number, activity: Activity) => void;
   updateDayActivity: (dayNumber: number, activityIndex: number, activity: Activity) => void;
   removeDayActivity: (dayNumber: number, activityIndex: number) => void;
+  updateDayNotes: (dayNumber: number, notes: string) => void;
+  updateDayTitle: (dayNumber: number, title: string) => void;
+  updateDayType: (dayNumber: number, dayType: DayType) => void;
+  updateDayOvernight: (dayNumber: number, overnight: OvernightStop) => void;
 }
 
 // ==================== CONTEXT ====================
@@ -202,41 +215,44 @@ export function TripProvider({
     }));
   }, []);
 
-  // Day Activity Helpers
-  const updateSummaryDays = useCallback((dayNumber: number, updater: (day: TripDay) => TripDay) => {
-    setSummary((prev) => {
-      if (!prev || !prev.days) return prev;
-      return {
-        ...prev,
-        days: prev.days.map(day => 
-          day.dayNumber === dayNumber ? updater(day) : day
-        ),
-      };
+  // Day Mutation Helpers — all use canonical-updates pure functions as the
+  // single source of mutation rules. setSummary is the state write target
+  // until the context split (B2) promotes canonicalTimeline.days as primary.
+  const patchSummaryDays = useCallback((patcher: (days: TripDay[]) => TripDay[]) => {
+    setSummary(prev => {
+      if (!prev?.days) return prev;
+      const next = patcher(prev.days);
+      return next === prev.days ? prev : { ...prev, days: next };
     });
   }, []);
 
   const addDayActivity = useCallback((dayNumber: number, activity: Activity) => {
-    updateSummaryDays(dayNumber, (day) => ({
-      ...day,
-      plannedActivities: [...(day.plannedActivities || []), activity],
-    }));
-  }, [updateSummaryDays]);
+    patchSummaryDays(days => canonicalAddDayActivity(days, dayNumber, activity));
+  }, [patchSummaryDays]);
 
   const updateDayActivity = useCallback((dayNumber: number, activityIndex: number, activity: Activity) => {
-    updateSummaryDays(dayNumber, (day) => {
-      const newActivities = [...(day.plannedActivities || [])];
-      newActivities[activityIndex] = activity;
-      return { ...day, plannedActivities: newActivities };
-    });
-  }, [updateSummaryDays]);
+    patchSummaryDays(days => canonicalUpdateDayActivity(days, dayNumber, activityIndex, activity));
+  }, [patchSummaryDays]);
 
   const removeDayActivity = useCallback((dayNumber: number, activityIndex: number) => {
-    updateSummaryDays(dayNumber, (day) => {
-      const newActivities = [...(day.plannedActivities || [])];
-      newActivities.splice(activityIndex, 1);
-      return { ...day, plannedActivities: newActivities };
-    });
-  }, [updateSummaryDays]);
+    patchSummaryDays(days => canonicalRemoveDayActivity(days, dayNumber, activityIndex));
+  }, [patchSummaryDays]);
+
+  const updateDayNotes = useCallback((dayNumber: number, notes: string) => {
+    patchSummaryDays(days => canonicalUpdateDayNotes(days, dayNumber, notes));
+  }, [patchSummaryDays]);
+
+  const updateDayTitle = useCallback((dayNumber: number, title: string) => {
+    patchSummaryDays(days => canonicalUpdateDayTitle(days, dayNumber, title));
+  }, [patchSummaryDays]);
+
+  const updateDayType = useCallback((dayNumber: number, dayType: DayType) => {
+    patchSummaryDays(days => canonicalUpdateDayType(days, dayNumber, dayType));
+  }, [patchSummaryDays]);
+
+  const updateDayOvernight = useCallback((dayNumber: number, overnight: OvernightStop) => {
+    patchSummaryDays(days => canonicalUpdateOvernight(days, dayNumber, overnight));
+  }, [patchSummaryDays]);
 
   // Memoize so consumers only re-render when state they care about changes,
   // not on every unrelated TripProvider render.
@@ -261,11 +277,16 @@ export function TripProvider({
     addDayActivity,
     updateDayActivity,
     removeDayActivity,
+    updateDayNotes,
+    updateDayTitle,
+    updateDayType,
+    updateDayOvernight,
   }), [
     locations, vehicle, settings, summary, canonicalTimeline,
     setLocations, setVehicle, setSettings, setSummary, setCanonicalTimeline,
     updateLocation, addWaypoint, removeLocation, reorderLocations,
     updateBudget, addDayActivity, updateDayActivity, removeDayActivity,
+    updateDayNotes, updateDayTitle, updateDayType, updateDayOvernight,
   ]);
 
   return (

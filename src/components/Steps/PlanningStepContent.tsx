@@ -4,14 +4,13 @@ import { Step2Content } from './Step2Content';
 import { Step3Content } from './Step3Content';
 import type {
   Location, Vehicle, TripSettings, TripSummary, TripMode, TripChallenge,
-  POISuggestion, TripJournal,
+  POISuggestion, TripJournal, StopType,
 } from '../../types';
 import type { StylePreset } from '../../lib/style-presets';
 import type { ViewMode } from '../../hooks/useJournal';
 import type { TemplateImportResult } from '../../lib/url';
 import type { SuggestedStop } from '../../lib/stop-suggestions';
 import type { PlanningStep } from '../../hooks/useWizard';
-import type { StopType, DayType, OvernightStop } from '../../types';
 import type { TimedEvent } from '../../lib/trip-timeline';
 
 interface PlanningStepContentProps {
@@ -52,10 +51,6 @@ interface PlanningStepContentProps {
   suggestedOvernightStop: Location | null;
   onDismissOvernight: () => void;
   onUpdateStopType: (idx: number, t: StopType) => void;
-  onUpdateDayNotes: (day: number, notes: string) => void;
-  onUpdateDayTitle: (day: number, title: string) => void;
-  onUpdateDayType: (day: number, t: DayType) => void;
-  onUpdateOvernight: (day: number, o: OvernightStop) => void;
   // Step 3 — POI
   poiSuggestions: POISuggestion[];
   poiInference?: POISuggestion[];
@@ -118,10 +113,6 @@ export function PlanningStepContent(p: PlanningStepContentProps) {
       onStartJournal={p.onStartJournal}
       onUpdateJournal={p.onUpdateJournal}
       onUpdateStopType={p.onUpdateStopType}
-      onUpdateDayNotes={p.onUpdateDayNotes}
-      onUpdateDayTitle={p.onUpdateDayTitle}
-      onUpdateDayType={p.onUpdateDayType}
-      onUpdateOvernight={p.onUpdateOvernight}
       onDismissOvernight={p.onDismissOvernight}
       onAddPOI={p.onAddPOI} onDismissPOI={p.onDismissPOI}
       onGoToStep={p.onGoToStep}

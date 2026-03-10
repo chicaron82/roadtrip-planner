@@ -14,7 +14,7 @@ import {
   useWizard, useTripCalculation, useJournal, usePOI, useEagerRoute, useAddedStops,
   useStylePreset, useTripMode, useTripLoader, useMapInteractions, useURLHydration,
   usePlanningStepProps, useAppReset, useCalculateAndDiscover, useMapProps, useGhostCar,
-  useAppCallbacks,
+  useAppCallbacks, useTripRestore,
 } from './hooks';
 import { useArrivalSnap } from './hooks/useArrivalSnap';
 import { getHistory } from './lib/storage';
@@ -68,7 +68,7 @@ function AppContent() {
     strategicFuelStops, showOvernightPrompt, suggestedOvernightStop,
     dismissOvernightPrompt, calculateTrip,
     routeStrategies, activeStrategyIndex, selectStrategy,
-    updateStopType, updateDayNotes, updateDayTitle, updateDayType, updateDayOvernight,
+    updateStopType,
     rebuildCanonicalWithExternals,
     clearError: clearCalcError, clearTripCalculation,
   } = useTripCalculation({
@@ -156,6 +156,13 @@ function AppContent() {
     setActiveChallenge, setTripOrigin, setTripConfirmed, setTripMode, setShowAdventureMode,
   });
 
+  const { restoreTripSession } = useTripRestore({
+    setLocations,
+    calculateAndDiscover,
+    forceStep,
+    markStepComplete,
+  });
+
   // ==================== RENDER ====================
 
   const hasActiveSession = locations.some(loc => loc.name && loc.name.trim() !== '');
@@ -186,9 +193,10 @@ function AppContent() {
     addedStopCount: addedStops.length,
     externalStops: [...asSuggestedStops, ...mirroredReturnStops],
     shareUrl, showOvernightPrompt, suggestedOvernightStop, dismissOvernightPrompt,
-    updateStopType, updateDayNotes, updateDayTitle, updateDayType, updateDayOvernight,
+    updateStopType,
     poiSuggestions, poiInference, isLoadingPOIs, poiPartialResults, poiFetchFailed, addPOI, addStop, dismissPOI,
     openInGoogleMaps, copyShareLink,
+    onLoadHistoryTrip: restoreTripSession,
     precomputedEvents: canonicalTimeline?.events,
     isCalculating,
   });
