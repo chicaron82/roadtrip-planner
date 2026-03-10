@@ -28,7 +28,7 @@ export interface TripPrintViewProps {
 
 export function printTrip(props: TripPrintViewProps): void {
   const {
-    printInput: { summary, settings, inputs, days },
+    printInput: { summary, settings, days },
   } = props;
 
   if (!props.precomputedEvents.length) {
@@ -70,12 +70,9 @@ export function printTrip(props: TripPrintViewProps): void {
 
   const html = buildPrintHTML(
     tripTitle,
-    summary,
-    settings,
-    days.map(day => day.meta),
+    printInput,
     driverRotation,
     timedEvents,
-    inputs.vehicle,
   );
 
   // Open print window

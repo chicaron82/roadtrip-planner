@@ -7,10 +7,11 @@
  * Pure HTML string builder — no React, no DOM.
  */
 
-import type { TripSummary, TripSettings, Vehicle } from '../types';
+import type { TripSettings, Vehicle } from '../types';
 import type { DriverRotationResult } from './driver-rotation';
 import type { FeasibilityResult } from './feasibility/types';
 import type { WarningCategory } from './feasibility/types';
+import type { PrintCoverSummary } from './trip-summary-slices';
 import { formatCurrency, formatDistance } from './trip-print-formatters';
 import { formatDriveTime, getDriverName } from './driver-rotation';
 
@@ -30,7 +31,7 @@ const WARNING_EMOJI: Record<WarningCategory, string> = {
 
 function buildHeroSection(
   tripTitle: string,
-  summary: TripSummary,
+  summary: PrintCoverSummary,
   settings: TripSettings,
 ): string {
   const days = summary.days ?? [];
@@ -61,7 +62,7 @@ function buildHeroSection(
 }
 
 function buildBudgetStatusCard(
-  summary: TripSummary,
+  summary: PrintCoverSummary,
   settings: TripSettings,
   feasibility: FeasibilityResult,
 ): string {
@@ -140,7 +141,7 @@ function buildWarningsSection(feasibility: FeasibilityResult): string {
 }
 
 function buildPacingSection(
-  summary: TripSummary,
+  summary: PrintCoverSummary,
   settings: TripSettings,
   vehicle?: Vehicle,
 ): string {
@@ -216,7 +217,7 @@ function buildRosterSection(
 
 export function buildCoverPageHTML(
   tripTitle: string,
-  summary: TripSummary,
+  summary: PrintCoverSummary,
   settings: TripSettings,
   feasibility: FeasibilityResult,
   driverRotation: DriverRotationResult | null,

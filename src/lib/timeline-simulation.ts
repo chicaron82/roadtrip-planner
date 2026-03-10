@@ -1,5 +1,6 @@
-import type { TripSummary, TripSettings, Vehicle, TripDay } from '../types';
+import type { TripSettings, Vehicle, TripDay } from '../types';
 import type { SuggestedStop } from './stop-suggestions';
+import type { AcceptedItineraryRouteSummary } from './trip-summary-slices';
 import { buildTimedTimeline, type TimedEvent } from './trip-timeline';
 
 export interface SimulationItem {
@@ -9,7 +10,7 @@ export interface SimulationItem {
   timezone?: string;
   cost?: number;
   litres?: number;
-  segment?: TripSummary['segments'][number];
+  segment?: AcceptedItineraryRouteSummary['segments'][number];
   /** Flat sub-segment index — unique per iteration item.
    *  Used for dayStartMap keying and React keys. */
   index?: number;
@@ -21,7 +22,7 @@ export interface SimulationItem {
 }
 
 interface BuildSimulationItemsParams {
-  summary: TripSummary;
+  summary: AcceptedItineraryRouteSummary;
   settings: TripSettings;
   vehicle: Vehicle | undefined;
   days: TripDay[] | undefined;

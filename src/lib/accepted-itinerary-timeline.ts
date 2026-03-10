@@ -1,9 +1,10 @@
-import type { TripDay, TripSettings, TripSummary } from '../types';
+import type { TripDay, TripSettings } from '../types';
 import type { AcceptedItineraryTimeline, CanonicalTripDay } from './canonical-trip';
 import type { SuggestedStop } from './stop-suggestions';
 import type { TimedEvent } from './trip-timeline';
 import { buildTimedTimeline } from './trip-timeline';
 import { formatDateInZone } from './trip-timezone';
+import type { AcceptedItineraryRouteSummary } from './trip-summary-slices';
 
 export function groupEventsByTripDay(events: TimedEvent[], tripDays: TripDay[]): CanonicalTripDay[] {
   return tripDays.map(day => {
@@ -29,7 +30,7 @@ export function groupEventsByTripDay(events: TimedEvent[], tripDays: TripDay[]):
 }
 
 interface BuildAcceptedItineraryTimelineParams {
-  summary: TripSummary;
+  summary: AcceptedItineraryRouteSummary;
   settings: TripSettings;
   tripDays: TripDay[];
   startTime: Date;

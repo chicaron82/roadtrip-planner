@@ -1,10 +1,11 @@
-import type { TripDay, TripSettings, TripSummary, Vehicle } from '../types';
+import type { TripDay, TripSettings, Vehicle } from '../types';
 import type { AcceptedItineraryInput } from './canonical-trip';
 import type { SuggestedStop } from './stop-suggestions';
 import { assignDrivers, extractFuelStopIndices } from './driver-rotation';
 import { buildAcceptedItineraryTimeline } from './accepted-itinerary-timeline';
 import { buildDayPlacementMaps, type DayStartEntry } from './day-placement-maps';
 import { buildSimulationItems } from './timeline-simulation';
+import type { AcceptedItineraryRouteSummary } from './trip-summary-slices';
 
 export interface AcceptedItineraryProjection {
   acceptedItinerary: AcceptedItineraryInput;
@@ -17,7 +18,7 @@ export interface AcceptedItineraryProjection {
 }
 
 interface BuildAcceptedItineraryProjectionParams {
-  summary: TripSummary;
+  summary: AcceptedItineraryRouteSummary;
   settings: TripSettings;
   vehicle?: Vehicle;
   days?: TripDay[];

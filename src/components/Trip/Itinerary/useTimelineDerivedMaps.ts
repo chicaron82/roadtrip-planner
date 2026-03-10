@@ -1,13 +1,14 @@
 import { useMemo } from 'react';
-import type { TripSummary, TripSettings, Vehicle, TripDay } from '../../../types';
+import type { TripSettings, Vehicle, TripDay } from '../../../types';
 import type { AcceptedItineraryInput } from '../../../lib/canonical-trip';
 import type { AcceptedItineraryProjection } from '../../../lib/accepted-itinerary-projection';
 import type { DayStartEntry } from '../../../lib/day-placement-maps';
 import type { SuggestedStop } from '../../../lib/stop-suggestions';
 import { buildAcceptedItineraryProjection } from '../../../lib/accepted-itinerary-projection';
+import type { AcceptedItineraryRouteSummary } from '../../../lib/trip-summary-slices';
 
 interface UseTimelineDerivedMapsParams {
-  summary: TripSummary;
+  summary: AcceptedItineraryRouteSummary;
   settings: TripSettings;
   vehicle?: Vehicle;
   days?: TripDay[];

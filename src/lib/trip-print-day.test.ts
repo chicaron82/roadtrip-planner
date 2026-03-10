@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { TripDay, TripSettings, TripSummary } from '../types';
+import type { TripDay, TripSettings, TripSummary, Vehicle } from '../types';
+import type { PrintInput } from './canonical-trip';
 import type { TimedEvent } from './trip-timeline-types';
 import { buildDayHTML } from './trip-print-day';
 import { buildPrintHTML } from './trip-print-builders';
@@ -130,6 +131,25 @@ const SUMMARY: TripSummary = {
   },
   budgetStatus: 'under',
   budgetRemaining: 30,
+};
+
+const VEHICLE: Vehicle = {
+  year: '2022',
+  make: 'Toyota',
+  model: 'Sienna',
+  fuelEconomyCity: 10.5,
+  fuelEconomyHwy: 7.9,
+  tankSize: 68,
+};
+
+const PRINT_INPUT: PrintInput = {
+  summary: SUMMARY,
+  days: [{ meta: DAY, events: EVENTS }],
+  inputs: {
+    locations: [],
+    vehicle: VEHICLE,
+    settings: SETTINGS,
+  },
 };
 
 const DAY_TRIP_DAY: TripDay = {
@@ -266,7 +286,7 @@ describe('buildDayHTML', () => {
 
 describe('buildPrintHTML budget messaging', () => {
   it('renders cover page with budget health, BEAST MODE badge, and itinerary header', () => {
-    const html = buildPrintHTML('Winnipeg → Montreal', SUMMARY, SETTINGS, [DAY], null, EVENTS);
+    const html = buildPrintHTML('Winnipeg → Montreal', PRINT_INPUT, null, EVENTS);
 
     // Cover page budget card
     expect(html).toContain('Budget is sound');

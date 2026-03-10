@@ -9,9 +9,9 @@
  *   Page 2+ — day-by-day itinerary (buildDayHTML × N)
  */
 
-import type { TripSummary, TripSettings, TripDay, Vehicle } from '../types';
 import type { DriverRotationResult } from './driver-rotation';
 import { computeSwapAssignments } from './driver-rotation';
+import type { PrintInput } from './canonical-trip';
 import type { TimedEvent } from './trip-timeline';
 import { buildDayHTML } from './trip-print-day';
 import { PRINT_STYLES } from './trip-print-styles';
@@ -20,13 +20,16 @@ import { analyzeFeasibility } from './feasibility';
 
 export function buildPrintHTML(
   tripTitle: string,
-  summary: TripSummary,
-  settings: TripSettings,
-  days: TripDay[],
+  printInput: PrintInput,
   driverRotation: DriverRotationResult | null,
   timedEvents: TimedEvent[],
-  vehicle?: Vehicle,
 ): string {
+  const {
+    summary,
+    days,
+    inputs: { settings, vehicle },
+  } = printInput;
+  const itineraryDays = days.map(day => day.meta);
   const units = settings.units;
   let runningTripSpend = 0;
 
@@ -48,7 +51,7 @@ export function buildPrintHTML(
   const feasibility = analyzeFeasibility(summary, settings);
   const coverHTML = buildCoverPageHTML(tripTitle, summary, settings, feasibility, driverRotation, vehicle);
 
-  const daysHTML = days.map(day => {
+  const daysHTML = itineraryDays.map(day => {
     runningTripSpend += day.budget.dayTotal;
     const tripBudgetRemaining = settings.budgetMode === 'plan-to-budget' && settings.budget.total > 0
       ? settings.budget.total - runningTripSpend

@@ -1,6 +1,7 @@
-import type { TripJournal, TripSummary, TripTemplate } from '../../types';
+import type { TripJournal, TripTemplate } from '../../types';
+import type { SegmentLookupSummary } from '../trip-summary-slices';
 
-export function generateDefaultTitle(summary: TripSummary): string {
+export function generateDefaultTitle(summary: SegmentLookupSummary): string {
   const origin = summary.segments[0]?.from.name.split(',')[0] || 'Start';
   const dest = summary.segments[summary.segments.length - 1]?.to.name.split(',')[0] || 'Destination';
   return `${origin} to ${dest}`;
@@ -34,7 +35,7 @@ export function determineBudgetLevel(total: number): 'budget' | 'moderate' | 'co
   return 'comfort';
 }
 
-export function extractLocations(summary: TripSummary): TripTemplate['route']['locations'] {
+export function extractLocations(summary: SegmentLookupSummary): TripTemplate['route']['locations'] {
   const locations = [summary.segments[0]?.from];
 
   // Add unique waypoints

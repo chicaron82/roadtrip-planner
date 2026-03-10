@@ -1,13 +1,14 @@
-import type { TripJournal, TripSummary, TripSettings } from '../types';
+import type { TripJournal, TripSettings } from '../types';
 import { showToast } from './toast';
 import { escapeHtml } from './utils';
 import { getExportBudgetBreakdown, getTripDisplayEndpoints } from './trip-summary-view';
 import { resolveJournalEntryLocation } from './journal-trip-view';
+import type { JournalExportSummary, SegmentLookupSummary } from './trip-summary-slices';
 
 /**
  * Export the trip journal as a downloadable HTML file.
  */
-export function exportJournalAsHTML(journal: TripJournal, summary: TripSummary): void {
+export function exportJournalAsHTML(journal: TripJournal, summary: SegmentLookupSummary): void {
   const journalHTML = `
 <!DOCTYPE html>
 <html>
@@ -112,7 +113,7 @@ export function exportJournalAsHTML(journal: TripJournal, summary: TripSummary):
 /**
  * Export the trip as a loadable JSON template that others can import.
  */
-export function exportJournalAsTemplate(journal: TripJournal, summary: TripSummary, settings: TripSettings): void {
+export function exportJournalAsTemplate(journal: TripJournal, summary: JournalExportSummary, settings: TripSettings): void {
   const endpoints = getTripDisplayEndpoints(summary);
   const exportBudget = getExportBudgetBreakdown(summary);
 
