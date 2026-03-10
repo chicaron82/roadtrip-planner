@@ -31,7 +31,6 @@ export {
 export type { StrategicFuelStop } from './fuel-stops';
 export {
   calculateHumanFuelCosts,
-  calculateStrategicFuelStops,
   STOP_DURATIONS,
   STOP_LABELS,
 } from './fuel-stops';
@@ -160,5 +159,3 @@ export function calculateArrivalTimes(
     };
   });
 }
-
-

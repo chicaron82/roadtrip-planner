@@ -89,26 +89,7 @@ export async function getJournal(id: string): Promise<TripJournal | null> {
   });
 }
 
-/**
- * Get all journals
- */
-export async function getAllJournals(): Promise<TripJournal[]> {
-  const db = await openDB();
 
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORES.JOURNALS, 'readonly');
-    const store = tx.objectStore(STORES.JOURNALS);
-    const request = store.getAll();
-
-    request.onsuccess = () => {
-      // Sort by updatedAt descending
-      const journals = request.result as TripJournal[];
-      journals.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-      resolve(journals);
-    };
-    request.onerror = () => reject(request.error);
-  });
-}
 
 /**
  * Update a journal
@@ -130,18 +111,3 @@ export async function updateJournal(journal: TripJournal): Promise<TripJournal> 
   });
 }
 
-/**
- * Delete a journal
- */
-export async function deleteJournal(id: string): Promise<void> {
-  const db = await openDB();
-
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORES.JOURNALS, 'readwrite');
-    const store = tx.objectStore(STORES.JOURNALS);
-    const request = store.delete(id);
-
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  });
-}

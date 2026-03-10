@@ -73,7 +73,7 @@ const fromBase64 = (encoded: string): string => {
   }
 };
 
-export const encodePreset = (preset: StylePreset): string => {
+const encodePreset = (preset: StylePreset): string => {
   const payload: PresetPayload = {
     v: 1,
     id: preset.id,
@@ -90,7 +90,7 @@ export const encodePreset = (preset: StylePreset): string => {
   }
 };
 
-export const decodePreset = (encoded: string): StylePreset | null => {
+const decodePreset = (encoded: string): StylePreset | null => {
   try {
     const payload = JSON.parse(fromBase64(encoded)) as PresetPayload;
     if (payload.v !== 1 || !payload.id || !payload.n) return null;
@@ -122,7 +122,7 @@ export const parsePresetFromURL = (): StylePreset | null => {
 };
 
 /** Build a shareable URL with the preset encoded as ?style=… */
-export const buildShareURL = (preset: StylePreset): string => {
+const buildShareURL = (preset: StylePreset): string => {
   const url = new URL(window.location.href);
   url.search = '';
   url.hash = '';

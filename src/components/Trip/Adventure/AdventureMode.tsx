@@ -1,4 +1,4 @@
-import { Compass, MapPin, Sparkles, X } from 'lucide-react';
+import { Compass, MapPin, X } from 'lucide-react';
 import type { Location, TripPreference } from '../../../types';
 import { LocationSearchInput } from '../Location/LocationSearchInput';
 import { AdventureFormPanel } from './AdventureFormPanel';
@@ -148,34 +148,4 @@ export function AdventureMode({
   );
 }
 
-// ── Adventure Mode Trigger Button ────────────────────────────────────────────
-// Pure display component — no controller needed.
 
-interface AdventureButtonProps {
-  onClick: () => void;
-  className?: string;
-}
-
-export function AdventureButton({ onClick, className }: AdventureButtonProps) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'w-full p-4 rounded-xl border-2 border-dashed border-purple-300 bg-gradient-to-r from-purple-50 to-indigo-50',
-        'hover:border-purple-400 hover:shadow-md transition-all group',
-        className
-      )}
-    >
-      <div className="flex items-center justify-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center group-hover:scale-110 transition-transform">
-          <Compass className="h-5 w-5 text-purple-600" />
-        </div>
-        <div className="text-left">
-          <div className="font-bold text-purple-900">I'm Feeling Adventurous</div>
-          <div className="text-xs text-purple-600">Enter a budget, see how far you can go!</div>
-        </div>
-        <Sparkles className="h-5 w-5 text-purple-400 group-hover:text-purple-600 transition-colors" />
-      </div>
-    </button>
-  );
-}

@@ -5,7 +5,7 @@
  * and the "last trip budget" recall feature.
  */
 
-import type { SavedBudgetProfile, LastTripBudget, TripBudget } from '../types';
+import type { SavedBudgetProfile, LastTripBudget } from '../types';
 
 const STORAGE_VERSION = 1;
 
@@ -91,62 +91,7 @@ export const setDefaultBudgetProfile = (id: string): void => {
   }
 };
 
-export const getDefaultBudgetProfile = (): SavedBudgetProfile | null => {
-  const profiles = getBudgetProfiles();
-  const defaultId = localStorage.getItem(KEYS.DEFAULT_BUDGET_PROFILE);
 
-  if (defaultId) {
-    const profile = profiles.find(p => p.id === defaultId);
-    if (profile) return profile;
-  }
-
-  // Fallback to most recently used
-  if (profiles.length > 0) {
-    const sorted = [...profiles].sort((a, b) => {
-      const aTime = a.lastUsed ? new Date(a.lastUsed).getTime() : 0;
-      const bTime = b.lastUsed ? new Date(b.lastUsed).getTime() : 0;
-      return bTime - aTime;
-    });
-    return sorted[0];
-  }
-
-  return null;
-};
-
-/** Update profile stats after a trip is completed. */
-export const updateBudgetProfileStats = (id: string, tripName: string): void => {
-  const profiles = getBudgetProfiles();
-  const index = profiles.findIndex(p => p.id === id);
-
-  if (index >= 0) {
-    profiles[index] = {
-      ...profiles[index],
-      lastUsed: new Date().toISOString(),
-      stats: {
-        timesUsed: (profiles[index].stats?.timesUsed || 0) + 1,
-        lastTripName: tripName,
-        lastTripDate: new Date().toISOString(),
-      },
-    };
-    try {
-      localStorage.setItem(KEYS.BUDGET_PROFILES, JSON.stringify(profiles));
-    } catch (e) {
-      console.warn('Failed to update budget profile stats', e);
-    }
-  }
-};
-
-/** Smart suggestion: find profile matching traveler count, else return default. */
-export const suggestBudgetProfile = (numTravelers?: number): SavedBudgetProfile | null => {
-  const profiles = getBudgetProfiles();
-
-  if (numTravelers) {
-    const match = profiles.find(p => p.numTravelers === numTravelers);
-    if (match) return match;
-  }
-
-  return getDefaultBudgetProfile();
-};
 
 // --- Last Trip Budget Recall ---
 
@@ -159,20 +104,4 @@ export const getLastTripBudget = (): LastTripBudget | null => {
   }
 };
 
-export const saveLastTripBudget = (
-  tripName: string,
-  budget: TripBudget,
-  numTravelers: number
-): void => {
-  const lastTrip: LastTripBudget = {
-    tripName,
-    tripDate: new Date().toISOString(),
-    budget,
-    numTravelers,
-  };
-  try {
-    localStorage.setItem(KEYS.LAST_TRIP_BUDGET, JSON.stringify(lastTrip));
-  } catch (e) {
-    console.warn('Failed to save last trip budget', e);
-  }
-};
+

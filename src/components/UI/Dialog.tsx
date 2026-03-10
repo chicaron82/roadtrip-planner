@@ -41,69 +41,7 @@ function Dialog({ open = false, onOpenChange, children }: DialogProps) {
   );
 }
 
-// ==================== Trigger ====================
 
-const DialogTrigger = React.forwardRef<
-  HTMLButtonElement,
-  React.ButtonHTMLAttributes<HTMLButtonElement>
->(({ onClick, ...props }, ref) => {
-  const { onOpenChange } = React.useContext(DialogContext);
-  return (
-    <button
-      type="button"
-      ref={ref}
-      onClick={(e) => {
-        onOpenChange(true);
-        onClick?.(e);
-      }}
-      {...props}
-    />
-  );
-});
-DialogTrigger.displayName = "DialogTrigger";
-
-// ==================== Portal + Overlay ====================
-
-// DialogPortal just renders children in a portal
-function DialogPortal({ children }: { children: React.ReactNode }) {
-  return createPortal(children, document.body);
-}
-
-const DialogOverlay = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn(
-      "fixed inset-0 z-[1100] bg-black/80 animate-in fade-in-0",
-      className
-    )}
-    {...props}
-  />
-));
-DialogOverlay.displayName = "DialogOverlay";
-
-// ==================== Close ====================
-
-const DialogClose = React.forwardRef<
-  HTMLButtonElement,
-  React.ButtonHTMLAttributes<HTMLButtonElement>
->(({ onClick, ...props }, ref) => {
-  const { onOpenChange } = React.useContext(DialogContext);
-  return (
-    <button
-      type="button"
-      ref={ref}
-      onClick={(e) => {
-        onOpenChange(false);
-        onClick?.(e);
-      }}
-      {...props}
-    />
-  );
-});
-DialogClose.displayName = "DialogClose";
 
 // ==================== Content ====================
 
@@ -135,7 +73,10 @@ const DialogContent = React.forwardRef<
 
   return createPortal(
     <>
-      <DialogOverlay onClick={() => onOpenChange(false)} />
+      <div
+        className="fixed inset-0 z-[1100] bg-black/80 animate-in fade-in-0"
+        onClick={() => onOpenChange(false)}
+      />
       <div
         ref={ref}
         role="dialog"
@@ -223,10 +164,6 @@ DialogDescription.displayName = "DialogDescription"
 
 export {
   Dialog,
-  DialogPortal,
-  DialogOverlay,
-  DialogClose,
-  DialogTrigger,
   DialogContent,
   DialogHeader,
   DialogFooter,

@@ -303,7 +303,7 @@ const SOUTHEAST_FILLS: SeedHub[] = [
 
 // ─── Combined Export ──────────────────────────────────────────────────────────
 
-export const SEED_HUBS: SeedHub[] = [
+const SEED_HUBS: SeedHub[] = [
   ...I94_CORRIDOR,
   ...I90_CORRIDOR,
   ...TRANS_CANADA_CENTRAL,
@@ -331,7 +331,7 @@ export const SEED_HUBS: SeedHub[] = [
  * Called once in main.tsx before React mounts.
  * Clears stale discovered hubs when CACHE_VERSION bumps.
  */
-export function initializeHubCache(): void {
+function initializeHubCache(): void {
   try {
     const storedVersion = localStorage.getItem(CACHE_VERSION_KEY);
     if (storedVersion !== CACHE_VERSION) {

@@ -25,11 +25,7 @@ export {
   saveBudgetProfile,
   removeBudgetProfile,
   setDefaultBudgetProfile,
-  getDefaultBudgetProfile,
-  updateBudgetProfileStats,
-  suggestBudgetProfile,
   getLastTripBudget,
-  saveLastTripBudget,
 } from './storage-budget';
 
 export interface SavedLocation extends Location {

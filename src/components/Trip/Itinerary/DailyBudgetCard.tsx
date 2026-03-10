@@ -138,37 +138,3 @@ export function DailyBudgetCard({ budget, dayNumber, budgetMode, className }: Da
   );
 }
 
-// Compact version for inline display
-interface DailyBudgetBadgeProps {
-  budget: DayBudget;
-  className?: string;
-}
-
-export function DailyBudgetBadge({ budget, className }: DailyBudgetBadgeProps) {
-  return (
-    <div
-      className={cn(
-        "inline-flex items-center gap-3 px-3 py-1.5 rounded-full bg-muted text-xs",
-        className
-      )}
-    >
-      <span className="flex items-center gap-1">
-        <Fuel className="h-3 w-3 text-orange-500" />
-        ${budget.gasUsed.toFixed(0)}
-      </span>
-      {budget.hotelCost > 0 && (
-        <span className="flex items-center gap-1">
-          <Hotel className="h-3 w-3 text-blue-500" />
-          ${budget.hotelCost.toFixed(0)}
-        </span>
-      )}
-      <span className="flex items-center gap-1">
-        <Utensils className="h-3 w-3 text-green-500" />
-        ${budget.foodEstimate.toFixed(0)}
-      </span>
-      <span className="font-semibold text-foreground border-l border-border pl-3">
-        ${budget.dayTotal.toFixed(0)}
-      </span>
-    </div>
-  );
-}

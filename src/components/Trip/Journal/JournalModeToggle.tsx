@@ -194,37 +194,3 @@ export function StartJournalCTA({ onStart, className, defaultName, tripMode = 'p
   );
 }
 
-// Active Trip Indicator
-interface ActiveTripIndicatorProps {
-  tripTitle: string;
-  dayNumber: number;
-  photosCount: number;
-  className?: string;
-}
-
-export function ActiveTripIndicator({
-  tripTitle,
-  dayNumber,
-  photosCount,
-  className,
-}: ActiveTripIndicatorProps) {
-  return (
-    <div
-      className={cn(
-        'flex items-center justify-between px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-purple-600 text-white',
-        className
-      )}
-    >
-      <div className="flex items-center gap-2">
-        <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-        <span className="text-sm font-medium">
-          Day {dayNumber}: {tripTitle}
-        </span>
-      </div>
-
-      <div className="flex items-center gap-3 text-xs text-purple-100">
-        <span>{photosCount} photos</span>
-      </div>
-    </div>
-  );
-}

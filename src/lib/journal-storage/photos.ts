@@ -6,7 +6,7 @@ const JPEG_QUALITY = 0.8;
 /**
  * Compress an image file to a smaller data URL
  */
-export async function compressPhoto(file: File): Promise<string> {
+async function compressPhoto(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 

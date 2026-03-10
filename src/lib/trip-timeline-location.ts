@@ -76,7 +76,15 @@ export function createTimelineLocationResolver(
     // validated — skip the endpoint-boundary guard that isResolvedLabelUsable applies,
     // which incorrectly rejects names that happen to match a route waypoint (e.g.
     // "Thunder Bay" for a stop 80 km before Thunder Bay).
-    if (hubName && hubName.trim() && !/unorganized/i.test(hubName)) return `near ${hubName.trim()}`;
+    if (hubName && hubName.trim() && !/unorganized/i.test(hubName)) {
+      const trimmed = hubName.trim();
+      // Apply the same endpoint-leakage guard for hub names that match route endpoints
+      if (routeEndpointNames.has(trimmed) && !isNearTrueBoundary(trimmed, km)) {
+        // Fall through to km-based hint
+      } else {
+        return `near ${trimmed}`;
+      }
+    }
     const rounded = Math.round(km / 5) * 5;
     return `~${rounded} km into trip`;
   };

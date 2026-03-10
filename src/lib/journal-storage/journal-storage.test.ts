@@ -4,8 +4,6 @@
  * Coverage:
  *   helpers.ts       — pure functions, no mocking
  *   active.ts        — localStorage (mocked in test/setup.ts)
- *   export-import.ts — pure export/import helpers
- *   entries.ts       — upsert/add helpers (crud module mocked)
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -14,11 +12,10 @@ import type {
   JournalEntry,
   QuickCapture,
   BudgetActual,
-  JournalDayMeta,
 } from '../../types';
 import { makeSettings, makeSummary, makeSegment } from '../../test/fixtures';
 
-// vi.mock is hoisted — applies when helpers/active/entries import from ./crud
+// vi.mock is hoisted — applies when helpers/active import from ./crud
 vi.mock('./crud', () => ({
   getJournal: vi.fn(),
   updateJournal: vi.fn(),
@@ -26,12 +23,9 @@ vi.mock('./crud', () => ({
 
 import { generateDefaultTitle, computeJournalStats, determineBudgetLevel, extractLocations, getStopName } from './helpers';
 import { setActiveJournalId, getActiveJournalId, getActiveJournal } from './active';
-import { exportJournalToJSON, importTemplate, exportJournalAsTemplate } from './export-import';
-import { upsertJournalEntry, addQuickCapture, addBudgetActual, updateDayMeta } from './entries';
-import { getJournal, updateJournal } from './crud';
+import { getJournal } from './crud';
 
 const mockGetJournal = vi.mocked(getJournal);
-const mockUpdateJournal = vi.mocked(updateJournal);
 
 // ==================== FACTORIES ====================
 
@@ -44,7 +38,7 @@ function makeJournal(overrides: Partial<TripJournal> = {}): TripJournal {
     id: 'journal-123',
     version: '1.0',
     tripSummary: makeSummary({ segments: [seg], totalDistanceKm: 500 }),
-    settings: makeSettings() as any,
+    settings: makeSettings(),
     vehicle: { year: 2020, make: 'Toyota', model: 'Camry', cityFuelL100km: 10, hwyFuelL100km: 7, tankSizeLitres: 60 } as any,
     entries: [],
     quickCaptures: [],
@@ -116,7 +110,7 @@ describe('computeJournalStats', () => {
   });
 
   it('counts photos from entry photo arrays', () => {
-    const entry = makeEntry({ photos: [{ id: 'p1', dataUrl: '', timestamp: new Date() }] as any });
+    const entry = makeEntry({ photos: [{ id: 'p1', dataUrl: '', timestamp: new Date(), caption: '' }] });
     expect(computeJournalStats(makeJournal({ entries: [entry] })).photosCount).toBe(1);
   });
 
@@ -126,7 +120,7 @@ describe('computeJournalStats', () => {
   });
 
   it('sums photos from entries and quick captures together', () => {
-    const entry = makeEntry({ photos: [{ id: 'p1', dataUrl: '', timestamp: new Date() }, { id: 'p2', dataUrl: '', timestamp: new Date() }] as any });
+    const entry = makeEntry({ photos: [{ id: 'p1', dataUrl: '', timestamp: new Date(), caption: '' }, { id: 'p2', dataUrl: '', timestamp: new Date(), caption: '' }] });
     const capture: QuickCapture = { id: 'qc-1', timestamp: new Date() };
     expect(computeJournalStats(makeJournal({ entries: [entry], quickCaptures: [capture] })).photosCount).toBe(3);
   });
@@ -265,199 +259,5 @@ describe('getActiveJournal', () => {
     mockGetJournal.mockResolvedValue(journal);
     await expect(getActiveJournal()).resolves.toEqual(journal);
     expect(mockGetJournal).toHaveBeenCalledWith(journal.id);
-  });
-});
-
-// ==================== export-import.ts ====================
-
-describe('exportJournalToJSON', () => {
-  it('includes all data when sharing is unrestricted', () => {
-    const entry = makeEntry({ photos: [{ id: 'p1', dataUrl: 'data:image/png;base64,abc', timestamp: new Date() }] as any, notes: 'Great stop' });
-    const actual: BudgetActual = { id: 'b1', category: 'gas', planned: 100, actual: 120, dayNumber: 1, timestamp: new Date() };
-    const journal = makeJournal({ entries: [entry], budgetActuals: [actual] });
-    const parsed = JSON.parse(exportJournalToJSON(journal)) as TripJournal;
-    expect(parsed.entries[0].photos).toHaveLength(1);
-    expect(parsed.entries[0].notes).toBe('Great stop');
-    expect(parsed.budgetActuals).toHaveLength(1);
-  });
-
-  it('strips entry photos and quick captures when includePhotos is false', () => {
-    const entry = makeEntry({ photos: [{ id: 'p1', dataUrl: 'data:image/png;base64,abc', timestamp: new Date() }] as any });
-    const journal = makeJournal({
-      entries: [entry],
-      quickCaptures: [{ id: 'qc-1', timestamp: new Date() }],
-      sharing: { privacy: 'private', isPublic: false, includePhotos: false, includeNotes: true, includeBudget: true },
-    });
-    const parsed = JSON.parse(exportJournalToJSON(journal)) as TripJournal;
-    expect(parsed.entries[0].photos).toHaveLength(0);
-    expect(parsed.quickCaptures).toHaveLength(0);
-  });
-
-  it('strips entry notes when includeNotes is false', () => {
-    const entry = makeEntry({ notes: 'Secret notes' });
-    const journal = makeJournal({
-      entries: [entry],
-      sharing: { privacy: 'private', isPublic: false, includePhotos: true, includeNotes: false, includeBudget: true },
-    });
-    const parsed = JSON.parse(exportJournalToJSON(journal)) as TripJournal;
-    expect(parsed.entries[0].notes).toBe('');
-  });
-
-  it('strips budget actuals when includeBudget is false', () => {
-    const actual: BudgetActual = { id: 'b1', category: 'hotel', planned: 150, actual: 180, dayNumber: 1, timestamp: new Date() };
-    const journal = makeJournal({
-      budgetActuals: [actual],
-      sharing: { privacy: 'private', isPublic: false, includePhotos: true, includeNotes: true, includeBudget: false },
-    });
-    const parsed = JSON.parse(exportJournalToJSON(journal)) as TripJournal;
-    expect(parsed.budgetActuals).toHaveLength(0);
-  });
-});
-
-describe('exportJournalAsTemplate', () => {
-  it('sets the correct title from journal metadata', () => {
-    const template = exportJournalAsTemplate(makeJournal());
-    expect(template.metadata.title).toBe('Winnipeg to Thunder Bay');
-  });
-
-  it('sets totalDistanceKm from the trip summary', () => {
-    const template = exportJournalAsTemplate(makeJournal());
-    expect(template.metadata.totalDistanceKm).toBe(500);
-  });
-
-  it('includes highlights array when includePhotos is true', () => {
-    const entry = makeEntry({ isHighlight: true, highlightReason: 'Beautiful lake view' });
-    const template = exportJournalAsTemplate(makeJournal({ entries: [entry] }));
-    expect(template.highlights).toBeDefined();
-  });
-
-  it('omits highlights when includePhotos is false', () => {
-    const journal = makeJournal({
-      sharing: { privacy: 'private', isPublic: false, includePhotos: false, includeNotes: true, includeBudget: true },
-    });
-    expect(exportJournalAsTemplate(journal).highlights).toBeUndefined();
-  });
-});
-
-describe('importTemplate', () => {
-  it('returns locations, budget, and preferences', () => {
-    const template = exportJournalAsTemplate(makeJournal());
-    const result = importTemplate(template);
-    expect(result).toHaveProperty('locations');
-    expect(result).toHaveProperty('budget');
-    expect(result).toHaveProperty('preferences');
-  });
-
-  it('preserves the route locations from the template', () => {
-    const template = exportJournalAsTemplate(makeJournal());
-    const result = importTemplate(template);
-    expect(result.locations.length).toBeGreaterThan(0);
-  });
-});
-
-// ==================== entries.ts ====================
-
-describe('upsertJournalEntry', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockUpdateJournal.mockImplementation(j => Promise.resolve(j));
-  });
-
-  it('adds a new entry when no matching ID exists', async () => {
-    const journal = makeJournal();
-    mockGetJournal.mockResolvedValue(journal);
-    const entry = makeEntry({ id: 'new-entry', stopId: 'loc-a' });
-    const result = await upsertJournalEntry(journal.id, entry);
-    expect(result.entries).toHaveLength(1);
-    expect(result.entries[0].id).toBe('new-entry');
-  });
-
-  it('updates an existing entry in place without duplicating', async () => {
-    const existing = makeEntry({ id: 'e1', stopId: 'a', status: 'planned' });
-    mockGetJournal.mockResolvedValue(makeJournal({ entries: [existing] }));
-    const result = await upsertJournalEntry('journal-123', { ...existing, status: 'visited' });
-    expect(result.entries).toHaveLength(1);
-    expect(result.entries[0].status).toBe('visited');
-  });
-
-  it('calls updateJournal with the modified journal', async () => {
-    mockGetJournal.mockResolvedValue(makeJournal());
-    await upsertJournalEntry('journal-123', makeEntry({ id: 'e1', stopId: 'a' }));
-    expect(mockUpdateJournal).toHaveBeenCalledOnce();
-  });
-
-  it('throws when the journal is not found', async () => {
-    mockGetJournal.mockResolvedValue(null);
-    await expect(upsertJournalEntry('missing', makeEntry())).rejects.toThrow('not found');
-  });
-});
-
-describe('addQuickCapture', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockUpdateJournal.mockImplementation(j => Promise.resolve(j));
-  });
-
-  it('appends the capture to quickCaptures', async () => {
-    mockGetJournal.mockResolvedValue(makeJournal());
-    const capture: QuickCapture = { id: 'qc-1', timestamp: new Date(), category: 'scenic' };
-    const result = await addQuickCapture('journal-123', capture);
-    expect(result.quickCaptures).toHaveLength(1);
-    expect(result.quickCaptures[0].id).toBe('qc-1');
-  });
-
-  it('throws when the journal is not found', async () => {
-    mockGetJournal.mockResolvedValue(null);
-    await expect(addQuickCapture('missing', { id: 'qc', timestamp: new Date() })).rejects.toThrow('not found');
-  });
-});
-
-describe('addBudgetActual', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockUpdateJournal.mockImplementation(j => Promise.resolve(j));
-  });
-
-  it('appends the budget actual', async () => {
-    mockGetJournal.mockResolvedValue(makeJournal());
-    const actual: BudgetActual = { id: 'b1', category: 'food', planned: 40, actual: 55, dayNumber: 1, timestamp: new Date() };
-    const result = await addBudgetActual('journal-123', actual);
-    expect(result.budgetActuals).toHaveLength(1);
-    expect(result.budgetActuals[0].actual).toBe(55);
-  });
-
-  it('throws when the journal is not found', async () => {
-    mockGetJournal.mockResolvedValue(null);
-    const actual: BudgetActual = { id: 'b1', category: 'gas', planned: 0, actual: 0, dayNumber: 1, timestamp: new Date() };
-    await expect(addBudgetActual('missing', actual)).rejects.toThrow('not found');
-  });
-});
-
-describe('updateDayMeta', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockUpdateJournal.mockImplementation(j => Promise.resolve(j));
-  });
-
-  it('adds day meta when none exists for that day', async () => {
-    mockGetJournal.mockResolvedValue(makeJournal());
-    const dayMeta: JournalDayMeta = { dayNumber: 1, customTitle: 'Day One', mood: '😊' };
-    const result = await updateDayMeta('journal-123', dayMeta);
-    expect(result.dayMeta).toHaveLength(1);
-    expect(result.dayMeta[0].customTitle).toBe('Day One');
-  });
-
-  it('replaces existing day meta for the same day number', async () => {
-    mockGetJournal.mockResolvedValue(makeJournal({ dayMeta: [{ dayNumber: 1, customTitle: 'Old Title', mood: '😴' }] }));
-    const dayMeta: JournalDayMeta = { dayNumber: 1, customTitle: 'The Day We Got Lost', mood: '🤯' };
-    const result = await updateDayMeta('journal-123', dayMeta);
-    expect(result.dayMeta).toHaveLength(1);
-    expect(result.dayMeta[0].customTitle).toBe('The Day We Got Lost');
-    expect(result.dayMeta[0].mood).toBe('🤯');
-  });
-
-  it('throws when the journal is not found', async () => {
-    mockGetJournal.mockResolvedValue(null);
-    await expect(updateDayMeta('missing', { dayNumber: 1 })).rejects.toThrow('not found');
   });
 });

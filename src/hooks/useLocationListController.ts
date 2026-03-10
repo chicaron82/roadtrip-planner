@@ -98,8 +98,7 @@ export function useLocationListController({
   }, []);
 
   const loadFavorite = useCallback((index: number, fav: SavedLocation) => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { type: _type, isFavorite: _isFav, ...data } = fav;
+      const { type: _type, isFavorite: _isFav, ...data } = fav;
     updateLocation(index, data);
   }, [updateLocation]);
 
