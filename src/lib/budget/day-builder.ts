@@ -24,6 +24,20 @@ export function ceilToNearest(value: number, increment: number): number {
 export function labelTransitDay(day: TripDay, originalSegments: RouteSegment[]): void {
   const lastPS = day.segments[day.segments.length - 1] as ProcessedSegment | undefined;
   if (!lastPS?._transitPart) return;
+  const transitPart = lastPS._transitPart;
+
+  const sameOriginalTransitParts = day.segments.filter(
+    (segment): segment is ProcessedSegment =>
+      '_originalIndex' in segment &&
+      segment._originalIndex === lastPS._originalIndex &&
+      !!segment._transitPart,
+  );
+  const coversWholeSplit =
+    sameOriginalTransitParts.length === transitPart.total &&
+    sameOriginalTransitParts.some(segment => segment._transitPart?.index === 0) &&
+    sameOriginalTransitParts.some(segment => segment._transitPart?.index === transitPart.total - 1);
+  if (coversWholeSplit) return;
+
   const destName = originalSegments[lastPS._originalIndex]?.to.name.split(',')[0].trim();
   if (destName) {
     // Beast mode / marathon: all sub-segments driven in one continuous push.
@@ -32,7 +46,7 @@ export function labelTransitDay(day: TripDay, originalSegments: RouteSegment[]):
     if (day.totals.driveTimeMinutes > 16 * 60) {
       day.title = `Continuous Drive to ${destName}`;
     } else {
-      day.title = `In Transit to ${destName} (Day ${lastPS._transitPart.index + 1}/${lastPS._transitPart.total})`;
+      day.title = `In Transit to ${destName} (Day ${transitPart.index + 1}/${transitPart.total})`;
     }
   }
 }

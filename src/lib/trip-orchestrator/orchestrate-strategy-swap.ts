@@ -2,7 +2,7 @@ import type { Location, Vehicle, TripSettings, TripSummary } from '../../types';
 import type { StrategicFuelStop } from '../calculations';
 import type { SuggestedStop } from '../stop-suggestion-types';
 import type { CanonicalTripTimeline } from '../canonical-trip';
-import { generateSmartStops, createStopConfig } from '../stop-suggestions';
+import { generateSmartStops, createStopConfig, mergeSuggestedStops } from '../stop-suggestions';
 import { buildTimedTimeline } from '../trip-timeline';
 import { applyComboOptimization } from '../stop-consolidator';
 
@@ -32,10 +32,11 @@ export function orchestrateStrategySwap(
     createStopConfig(vehicle, settings, updatedSummary.fullGeometry, updatedSummary.segments[0]?.from.lng),
     tripDays,
   );
+  const mergedStops = mergeSuggestedStops([...smartStops, ...(externalStops ?? [])]);
   const destinationStayMinutes = getRoundTripDayTripStayMinutes(updatedSummary, tripDays.length, settings);
   const timedRaw = buildTimedTimeline(
     updatedSummary.segments,
-    [...smartStops, ...(externalStops ?? [])],
+    mergedStops,
     settings,
     roundTripMidpoint, destinationStayMinutes, tripDays,
   );

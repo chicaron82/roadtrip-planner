@@ -52,7 +52,7 @@ function AppContent() {
   } = usePOI();
 
   const { addedStops, addedPOIIds, addStop, clearStops, asSuggestedStops, mirroredReturnStops } =
-    useAddedStops(summary, settings.isRoundTrip);
+    useAddedStops(summary, settings);
 
   const {
     isCalculating, error: calcError, shareUrl,

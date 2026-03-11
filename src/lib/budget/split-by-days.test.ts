@@ -59,6 +59,30 @@ describe('splitTripByDays — long segment split', () => {
     expect(days[0].segmentIndices).toContain(0);
     expect(days[1].segmentIndices).toContain(0);
   });
+
+  it('does not label a same-day completed split segment as an in-transit day', () => {
+    const segments: RouteSegment[] = [
+      makeSegment({ from: WINNIPEG, to: THUNDER, distanceKm: 1299, durationMinutes: 851 }),
+    ];
+    const settings = makeSettings({ maxDriveHours: 16, targetArrivalHour: 21 });
+    const days = splitTripByDays(segments, settings, '2025-08-16', '07:00');
+
+    expect(days).toHaveLength(1);
+    expect(days[0].segments.some(segment => '_transitPart' in segment && !!segment._transitPart)).toBe(true);
+    expect(days[0].title).toBeUndefined();
+    expect(days[0].route).toBe('Winnipeg, MB → Thunder Bay, ON');
+  });
+
+  it('keeps the in-transit label when a split segment truly spans multiple days', () => {
+    const segments: RouteSegment[] = [
+      makeSegment({ from: WINNIPEG, to: THUNDER, distanceKm: 1600, durationMinutes: 1100 }),
+    ];
+    const settings = makeSettings({ maxDriveHours: 10, targetArrivalHour: 21 });
+    const days = splitTripByDays(segments, settings, '2025-08-16', '09:00');
+
+    expect(days.length).toBeGreaterThanOrEqual(2);
+    expect(days[0].title).toContain('In Transit to Thunder Bay');
+  });
 });
 
 // ── 3. Round trip, 0 free days ───────────────────────────────────────────────

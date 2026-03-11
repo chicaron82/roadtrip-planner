@@ -3,8 +3,10 @@ import {
   generateSmartStops,
   consolidateStops,
 } from './stop-suggestions';
+import { getEnRouteFuelStops } from './stop-suggestions/stop-checks';
 import type { SuggestedStop, StopSuggestionConfig } from './stop-suggestion-types';
 import type { ProcessedSegment, TripDay } from '../types';
+import type { SimState } from './stop-suggestions/types';
 
 // ─── Test Fixtures ────────────────────────────────────────────────────────────
 
@@ -338,5 +340,56 @@ describe('generateSmartStops — fuel logic', () => {
     const stops = generateSmartStops(segments, config);
     const fuelStops = stops.filter(s => s.type === 'fuel');
     expect(fuelStops).toHaveLength(0);
+  });
+
+  it('keeps using comfort spacing for repeated en-route fuel stops on one long segment', () => {
+    const config = makeConfig();
+    const segment = makeSegment({
+      distanceKm: 1200,
+      durationMinutes: 720,
+      fuelNeededLitres: 108,
+      fuelCost: 180,
+    });
+    const state: SimState = {
+      currentFuel: 60,
+      distanceSinceLastFill: 0,
+      hoursSinceLastFill: 0,
+      costSinceLastFill: 0,
+      currentTime: new Date('2026-08-01T08:00:00'),
+      hoursOnRoad: 0,
+      totalDrivingToday: 0,
+      lastBreakTime: new Date('2026-08-01T08:00:00'),
+      currentDayNumber: 1,
+      currentTzAbbr: null,
+      restBreakInterval: 2,
+      comfortRefuelHours: 3.5,
+    };
+
+    const hubs = new Map([
+      [350, 'Hub One'],
+      [700, 'Hub Two'],
+      [1050, 'Hub Three'],
+    ]);
+    const hubResolver = (kmIntoSegment: number): string | undefined => {
+      for (const [kmMark, name] of hubs) {
+        if (Math.abs(kmIntoSegment - kmMark) <= 5) return name;
+      }
+      return undefined;
+    };
+
+    const { stops } = getEnRouteFuelStops(
+      state,
+      segment,
+      0,
+      config,
+      450,
+      new Date('2026-08-01T08:00:00'),
+      0,
+      hubResolver,
+      3.5,
+    );
+
+    expect(stops.map(stop => stop.hubName)).toEqual(['Hub One', 'Hub Two', 'Hub Three']);
+    expect(stops.every(stop => stop.priority === 'recommended')).toBe(true);
   });
 });

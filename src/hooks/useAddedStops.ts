@@ -1,8 +1,14 @@
 import { useState, useCallback, useMemo } from 'react';
-import type { POI, POICategory, RouteSegment } from '../types';
+import type { POI, POICategory, RouteSegment, TripSettings } from '../types';
 import type { SuggestedStop, SuggestionStopType } from '../lib/stop-suggestions';
 import { findNearestSegmentIndex, haversineDistance, estimateDetourTime } from '../lib/poi-ranking';
-import type { SegmentLookupSummary } from '../lib/trip-summary-slices';
+import { deriveManualStopPlacement } from '../lib/manual-stop-placement';
+
+interface AddedStopRouteSummary {
+  segments: RouteSegment[];
+  fullGeometry: number[][];
+  totalDurationMinutes: number;
+}
 
 // ==================== TYPES ====================
 
@@ -27,8 +33,12 @@ const CATEGORY_DEFAULTS: Record<POICategory, { stopType: SuggestionStopType; dur
 
 // ==================== HOOK ====================
 
-export function useAddedStops(routeSummary?: SegmentLookupSummary | null, isRoundTrip?: boolean) {
+export function useAddedStops(routeSummary?: AddedStopRouteSummary | null, settings?: TripSettings) {
   const [addedStops, setAddedStops] = useState<AddedStop[]>([]);
+  const totalRouteDistanceKm = useMemo(
+    () => routeSummary?.segments.reduce((sum, segment) => sum + segment.distanceKm, 0) ?? 0,
+    [routeSummary],
+  );
 
   const addedPOIIds = useMemo(
     () => new Set(addedStops.map(s => s.poi.id)),
@@ -69,40 +79,75 @@ export function useAddedStops(routeSummary?: SegmentLookupSummary | null, isRoun
 
   /** Added stops as SuggestedStop[] for timeline simulation */
   const asSuggestedStops = useMemo((): SuggestedStop[] => {
-    return addedStops.map(stop => ({
-      id: stop.id,
-      type: stop.stopType,
-      reason: `${stop.poi.name} (added from map)`,
-      afterSegmentIndex: stop.afterSegmentIndex,
-      estimatedTime: new Date(), // recalculated by simulation
-      duration: stop.duration,
-      priority: 'optional' as const,
-      details: {
-        fuelCost: stop.stopType === 'fuel' ? stop.estimatedCost : undefined,
-      },
-      accepted: true,
-    }));
-  }, [addedStops]);
+    return addedStops.map(stop => {
+      const placement = routeSummary && settings
+        ? deriveManualStopPlacement({
+            lat: stop.poi.lat,
+            lng: stop.poi.lng,
+            segments: routeSummary.segments,
+            fullGeometry: routeSummary.fullGeometry,
+            totalDurationMinutes: routeSummary.totalDurationMinutes,
+            departureDate: settings.departureDate,
+            departureTime: settings.departureTime,
+            originLng: routeSummary.segments[0]?.from.lng,
+            fallbackSegmentIndex: stop.afterSegmentIndex,
+          })
+        : null;
+
+      return {
+        id: stop.id,
+        type: stop.stopType,
+        reason: `${stop.poi.name} (added from map)`,
+        afterSegmentIndex: placement?.afterSegmentIndex ?? stop.afterSegmentIndex,
+        estimatedTime: placement?.estimatedTime ?? new Date(),
+        duration: stop.duration,
+        priority: 'optional' as const,
+        details: {
+          fuelCost: stop.stopType === 'fuel' ? stop.estimatedCost : undefined,
+        },
+        accepted: true,
+        distanceFromStart: placement?.distanceFromStartKm,
+      };
+    });
+  }, [addedStops, routeSummary, settings]);
 
   /** Mirror gas/hotel stops onto the return leg for round trips */
   const mirroredReturnStops = useMemo((): SuggestedStop[] => {
-    if (!routeSummary || !isRoundTrip || addedStops.length === 0) return [];
-    const total = routeSummary.segments.length;
-    const midpoint = total / 2;
-    return addedStops
-      .filter(s => s.afterSegmentIndex < midpoint && (s.poi.category === 'gas' || s.poi.category === 'hotel'))
-      .map(s => ({
-        id: `return-${s.id}`,
-        type: s.stopType,
-        reason: `${s.poi.name} (return leg)`,
-        afterSegmentIndex: (total - 1) - s.afterSegmentIndex,
-        estimatedTime: new Date(),
-        duration: s.duration,
-        priority: 'optional' as const,
-        details: { fuelCost: s.stopType === 'fuel' ? s.estimatedCost : undefined },
-        accepted: true,
-      }));
-  }, [addedStops, routeSummary, isRoundTrip]);
+    if (!routeSummary || !settings?.isRoundTrip || addedStops.length === 0) return [];
+
+    const totalSegments = routeSummary.segments.length;
+    const midpoint = totalSegments / 2;
+    const startTime = new Date(asSuggestedStops[0]?.estimatedTime ?? new Date());
+
+    return asSuggestedStops
+      .filter(stop => {
+        const source = addedStops.find(added => added.id === stop.id);
+        return source && source.afterSegmentIndex < midpoint && (source.poi.category === 'gas' || source.poi.category === 'hotel');
+      })
+      .map(stop => {
+        const mirroredDistanceFromStart = stop.distanceFromStart != null
+          ? Math.max(0, totalRouteDistanceKm - stop.distanceFromStart)
+          : undefined;
+        const mirroredProgress = mirroredDistanceFromStart != null && totalRouteDistanceKm > 0
+          ? mirroredDistanceFromStart / totalRouteDistanceKm
+          : undefined;
+
+        return {
+          id: `return-${stop.id}`,
+          type: stop.type,
+          reason: stop.reason.replace('(added from map)', '(return leg)'),
+          afterSegmentIndex: (totalSegments - 1) - Math.max(0, Math.floor(stop.afterSegmentIndex)),
+          estimatedTime: mirroredProgress != null
+            ? new Date(startTime.getTime() + routeSummary.totalDurationMinutes * mirroredProgress * 60_000)
+            : stop.estimatedTime,
+          duration: stop.duration,
+          priority: 'optional' as const,
+          details: stop.details,
+          accepted: true,
+          distanceFromStart: mirroredDistanceFromStart,
+        };
+      });
+  }, [addedStops, asSuggestedStops, routeSummary, settings, totalRouteDistanceKm]);
 
   return {
     addedStops,

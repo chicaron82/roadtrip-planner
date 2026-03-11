@@ -96,6 +96,41 @@ export function detectBorderCrossing(geometry: [number, number][]): {
   };
 }
 
+/**
+ * Detects the specific northwestern-Ontario southward bend that OSRM sometimes
+ * chooses for prairie → Thunder Bay routes. This stays in Canada, so the normal
+ * border-crossing detector never fires, but it often disagrees with Google Maps
+ * and with the expected Trans-Canada / Kenora corridor.
+ */
+export function isNorthwesternOntarioSouthDetour(geometry: [number, number][]): boolean {
+  return geometry.some(([lat, lng]) => lng >= -95.8 && lng <= -93.0 && lat < 49.15);
+}
+
+/**
+ * Returns true when a direct prairie ↔ northwestern Ontario route appears to be
+ * taking the southern Fort Frances / International Falls style corridor instead
+ * of the expected Kenora / Dryden corridor.
+ */
+export function shouldTryLakeSuperiorCorridor(
+  locations: Location[],
+  geometry: [number, number][],
+): boolean {
+  if (locations.length !== 2 || geometry.length < 2) return false;
+
+  const [a, b] = locations;
+  const west = a.lng <= b.lng ? a : b;
+  const east = a.lng <= b.lng ? b : a;
+
+  const spansPrairiesToNorthwesternOntario =
+    west.lng <= -98 &&
+    east.lng >= -95 &&
+    east.lng <= -88 &&
+    east.lat >= 47 &&
+    east.lat <= 49.5;
+
+  return spansPrairiesToNorthwesternOntario && isNorthwesternOntarioSouthDetour(geometry);
+}
+
 // ==================== GUARD WAYPOINTS ====================
 
 /**

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import type { TripSettings, Vehicle, TripDay } from '../../../types';
-import { generateSmartStops, createStopConfig, type SuggestedStop } from '../../../lib/stop-suggestions';
+import { generateSmartStops, createStopConfig, mergeSuggestedStops, type SuggestedStop } from '../../../lib/stop-suggestions';
 import { buildPacingSuggestions } from '../../../lib/pacing-suggestions-builder';
 import { getTripStartTime, lngToIANA } from '../../../lib/trip-timezone';
 import type { RoutePlanningSummary } from '../../../lib/trip-summary-slices';
@@ -123,10 +123,10 @@ export function useTimelineStopSuggestions({
     });
   };
 
-  const activeSuggestions = useMemo(() => [
+  const activeSuggestions = useMemo(() => mergeSuggestedStops([
     ...stopSuggestions.filter(suggestion => !suggestion.dismissed),
-    ...(externalStops || []),
-  ], [stopSuggestions, externalStops]);
+    ...(externalStops || []).filter(stop => !stop.dismissed),
+  ]), [stopSuggestions, externalStops]);
 
   const pendingSuggestions = activeSuggestions.filter(suggestion => !suggestion.accepted);
 

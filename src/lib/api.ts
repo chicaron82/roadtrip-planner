@@ -1,5 +1,10 @@
 import type { Location, RouteSegment } from '../types';
-import { detectBorderCrossing, getGuardWaypoints, insertGuardWaypoints } from './border-avoidance';
+import {
+  detectBorderCrossing,
+  getGuardWaypoints,
+  insertGuardWaypoints,
+  shouldTryLakeSuperiorCorridor,
+} from './border-avoidance';
 import { NOMINATIM_BASE_URL } from './constants';
 import { TRIP_CONSTANTS } from './trip-constants';
 
@@ -144,6 +149,27 @@ function getRouteCacheKey(locations: Location[], options?: { avoidTolls?: boolea
   return `${locStr}=${optStr}`;
 }
 
+function getRouteTotals(route: { segments: RouteSegment[] }): { distanceKm: number; durationMinutes: number } {
+  return {
+    distanceKm: route.segments.reduce((sum, segment) => sum + segment.distanceKm, 0),
+    durationMinutes: route.segments.reduce((sum, segment) => sum + segment.durationMinutes, 0),
+  };
+}
+
+function isComparableOrBetterRoute(
+  candidate: { segments: RouteSegment[] },
+  current: { segments: RouteSegment[] },
+): boolean {
+  const candidateTotals = getRouteTotals(candidate);
+  const currentTotals = getRouteTotals(current);
+  const tolerance = 1.02;
+
+  return (
+    candidateTotals.distanceKm <= currentTotals.distanceKm * tolerance &&
+    candidateTotals.durationMinutes <= currentTotals.durationMinutes * tolerance
+  );
+}
+
 export async function calculateRoute(locations: Location[], options?: { avoidTolls?: boolean; avoidBorders?: boolean; scenicMode?: boolean }): Promise<{ segments: RouteSegment[], fullGeometry: [number, number][] } | null> {
   if (locations.length < 2) return null;
 
@@ -178,6 +204,23 @@ export async function calculateRoute(locations: Location[], options?: { avoidTol
     }
   }
   if (!result) return null;
+
+  if (shouldTryLakeSuperiorCorridor(locations, result.fullGeometry)) {
+    const lakeSuperiorGuards = getGuardWaypoints(new Set(['lakeSuperior']), locations);
+    if (lakeSuperiorGuards.length > 0) {
+      const reroutedLocations = insertGuardWaypoints(locations, lakeSuperiorGuards);
+      let corridorResult: Awaited<ReturnType<typeof fetchOSRMRoute>> | null = null;
+      try {
+        corridorResult = await fetchOSRMRoute(reroutedLocations, excludeParam);
+      } catch {
+        corridorResult = null;
+      }
+
+      if (corridorResult && isComparableOrBetterRoute(corridorResult, result)) {
+        result = corridorResult;
+      }
+    }
+  }
 
   // If avoidBorders is enabled, check for border crossings and reroute
   if (options?.avoidBorders && result.fullGeometry.length > 0) {

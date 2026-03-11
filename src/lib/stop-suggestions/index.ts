@@ -8,6 +8,7 @@ export type {
 
 export { generateSmartStops } from './generate';
 export { consolidateStops } from './consolidate';
+export { mergeSuggestedStops } from './merge';
 
 // Display helpers and config factory
 // Re-exported for backwards compatibility with existing consumers
