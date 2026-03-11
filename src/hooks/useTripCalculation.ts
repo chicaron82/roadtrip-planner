@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useLayoutEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { Location, Vehicle, TripSettings, TripSummary, TripDay, RouteStrategy, StopType, DayType, OvernightStop } from '../types';
 import type { StrategicFuelStop } from '../lib/calculations';
 import type { SuggestedStop } from '../lib/stop-suggestion-types';
@@ -60,8 +61,22 @@ export function useTripCalculation({
   const [error, setError] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [strategicFuelStops, setStrategicFuelStops] = useState<StrategicFuelStop[]>([]);
-  const [routeStrategies, setRouteStrategies] = useState<RouteStrategy[]>([]);
   const [activeStrategyIndex, setActiveStrategyIndex] = useState(0);
+
+  // Capture inputs only when a trip is successfully calculated, so React Query
+  // doesn't fetch alternatives while the user is still actively modifying the draft list
+  const [strategyInputs, setStrategyInputs] = useState<{ locations: Location[], avoidTolls: boolean } | null>(null);
+
+  const { data: routeStrategies = [] } = useQuery({
+    queryKey: ['routeStrategies', strategyInputs],
+    queryFn: () => {
+      if (!strategyInputs) return Promise.resolve([]);
+      return fetchAllRouteStrategies(strategyInputs.locations, strategyInputs.avoidTolls);
+    },
+    enabled: !!strategyInputs,
+    staleTime: 30 * 60 * 1000, // 30 mins
+    refetchOnWindowFocus: false,
+  });
 
   // Overnight stop prompt state
   const [showOvernightPrompt, setShowOvernightPrompt] = useState(false);
@@ -142,13 +157,8 @@ export function useTripCalculation({
       commitSummary(tripSummary);
       onCalculationComplete?.();
 
-      setRouteStrategies([]);
       setActiveStrategyIndex(0);
-      fetchAllRouteStrategies(locations, currentSettings.avoidTolls).then(strategies => {
-        if (calcRunIdRef.current === runId) {
-          setRouteStrategies(strategies);
-        }
-      });
+      setStrategyInputs({ locations: [...locations], avoidTolls: currentSettings.avoidTolls });
 
       fireAndForgetOvernightSnap(
         tripSummary.days!, tripSummary, canonicalTimeline, geocodeController,
@@ -280,7 +290,7 @@ export function useTripCalculation({
 
   const clearTripCalculation = useCallback(() => {
     setStrategicFuelStops([]);
-    setRouteStrategies([]);
+    setStrategyInputs(null);
     setActiveStrategyIndex(0);
     commitSummary(null);
     setCanonicalTimeline(null); // clears context value

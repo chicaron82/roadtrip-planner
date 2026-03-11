@@ -10,6 +10,15 @@ const DEFAULT_MARKER_CATEGORIES: MarkerCategory[] = [
   { id: 'attraction', label: 'Sights', emoji: '📸', color: 'bg-purple-500', visible: false },
 ];
 
+interface UsePOIOptions {
+  routeGeometry?: [number, number][];
+  segments?: TripSummary['segments'];
+  origin?: Location;
+  destination?: Location;
+  tripPreferences?: TripPreference[];
+  roundTripMidpoint?: number;
+}
+
 interface UsePOIReturn {
   // Map POIs (user-toggled categories)
   pois: POI[];
@@ -32,27 +41,18 @@ interface UsePOIReturn {
   toggleCategory: (id: POICategory, searchLocation: Location | null, routeGeometry?: [number, number][] | null) => Promise<void>;
   addPOI: (poiId: string) => void;
   dismissPOI: (poiId: string) => void;
-  fetchRoutePOIs: (
-    routeGeometry: [number, number][],
-    origin: Location,
-    destination: Location,
-    tripPreferences: TripPreference[],
-    segments: TripSummary['segments'],
-    roundTripMidpoint?: number
-  ) => Promise<void>;
-  /** Re-rank already-fetched corridor data with new preferences (no new Overpass calls). */
-  refreshSuggestions: (
-    routeGeometry: [number, number][],
-    segments: TripSummary['segments'],
-    tripPreferences: TripPreference[],
-    destination: Location,
-    roundTripMidpoint?: number
-  ) => void;
   clearError: () => void;
   resetPOIs: () => void;
 }
 
-export function usePOI(): UsePOIReturn {
+export function usePOI({
+  routeGeometry,
+  segments,
+  origin,
+  destination,
+  tripPreferences = [],
+  roundTripMidpoint,
+}: UsePOIOptions = {}): UsePOIReturn {
   // Map POIs state
   const [pois, setPois] = useState<POI[]>([]);
   const [markerCategories, setMarkerCategories] = useState<MarkerCategory[]>(DEFAULT_MARKER_CATEGORIES);
@@ -67,13 +67,18 @@ export function usePOI(): UsePOIReturn {
     poiFetchFailed,
     addPOI,
     dismissPOI,
-    fetchRoutePOIs,
-    refreshSuggestions,
     resetPOISuggestions,
-  } = usePOISuggestions();
+  } = usePOISuggestions({
+    routeGeometry,
+    segments,
+    origin,
+    destination,
+    tripPreferences,
+    roundTripMidpoint,
+  });
 
   // Toggle POI category on map
-  const toggleCategory = useCallback(async (id: POICategory, searchLocation: Location | null, routeGeometry?: [number, number][] | null) => {
+  const toggleCategory = useCallback(async (id: POICategory, searchLocation: Location | null, currentRouteGeometry?: [number, number][] | null) => {
     setError(null);
 
     // Functional update — no need for markerCategories in the dep array
@@ -86,7 +91,7 @@ export function usePOI(): UsePOIReturn {
 
     if (targetCategory?.visible) {
       // Need either a route or a search location
-      if ((!routeGeometry || routeGeometry.length < 2) && (!searchLocation || searchLocation.lat === 0)) {
+      if ((!currentRouteGeometry || currentRouteGeometry.length < 2) && (!searchLocation || searchLocation.lat === 0)) {
         setError('Please calculate a route first.');
         setMarkerCategories((prev) =>
           prev.map((c) => (c.id === id ? { ...c, visible: false } : c))
@@ -97,8 +102,8 @@ export function usePOI(): UsePOIReturn {
       setLoadingCategory(id);
       try {
         // Use route-corridor search when route exists, fall back to point search
-        const newPois = routeGeometry && routeGeometry.length >= 2
-          ? await searchPOIsAlongRoute(routeGeometry, id)
+        const newPois = currentRouteGeometry && currentRouteGeometry.length >= 2
+          ? await searchPOIsAlongRoute(currentRouteGeometry, id)
           : await searchNearbyPOIs(searchLocation!.lat, searchLocation!.lng, id);
 
         if (newPois.length === 0) {
@@ -148,8 +153,6 @@ export function usePOI(): UsePOIReturn {
     toggleCategory,
     addPOI,
     dismissPOI,
-    fetchRoutePOIs,
-    refreshSuggestions,
     clearError,
     resetPOIs,
   };

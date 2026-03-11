@@ -1,7 +1,8 @@
-import { useRef, useState, useLayoutEffect, useEffect } from 'react';
-import { Map } from './components/Map/Map';
+import { useRef, useState, useLayoutEffect, useEffect, lazy, Suspense } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
 import { TripSummaryCard } from './components/Trip/TripSummary';
 import { RouteStrategyPicker } from './components/Trip/RouteStrategyPicker';
+import { ErrorFallback } from './components/UI/ErrorFallback';
 import { AdventureMode } from './components/Trip/Adventure/AdventureMode';
 import { LandingScreen } from './components/Landing/LandingScreen';
 import { PlannerSidebarShell } from './components/App/PlannerSidebarShell';
@@ -17,6 +18,8 @@ import { useArrivalSnap } from './hooks/useArrivalSnap';
 import { getHistory } from './lib/storage';
 import { getWeightedFuelEconomyL100km } from './lib/unit-conversions';
 import type { HistoryTripSnapshot } from './types';
+
+const Map = lazy(() => import('./components/Map/Map').then(m => ({ default: m.Map })));
 
 /** App.tsx — Root orchestrator. Full-bleed map + floating glass panel. 💚 My Experience Engine */
 function AppContent() {
@@ -48,8 +51,15 @@ function AppContent() {
     pois, markerCategories, loadingCategory, poiSuggestions, poiInference, isLoadingPOIs,
     poiPartialResults, poiFetchFailed,
     error: poiError, toggleCategory, addPOI, dismissPOI,
-    fetchRoutePOIs, clearError: clearPOIError, resetPOIs,
-  } = usePOI();
+    clearError: clearPOIError, resetPOIs,
+  } = usePOI({
+    routeGeometry: summary?.fullGeometry,
+    segments: summary?.segments,
+    origin: locations.find(l => l.type === 'origin'),
+    destination: locations.find(l => l.type === 'destination'),
+    tripPreferences: settings.tripPreferences,
+    roundTripMidpoint: summary?.roundTripMidpoint,
+  });
 
   const { addedStops, addedPOIIds, addStop, clearStops, asSuggestedStops, mirroredReturnStops } =
     useAddedStops(summary, settings);
@@ -68,8 +78,8 @@ function AppContent() {
   });
 
   const { calculateAndDiscover } = useCalculateAndDiscover({
-    calculateTrip, locations, settings, setTripConfirmed,
-    fetchRoutePOIs, refreshAdaptiveDefaults, setAdaptiveDefaults,
+    calculateTrip, settings, setTripConfirmed,
+    refreshAdaptiveDefaults, setAdaptiveDefaults,
   });
 
   const {
@@ -189,7 +199,11 @@ function AppContent() {
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden">
       <div className="absolute inset-0">
-        <Map {...mapProps} />
+        <ErrorBoundary FallbackComponent={ErrorFallback}>
+          <Suspense fallback={<div className="w-full h-full bg-[#1c1c1e] animate-pulse" />}>
+            <Map {...mapProps} />
+          </Suspense>
+        </ErrorBoundary>
       </div>
 
       {!tripMode && (

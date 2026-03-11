@@ -1,11 +1,18 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { Location, POISuggestion, TripPreference, TripSummary } from '../types';
 import { fetchPOISuggestions } from '../lib/poi-service';
-import {
-  buildPOISuggestionResults,
-  preservePOIActionState,
-  setPOIActionState,
-} from './usePOISuggestionHelpers';
+import { hashRouteKey } from '../lib/poi-service/cache';
+import { buildPOISuggestionResults } from './usePOISuggestionHelpers';
+
+interface UsePOISuggestionsOptions {
+  routeGeometry?: [number, number][];
+  segments?: TripSummary['segments'];
+  origin?: Location;
+  destination?: Location;
+  tripPreferences?: TripPreference[];
+  roundTripMidpoint?: number;
+}
 
 interface UsePOISuggestionsReturn {
   poiSuggestions: POISuggestion[];
@@ -15,93 +22,68 @@ interface UsePOISuggestionsReturn {
   poiFetchFailed: boolean;
   addPOI: (poiId: string) => void;
   dismissPOI: (poiId: string) => void;
-  fetchRoutePOIs: (
-    routeGeometry: [number, number][],
-    origin: Location,
-    destination: Location,
-    tripPreferences: TripPreference[],
-    segments: TripSummary['segments'],
-    roundTripMidpoint?: number,
-  ) => Promise<void>;
-  refreshSuggestions: (
-    routeGeometry: [number, number][],
-    segments: TripSummary['segments'],
-    tripPreferences: TripPreference[],
-    destination: Location,
-    roundTripMidpoint?: number,
-  ) => void;
   resetPOISuggestions: () => void;
 }
 
-export function usePOISuggestions(): UsePOISuggestionsReturn {
-  const [poiSuggestions, setPoiSuggestions] = useState<POISuggestion[]>([]);
-  const [poiInference, setPoiInference] = useState<POISuggestion[]>([]);
-  const [isLoadingPOIs, setIsLoadingPOIs] = useState(false);
-  const [poiPartialResults, setPoiPartialResults] = useState(false);
-  const [poiFetchFailed, setPoiFetchFailed] = useState(false);
-  const rawCorridor = useRef<{ alongWay: POISuggestion[]; atDestination: POISuggestion[] } | null>(null);
+export function usePOISuggestions({
+  routeGeometry,
+  segments,
+  origin,
+  destination,
+  tripPreferences = [],
+  roundTripMidpoint,
+}: UsePOISuggestionsOptions = {}): UsePOISuggestionsReturn {
+  // Local state for optimistic UI actions (added / dismissed)
+  const [poiActions, setPoiActions] = useState<Record<string, 'added' | 'dismissed'>>({});
+  const [lastRouteHash, setLastRouteHash] = useState<string | null>(null);
 
   const addPOI = useCallback((poiId: string) => {
-    setPoiSuggestions(previous => setPOIActionState(previous, poiId, 'added'));
+    setPoiActions(prev => ({ ...prev, [poiId]: 'added' }));
   }, []);
 
   const dismissPOI = useCallback((poiId: string) => {
-    setPoiSuggestions(previous => setPOIActionState(previous, poiId, 'dismissed'));
+    setPoiActions(prev => ({ ...prev, [poiId]: 'dismissed' }));
   }, []);
 
-  const fetchRoutePOIs = useCallback(async (
-    routeGeometry: [number, number][],
-    origin: Location,
-    destination: Location,
-    tripPreferences: TripPreference[],
-    segments: TripSummary['segments'],
-    roundTripMidpoint?: number,
-  ) => {
-    if (routeGeometry.length === 0) return;
+  const resetPOISuggestions = useCallback(() => {
+    setPoiActions({});
+  }, []);
 
-    setIsLoadingPOIs(true);
-    setPoiPartialResults(false);
-    setPoiFetchFailed(false);
+  // Use a stable query key based on geometry hash mapping
+  const currentRouteHash = useMemo(() => {
+    if (!routeGeometry || !destination) return null;
+    return hashRouteKey(routeGeometry, destination, tripPreferences);
+  }, [routeGeometry, destination, tripPreferences]);
 
-    try {
-      const poiData = await fetchPOISuggestions(routeGeometry, origin, destination, tripPreferences);
-      if (poiData.partialResults) setPoiPartialResults(true);
+  // Derive state asynchronously to avoid effect cascades.
+  // If the route strictly changed, flush the recorded POI actions.
+  if (currentRouteHash !== lastRouteHash) {
+    setLastRouteHash(currentRouteHash);
+    setPoiActions({});
+  }
 
-      rawCorridor.current = { alongWay: poiData.alongWay, atDestination: poiData.atDestination };
+  const queryKey = useMemo(() => ['poiSuggestions', currentRouteHash], [currentRouteHash]);
+  const enabled = !!routeGeometry && routeGeometry.length > 0 && !!origin && !!destination;
 
-      const { suggestions, inference } = buildPOISuggestionResults({
-        alongWay: poiData.alongWay,
-        atDestination: poiData.atDestination,
-        routeGeometry,
-        segments,
-        tripPreferences,
-        destination,
-        roundTripMidpoint,
-      });
+  const { data, isFetching: isLoadingPOIs, isError: poiFetchFailed } = useQuery({
+    queryKey,
+    queryFn: () => fetchPOISuggestions(routeGeometry!, origin!, destination!, tripPreferences),
+    enabled,
+    staleTime: 30 * 60 * 1000, // 30 minutes cache life
+    refetchOnWindowFocus: false,
+  });
 
-      setPoiSuggestions(suggestions);
-      setPoiInference(inference);
-    } catch (error) {
-      console.error('Failed to fetch POI suggestions:', error);
-      setPoiFetchFailed(true);
-    } finally {
-      setIsLoadingPOIs(false);
+  const poiPartialResults = !!data?.partialResults;
+
+  // Derive final POIs by merging raw fetched data with local action state and UI filtering rules
+  const { poiSuggestions, poiInference } = useMemo(() => {
+    if (!data || !routeGeometry || !segments || !destination) {
+      return { poiSuggestions: [], poiInference: [] };
     }
-  }, []);
 
-  const refreshSuggestions = useCallback((
-    routeGeometry: [number, number][],
-    segments: TripSummary['segments'],
-    tripPreferences: TripPreference[],
-    destination: Location,
-    roundTripMidpoint?: number,
-  ) => {
-    const raw = rawCorridor.current;
-    if (!raw) return;
-
-    const { suggestions } = buildPOISuggestionResults({
-      alongWay: raw.alongWay,
-      atDestination: raw.atDestination,
+    const { suggestions: baseSuggestions, inference } = buildPOISuggestionResults({
+      alongWay: data.alongWay,
+      atDestination: data.atDestination,
       routeGeometry,
       segments,
       tripPreferences,
@@ -109,16 +91,14 @@ export function usePOISuggestions(): UsePOISuggestionsReturn {
       roundTripMidpoint,
     });
 
-    setPoiSuggestions(previous => preservePOIActionState(suggestions, previous));
-  }, []);
+    const poiSuggestions = baseSuggestions.map(poi => {
+      const action = poiActions[poi.id];
+      if (action) return { ...poi, actionState: action };
+      return poi;
+    });
 
-  const resetPOISuggestions = useCallback(() => {
-    setPoiSuggestions([]);
-    setPoiInference([]);
-    setPoiPartialResults(false);
-    setPoiFetchFailed(false);
-    rawCorridor.current = null;
-  }, []);
+    return { poiSuggestions, poiInference: inference };
+  }, [data, routeGeometry, segments, tripPreferences, destination, roundTripMidpoint, poiActions]);
 
   return {
     poiSuggestions,
@@ -128,8 +108,6 @@ export function usePOISuggestions(): UsePOISuggestionsReturn {
     poiFetchFailed,
     addPOI,
     dismissPOI,
-    fetchRoutePOIs,
-    refreshSuggestions,
     resetPOISuggestions,
   };
 }

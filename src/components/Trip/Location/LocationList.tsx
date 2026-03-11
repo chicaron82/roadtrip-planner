@@ -71,10 +71,11 @@ function SortableLocationItem({
   return (
     <div ref={setNodeRef} style={style} className="relative group">
       <div className="flex items-center gap-2 mb-1.5">
-        {/* Drag Handle */}
         <div
           {...attributes}
           {...listeners}
+          role="button"
+          aria-label={loc.name ? `Drag to reorder ${loc.name}` : `Drag to reorder Stop ${index}`}
           className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground transition-colors"
         >
           <GripVertical className="h-4 w-4" />

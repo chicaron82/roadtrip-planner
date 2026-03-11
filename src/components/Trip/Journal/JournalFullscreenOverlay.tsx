@@ -1,8 +1,10 @@
+import { lazy, Suspense } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '../../UI/Button';
-import { JournalTimeline } from './JournalTimeline';
 import type { TripSettings, TripJournal } from '../../../types';
 import type { JournalTimelineSummary } from '../../../lib/trip-summary-slices';
+
+const JournalTimeline = lazy(() => import('./JournalTimeline').then(m => ({ default: m.JournalTimeline })));
 
 interface Props {
   summary: JournalTimelineSummary;
@@ -35,12 +37,14 @@ export function JournalFullscreenOverlay({ summary, settings, journal, onUpdateJ
       {/* Scrollable journal body */}
       <div className="flex-1 overflow-y-auto">
         <div className="px-4 py-4">
-          <JournalTimeline
-            summary={summary}
-            settings={settings}
-            journal={journal}
-            onUpdateJournal={onUpdateJournal}
-          />
+          <Suspense fallback={<div className="h-full flex items-center justify-center p-8 text-muted-foreground text-sm">Loading journal...</div>}>
+            <JournalTimeline
+              summary={summary}
+              settings={settings}
+              journal={journal}
+              onUpdateJournal={onUpdateJournal}
+            />
+          </Suspense>
         </div>
       </div>
     </div>

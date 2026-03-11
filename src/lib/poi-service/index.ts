@@ -1,6 +1,5 @@
 import type { POISuggestion, POISuggestionGroup, Location, TripPreference } from '../../types';
 import type { OverpassElement } from './types';
-import { hashRouteKey, getCachedPOIs, setCachedPOIs, POI_IN_FLIGHT } from './cache';
 import { getRelevantCategories, overpassElementToPOI, deduplicatePOIs } from './poi-converter';
 import { estimateRouteDistanceKm, sampleRouteByKm, haversineDistanceSimple } from './geo';
 import { buildBucketAroundQuery, buildParkRelationQuery, buildDestinationQuery } from './query-builder';
@@ -19,39 +18,9 @@ import { INTER_QUERY_DELAY, INTRA_FETCH_DELAY, DESTINATION_RADIUS, INFERENCE_CAT
  *  3. Destination query — all categories in one around: query
  *
  * All three run sequentially with delays to stay friendly to Overpass rate limits.
- * Concurrent calls for the same route key share a single in-flight promise.
  * If the corridor query fails (429/timeout) partialResults is set to true.
  */
 export async function fetchPOISuggestions(
-  routeGeometry: [number, number][],
-  origin: Location,
-  destination: Location,
-  tripPreferences: TripPreference[]
-): Promise<POISuggestionGroup> {
-  // ── Cache check — skip Overpass entirely if we've fetched this route recently ──
-  const cacheKey = hashRouteKey(routeGeometry, destination, tripPreferences);
-  const cached = getCachedPOIs(cacheKey);
-  if (cached) {
-    console.info(`POI cache hit — returning ${cached.totalFound} cached results`);
-    return cached;
-  }
-
-  // ── In-flight dedup — share a single promise if the same key is already fetching ──
-  const inFlight = POI_IN_FLIGHT.get(cacheKey);
-  if (inFlight) {
-    console.info('POI fetch already in flight for this route — sharing promise');
-    return inFlight;
-  }
-
-  const fetchPromise = _doFetchPOISuggestions(cacheKey, routeGeometry, origin, destination, tripPreferences);
-  POI_IN_FLIGHT.set(cacheKey, fetchPromise);
-  fetchPromise.finally(() => POI_IN_FLIGHT.delete(cacheKey));
-  return fetchPromise;
-}
-
-/** Internal implementation — called only once per unique in-flight key. */
-async function _doFetchPOISuggestions(
-  cacheKey: string,
   routeGeometry: [number, number][],
   origin: Location,
   destination: Location,
@@ -152,9 +121,6 @@ async function _doFetchPOISuggestions(
     queryDurationMs: endTime - startTime,
     partialResults: partialResults || undefined,
   };
-
-  // Cache the result so repeat recalculations skip Overpass
-  setCachedPOIs(cacheKey, result);
 
   return result;
 }

@@ -61,6 +61,13 @@ const DialogContent = React.forwardRef<
     return () => document.removeEventListener("keydown", handler);
   }, [open, onOpenChange]);
 
+  // Auto-focus on mount
+  React.useEffect(() => {
+    if (open && ref && typeof ref !== 'function' && ref.current) {
+      ref.current.focus();
+    }
+  }, [open, ref]);
+
   // Prevent body scroll when open
   React.useEffect(() => {
     if (!open) return;
@@ -81,6 +88,7 @@ const DialogContent = React.forwardRef<
         ref={ref}
         role="dialog"
         aria-modal="true"
+        tabIndex={-1}
         className={cn(
           "fixed left-[50%] top-[50%] z-[1101] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 animate-in fade-in-0 zoom-in-95 slide-in-from-left-1/2 slide-in-from-top-[48%] rounded-lg",
           className

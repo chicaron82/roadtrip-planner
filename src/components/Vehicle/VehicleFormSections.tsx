@@ -25,6 +25,7 @@ export function VehicleUnitToggle({ units, setUnits }: VehicleUnitToggleProps) {
           Metric
         </span>
         <Switch
+          aria-label="Toggle imperial units"
           checked={units === 'imperial'}
           onCheckedChange={(checked) => setUnits(checked ? 'imperial' : 'metric')}
         />

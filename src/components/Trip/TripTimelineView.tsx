@@ -5,7 +5,7 @@
  * SmartTimeline (simulation view) is available as an optional toggle for power users.
  */
 
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import type {
   TripSettings,
@@ -23,11 +23,12 @@ import type { SuggestedStop } from '../../lib/stop-suggestions';
 import type { CanonicalTripTimeline } from '../../lib/canonical-trip';
 import { useTimelineData, type StopOverrides } from './Itinerary/useTimelineData';
 import type { ViewMode } from './Journal/JournalModeToggle';
-import { SmartTimeline } from './Timeline/SmartTimeline';
-import { JournalTimeline } from './Journal/JournalTimeline';
 import { ItineraryTimelineContent } from './Itinerary/ItineraryTimeline';
 import { StartJournalCTA } from './Journal/JournalModeToggle';
 import type { ViewerRouteSummary } from '../../lib/trip-summary-slices';
+
+const SmartTimeline = lazy(() => import('./Timeline/SmartTimeline').then(m => ({ default: m.SmartTimeline })));
+const JournalTimeline = lazy(() => import('./Journal/JournalTimeline').then(m => ({ default: m.JournalTimeline })));
 
 // ==================== PROPS ====================
 
@@ -134,25 +135,29 @@ export function TripTimelineView({
 
       {/* Smart Timeline — time-first simulation view (toggleable) */}
       {viewMode === 'plan' && showSimulation && (
-        <SmartTimeline
-          summary={summary}
-          settings={settings}
-          vehicle={vehicle}
-          precomputedEvents={canonicalTimeline?.events}
-          poiSuggestions={poiSuggestions}
-          poiInference={poiInference}
-        />
+        <Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground animate-pulse">Loading simulation view...</div>}>
+          <SmartTimeline
+            summary={summary}
+            settings={settings}
+            vehicle={vehicle}
+            precomputedEvents={canonicalTimeline?.events}
+            poiSuggestions={poiSuggestions}
+            poiInference={poiInference}
+          />
+        </Suspense>
       )}
 
       {/* Journal or Itinerary */}
       {viewMode === 'journal' ? (
         activeJournal ? (
-          <JournalTimeline
-            summary={summary}
-            settings={settings}
-            journal={activeJournal}
-            onUpdateJournal={onUpdateJournal}
-          />
+          <Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground animate-pulse">Loading journal...</div>}>
+            <JournalTimeline
+              summary={summary}
+              settings={settings}
+              journal={activeJournal}
+              onUpdateJournal={onUpdateJournal}
+            />
+          </Suspense>
         ) : (
           <StartJournalCTA
             onStart={onStartJournal}

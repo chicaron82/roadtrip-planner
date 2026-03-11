@@ -1,8 +1,10 @@
 import type React from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
 import { StepsBanner } from '../StepsBanner';
 import { WizardContent } from '../WizardContent';
 import { PlanningStepContent } from '../Steps/PlanningStepContent';
 import { SwipeableWizard } from '../UI/SwipeableWizard';
+import { ErrorFallback } from '../UI/ErrorFallback';
 import type { PlanningStep } from '../../hooks';
 import type { GhostCarState } from '../../hooks/useGhostCar';
 import type { MarkerCategory, POICategory, TripMode } from '../../types';
@@ -84,7 +86,9 @@ export function PlannerSidebarShell({
             error={error}
             onClearError={onClearError}
           >
-            <PlanningStepContent {...stepProps} />
+            <ErrorBoundary FallbackComponent={ErrorFallback}>
+              <PlanningStepContent {...stepProps} />
+            </ErrorBoundary>
           </WizardContent>
         </div>
       </SwipeableWizard>
