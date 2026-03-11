@@ -73,26 +73,28 @@ function buildTimeBasedRotationIndices(
 /**
  * Assign drivers to segments, rotating at natural swap points.
  *
- * Primary: rotates at fuel stops (natural pause points on any road trip).
- * Fallback: if fuel stops don't create enough rotations, splits total
+ * Primary: rotates at fuel stops and any intent-declared stops (fuel, meal, overnight).
+ * Fallback: if stop-based rotation points don't create enough rotations, splits total
  * drive time evenly across drivers using time-based rotation points.
  *
  * @param segments - Route segments to assign drivers to
  * @param numDrivers - Number of available drivers (1 = no rotation)
  * @param fuelStopIndices - Segment indices where fuel stops occur
+ * @param extraRotationIndices - Additional rotation points (intent waypoints, overnight boundaries)
  * @returns Driver assignments, stats, and rotation points
  */
 export function assignDrivers(
   segments: RouteSegment[],
   numDrivers: number,
   fuelStopIndices: number[] = [],
+  extraRotationIndices: number[] = [],
 ): DriverRotationResult {
   if (numDrivers < 1) numDrivers = 1;
 
-  // Deduplicate fuel stop indices: multiple en-route stops within one flat segment
-  // all resolve to the same flatIndex. Without dedup, [0,0,0].length=3 triggers the
-  // fuel-only path for 4 drivers, then new Set collapses to {0} — one real swap point.
-  const uniqueFuelIndices = [...new Set(fuelStopIndices)];
+  // Deduplicate all rotation indices: fuel stops + intent waypoints + overnight boundaries.
+  // Multiple en-route stops within one flat segment all resolve to the same flatIndex —
+  // dedup prevents phantom rotation points inflating the fuel-only path check.
+  const uniqueFuelIndices = [...new Set([...fuelStopIndices, ...extraRotationIndices])];
 
   // Determine rotation points: fuel stops if they create enough rotations,
   // otherwise fall back to time-based even distribution
