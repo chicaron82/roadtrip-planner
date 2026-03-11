@@ -8,7 +8,7 @@
 
 import type { Location, TripSummary, TripDay, TripSettings } from '../types';
 import type { CanonicalTripTimeline } from '../lib/canonical-trip';
-import { snapOvernightsToTowns } from '../lib/overnight-snapper';
+import { snapOvernightsToTowns, validateIntentOvernights } from '../lib/overnight-snapper';
 import {
   applySnappedOvernightsToCanonicalTimeline,
   shouldPropagateSnappedOvernightToNextDay,
@@ -149,5 +149,51 @@ export function fireAndForgetOvernightSnap(
     })
     .catch((err) => {
       console.warn('[overnight-snap] Overpass unavailable — keeping geometry-interpolated positions', err);
+    });
+}
+
+/**
+ * Async fire-and-forget: validates user-pinned intent overnight locations for
+ * accommodation availability. If a pinned stop has no hotels within 10 km,
+ * stamps overnight.accommodationWarning so the itinerary can show a callout.
+ *
+ * Non-destructive — never moves the overnight location. The user chose it.
+ * They might be camping, visiting family, or fully aware the town is tiny.
+ */
+export function fireAndForgetIntentOvernightValidation(
+  tripDays: TripDay[],
+  tripSummary: TripSummary,
+  geocodeController: AbortController,
+  setSummary: (s: TripSummary) => void,
+): void {
+  validateIntentOvernights(tripDays, geocodeController.signal)
+    .then(warnings => {
+      if (geocodeController.signal.aborted || warnings.length === 0) return;
+
+      const enriched = tripDays.map(d => ({ ...d }));
+      let changed = false;
+
+      for (const warn of warnings) {
+        const idx = enriched.findIndex(d => d.dayNumber === warn.dayNumber);
+        if (idx < 0 || !enriched[idx].overnight) continue;
+        enriched[idx] = {
+          ...enriched[idx],
+          overnight: {
+            ...enriched[idx].overnight!,
+            accommodationWarning: {
+              message: warn.message,
+              suggested: warn.suggested,
+            },
+          },
+        };
+        changed = true;
+      }
+
+      if (changed) {
+        setSummary({ ...tripSummary, days: enriched });
+      }
+    })
+    .catch((err) => {
+      console.warn('[overnight-validate] Overpass unavailable — skipping accommodation check', err);
     });
 }

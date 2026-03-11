@@ -107,6 +107,11 @@ export interface OvernightStop {
   checkIn?: string; // "3:00 PM"
   checkOut?: string; // "11:00 AM"
   notes?: string;
+  /** Set by the overnight validator when no accommodation is found near a user-pinned intent overnight. */
+  accommodationWarning?: {
+    message: string;
+    suggested?: { name: string; distanceKm: number };
+  };
 }
 
 // Daily budget tracking with running totals
