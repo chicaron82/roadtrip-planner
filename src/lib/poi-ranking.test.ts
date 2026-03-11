@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rankAndFilterPOIs, haversineDistance, estimateDetourTime } from './poi-ranking';
+import { rankAndFilterPOIs, rankDestinationPOIs, haversineDistance, estimateDetourTime, findNearestSegmentIndex } from './poi-ranking';
 import type { POISuggestion, RouteSegment } from '../types';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -115,5 +115,81 @@ describe('rankAndFilterPOIs — segmentIndex 0 timing fit', () => {
     const segments = [makeSegment('fuel')];
     const poi = makePOI({ category: 'gas', segmentIndex: undefined, lat: 49.0, lng: -97.001 });
     expect(() => rankAndFilterPOIs([poi], ROUTE, segments, [])).not.toThrow();
+  });
+});
+
+// ─── findNearestSegmentIndex ──────────────────────────────────────────────────
+
+describe('findNearestSegmentIndex', () => {
+  const segments = [
+    makeSegment('break'),
+    {
+      from: { id: 'b', type: 'waypoint' as const, name: 'B', lat: 49.5, lng: -97.0 },
+      to:   { id: 'c', type: 'destination' as const, name: 'C', lat: 50.0, lng: -97.0 },
+      distanceKm: 55,
+      durationMinutes: 45,
+      stopType: 'break' as const,
+      fuelNeededLitres: 0,
+      fuelCost: 0,
+    },
+  ];
+
+  it('returns 0 for a point nearest the first segment destination', () => {
+    expect(findNearestSegmentIndex(49.5, -97.0, segments)).toBe(0);
+  });
+
+  it('returns 1 for a point nearest the second segment destination', () => {
+    expect(findNearestSegmentIndex(50.0, -97.0, segments)).toBe(1);
+  });
+
+  it('returns 0 for a single-segment route', () => {
+    expect(findNearestSegmentIndex(51.0, -95.0, [makeSegment()])).toBe(0);
+  });
+});
+
+// ─── rankDestinationPOIs ──────────────────────────────────────────────────────
+
+describe('rankDestinationPOIs', () => {
+  const destination = { lat: 49.5, lng: -97.0 };
+
+  it('returns at most topN results', () => {
+    const pois = Array.from({ length: 10 }, (_, i) =>
+      makePOI({ id: `dp-${i}`, lat: 49.5 + i * 0.01 })
+    );
+    const result = rankDestinationPOIs(pois, ['scenic'], destination, 3);
+    expect(result.length).toBeLessThanOrEqual(3);
+  });
+
+  it('results are sorted by rankingScore descending', () => {
+    const pois = [
+      makePOI({ id: 'a', popularityScore: 20 }),
+      makePOI({ id: 'b', popularityScore: 80 }),
+      makePOI({ id: 'c', popularityScore: 50 }),
+    ];
+    const result = rankDestinationPOIs(pois, [], destination, 10);
+    for (let i = 1; i < result.length; i++) {
+      expect(result[i].rankingScore).toBeLessThanOrEqual(result[i - 1].rankingScore);
+    }
+  });
+
+  it('sets detourTimeMinutes to 0 (no detour — already at destination)', () => {
+    const result = rankDestinationPOIs([makePOI()], [], destination, 10);
+    result.forEach(p => expect(p.detourTimeMinutes).toBe(0));
+  });
+
+  it('sets fitsInBreakWindow to true for all', () => {
+    const result = rankDestinationPOIs([makePOI()], [], destination, 10);
+    result.forEach(p => expect(p.fitsInBreakWindow).toBe(true));
+  });
+
+  it('distanceFromRoute reflects distance from destination, not route polyline', () => {
+    const poi = makePOI({ lat: 49.5 + 0.1, lng: -97.0 }); // ~11 km north
+    const result = rankDestinationPOIs([poi], [], destination, 5);
+    expect(result[0].distanceFromRoute).toBeGreaterThan(5);
+    expect(result[0].distanceFromRoute).toBeLessThan(20);
+  });
+
+  it('returns empty array for empty input', () => {
+    expect(rankDestinationPOIs([], ['scenic'], destination, 5)).toHaveLength(0);
   });
 });

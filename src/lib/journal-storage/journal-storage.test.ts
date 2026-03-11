@@ -39,7 +39,7 @@ function makeJournal(overrides: Partial<TripJournal> = {}): TripJournal {
     version: '1.0',
     tripSummary: makeSummary({ segments: [seg], totalDistanceKm: 500 }),
     settings: makeSettings(),
-    vehicle: { year: 2020, make: 'Toyota', model: 'Camry', cityFuelL100km: 10, hwyFuelL100km: 7, tankSizeLitres: 60 } as any,
+    vehicle: { year: '2020', make: 'Toyota', model: 'Camry', fuelEconomyCity: 10, fuelEconomyHwy: 7, tankSize: 60 },
     entries: [],
     quickCaptures: [],
     dayMeta: [],
