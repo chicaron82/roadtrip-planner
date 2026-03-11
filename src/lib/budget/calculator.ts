@@ -33,7 +33,7 @@ export function createSmartBudget(
   const nights = plannedNights !== undefined
     ? plannedNights
     : Math.max(0, totalDays - 1);
-  const roomsNeeded = Math.ceil(numTravelers / 2);
+  const roomsNeeded = settings.numRooms ?? Math.ceil(numTravelers / 2);
 
   // Estimate costs
   const gasEstimate = totalDistanceKm * COST_ESTIMATES.gasPerKm;

@@ -6,8 +6,23 @@
 export type TripMode = 'plan' | 'adventure' | 'estimate';
 
 export type AccommodationType = 'hotel' | 'camping' | 'airbnb' | 'friends' | 'other';
+export type HotelTier = 'budget' | 'regular' | 'premium';
 
 export type LocationType = 'origin' | 'destination' | 'waypoint';
+
+/**
+ * User-declared intent for a waypoint stop.
+ * When set, the engine honors it instead of guessing.
+ * Nothing checked = engine decides (default behaviour).
+ */
+export interface WaypointIntent {
+  fuel?: boolean;
+  meal?: boolean;
+  /** Pins a day boundary here — engine will plan overnight at this location. */
+  overnight?: boolean;
+  /** Override dwell time in minutes. Fuel defaults 15, meal defaults 45, sum if both. */
+  dwellMinutes?: number;
+}
 
 export interface Location {
   id: string;
@@ -16,6 +31,8 @@ export interface Location {
   lat: number;
   lng: number;
   type: LocationType;
+  /** Stop intent — only meaningful when type === 'waypoint'. */
+  intent?: WaypointIntent;
 }
 
 export interface Vehicle {
@@ -115,6 +132,10 @@ export interface TripSettings {
   useArrivalTime: boolean;
   gasPrice: number;
   hotelPricePerNight: number; // Average hotel cost estimate
+  /** Accommodation tier — sets hotelPricePerNight via preset. 'regular' if unset. */
+  hotelTier?: HotelTier;
+  /** Rooms needed per night. Defaults to ceil(numTravelers / 2) if unset. */
+  numRooms?: number;
   mealPricePerDay: number; // Average meal budget per day
   isRoundTrip: boolean;
   avoidTolls: boolean;

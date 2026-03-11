@@ -4,6 +4,7 @@ import { Button } from '../UI/Button';
 import { Label } from '../UI/Label';
 import type { StylePreset } from '../../lib/style-presets';
 import { TravelersSection } from './TravelersSection';
+import { AccommodationSection } from './AccommodationSection';
 import { DrivingPreferencesSection } from './DrivingPreferencesSection';
 import { StopFrequencySection } from './StopFrequencySection';
 import { TripStyleSection } from './TripStyleSection';
@@ -58,10 +59,10 @@ export function Step2Content({
         <Label className="text-xs text-muted-foreground mb-2 block">Quick Setup</Label>
         <div className="grid grid-cols-4 gap-2">
           {[
-            { label: '🎒 Solo', travelers: 1, drivers: 1, hours: 8 },
-            { label: '💑 Couple', travelers: 2, drivers: 1, hours: 8 },
-            { label: '👨‍👩‍👧‍👦 Family', travelers: 4, drivers: 2, hours: 6 },
-            { label: '👥 Group', travelers: 6, drivers: 3, hours: 10 },
+            { label: '🎒 Solo',         travelers: 1, drivers: 1, hours: 8,  rooms: 1 },
+            { label: '💑 Couple',       travelers: 2, drivers: 1, hours: 8,  rooms: 1 },
+            { label: '👨‍👩‍👧‍👦 Family', travelers: 4, drivers: 2, hours: 6,  rooms: 2 },
+            { label: '👥 Group',        travelers: 6, drivers: 3, hours: 10, rooms: 3 },
           ].map((preset) => (
             <Button
               key={preset.label}
@@ -73,6 +74,7 @@ export function Step2Content({
                   numTravelers: preset.travelers,
                   numDrivers: preset.drivers,
                   maxDriveHours: preset.hours,
+                  numRooms: preset.rooms,
                   driverNames: Array.from({ length: preset.drivers }, (_, i) => prev.driverNames?.[i] ?? ''),
                 }))
               }
@@ -90,6 +92,7 @@ export function Step2Content({
       </div>
 
       <TravelersSection settings={settings} setSettings={setSettings} />
+      <AccommodationSection settings={settings} setSettings={setSettings} />
       <DrivingPreferencesSection settings={settings} setSettings={setSettings} />
       <StopFrequencySection settings={settings} setSettings={setSettings} />
       <TripStyleSection

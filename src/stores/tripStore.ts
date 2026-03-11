@@ -44,6 +44,8 @@ export const DEFAULT_SETTINGS: TripSettings = {
   useArrivalTime: false,
   gasPrice: 1.50,
   hotelPricePerNight: 150,
+  hotelTier: 'regular',
+  numRooms: 1, // ceil(2 travellers / 2)
   mealPricePerDay: 50,
   isRoundTrip: true,
   avoidTolls: false,

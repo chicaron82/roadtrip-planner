@@ -153,6 +153,52 @@ function SortableLocationItem({
         )}
       </div>
 
+      {/* Stop Intent — only for named waypoints */}
+      {loc.type === 'waypoint' && loc.name && (
+        <div className="pl-6 mt-2 space-y-1.5">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            {([
+              { key: 'fuel',      label: '⛽ Fuel',      title: 'Plan a fuel stop here' },
+              { key: 'meal',      label: '🍽️ Meal',      title: 'Plan a meal break here' },
+              { key: 'overnight', label: '🏨 Overnight', title: 'Pins overnight here — engine plans hotel at this stop' },
+            ] as const).map(({ key, label, title }) => {
+              const checked = loc.intent?.[key] ?? false;
+              return (
+                <label key={key} className="flex items-center gap-1.5 text-xs cursor-pointer select-none" title={title}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => onUpdate(index, { intent: { ...loc.intent, [key]: e.target.checked } })}
+                    className="h-3.5 w-3.5 rounded border-border"
+                  />
+                  <span className={checked ? 'font-medium text-foreground' : 'text-muted-foreground'}>{label}</span>
+                </label>
+              );
+            })}
+            {(loc.intent?.fuel || loc.intent?.meal) && (
+              <div className="flex items-center gap-1 ml-auto">
+                <input
+                  type="number"
+                  min={5}
+                  max={240}
+                  value={loc.intent?.dwellMinutes ?? ((loc.intent?.fuel ? 15 : 0) + (loc.intent?.meal ? 45 : 0))}
+                  onChange={(e) =>
+                    onUpdate(index, { intent: { ...loc.intent, dwellMinutes: Math.max(5, Number(e.target.value)) } })
+                  }
+                  className="w-14 text-xs border rounded px-2 py-1 bg-background text-right"
+                />
+                <span className="text-[10px] text-muted-foreground">min</span>
+              </div>
+            )}
+          </div>
+          {loc.intent?.overnight && (
+            <p className="text-[10px] text-blue-500/70">
+              Night here — engine will plan your hotel in {loc.name.split(',')[0]}.
+            </p>
+          )}
+        </div>
+      )}
+
       {index < totalLocations - 1 && (
         <div className="absolute left-[23px] top-[34px] bottom-[-14px] w-[2px] border-l-2 border-dashed border-primary/20 z-0 h-4" />
       )}

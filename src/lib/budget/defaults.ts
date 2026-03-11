@@ -43,6 +43,14 @@ export const DEFAULT_BUDGET: TripBudget = {
   total: 0,
 };
 
+// ==================== HOTEL TIER PRESETS ====================
+// Tier → base price per night (CAD). Regional multiplier applied on top.
+export const HOTEL_TIERS = {
+  budget:  { label: 'Budget',  emoji: '🛏️',  price: 90,  description: 'Motels & basic chains. Sleep well, spend the rest on adventures.' },
+  regular: { label: 'Regular', emoji: '🏨',  price: 150, description: 'Comfortable hotels. The classic road trip standard.' },
+  premium: { label: 'Premium', emoji: '✨',  price: 220, description: 'Boutique & upscale. Go bougie or go home.' },
+} as const;
+
 // Average cost estimates for planning
 export const COST_ESTIMATES = {
   hotelPerNight: {

@@ -41,12 +41,14 @@ export function TravelersSection({ settings, setSettings }: TravelersSectionProp
                   const newDrivers = Math.min(prev.numDrivers, newTravelers);
                   const prevDefault = getDefaultDriveHours(prev.numDrivers);
                   const newDefault = getDefaultDriveHours(newDrivers);
+                  const wasAutoRooms = (prev.numRooms ?? Math.ceil(prev.numTravelers / 2)) === Math.ceil(prev.numTravelers / 2);
                   return {
                     ...prev,
                     numTravelers: newTravelers,
                     numDrivers: newDrivers,
                     maxDriveHours: newDrivers !== prev.numDrivers && prev.maxDriveHours === prevDefault
                       ? newDefault : prev.maxDriveHours,
+                    numRooms: wasAutoRooms ? Math.ceil(newTravelers / 2) : prev.numRooms,
                   };
                 })
               }
@@ -61,10 +63,15 @@ export function TravelersSection({ settings, setSettings }: TravelersSectionProp
               size="icon"
               className="h-9 w-9 transition-transform active:scale-95"
               onClick={() =>
-                setSettings((prev) => ({
-                  ...prev,
-                  numTravelers: Math.min(20, prev.numTravelers + 1),
-                }))
+                setSettings((prev) => {
+                  const newTravelers = Math.min(20, prev.numTravelers + 1);
+                  const wasAutoRooms = (prev.numRooms ?? Math.ceil(prev.numTravelers / 2)) === Math.ceil(prev.numTravelers / 2);
+                  return {
+                    ...prev,
+                    numTravelers: newTravelers,
+                    numRooms: wasAutoRooms ? Math.ceil(newTravelers / 2) : prev.numRooms,
+                  };
+                })
               }
             >
               +

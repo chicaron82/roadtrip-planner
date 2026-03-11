@@ -81,7 +81,7 @@ export function getOverflowToleranceMinutes(
 }
 
 export function createDefaultOvernight(location: Location, settings: TripSettings): OvernightStop {
-  const roomsNeeded = Math.ceil(settings.numTravelers / 2);
+  const roomsNeeded = settings.numRooms ?? Math.ceil(settings.numTravelers / 2);
   return {
     location,
     accommodationType: 'hotel',

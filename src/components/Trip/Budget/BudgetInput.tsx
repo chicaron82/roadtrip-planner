@@ -1,9 +1,9 @@
 import { DollarSign, Sparkles, Lock, Unlock, Users, ChevronDown, ChevronUp, Save } from 'lucide-react';
 import { Input } from '../../UI/Input';
 import { Label } from '../../UI/Label';
-import type { TripBudget, Currency, SavedBudgetProfile } from '../../../types';
+import type { TripBudget, Currency } from '../../../types';
 import { cn } from '../../../lib/utils';
-import { BudgetProfilePicker, SaveProfileDialog } from './BudgetProfilePicker';
+import { SaveProfileDialog } from './BudgetProfilePicker';
 import { BudgetDistributionBar } from './BudgetDistributionBar';
 import { BudgetCategoryDetails } from './BudgetCategoryDetails';
 import { useBudgetController } from '../../../hooks/useBudgetController';
@@ -21,7 +21,6 @@ export function BudgetInput({ budget, onChange, currency: _currency, numTraveler
     showAdvanced, setShowAdvanced,
     showSaveDialog, setShowSaveDialog,
     activeSavedProfile,
-    applySavedProfile,
     handleProfileSaved,
     hasUnsavedChanges,
     toggleAllocation,
@@ -72,19 +71,6 @@ export function BudgetInput({ budget, onChange, currency: _currency, numTraveler
 
       {/* Budget Container */}
       <div className="space-y-4 p-4 rounded-lg bg-gray-50 border border-gray-200">
-        {/* Profile Picker */}
-        <BudgetProfilePicker
-          currentBudget={budget}
-          numTravelers={numTravelers}
-          onSelectProfile={(newBudget) => {
-            // Clears activeSavedProfile via applySavedProfile pathway would need null hook;
-            // for built-in presets that don't come from SavedBudgetProfile, just call onChange.
-            // The controller's activeSavedProfile remains stale until user loads a saved profile.
-            onChange(newBudget);
-          }}
-          onSelectSavedProfile={(p: SavedBudgetProfile) => applySavedProfile(p)}
-        />
-
         {/* Total Budget Input */}
         <div className="pt-3 border-t border-gray-200">
           <div className="flex items-center justify-between gap-4">

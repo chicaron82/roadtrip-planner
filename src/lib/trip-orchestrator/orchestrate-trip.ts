@@ -4,6 +4,7 @@ import { calculateTripCosts, calculateArrivalTimes } from '../calculations';
 import { buildRoundTripSegments } from '../trip-calculation-helpers';
 import { splitTripByDays, calculateCostBreakdown, getBudgetStatus } from '../budget';
 import { generateSmartStops, createStopConfig } from '../stop-suggestions';
+import type { SuggestedStop } from '../stop-suggestions';
 import { fetchWeather } from '../weather';
 import { validateTripInputs } from '../validate-inputs';
 import { buildTimedTimeline } from '../trip-timeline';
@@ -98,10 +99,52 @@ export async function orchestrateTrip(
   );
   const smartStops = await enrichSmartStopHubs(rawSmartStops);
 
+  // Inject user-declared stop intent (fuel, meal) as required stops.
+  // These honour the user's explicit waypoint checkboxes in Step 1.
+  // TODO: overnight intent requires modifying splitTripByDays to pin day boundaries —
+  //       tracked for a future session (needs deeper split-by-days integration).
+  const intentStops: SuggestedStop[] = [];
+  tripSummary.segments.forEach((seg, idx) => {
+    const intent = seg.to.intent;
+    if (!intent || seg.to.type !== 'waypoint') return;
+    const estimatedTime = seg.arrivalTime ? new Date(seg.arrivalTime) : new Date();
+    const defaultDwell = (intent.fuel ? 15 : 0) + (intent.meal ? 45 : 0);
+    const dwell = intent.dwellMinutes ?? defaultDwell;
+    if (intent.fuel) {
+      // Fuel (with optional combined meal) — single stop, comboMeal flag if both checked
+      intentStops.push({
+        id: `intent-fuel-${seg.to.id}`,
+        type: 'fuel',
+        reason: `Fuel stop at ${seg.to.name} (planned)`,
+        afterSegmentIndex: idx,
+        estimatedTime,
+        duration: dwell,
+        priority: 'required',
+        details: { comboMeal: !!intent.meal },
+        hubName: seg.to.name,
+        accepted: true,
+      });
+    } else if (intent.meal) {
+      intentStops.push({
+        id: `intent-meal-${seg.to.id}`,
+        type: 'meal',
+        reason: `Meal break at ${seg.to.name} (planned)`,
+        afterSegmentIndex: idx,
+        estimatedTime,
+        duration: dwell,
+        priority: 'required',
+        details: {},
+        hubName: seg.to.name,
+        accepted: true,
+      });
+    }
+  });
+  const allSmartStops = [...smartStops, ...intentStops];
+
   const destinationStayMinutes = getRoundTripDayTripStayMinutes(tripSummary, tripDays.length, settings);
 
   const timedRaw = buildTimedTimeline(
-    tripSummary.segments, smartStops, settings,
+    tripSummary.segments, allSmartStops, settings,
     roundTripMidpoint, destinationStayMinutes, tripDays,
   );
   const canonicalEvents = applyComboOptimization(timedRaw);
@@ -116,8 +159,8 @@ export async function orchestrateTrip(
   return {
     tripSummary,
     canonicalTimeline,
-    projectedFuelStops: projectFuelStopsFromSimulation(smartStops),
-    smartStops,
+    projectedFuelStops: projectFuelStopsFromSimulation(allSmartStops),
+    smartStops: allSmartStops,
     roundTripMidpoint,
   };
 }
