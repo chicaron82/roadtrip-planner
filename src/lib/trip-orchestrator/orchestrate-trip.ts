@@ -68,6 +68,15 @@ export async function orchestrateTrip(
     roundTripMidpoint = rt.roundTripMidpoint;
   }
 
+  // Stamp stopType = 'overnight' on segments ending at overnight-intent waypoints.
+  // splitTripByDays already handles isOvernightStop via segment.stopType — this is
+  // the only change needed to pin day boundaries at user-declared overnight stops.
+  segmentsWithTimes = segmentsWithTimes.map((seg) =>
+    seg.to.intent?.overnight && seg.to.type === 'waypoint'
+      ? { ...seg, stopType: 'overnight' as const }
+      : seg
+  );
+
   tripSummary.segments = segmentsWithTimes;
   tripSummary.roundTripMidpoint = roundTripMidpoint;
 
