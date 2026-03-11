@@ -52,10 +52,17 @@ export function checkAndSetOvernightPrompt(
 }
 
 /**
- * Async fire-and-forget: snaps transit-split overnight locations to real OSM
- * town centres. Updates summary state once the Overpass query resolves.
+ * Async fire-and-forget: runs overnight snap + accommodation validation in
+ * parallel, then applies all changes in a single setSummary call.
+ *
+ * Running them separately created a race: both closed over the same tripDays
+ * snapshot and whichever resolved second would overwrite the first's changes.
+ * Promise.all guarantees a single enriched clone that carries both.
+ *
+ * - Snap: fixes transit-split overnight coords to real OSM town centres
+ * - Validation: warns when a user-pinned intent overnight has no hotels nearby
  */
-export function fireAndForgetOvernightSnap(
+export function fireAndForgetOvernightPostProcessing(
   tripDays: TripDay[],
   tripSummary: TripSummary,
   canonicalTimeline: CanonicalTripTimeline | null,
@@ -63,13 +70,18 @@ export function fireAndForgetOvernightSnap(
   setSummary: (s: TripSummary) => void,
   setCanonicalTimeline: (timeline: CanonicalTripTimeline) => void,
 ): void {
-  snapOvernightsToTowns(tripDays, geocodeController.signal)
-    .then(snapped => {
-      if (geocodeController.signal.aborted || snapped.length === 0) return;
+  Promise.all([
+    snapOvernightsToTowns(tripDays, geocodeController.signal),
+    validateIntentOvernights(tripDays, geocodeController.signal),
+  ])
+    .then(([snapped, validations]) => {
+      if (geocodeController.signal.aborted) return;
+      if (snapped.length === 0 && validations.length === 0) return;
 
       const enriched = tripDays.map(d => ({ ...d }));
       let changed = false;
 
+      // Apply snap: relocate transit-split overnight coords to real OSM towns
       for (const snap of snapped) {
         const idx = enriched.findIndex(d => d.dayNumber === snap.dayNumber);
         if (idx < 0) continue;
@@ -137,43 +149,8 @@ export function fireAndForgetOvernightSnap(
         changed = true;
       }
 
-      if (changed) {
-        const updatedSummary = { ...tripSummary, days: enriched };
-        setSummary(updatedSummary);
-        if (canonicalTimeline) {
-          setCanonicalTimeline(
-            applySnappedOvernightsToCanonicalTimeline(canonicalTimeline, updatedSummary, snapped),
-          );
-        }
-      }
-    })
-    .catch((err) => {
-      console.warn('[overnight-snap] Overpass unavailable — keeping geometry-interpolated positions', err);
-    });
-}
-
-/**
- * Async fire-and-forget: validates user-pinned intent overnight locations for
- * accommodation availability. If a pinned stop has no hotels within 10 km,
- * stamps overnight.accommodationWarning so the itinerary can show a callout.
- *
- * Non-destructive — never moves the overnight location. The user chose it.
- * They might be camping, visiting family, or fully aware the town is tiny.
- */
-export function fireAndForgetIntentOvernightValidation(
-  tripDays: TripDay[],
-  tripSummary: TripSummary,
-  geocodeController: AbortController,
-  setSummary: (s: TripSummary) => void,
-): void {
-  validateIntentOvernights(tripDays, geocodeController.signal)
-    .then(warnings => {
-      if (geocodeController.signal.aborted || warnings.length === 0) return;
-
-      const enriched = tripDays.map(d => ({ ...d }));
-      let changed = false;
-
-      for (const warn of warnings) {
+      // Apply validation: stamp accommodation warnings on user-pinned intent overnights
+      for (const warn of validations) {
         const idx = enriched.findIndex(d => d.dayNumber === warn.dayNumber);
         if (idx < 0 || !enriched[idx].overnight) continue;
         enriched[idx] = {
@@ -190,10 +167,16 @@ export function fireAndForgetIntentOvernightValidation(
       }
 
       if (changed) {
-        setSummary({ ...tripSummary, days: enriched });
+        const updatedSummary = { ...tripSummary, days: enriched };
+        setSummary(updatedSummary);
+        if (canonicalTimeline && snapped.length > 0) {
+          setCanonicalTimeline(
+            applySnappedOvernightsToCanonicalTimeline(canonicalTimeline, updatedSummary, snapped),
+          );
+        }
       }
     })
     .catch((err) => {
-      console.warn('[overnight-validate] Overpass unavailable — skipping accommodation check', err);
+      console.warn('[overnight-postprocess] Overpass unavailable — skipping snap and accommodation check', err);
     });
 }

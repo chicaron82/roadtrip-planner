@@ -5,7 +5,7 @@ import type { StrategicFuelStop } from '../lib/calculations';
 import type { SuggestedStop } from '../lib/stop-suggestion-types';
 import { fetchAllRouteStrategies } from '../lib/api';
 import { snapFuelStopsToStations } from '../lib/fuel-stop-snapper';
-import { checkAndSetOvernightPrompt, fireAndForgetOvernightSnap, fireAndForgetIntentOvernightValidation } from './useOvernightSnap';
+import { checkAndSetOvernightPrompt, fireAndForgetOvernightPostProcessing } from './useOvernightSnap';
 import { addToHistory } from '../lib/storage';
 import { serializeStateToURL } from '../lib/url';
 import { buildStrategyUpdate } from '../lib/trip-strategy-selector';
@@ -160,14 +160,9 @@ export function useTripCalculation({
       setActiveStrategyIndex(0);
       setStrategyInputs({ locations: [...locations], avoidTolls: currentSettings.avoidTolls });
 
-      fireAndForgetOvernightSnap(
+      fireAndForgetOvernightPostProcessing(
         tripSummary.days!, tripSummary, canonicalTimeline, geocodeController,
         commitSummary, setCanonicalTimeline,
-      );
-
-      fireAndForgetIntentOvernightValidation(
-        tripSummary.days!, tripSummary, geocodeController,
-        commitSummary,
       );
 
       return tripSummary;
