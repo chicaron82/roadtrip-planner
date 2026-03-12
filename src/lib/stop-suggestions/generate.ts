@@ -328,6 +328,28 @@ export function generateSmartStops(
       state.costSinceLastFill += segment.fuelCost ?? 0;
     }
 
+    // Intent-aware state reset: when the user declared a fuel/meal intent at this
+    // waypoint (segment.to), adjust sim state as if the planned stop happened.
+    // This prevents the NEXT segment's boundary check from firing a redundant fuel
+    // or meal stop near the same waypoint. The orchestrator injects the actual intent
+    // stop into the output — here we just sync the simulation state.
+    const waypointIntent = segment.to?.intent;
+    if (waypointIntent && segment.to?.type === 'waypoint') {
+      if (waypointIntent.fuel) {
+        state.currentFuel = config.tankSizeLitres;
+        state.distanceSinceLastFill = 0;
+        state.hoursSinceLastFill = 0;
+        state.costSinceLastFill = 0;
+        const dwellMs = (waypointIntent.dwellMinutes ?? (waypointIntent.meal ? 45 : 15)) * 60 * 1000;
+        state.currentTime = new Date(state.currentTime.getTime() + dwellMs);
+        state.lastBreakTime = new Date(state.currentTime);
+      } else if (waypointIntent.meal) {
+        const dwellMs = (waypointIntent.dwellMinutes ?? 45) * 60 * 1000;
+        state.currentTime = new Date(state.currentTime.getTime() + dwellMs);
+        state.lastBreakTime = new Date(state.currentTime);
+      }
+    }
+
     // Overnight stop check (uses strict "final segment" check, not grace zone).
     // Skipped for transit sub-segments without a following day boundary — beast mode
     // internal splits and the final destination arrival. Skipping preserves

@@ -113,13 +113,20 @@ export async function orchestrateTrip(
   // TODO: overnight intent requires modifying splitTripByDays to pin day boundaries —
   //       tracked for a future session (needs deeper split-by-days integration).
   const intentStops: SuggestedStop[] = [];
+  // Track which segment indices have user-declared intent stops and what types.
+  // Used to suppress engine-generated duplicates at the same waypoint.
+  const intentSegmentFuel = new Set<number>();
+  const intentSegmentMeal = new Set<number>();
   tripSummary.segments.forEach((seg, idx) => {
     const intent = seg.to.intent;
     if (!intent || seg.to.type !== 'waypoint') return;
     const estimatedTime = seg.arrivalTime ? new Date(seg.arrivalTime) : new Date();
-    const defaultDwell = (intent.fuel ? 15 : 0) + (intent.meal ? 45 : 0);
+    // Combo dwell: fuel+meal is 45 min (eat while car fuels — parallel), not additive.
+    const defaultDwell = (intent.fuel && intent.meal) ? 45 : (intent.fuel ? 15 : 0) + (intent.meal ? 45 : 0);
     const dwell = intent.dwellMinutes ?? defaultDwell;
     if (intent.fuel) {
+      intentSegmentFuel.add(idx);
+      if (intent.meal) intentSegmentMeal.add(idx);
       // Fuel (with optional combined meal) — single stop, comboMeal flag if both checked
       intentStops.push({
         id: `intent-fuel-${seg.to.id}`,
@@ -134,6 +141,7 @@ export async function orchestrateTrip(
         accepted: true,
       });
     } else if (intent.meal) {
+      intentSegmentMeal.add(idx);
       intentStops.push({
         id: `intent-meal-${seg.to.id}`,
         type: 'meal',
@@ -148,7 +156,30 @@ export async function orchestrateTrip(
       });
     }
   });
-  const allSmartStops = [...smartStops, ...intentStops];
+
+  // Deduplicate: suppress engine-generated stops that overlap with intent stops.
+  // The engine doesn't know about user intents, so it may generate a fuel/meal stop
+  // at the same waypoint. Intent stops always win (user's explicit choice).
+  // afterSegmentIndex can be fractional (en-route stops use idx + 0.01*n) — floor to
+  // find which segment boundary they belong to.
+  const deduplicatedSmartStops = intentStops.length > 0
+    ? smartStops.filter(s => {
+        const segIdx = Math.floor(s.afterSegmentIndex);
+        // Check one segment in each direction — engine fuel fires at idx-1,
+        // meals fire at idx, en-route fires at idx-1+fraction.
+        if (s.type === 'fuel') {
+          if (intentSegmentFuel.has(segIdx) || intentSegmentFuel.has(segIdx + 1)) return false;
+        }
+        if (s.type === 'meal') {
+          if (intentSegmentMeal.has(segIdx) || intentSegmentMeal.has(segIdx - 1)) return false;
+          // Also suppress if a fuel+meal combo intent covers this area
+          if (intentSegmentFuel.has(segIdx) || intentSegmentFuel.has(segIdx - 1)) return false;
+        }
+        return true;
+      })
+    : smartStops;
+
+  const allSmartStops = [...deduplicatedSmartStops, ...intentStops];
 
   const destinationStayMinutes = getRoundTripDayTripStayMinutes(tripSummary, tripDays.length, settings);
 
