@@ -8,7 +8,7 @@
  */
 
 import type { TripSettings, Vehicle } from '../types';
-import type { DriverRotationResult } from './driver-rotation';
+import type { DriverRotationResult, DriverStats } from './driver-rotation';
 import type { FeasibilityResult } from './feasibility/types';
 import type { WarningCategory } from './feasibility/types';
 import type { PrintCoverSummary } from './trip-summary-slices';
@@ -180,12 +180,14 @@ function buildPacingSection(
 function buildRosterSection(
   driverRotation: DriverRotationResult | null,
   settings: TripSettings,
+  enrichedStats?: DriverStats[],
 ): string {
   if (settings.numDrivers <= 1) return '';
 
   const units = settings.units;
-  // Index stats by driver number so unassigned drivers (0 segments) still appear
-  const statsById = new Map((driverRotation?.stats ?? []).map(s => [s.driver, s]));
+  // Prefer enriched stats (includes fuel-stop swap drivers) over segment-based stats
+  const displayStats = enrichedStats ?? driverRotation?.stats ?? [];
+  const statsById = new Map(displayStats.map(s => [s.driver, s]));
 
   const rows = Array.from({ length: settings.numDrivers }, (_, i) => {
     const driver = i + 1;
@@ -222,12 +224,13 @@ export function buildCoverPageHTML(
   feasibility: FeasibilityResult,
   driverRotation: DriverRotationResult | null,
   vehicle?: Vehicle,
+  enrichedStats?: DriverStats[],
 ): string {
   const heroHTML    = buildHeroSection(tripTitle, summary, settings);
   const budgetHTML  = buildBudgetStatusCard(summary, settings, feasibility);
   const warningHTML = buildWarningsSection(feasibility);
   const pacingHTML  = buildPacingSection(summary, settings, vehicle);
-  const rosterHTML  = buildRosterSection(driverRotation, settings);
+  const rosterHTML  = buildRosterSection(driverRotation, settings, enrichedStats);
 
   const dateStr = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
 
