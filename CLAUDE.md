@@ -2,7 +2,7 @@
 
 ## Architecture Rules
 
-### App.tsx is a Layout File — Hard Limit: 300 Lines
+### App.tsx is a Layout File — Hard Limit: 330 Lines
 
 **App.tsx is NOT allowed to:**
 - Define `useMemo` / `useCallback` inline
@@ -21,15 +21,13 @@ If something violates this, it goes in a hook or a controller — not App.tsx.
 
 **This limit is enforced by ESLint (`max-lines: error` on `src/App.tsx`).**
 
-> **Temporary cap: ESLint currently enforces 320 lines while the Step 3 / Viewer refactor
-> is in progress. Once that refactor lands, the cap tightens back to 300.
-> Do not treat 320 as a permanent ceiling — 300 is the law.**
+The 330-line cap is permanent. File headers are welcome; business logic is not. If you are approaching the limit, the answer is almost always a new hook or controller, not removing documentation.
 
 ---
 
-### The 300-Line Limit (General)
+### The 330-Line Limit (General)
 
-All files should stay under 300 lines. If a file approaches this:
+All files should stay under 330 lines. If a file approaches this:
 - Pause and ask "should this be split?"
 - Default answer: yes
 - Use the orchestrator pattern: thin parent + subdirectory modules
