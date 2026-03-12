@@ -10,7 +10,6 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            if (id.includes('react-dom') || id.includes('/react/')) return 'react-vendor'
             if (id.includes('leaflet') || id.includes('react-leaflet')) return 'map-vendor'
             if (id.includes('@dnd-kit')) return 'dnd-vendor'
             if (id.includes('framer-motion')) return 'motion-vendor'
