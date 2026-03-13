@@ -44,6 +44,8 @@ import { useTripCalculation } from './useTripCalculation';
 import { orchestrateTrip, orchestrateStopUpdate, orchestrateStrategySwap, TripCalculationError } from '../lib/trip-orchestrator';
 import { snapFuelStopsToStations } from '../lib/fuel-stop-snapper';
 import { useTripStore } from '../stores/tripStore';
+import { buildStrategyUpdate } from '../lib/trip-strategy-selector';
+import { fetchAllRouteStrategies } from '../lib/api';
 
 const mockOrchestrate = vi.mocked(orchestrateTrip);
 const mockStopUpdate = vi.mocked(orchestrateStopUpdate);
@@ -67,11 +69,13 @@ const LOC_A: Location = { id: 'a', name: 'Winnipeg, MB', lat: 49.9, lng: -97.1, 
 const LOC_B: Location = { id: 'b', name: 'Brandon, MB', lat: 49.8, lng: -99.9, type: 'waypoint' };
 
 const VEHICLE: Vehicle = {
-  name: 'TestVan',
-  fuelType: 'gasoline',
+  year: '2022',
+  make: 'Toyota',
+  model: 'Sienna',
+  fuelEconomyCity: 10,
   fuelEconomyHwy: 9,
-  tankSizeL: 80,
-} as Vehicle;
+  tankSize: 80,
+};
 
 const SETTINGS: TripSettings = {
   units: 'metric',
@@ -112,10 +116,8 @@ const STUB_SUMMARY: Partial<TripSummary> = {
   totalDurationMinutes: 120,
   totalFuelCost: 24,
   costPerPerson: 12,
-  fuelStops: 0,
-  estimatedFuelUsed: 14,
-  costBreakdown: { fuel: 24, hotel: 0, food: 0, misc: 0, total: 24, details: { fuel: [], hotel: [], food: [], misc: [] } },
-  budgetStatus: 'on-track',
+  costBreakdown: { fuel: 24, accommodation: 0, meals: 0, misc: 0, total: 24, perPerson: 12 },
+  budgetStatus: 'at',
   budgetRemaining: 976,
 };
 
@@ -386,9 +388,112 @@ describe('day update utilities', () => {
   it('does nothing when no summary is loaded', () => {
     const { result } = makeHook();
 
-    // Should not throw even with null summary
     expect(() => {
-      act(() => { result.current.updateDayNotes(1, 'Note'); });
+      act(() => { result.current.rebuildCanonicalWithExternals([]); });
     }).not.toThrow();
+
+    expect(mockStrategySwap).not.toHaveBeenCalled();
+  });
+});
+
+// ─── selectStrategy ───────────────────────────────────────────────────────────
+
+/** Stubs for route strategy objects */
+const STUB_STRATEGY = {
+  id: 'fastest' as const,
+  label: 'Fastest',
+  emoji: '🚗',
+  distanceKm: 200,
+  durationMinutes: 120,
+  geometry: [[49.9, -97.1], [49.8, -99.9]] as [number, number][],
+  segments: [],
+};
+
+describe('selectStrategy', () => {
+  const mockBuildStrategy = vi.mocked(buildStrategyUpdate);
+  const mockFetchStrategies = vi.mocked(fetchAllRouteStrategies);
+
+  beforeEach(() => {
+    mockFetchStrategies.mockResolvedValue([STUB_STRATEGY]);
+    mockBuildStrategy.mockReturnValue(STUB_SUMMARY as TripSummary);
+    mockStrategySwap.mockReturnValue({
+      canonicalTimeline: STUB_CANONICAL,
+      projectedFuelStops: [{ lat: 49.9, lng: -97.2, distanceFromStart: 100, estimatedTime: '1h 0m', fuelRemaining: 75 }] as never,
+    });
+  });
+
+  async function setupWithTrip() {
+    mockOrchestrate.mockResolvedValueOnce(ORCHESTRATE_RESULT);
+    const hook = makeHook();
+    await act(async () => { await hook.result.current.calculateTrip(); });
+    // Wait for React Query to fetch route strategies
+    await waitFor(() => hook.result.current.routeStrategies.length > 0);
+    return hook;
+  }
+
+  it('does nothing when no summary is loaded', () => {
+    const { result } = makeHook();
+    act(() => { result.current.selectStrategy(0); });
+    expect(mockStrategySwap).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when strategy index is out of bounds', async () => {
+    const { result } = await setupWithTrip();
+    act(() => { result.current.selectStrategy(99); });
+    expect(mockStrategySwap).not.toHaveBeenCalled();
+  });
+
+  it('calls buildStrategyUpdate then orchestrateStrategySwap with the result', async () => {
+    const { result } = await setupWithTrip();
+    act(() => { result.current.selectStrategy(0); });
+    expect(mockBuildStrategy).toHaveBeenCalledOnce();
+    expect(mockBuildStrategy).toHaveBeenCalledWith(STUB_STRATEGY, expect.any(Object), VEHICLE, SETTINGS);
+    expect(mockStrategySwap).toHaveBeenCalledOnce();
+  });
+
+  it('sets activeStrategyIndex to the selected index', async () => {
+    const { result } = await setupWithTrip();
+    expect(result.current.activeStrategyIndex).toBe(0);
+    // Add a second strategy so index 1 is valid
+    mockFetchStrategies.mockResolvedValue([STUB_STRATEGY, { ...STUB_STRATEGY, id: 'scenic' as const, label: 'Scenic' }]);
+    mockOrchestrate.mockResolvedValueOnce(ORCHESTRATE_RESULT);
+    const hook2 = makeHook();
+    await act(async () => { await hook2.result.current.calculateTrip(); });
+    await waitFor(() => hook2.result.current.routeStrategies.length >= 2);
+    act(() => { hook2.result.current.selectStrategy(1); });
+    expect(hook2.result.current.activeStrategyIndex).toBe(1);
+  });
+
+  it('updates strategicFuelStops from the swap result', async () => {
+    const { result } = await setupWithTrip();
+    act(() => { result.current.selectStrategy(0); });
+    await waitFor(() => result.current.strategicFuelStops.length > 0);
+    expect(result.current.strategicFuelStops).toHaveLength(1);
+    expect(result.current.strategicFuelStops[0].distanceFromStart).toBe(100);
+  });
+});
+
+// ─── rebuildCanonicalWithExternals ───────────────────────────────────────────
+
+describe('rebuildCanonicalWithExternals', () => {
+  beforeEach(() => {
+    mockStrategySwap.mockReturnValue({
+      canonicalTimeline: STUB_CANONICAL,
+      projectedFuelStops: [],
+    });
+  });
+
+  it('calls orchestrateStrategySwap with the external stops and current summary', async () => {
+    mockOrchestrate.mockResolvedValueOnce(ORCHESTRATE_RESULT);
+    const { result } = makeHook();
+    await act(async () => { await result.current.calculateTrip(); });
+
+    const externalStop = { id: 'poi-1', type: 'poi' } as never;
+    act(() => { result.current.rebuildCanonicalWithExternals([externalStop]); });
+
+    expect(mockStrategySwap).toHaveBeenCalledOnce();
+    // 6th arg is the external stops array
+    const callArgs = mockStrategySwap.mock.calls[0];
+    expect(callArgs[5]).toEqual([externalStop]);
   });
 });

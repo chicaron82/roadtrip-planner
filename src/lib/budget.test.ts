@@ -221,6 +221,19 @@ describe('getBudgetStatus', () => {
     const costBreakdown = { fuel: 100, accommodation: 100, meals: 100, misc: 100, total: 400, perPerson: 200 };
     expect(getBudgetStatus(zeroBudget, costBreakdown)).toBe('under');
   });
+
+  it('returns "at" at exactly the 10% remaining boundary (diff === total * 0.1)', () => {
+    // $500 total, $450 spent → diff = $50 = exactly 10%
+    // Condition is diff > total * 0.1 (strict), so equal falls into 'at'
+    const costBreakdown = { fuel: 450, accommodation: 0, meals: 0, misc: 0, total: 450, perPerson: 225 };
+    expect(getBudgetStatus(mockBudget, costBreakdown)).toBe('at');
+  });
+
+  it('returns "under" one dollar above the 10% boundary (diff > total * 0.1)', () => {
+    // $500 total, $449 spent → diff = $51 > $50 → 'under'
+    const costBreakdown = { fuel: 449, accommodation: 0, meals: 0, misc: 0, total: 449, perPerson: 224 };
+    expect(getBudgetStatus(mockBudget, costBreakdown)).toBe('under');
+  });
 });
 
 // ==================== FORMAT BUDGET REMAINING TESTS ====================

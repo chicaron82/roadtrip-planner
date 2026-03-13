@@ -27,7 +27,7 @@ function makePOI(overrides: Partial<POISuggestion> = {}): POISuggestion {
     categoryMatchScore: 70,
     popularityScore: 60,
     timingFitScore: 80,
-    actionState: 'none',
+    actionState: 'suggested',
     segmentIndex: 0,
     ...overrides,
   };
@@ -125,7 +125,7 @@ describe('discoverPOIs — tier assignment', () => {
 
   it('filters out dismissed POIs', () => {
     const dismissed = makePOI({ actionState: 'dismissed' });
-    const active = makePOI({ id: 'poi-2', actionState: 'none' });
+    const active = makePOI({ id: 'poi-2', actionState: 'suggested' });
     const result = discoverPOIs([dismissed, active]);
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe('poi-2');

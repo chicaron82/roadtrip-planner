@@ -66,6 +66,7 @@ function makeSummary(overrides: Partial<TripSummary> = {}): TripSummary {
     costPerPerson: 200,
     drivingDays: 2,
     segments: [],
+    fullGeometry: [],
     ...overrides,
   };
 }

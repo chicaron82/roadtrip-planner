@@ -166,7 +166,7 @@ describe('searchNearbyPOIs', () => {
   });
 
   it('maps Nominatim results to POIs', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       json: async () => [NOMINATIM_ITEM],
     } as Response);
@@ -184,7 +184,7 @@ describe('searchNearbyPOIs', () => {
   });
 
   it('truncates display_name at first comma for the name field', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       json: async () => [{ ...NOMINATIM_ITEM, display_name: 'A, B, C' }],
     } as Response);
@@ -194,7 +194,7 @@ describe('searchNearbyPOIs', () => {
   });
 
   it('returns empty array on non-ok response', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: false,
       status: 429,
     } as Response);
@@ -204,14 +204,14 @@ describe('searchNearbyPOIs', () => {
   });
 
   it('returns empty array when fetch throws', async () => {
-    vi.spyOn(global, 'fetch').mockRejectedValueOnce(new Error('Offline'));
+    vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('Offline'));
 
     const result = await searchNearbyPOIs(49.8, -97.1, 'attraction');
     expect(result).toEqual([]);
   });
 
   it('returns empty array when json returns empty list', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       json: async () => [],
     } as Response);
@@ -221,7 +221,7 @@ describe('searchNearbyPOIs', () => {
   });
 
   it('correctly parses float lat/lon from string response', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       json: async () => [{ ...NOMINATIM_ITEM, lat: '50.1234', lon: '-98.5678' }],
     } as Response);

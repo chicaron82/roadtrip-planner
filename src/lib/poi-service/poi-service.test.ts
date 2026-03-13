@@ -8,7 +8,7 @@
  * - poi-converter.ts (OSM → POISuggestion conversion)
  * - overpass.ts (fetch wrapper, via mocked fetch)
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { buildCorridorQuery, buildParkRelationQuery, buildBucketAroundQuery, buildDestinationQuery } from './query-builder';
 import { computeRouteBbox, estimateRouteDistanceKm, haversineDistanceSimple, sampleRouteByKm } from './geo';
@@ -277,8 +277,8 @@ describe('hashRouteKey', () => {
   });
 
   it('same inputs produce same key', () => {
-    const k1 = hashRouteKey(geo, dest, ['nature']);
-    const k2 = hashRouteKey(geo, dest, ['nature']);
+    const k1 = hashRouteKey(geo, dest, ['scenic']);
+    const k2 = hashRouteKey(geo, dest, ['scenic']);
     expect(k1).toBe(k2);
   });
 
@@ -288,14 +288,14 @@ describe('hashRouteKey', () => {
   });
 
   it('different preferences produce different key', () => {
-    const k1 = hashRouteKey(geo, dest, ['nature']);
+    const k1 = hashRouteKey(geo, dest, ['scenic']);
     const k2 = hashRouteKey(geo, dest, ['foodie']);
     expect(k1).not.toBe(k2);
   });
 
   it('preferences are order-insensitive', () => {
-    const k1 = hashRouteKey(geo, dest, ['nature', 'foodie']);
-    const k2 = hashRouteKey(geo, dest, ['foodie', 'nature']);
+    const k1 = hashRouteKey(geo, dest, ['scenic', 'foodie']);
+    const k2 = hashRouteKey(geo, dest, ['foodie', 'scenic']);
     expect(k1).toBe(k2);
   });
 
@@ -506,7 +506,7 @@ describe('executeOverpassQuery', () => {
 
   it('returns parsed elements on success', async () => {
     const mockElements = [{ type: 'node', id: 1, lat: 49.0, lon: -97.0 }];
-    vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       status: 200,
       json: async () => ({ elements: mockElements }),
@@ -517,7 +517,7 @@ describe('executeOverpassQuery', () => {
   });
 
   it('returns empty array when response has no elements', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       status: 200,
       json: async () => ({}),
@@ -528,7 +528,7 @@ describe('executeOverpassQuery', () => {
   });
 
   it('returns empty array on non-ok response after exhausting retries', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue({
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: false,
       status: 500,
       json: async () => ({}),
@@ -541,7 +541,7 @@ describe('executeOverpassQuery', () => {
   });
 
   it('returns empty array when fetch throws after exhausting retries', async () => {
-    vi.spyOn(global, 'fetch').mockRejectedValue(new Error('Network error'));
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));
 
     const promise = executeOverpassQuery('[out:json]; node; out;');
     await vi.runAllTimersAsync();
@@ -551,7 +551,7 @@ describe('executeOverpassQuery', () => {
 
   it('retries on 429 and succeeds on second attempt', async () => {
     const mockElements = [{ type: 'node', id: 2, lat: 50.0, lon: -96.0 }];
-    vi.spyOn(global, 'fetch')
+    vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce({ ok: false, status: 429, json: async () => ({}) } as Response)
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ elements: mockElements }) } as Response);
 

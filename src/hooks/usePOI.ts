@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import type { Location, POI, POICategory, MarkerCategory, POISuggestion, TripSummary, TripPreference } from '../types';
 import { searchNearbyPOIs, searchPOIsAlongRoute } from '../lib/poi';
 import { usePOISuggestions } from './usePOISuggestions';
@@ -57,6 +57,10 @@ export function usePOI({
   const [pois, setPois] = useState<POI[]>([]);
   const [markerCategories, setMarkerCategories] = useState<MarkerCategory[]>(DEFAULT_MARKER_CATEGORIES);
   const [loadingCategory, setLoadingCategory] = useState<POICategory | null>(null);
+  // Mirror markerCategories in a ref so toggleCategory can read the current
+  // value synchronously — avoiding the stale-closure race that would occur
+  // if we captured it inside the functional setState update that schedules async.
+  const markerCategoriesRef = useRef<MarkerCategory[]>(DEFAULT_MARKER_CATEGORIES);
   // Error state
   const [error, setError] = useState<string | null>(null);
   const {
@@ -81,33 +85,38 @@ export function usePOI({
   const toggleCategory = useCallback(async (id: POICategory, searchLocation: Location | null, currentRouteGeometry?: [number, number][] | null) => {
     setError(null);
 
-    // Functional update — no need for markerCategories in the dep array
-    let targetCategory: MarkerCategory | undefined;
-    setMarkerCategories(prev => {
-      const updated = prev.map((c) => c.id === id ? { ...c, visible: !c.visible } : c);
-      targetCategory = updated.find((c) => c.id === id);
-      return updated;
-    });
+    // Read current visibility synchronously from the ref (safe against rapid
+    // double-clicks where the React state update hasn't settled yet).
+    const currentCategories = markerCategoriesRef.current;
+    const prevCategory = currentCategories.find((c) => c.id === id);
+    const willBeVisible = !prevCategory?.visible;
 
-    if (targetCategory?.visible) {
+    const updatedCategories = currentCategories.map((c) =>
+      c.id === id ? { ...c, visible: willBeVisible } : c
+    );
+    markerCategoriesRef.current = updatedCategories;
+    setMarkerCategories(updatedCategories);
+
+    if (willBeVisible) {
       // Need either a route or a search location
       if ((!currentRouteGeometry || currentRouteGeometry.length < 2) && (!searchLocation || searchLocation.lat === 0)) {
         setError('Please calculate a route first.');
-        setMarkerCategories((prev) =>
-          prev.map((c) => (c.id === id ? { ...c, visible: false } : c))
-        );
+        const reset = markerCategoriesRef.current.map((c) => c.id === id ? { ...c, visible: false } : c);
+        markerCategoriesRef.current = reset;
+        setMarkerCategories(reset);
         return;
       }
 
       setLoadingCategory(id);
       try {
         // Use route-corridor search when route exists, fall back to point search
+        const targetCategory = updatedCategories.find((c) => c.id === id);
         const newPois = currentRouteGeometry && currentRouteGeometry.length >= 2
           ? await searchPOIsAlongRoute(currentRouteGeometry, id)
           : await searchNearbyPOIs(searchLocation!.lat, searchLocation!.lng, id);
 
         if (newPois.length === 0) {
-          setError(`No ${targetCategory.label} found along your route.`);
+          setError(`No ${targetCategory?.label ?? id} found along your route.`);
         }
 
         setPois((prev) => {
@@ -118,9 +127,9 @@ export function usePOI({
       } catch (err) {
         console.error(err);
         setError('Failed to fetch places.');
-        setMarkerCategories((prev) =>
-          prev.map((c) => (c.id === id ? { ...c, visible: false } : c))
-        );
+        const reset = markerCategoriesRef.current.map((c) => c.id === id ? { ...c, visible: false } : c);
+        markerCategoriesRef.current = reset;
+        setMarkerCategories(reset);
       } finally {
         setLoadingCategory(null);
       }
@@ -135,9 +144,11 @@ export function usePOI({
   }, []);
 
   const resetPOIs = useCallback(() => {
+    const reset = DEFAULT_MARKER_CATEGORIES;
+    markerCategoriesRef.current = reset;
     setPois([]);
     resetPOISuggestions();
-    setMarkerCategories(DEFAULT_MARKER_CATEGORIES);
+    setMarkerCategories(reset);
   }, [resetPOISuggestions]);
 
   return {

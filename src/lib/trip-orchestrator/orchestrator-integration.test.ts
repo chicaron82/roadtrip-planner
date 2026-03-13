@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Location, Vehicle, TripSettings, TripSummary, TripDay } from '../../types';
+import type { Location, Vehicle, TripSettings, TripSummary, TripDay, CostBreakdown } from '../../types';
 
 // ── Mocks (hoisted) ───────────────────────────────────────────────────────────
 
@@ -45,7 +45,7 @@ vi.mock('./orchestrator-helpers', () => ({
 }));
 
 // Import SUT and mock handles after vi.mock declarations.
-import { orchestrateTrip, orchestrateStopUpdate } from './orchestrate-trip';
+import { orchestrateTrip } from './orchestrate-trip';
 import { orchestrateStopUpdate as importedStopUpdate } from './orchestrate-stop-update';
 import { TripCalculationError } from './orchestrator-types';
 import { calculateRoute } from '../api';
@@ -60,7 +60,6 @@ import { enrichSmartStopHubs } from '../route-geocoder';
 import { buildRoundTripSegments } from '../trip-calculation-helpers';
 import {
   assembleCanonicalTimeline,
-  patchDaysFromCanonicalEvents,
   projectFuelStopsFromSimulation,
   getRoundTripDayTripStayMinutes,
 } from './orchestrator-helpers';
@@ -82,7 +81,6 @@ const mockComboOpt = vi.mocked(applyComboOptimization);
 const mockEnrichHubs = vi.mocked(enrichSmartStopHubs);
 const mockBuildRT = vi.mocked(buildRoundTripSegments);
 const mockAssemble = vi.mocked(assembleCanonicalTimeline);
-const mockPatchDays = vi.mocked(patchDaysFromCanonicalEvents);
 const mockProjectFuel = vi.mocked(projectFuelStopsFromSimulation);
 const mockRTStay = vi.mocked(getRoundTripDayTripStayMinutes);
 
@@ -106,9 +104,8 @@ const ROUTE_DATA = {
   fullGeometry: [[49.9, -97.1], [49.8, -99.9]] as [number, number][],
 };
 
-const COST_BREAKDOWN = {
-  fuel: 24, hotel: 0, food: 0, misc: 0, total: 24,
-  details: { fuel: [], hotel: [], food: [], misc: [] },
+const COST_BREAKDOWN: CostBreakdown = {
+  fuel: 24, accommodation: 0, meals: 0, misc: 0, total: 24, perPerson: 12,
 };
 
 const STUB_SUMMARY: Partial<TripSummary> = {
@@ -118,10 +115,8 @@ const STUB_SUMMARY: Partial<TripSummary> = {
   totalDurationMinutes: 120,
   totalFuelCost: 24,
   costPerPerson: 24,
-  fuelStops: 0,
-  estimatedFuelUsed: 14,
-  costBreakdown: COST_BREAKDOWN as TripSummary['costBreakdown'],
-  budgetStatus: 'on-track',
+  costBreakdown: COST_BREAKDOWN,
+  budgetStatus: 'at',
   budgetRemaining: 976,
 };
 
@@ -145,7 +140,7 @@ const STUB_DAY: Partial<TripDay> = {
 
 const STUB_CANONICAL = { events: [], days: [], summary: STUB_SUMMARY, inputs: {} } as never;
 
-const VEHICLE = { name: 'Test', fuelType: 'gasoline', fuelEfficiency: 10, tankSizeL: 50 } as Vehicle;
+const VEHICLE: Vehicle = { year: '2022', make: 'Toyota', model: 'Camry', fuelEconomyCity: 10, fuelEconomyHwy: 8, tankSize: 50 };
 const SETTINGS: TripSettings = {
   units: 'metric',
   currency: 'CAD',
@@ -170,8 +165,8 @@ function setupHappyPath() {
   mockWeather.mockResolvedValue(null);
   mockCalcTimes.mockReturnValue([SEGMENT] as TripSummary['segments']);
   mockSplitDays.mockReturnValue([STUB_DAY as TripDay]);
-  mockCostBreakdown.mockReturnValue(COST_BREAKDOWN as TripSummary['costBreakdown']);
-  mockBudgetStatus.mockReturnValue('on-track');
+  mockCostBreakdown.mockReturnValue(COST_BREAKDOWN);
+  mockBudgetStatus.mockReturnValue('at');
   mockCreateConfig.mockReturnValue({} as never);
   mockSmartStops.mockReturnValue([]);
   mockEnrichHubs.mockResolvedValue([]);
@@ -279,8 +274,8 @@ describe('orchestrateStopUpdate', () => {
     vi.clearAllMocks();
     mockCalcTimes.mockReturnValue([SEGMENT] as TripSummary['segments']);
     mockSplitDays.mockReturnValue([STUB_DAY as TripDay]);
-    mockCostBreakdown.mockReturnValue(COST_BREAKDOWN as TripSummary['costBreakdown']);
-    mockBudgetStatus.mockReturnValue('on-track');
+    mockCostBreakdown.mockReturnValue(COST_BREAKDOWN);
+    mockBudgetStatus.mockReturnValue('at');
     mockCreateConfig.mockReturnValue({} as never);
     mockSmartStops.mockReturnValue([]);
     mockBuildTimeline.mockReturnValue([]);

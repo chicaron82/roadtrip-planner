@@ -55,10 +55,15 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
   const [isMinimized, setIsMinimized] = useState(true);
 
   // ─── Refinement warning tracking ────────────────────────────────────────────
-  // eslint-plugin-react-hooks v7 forbids setState inside effects (even in conditionals).
-  // We use the "setState during render" pattern instead: track previous values in state,
-  // detect changes during render, and batch all state updates in one block.
-  // React 18 batches these into a single re-render — no cascading renders.
+  // We use "setState during render" instead of useEffect for two reasons:
+  //   1. useEffect fires *after* paint — using it here would cause a one-frame
+  //      flicker where the stale warning set is visible before the update lands.
+  //   2. React 18 batches all setState calls that happen during the same render
+  //      into a single commit, so setPrev + setRefinementWarnings produce exactly
+  //      one re-render — no cascading renders.
+  // eslint-plugin-react-hooks v7 forbids setState inside effects (even in conditionals),
+  // so we track previous values in state, detect changes during render, and batch
+  // all state updates in one block.
   interface PrevTrack {
     feasibility: FeasibilityResult | null;
     numTravelers: number;

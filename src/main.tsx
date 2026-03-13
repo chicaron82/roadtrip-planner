@@ -1,9 +1,10 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ErrorBoundary } from 'react-error-boundary'
 import './index.css'
 import App from './App.tsx'
-import { ErrorBoundary } from './components/ErrorBoundary'
+import { RootErrorFallback } from './components/UI/RootErrorFallback'
 import { scheduleHubCacheInitialization } from './lib/hub-seed-data'
 
 // Create a client
@@ -21,7 +22,7 @@ scheduleHubCacheInitialization();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ErrorBoundary>
+    <ErrorBoundary FallbackComponent={RootErrorFallback}>
       <QueryClientProvider client={queryClient}>
         <App />
       </QueryClientProvider>

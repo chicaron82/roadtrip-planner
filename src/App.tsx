@@ -143,8 +143,11 @@ function AppContent() {
   useEffect(() => {
     if (!summary) return;
     rebuildCanonicalWithExternals([...asSuggestedStops, ...mirroredReturnStops]);
-  // rebuildCanonicalWithExternals is stable (useCallback); summary guards the
-  // rebuild but isn't a dep because we only want to re-run on stop changes.
+  // Intentional dep omission — this is load-bearing, not lazy:
+  //   • `summary` is excluded because including it would re-trigger the rebuild
+  //     on every route recalculation, creating a feedback loop.
+  //   • We only want to rebuild when the *external stops list* changes.
+  //   • `rebuildCanonicalWithExternals` is a stable useCallback ref — safe to omit.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [asSuggestedStops, mirroredReturnStops]);
 
