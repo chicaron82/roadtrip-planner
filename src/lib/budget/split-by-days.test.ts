@@ -409,3 +409,71 @@ describe('splitTripByDays — return leg rest guard', () => {
     expect(restHours).toBeGreaterThanOrEqual(7);
   });
 });
+
+// ── 9. Explicit overnight stop type (line 214 in split-by-days.ts) ───────────
+
+describe('splitTripByDays — explicit overnight stopType', () => {
+  it('finalizes day and creates overnight when a segment has stopType overnight', () => {
+    // Both segments together fit within 10h maxDriveHours, so the wouldExceedDailyMax
+    // path does NOT fire — the split happens solely because of stopType: 'overnight'.
+    const leg1 = makeSegment({
+      from: WINNIPEG,
+      to: KENORA,
+      distanceKm: 210,
+      durationMinutes: 150,
+      stopType: 'overnight',
+    });
+    const leg2 = makeSegment({
+      from: KENORA,
+      to: THUNDER,
+      distanceKm: 497,
+      durationMinutes: 300,
+    });
+
+    const days = splitTripByDays(
+      [leg1, leg2],
+      makeSettings({ maxDriveHours: 10 }),
+      '2025-08-16',
+      '09:00',
+    );
+
+    const drivingDays = days.filter(d => d.segments.length > 0);
+    // The overnight stop forces a second driving day
+    expect(drivingDays.length).toBeGreaterThanOrEqual(2);
+
+    // First day ends at Kenora with an overnight stop
+    const day1 = drivingDays[0];
+    expect(day1.overnight).toBeDefined();
+    expect(day1.overnight?.location.name).toBe('Kenora, ON');
+  });
+
+  it('advances the date correctly for the second day after an explicit overnight', () => {
+    const leg1 = makeSegment({
+      from: WINNIPEG,
+      to: KENORA,
+      distanceKm: 210,
+      durationMinutes: 150,
+      stopType: 'overnight',
+    });
+    const leg2 = makeSegment({
+      from: KENORA,
+      to: THUNDER,
+      distanceKm: 497,
+      durationMinutes: 300,
+    });
+
+    const days = splitTripByDays(
+      [leg1, leg2],
+      makeSettings({ maxDriveHours: 10 }),
+      '2025-08-16',
+      '09:00',
+    );
+
+    const drivingDays = days.filter(d => d.segments.length > 0);
+    const day1 = drivingDays[0];
+    const day2 = drivingDays[1];
+
+    // Day 2 must start on a later calendar date than day 1
+    expect(day2.date > day1.date).toBe(true);
+  });
+});

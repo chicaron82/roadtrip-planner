@@ -372,6 +372,26 @@ describe('calculateArrivalTimes', () => {
     const result = calculateArrivalTimes([], '2024-08-16', '09:00');
     expect(result).toEqual([]);
   });
+
+  it('multi-day round trip: resets the return departure to next morning when dayTripDwellMinutes is not given', () => {
+    // Lines 121-127: the overnight-reset branch at the round-trip midpoint.
+    // roundTripMidpoint = 1 → when index reaches 1, clock jumps to next-day departure hour.
+    // dayTripDwellMinutes = undefined → triggers the overnight reset (not the day-trip path).
+    const result = calculateArrivalTimes(
+      mockSegments,      // 2-segment array: outbound (60 min) + return (80 min)
+      '2024-08-16',
+      '09:00',
+      1,                 // midpoint: return leg starts at index 1
+      undefined,         // no dwell → multi-day reset
+    );
+    const outboundArrival  = new Date(result[0].arrivalTime!);
+    const returnDeparture  = new Date(result[1].departureTime!);
+    // The return must depart AFTER the outbound arrives (clock advanced to next morning)
+    expect(returnDeparture.getTime()).toBeGreaterThan(outboundArrival.getTime());
+    // The gap must be less than 24 hours (just next morning, not multiple days)
+    const gapHours = (returnDeparture.getTime() - outboundArrival.getTime()) / (60 * 60 * 1000);
+    expect(gapHours).toBeLessThanOrEqual(24);
+  });
 });
 
 // ==================== DAY NUMBER TESTS ====================
