@@ -15,6 +15,15 @@ import { useBudgetController } from './useBudgetController';
 import { makeBudget } from '../test/fixtures';
 import type { TripBudget } from '../types';
 
+// ─── Fixture defaults ────────────────────────────────────────────────────────
+// These mirror makeBudget() in src/test/fixtures.ts — update both together.
+const DFLT_GAS   = 600;   // default gas category
+const DFLT_HOTEL = 800;   // default hotel category
+const DFLT_FOOD  = 400;   // default food category
+const DFLT_MISC  = 200;   // default misc category
+const DFLT_TOTAL = 2000;  // DFLT_GAS + DFLT_HOTEL + DFLT_FOOD + DFLT_MISC
+// Default weights: { gas: 25, hotel: 35, food: 30, misc: 10 } — sum = 100%
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function setup(budgetOverrides: Partial<TripBudget> = {}, numTravelers = 2) {
@@ -35,28 +44,28 @@ function lastBudgetCall(onChange: ReturnType<typeof vi.fn>): TripBudget {
 
 describe('toggleAllocation', () => {
   it('switches from flexible to fixed, computing total from category sum', () => {
-    // makeBudget defaults: gas=600, hotel=800, food=400, misc=200, allocation='flexible'
-    const { result, onChange } = setup();
+    const { result, onChange } = setup(); // uses makeBudget() defaults
     act(() => { result.current.toggleAllocation(); });
     const called = lastBudgetCall(onChange);
     expect(called.allocation).toBe('fixed');
-    expect(called.total).toBe(600 + 800 + 400 + 200); // 2000
+    expect(called.total).toBe(DFLT_GAS + DFLT_HOTEL + DFLT_FOOD + DFLT_MISC); // 2000
   });
 
   it('sets total to 1000 when all categories are 0 and switching to fixed', () => {
+    // 1000 = the minimum fixed-mode fallback in useBudgetController.ts (toggleAllocation)
     const { result, onChange } = setup({ gas: 0, hotel: 0, food: 0, misc: 0 });
     act(() => { result.current.toggleAllocation(); });
     expect(lastBudgetCall(onChange).total).toBe(1000);
   });
 
   it('switches from fixed to flexible without changing category values', () => {
-    const { result, onChange } = setup({ allocation: 'fixed', total: 2000 });
+    const { result, onChange } = setup({ allocation: 'fixed', total: DFLT_TOTAL });
     act(() => { result.current.toggleAllocation(); });
     const called = lastBudgetCall(onChange);
     expect(called.allocation).toBe('flexible');
-    // Categories should be unchanged
-    expect(called.gas).toBe(600);
-    expect(called.hotel).toBe(800);
+    // Categories should be unchanged from fixture defaults
+    expect(called.gas).toBe(DFLT_GAS);
+    expect(called.hotel).toBe(DFLT_HOTEL);
   });
 
   it('calls onChange exactly once per toggle', () => {
@@ -70,7 +79,7 @@ describe('toggleAllocation', () => {
 
 describe('updateTotal', () => {
   it('in fixed mode: redistributes categories proportionally', () => {
-    const { result, onChange } = setup({ allocation: 'fixed', total: 2000 });
+    const { result, onChange } = setup({ allocation: 'fixed', total: DFLT_TOTAL });
     act(() => { result.current.updateTotal(1000); });
     const called = lastBudgetCall(onChange);
     expect(called.total).toBe(1000);
@@ -80,30 +89,30 @@ describe('updateTotal', () => {
   });
 
   it('in fixed mode: passes new total as the total field', () => {
-    const { result, onChange } = setup({ allocation: 'fixed', total: 2000 });
+    const { result, onChange } = setup({ allocation: 'fixed', total: DFLT_TOTAL });
     act(() => { result.current.updateTotal(4000); });
     expect(lastBudgetCall(onChange).total).toBe(4000);
   });
 
   it('in flexible mode: updates total without redistributing categories', () => {
     const { result, onChange } = setup({ allocation: 'flexible' });
-    act(() => { result.current.updateTotal(9999); });
+    act(() => { result.current.updateTotal(9999); }); // 9999 = arbitrary sentinel different from any real value
     const called = lastBudgetCall(onChange);
     expect(called.total).toBe(9999);
     // Categories unchanged from fixture defaults
-    expect(called.gas).toBe(600);
-    expect(called.hotel).toBe(800);
+    expect(called.gas).toBe(DFLT_GAS);
+    expect(called.hotel).toBe(DFLT_HOTEL);
   });
 
   it('in fixed mode: individual categories scale down when total halves', () => {
-    // weights: gas=25, hotel=35, food=30, misc=10
-    // At total=2000: gas≈500, hotel≈700, food≈600, misc≈200
-    // At total=1000: each should roughly halve
-    const { result, onChange } = setup({ allocation: 'fixed', total: 2000 });
-    act(() => { result.current.updateTotal(1000); });
+    // weights: gas=25%, hotel=35%, food=30%, misc=10% (from makeBudget defaults)
+    // applyBudgetWeights(1000, weights) → gas=250, hotel=350, food=300, misc=100
+    // All are less than the fixture category values (gas=600, hotel=800, …)
+    const { result, onChange } = setup({ allocation: 'fixed', total: DFLT_TOTAL });
+    act(() => { result.current.updateTotal(1000); }); // half the fixture total
     const called = lastBudgetCall(onChange);
-    expect(called.gas).toBeLessThan(600); // was 600 at 2000
-    expect(called.hotel).toBeLessThan(800);
+    expect(called.gas).toBeLessThan(DFLT_GAS);
+    expect(called.hotel).toBeLessThan(DFLT_HOTEL);
   });
 });
 
@@ -112,11 +121,11 @@ describe('updateTotal', () => {
 describe('updateCategory', () => {
   it('in flexible mode: sets the field and recalculates total', () => {
     const { result, onChange } = setup({ allocation: 'flexible' });
-    // gas was 600; set to 300 → total should drop by 300
+    // gas was DFLT_GAS (600); set to 300 → total should drop by 300
     act(() => { result.current.updateCategory('gas', 300); });
     const called = lastBudgetCall(onChange);
     expect(called.gas).toBe(300);
-    expect(called.total).toBe(300 + 800 + 400 + 200); // 1700
+    expect(called.total).toBe(300 + DFLT_HOTEL + DFLT_FOOD + DFLT_MISC); // 1700
   });
 
   it('in flexible mode: increasing a category increases total', () => {
@@ -124,35 +133,35 @@ describe('updateCategory', () => {
     act(() => { result.current.updateCategory('hotel', 1200); });
     const called = lastBudgetCall(onChange);
     expect(called.hotel).toBe(1200);
-    expect(called.total).toBe(600 + 1200 + 400 + 200);
+    expect(called.total).toBe(DFLT_GAS + 1200 + DFLT_FOOD + DFLT_MISC);
   });
 
   it('in fixed mode: redistributes remaining total among other categories', () => {
-    const { result, onChange } = setup({ allocation: 'fixed', total: 2000 });
-    // Raise gas to 800; others should absorb the 200 reduction
+    const { result, onChange } = setup({ allocation: 'fixed', total: DFLT_TOTAL });
+    // Raise gas to 800 (was DFLT_GAS=600); others absorb the 200 reduction
     act(() => { result.current.updateCategory('gas', 800); });
     const called = lastBudgetCall(onChange);
     expect(called.gas).toBe(800);
-    // Other categories should sum to remaining (total - gas = 1200)
+    // Other categories should sum to remaining (DFLT_TOTAL - 800 = 1200)
     const othersSum = called.hotel + called.food + called.misc;
-    expect(othersSum).toBeCloseTo(1200, 0);
+    expect(othersSum).toBeCloseTo(DFLT_TOTAL - 800, 0);
   });
 
   it('in fixed mode: total stays unchanged after a category update', () => {
-    const { result, onChange } = setup({ allocation: 'fixed', total: 2000 });
+    const { result, onChange } = setup({ allocation: 'fixed', total: DFLT_TOTAL });
     act(() => { result.current.updateCategory('food', 100); });
     expect(lastBudgetCall(onChange).total).toBe(2000);
   });
 
   it('in fixed mode: marks profile as custom after manual category edit', () => {
-    const { result, onChange } = setup({ allocation: 'fixed', total: 2000 });
-    act(() => { result.current.updateCategory('misc', 50); });
+    const { result, onChange } = setup({ allocation: 'fixed', total: DFLT_TOTAL });
+    act(() => { result.current.updateCategory('misc', 50); })
     expect(lastBudgetCall(onChange).profile).toBe('custom');
   });
 
   it('in fixed mode: does not call onChange when value exceeds total', () => {
-    const { result, onChange } = setup({ allocation: 'fixed', total: 2000 });
-    // Setting gas to 3000 (> total) satisfies remaining < 0 — should be a no-op
+    const { result, onChange } = setup({ allocation: 'fixed', total: DFLT_TOTAL });
+    // 3000 > DFLT_TOTAL (2000) → remaining = 2000 - 3000 = -1000 < 0 → guarded no-op
     act(() => { result.current.updateCategory('gas', 3000); });
     expect(onChange).not.toHaveBeenCalled();
   });
@@ -213,7 +222,7 @@ describe('updateWeight', () => {
 
 describe('perPersonCost', () => {
   it('divides total by numTravelers', () => {
-    const { result } = setup({ total: 2000 }, 4);
+    const { result } = setup({ total: DFLT_TOTAL }, 4); // 2000 / 4 = 500
     expect(result.current.perPersonCost).toBe(500);
   });
 

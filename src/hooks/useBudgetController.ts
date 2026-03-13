@@ -103,6 +103,7 @@ export function useBudgetController({
     } else {
       // Switching to fixed: recalculate total and lock
       const total = budget.gas + budget.hotel + budget.food + budget.misc;
+      // 1000: sensible starting budget for fixed mode when no categories have been entered yet
       onChange({ ...budget, allocation: 'fixed', total: total > 0 ? total : 1000 });
     }
   };
@@ -139,6 +140,7 @@ export function useBudgetController({
         const roundingDiff = remaining - distributed;
         if (roundingDiff !== 0) newBudget[others[0]] += roundingDiff;
 
+        // Recompute weights as percentages (0–100) to reflect the new split
         newBudget.weights = {
           gas: Math.round((newBudget.gas / budget.total) * 100),
           hotel: Math.round((newBudget.hotel / budget.total) * 100),
@@ -161,7 +163,7 @@ export function useBudgetController({
     const currentOthersSum = others.reduce((sum, f) => sum + budget.weights[f], 0);
     const maxValue = budget.weights[field] + currentOthersSum;
     const newValue = Math.min(value, maxValue);
-    const newOthersSum = 100 - newValue;
+    const newOthersSum = 100 - newValue; // all four weights must sum to exactly 100%
     const scale = currentOthersSum > 0 ? newOthersSum / currentOthersSum : 0;
 
     const newWeights: BudgetWeights = { ...budget.weights, [field]: newValue };
@@ -169,7 +171,7 @@ export function useBudgetController({
       newWeights[f] = Math.round(budget.weights[f] * scale);
     });
 
-    // Fix rounding
+    // Fix rounding drift: weights must total exactly 100%; any leftover falls on the first other field
     const sum = newWeights.gas + newWeights.hotel + newWeights.food + newWeights.misc;
     if (sum !== 100) newWeights[others[0]] += 100 - sum;
 
