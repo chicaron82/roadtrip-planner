@@ -5,17 +5,21 @@ import { Label } from '../UI/Label';
 interface DrivingPreferencesSectionProps {
   settings: TripSettings;
   setSettings: React.Dispatch<React.SetStateAction<TripSettings>>;
+  /** Suppresses the outer border-t/pt-4 and the section heading. */
+  headless?: boolean;
 }
 
-export function DrivingPreferencesSection({ settings, setSettings }: DrivingPreferencesSectionProps) {
+export function DrivingPreferencesSection({ settings, setSettings, headless = false }: DrivingPreferencesSectionProps) {
   const maxSlider = Math.min(settings.numDrivers * 8, 24);
 
   return (
-    <div className="border-t pt-4">
-      <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-        <Clock className="h-4 w-4 text-primary" />
-        Driving Preferences
-      </h3>
+    <div className={headless ? '' : 'border-t pt-4'}>
+      {!headless && (
+        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+          <Clock className="h-4 w-4 text-primary" />
+          Driving Preferences
+        </h3>
+      )}
 
       <div>
         <div className="flex items-center justify-between mb-2">

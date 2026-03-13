@@ -3,12 +3,16 @@ import type { TripSettings } from '../../types';
 interface StopFrequencySectionProps {
   settings: TripSettings;
   setSettings: React.Dispatch<React.SetStateAction<TripSettings>>;
+  /** Suppresses the outer border-t/pt-4 and the section heading. */
+  headless?: boolean;
 }
 
-export function StopFrequencySection({ settings, setSettings }: StopFrequencySectionProps) {
+export function StopFrequencySection({ settings, setSettings, headless = false }: StopFrequencySectionProps) {
   return (
-    <div className="border-t pt-4">
-      <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">🛑 Stop Frequency</h3>
+    <div className={headless ? '' : 'border-t pt-4'}>
+      {!headless && (
+        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">🛑 Stop Frequency</h3>
+      )}
       <p className="text-xs text-muted-foreground mb-3">
         How often should we suggest fuel and rest stops?
       </p>

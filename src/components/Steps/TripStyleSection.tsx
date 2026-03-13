@@ -12,6 +12,8 @@ interface TripStyleSectionProps {
   onPresetChange: (preset: StylePreset) => void;
   onSharePreset: () => void;
   shareJustCopied?: boolean;
+  /** Suppresses the first section's border-t/pt-4 and its heading. */
+  headless?: boolean;
 }
 
 export function TripStyleSection({
@@ -23,12 +25,15 @@ export function TripStyleSection({
   onPresetChange,
   onSharePreset,
   shareJustCopied,
+  headless = false,
 }: TripStyleSectionProps) {
   return (
     <>
       {/* Trip Preferences */}
-      <div className="border-t pt-4">
-        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">🏷️ Trip Style</h3>
+      <div className={headless ? '' : 'border-t pt-4'}>
+        {!headless && (
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">🏷️ Trip Style</h3>
+        )}
         <p className="text-xs text-muted-foreground mb-3">
           Choose your preferences to get personalized POI suggestions
         </p>

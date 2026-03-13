@@ -9,6 +9,7 @@ import { Label } from '../UI/Label';
 import { Switch } from '../UI/Switch';
 import { DateRangePicker } from '../UI/DateRangePicker';
 import { ClockPicker } from '../UI/ClockPicker';
+import { CollapsibleSection } from '../UI/CollapsibleSection';
 
 const MODE_HEADERS: Record<TripMode, { title: string; subtitle: string }> = {
   plan: { title: 'Where is your MEE time?', subtitle: 'Add your starting point, destination, and any stops along the way.' },
@@ -103,16 +104,18 @@ export function Step1Content({
 
         {/* Daily Arrival Target — hidden for same-day trips */}
         {!isSingleDay && (
-        <div className="border-t pt-4 mt-3">
-          <div className="flex items-center justify-between mb-2">
-            <div>
-              <h3 className="text-sm font-semibold flex items-center gap-2">🕐 Daily Arrival Target</h3>
+        <CollapsibleSection
+          title="Daily Arrival Target"
+          icon="🕐"
+          summary={targetArrivalLabel}
+        >
+          <div>
+            <div className="flex items-center justify-between mb-2">
               <p className="text-xs text-muted-foreground mt-0.5">
                 Each transit day auto-schedules its departure to hit this time.
               </p>
+              <span className="text-sm font-semibold tabular-nums">{targetArrivalLabel}</span>
             </div>
-            <span className="text-sm font-semibold tabular-nums">{targetArrivalLabel}</span>
-          </div>
           <div className="grid grid-cols-5 gap-1.5">
             {([17, 18, 19, 20, 21] as const).map((hour) => {
               const label = `${hour - 12} PM`;
@@ -135,7 +138,8 @@ export function Step1Content({
           <p className="info-banner-blue text-xs mt-3 p-2 rounded-md border">
             🗓️ Transit days will auto-schedule departure to arrive by {targetArrivalLabel}.
           </p>
-        </div>
+          </div>
+        </CollapsibleSection>
         )}
 
         {/* Smart Preview */}
@@ -175,7 +179,13 @@ export function Step1Content({
         />
 
         {/* Auto / Manual route mode */}
-        <div className="mt-4">
+        <CollapsibleSection
+          title="Route Mode"
+          icon="🔄"
+          summary={settings.isRoundTrip
+            ? `Auto${(settings.dayTripDurationHours ?? 0) > 0 ? ` · ${settings.dayTripDurationHours}h at destination` : ''}`
+            : 'Manual'}
+        >
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setSettings(prev => ({ ...prev, isRoundTrip: true }))}
@@ -241,7 +251,7 @@ export function Step1Content({
               </button>
             </div>
           )}
-        </div>
+        </CollapsibleSection>
 
         {/* Adventure Mode Button */}
         {tripMode === 'plan' && (

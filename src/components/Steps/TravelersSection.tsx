@@ -6,6 +6,9 @@ import { Label } from '../UI/Label';
 interface TravelersSectionProps {
   settings: TripSettings;
   setSettings: React.Dispatch<React.SetStateAction<TripSettings>>;
+  /** When true, suppresses the outer border-t/pt-4 wrapper and the section heading.
+   *  Use when the parent wraps this in a CollapsibleSection. */
+  headless?: boolean;
 }
 
 /** Default max drive hours per day based on driver count.
@@ -15,13 +18,15 @@ function getDefaultDriveHours(numDrivers: number): number {
   return Math.min(numDrivers * 8, 24);
 }
 
-export function TravelersSection({ settings, setSettings }: TravelersSectionProps) {
+export function TravelersSection({ settings, setSettings, headless = false }: TravelersSectionProps) {
   return (
-    <div className="border-t pt-4">
-      <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-        <Users className="h-4 w-4 text-primary" />
-        Who's joining your MEE time?
-      </h3>
+    <div className={headless ? '' : 'border-t pt-4'}>
+      {!headless && (
+        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+          <Users className="h-4 w-4 text-primary" />
+          Who's joining your MEE time?
+        </h3>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         {/* Travelers Stepper */}

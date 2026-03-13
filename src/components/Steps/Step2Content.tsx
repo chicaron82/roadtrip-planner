@@ -1,7 +1,9 @@
+import { Users, BedDouble, Clock } from 'lucide-react';
 import type { Vehicle, TripSettings, TripMode } from '../../types';
 import { VehicleForm } from '../Vehicle/VehicleForm';
 import { Button } from '../UI/Button';
 import { Label } from '../UI/Label';
+import { CollapsibleSection } from '../UI/CollapsibleSection';
 import type { StylePreset } from '../../lib/style-presets';
 import { TravelersSection } from './TravelersSection';
 import { AccommodationSection } from './AccommodationSection';
@@ -34,6 +36,12 @@ export function Step2Content({
   onSharePreset,
   shareJustCopied,
 }: Step2ContentProps) {
+  // Derived summaries for collapsed section chips
+  const numRooms = settings.numRooms ?? Math.ceil(settings.numTravelers / 2);
+  const travelersSummary = `${settings.numTravelers} traveller${settings.numTravelers !== 1 ? 's' : ''} · ${settings.numDrivers} driver${settings.numDrivers !== 1 ? 's' : ''}`;
+  const accommodationSummary = `${numRooms} room${numRooms !== 1 ? 's' : ''} · $${settings.hotelPricePerNight}/night`;
+  const drivingSummary = `${settings.maxDriveHours}h max · ${settings.stopFrequency}`;
+  const styleSummary = activePreset.name;
   return (
     <div className="space-y-6">
       <div>
@@ -91,20 +99,48 @@ export function Step2Content({
         </div>
       </div>
 
-      <TravelersSection settings={settings} setSettings={setSettings} />
-      <AccommodationSection settings={settings} setSettings={setSettings} />
-      <DrivingPreferencesSection settings={settings} setSettings={setSettings} />
-      <StopFrequencySection settings={settings} setSettings={setSettings} />
-      <TripStyleSection
-        settings={settings}
-        setSettings={setSettings}
-        tripMode={tripMode}
-        activePreset={activePreset}
-        presetOptions={presetOptions}
-        onPresetChange={onPresetChange}
-        onSharePreset={onSharePreset}
-        shareJustCopied={shareJustCopied}
-      />
+      <CollapsibleSection
+        title="Travelers"
+        icon={<Users className="h-4 w-4" />}
+        summary={travelersSummary}
+      >
+        <TravelersSection headless settings={settings} setSettings={setSettings} />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Accommodation"
+        icon={<BedDouble className="h-4 w-4" />}
+        summary={accommodationSummary}
+      >
+        <AccommodationSection headless settings={settings} setSettings={setSettings} />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Driving Preferences"
+        icon={<Clock className="h-4 w-4" />}
+        summary={drivingSummary}
+      >
+        <DrivingPreferencesSection headless settings={settings} setSettings={setSettings} />
+        <StopFrequencySection headless settings={settings} setSettings={setSettings} />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Trip Style & Budget"
+        icon="🏷️"
+        summary={styleSummary}
+      >
+        <TripStyleSection
+          headless
+          settings={settings}
+          setSettings={setSettings}
+          tripMode={tripMode}
+          activePreset={activePreset}
+          presetOptions={presetOptions}
+          onPresetChange={onPresetChange}
+          onSharePreset={onSharePreset}
+          shareJustCopied={shareJustCopied}
+        />
+      </CollapsibleSection>
     </div>
   );
 }

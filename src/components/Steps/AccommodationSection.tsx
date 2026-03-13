@@ -7,9 +7,11 @@ import { HOTEL_TIERS } from '../../lib/budget';
 interface AccommodationSectionProps {
   settings: TripSettings;
   setSettings: React.Dispatch<React.SetStateAction<TripSettings>>;
+  /** Suppresses the outer border-t/pt-4 and the section heading. */
+  headless?: boolean;
 }
 
-export function AccommodationSection({ settings, setSettings }: AccommodationSectionProps) {
+export function AccommodationSection({ settings, setSettings, headless = false }: AccommodationSectionProps) {
   const activeTier: HotelTier = settings.hotelTier ?? 'regular';
   const numRooms = settings.numRooms ?? Math.ceil(settings.numTravelers / 2);
   const autoRooms = Math.ceil(settings.numTravelers / 2);
@@ -31,11 +33,13 @@ export function AccommodationSection({ settings, setSettings }: AccommodationSec
   };
 
   return (
-    <div className="border-t pt-4">
-      <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-        <BedDouble className="h-4 w-4 text-primary" />
-        Accommodation
-      </h3>
+    <div className={headless ? '' : 'border-t pt-4'}>
+      {!headless && (
+        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+          <BedDouble className="h-4 w-4 text-primary" />
+          Accommodation
+        </h3>
+      )}
 
       {/* Tier Picker */}
       <div className="grid grid-cols-3 gap-2 mb-2">
