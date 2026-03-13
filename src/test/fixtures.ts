@@ -2,10 +2,11 @@
  * Shared test fixtures for the roadtrip-planner test suite.
  *
  * Single source of truth for makeSegment / makeDay / makeSummary /
- * makeBudget / makeSettings so test files don't drift apart.
+ * makeBudget / makeSettings / makeTimedEvent / makeCanonicalTimeline
+ * so test files don't drift apart.
  *
  * Usage:
- *   import { makeSettings, makeSummary, makeDay } from '../test/fixtures';
+ *   import { makeSettings, makeSummary, makeDay, makeCanonicalTimeline } from '../test/fixtures';
  */
 
 import type {
@@ -15,7 +16,10 @@ import type {
   ProcessedSegment,
   TripBudget,
   Location,
+  Vehicle,
 } from '../types';
+import type { TimedEvent } from '../lib/trip-timeline-types';
+import type { CanonicalTripDay, CanonicalTripTimeline } from '../lib/canonical-trip';
 
 // ==================== PRIMITIVES ====================
 
@@ -152,6 +156,89 @@ export function makeSummary(
     segments,
     fullGeometry: [],
     ...(days ? { days } : {}),
+    ...overrides,
+  };
+}
+
+// ==================== VEHICLE ====================
+
+export function makeVehicle(overrides: Partial<Vehicle> = {}): Vehicle {
+  return {
+    year: '2023',
+    make: 'Toyota',
+    model: 'RAV4',
+    fuelEconomyCity: 10,
+    fuelEconomyHwy: 8,
+    tankSize: 60,
+    ...overrides,
+  };
+}
+
+// ==================== CANONICAL TIMELINE ====================
+
+let _eventIdCounter = 0;
+
+/**
+ * Build a single TimedEvent.
+ * Defaults to a 'drive' event at a predictable time.
+ */
+export function makeTimedEvent(overrides: Partial<TimedEvent> = {}): TimedEvent {
+  const base = new Date('2025-08-16T09:00:00');
+  const id = `evt-${++_eventIdCounter}`;
+  return {
+    id,
+    type: 'drive',
+    arrivalTime: base,
+    departureTime: base,
+    durationMinutes: 120,
+    distanceFromOriginKm: 0,
+    locationHint: 'Winnipeg',
+    stops: [],
+    timezone: 'America/Winnipeg',
+    ...overrides,
+  };
+}
+
+/**
+ * Build a CanonicalTripDay from a TripDay and optional event overrides.
+ * Uses makeDay() + makeTimedEvent() defaults so callers only override what matters.
+ */
+export function makeCanonicalDay(
+  metaOverrides: Partial<TripDay> = {},
+  events: TimedEvent[] = [makeTimedEvent()],
+): CanonicalTripDay {
+  return {
+    meta: makeDay(metaOverrides),
+    events,
+  };
+}
+
+/**
+ * Build a full CanonicalTripTimeline.
+ *
+ * Defaults to a 1-day, 1-event trip. Override `days` for multi-day tests.
+ *
+ *   makeCanonicalTimeline()
+ *   makeCanonicalTimeline({ days: [d1, d2, d3] })
+ *   makeCanonicalTimeline({}, makeSettings({ numTravelers: 1 }))
+ */
+export function makeCanonicalTimeline(
+  overrides: Partial<CanonicalTripTimeline> = {},
+  settingsOverrides: Partial<TripSettings> = {},
+): CanonicalTripTimeline {
+  const days = overrides.days ?? [makeCanonicalDay()];
+  const allEvents = overrides.events ?? days.flatMap(d => d.events);
+  const summaryDays = days.map(d => d.meta);
+
+  return {
+    events: allEvents,
+    days,
+    summary: makeSummary(summaryDays),
+    inputs: {
+      locations: [makeLocation('Winnipeg'), makeLocation('Sault Ste. Marie', 46.5, -84.3)],
+      vehicle: makeVehicle(),
+      settings: makeSettings(settingsOverrides),
+    },
     ...overrides,
   };
 }
