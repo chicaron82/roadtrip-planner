@@ -4,6 +4,9 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   test: {
+    // Pin to Winnipeg (CDT/CST) so getHours() is consistent between local dev
+    // and CI (GitHub Actions runs in UTC — off by 5h without this).
+    env: { TZ: 'America/Winnipeg' },
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
