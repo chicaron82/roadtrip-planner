@@ -5,6 +5,7 @@ import { WizardContent } from '../WizardContent';
 import { PlanningStepContent } from '../Steps/PlanningStepContent';
 import { SwipeableWizard } from '../UI/SwipeableWizard';
 import { ErrorFallback } from '../UI/ErrorFallback';
+import { SettingsPanel } from '../Settings/SettingsPanel';
 import type { PlanningStep } from '../../hooks';
 import type { GhostCarState } from '../../hooks/useGhostCar';
 import type { MarkerCategory, POICategory, TripMode } from '../../types';
@@ -59,7 +60,7 @@ export function PlannerSidebarShell({
   return (
     <div className="absolute inset-0 z-20 md:inset-auto md:left-6 md:top-6 md:bottom-6 md:w-[420px] pointer-events-none">
       <SwipeableWizard tripMode={tripMode} onRevealChange={onRevealChange}>
-        <div className="sidebar-dark mee-panel w-full h-full flex flex-col pointer-events-auto md:rounded-[20px]">
+        <div className="sidebar-dark mee-panel relative w-full h-full flex flex-col pointer-events-auto md:rounded-[20px]">
           <StepsBanner
             currentStep={planningStep}
             completedSteps={completedSteps}
@@ -90,6 +91,7 @@ export function PlannerSidebarShell({
               <PlanningStepContent {...stepProps} />
             </ErrorBoundary>
           </WizardContent>
+          <SettingsPanel />
         </div>
       </SwipeableWizard>
     </div>

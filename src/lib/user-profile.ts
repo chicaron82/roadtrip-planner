@@ -101,6 +101,11 @@ export const _clearProfileCache = (): void => {
   profileCache = null;
 };
 
+export const clearUserProfile = (): void => {
+  profileCache = null;
+  localStorage.removeItem(STORAGE_KEY);
+};
+
 // --- Record a Trip ---
 // Called when user commits to a calculated route (step 2 → step 3).
 

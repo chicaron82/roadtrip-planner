@@ -123,7 +123,7 @@ export const getLastOrigin = (): Location | null => {
 
 const SETTINGS_DEFAULTS_KEYS: (keyof TripSettings)[] = [
   'units', 'currency', 'maxDriveHours', 'numTravelers', 'numDrivers', 'driverNames',
-  'gasPrice', 'hotelPricePerNight', 'mealPricePerDay',
+  'gasPrice', 'hotelPricePerNight', 'hotelTier', 'mealPricePerDay',
   'budgetMode', 'routePreference', 'stopFrequency',
   'includeStartingLocation',
 ];
@@ -147,4 +147,12 @@ export const loadSettingsDefaults = (): Partial<TripSettings> => {
   } catch {
     return {};
   }
+};
+
+export const clearHistory = (): void => {
+  localStorage.removeItem(KEYS.HISTORY);
+};
+
+export const clearSettingsDefaults = (): void => {
+  localStorage.removeItem(KEYS.DEFAULT_SETTINGS);
 };
