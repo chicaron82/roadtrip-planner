@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { TripDay, TripSummary } from '../types';
+import type { TripDay, TripSummary, TripSettings } from '../types';
 import type { TimedEvent } from './trip-timeline-types';
 import type { SuggestedStop } from './stop-suggestion-types';
 import type { CanonicalTripTimeline } from './canonical-trip';
@@ -7,6 +7,7 @@ import {
   patchDaysFromCanonicalEvents,
   projectFuelStopsFromSimulation,
   assembleCanonicalTimeline,
+  getRoundTripDayTripStayMinutes,
 } from './trip-orchestrator';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
@@ -334,3 +335,56 @@ describe('assembleCanonicalTimeline', () => {
     expect(result.days.length).toBe(tripDays.length);
   });
 });
+
+// ─── getRoundTripDayTripStayMinutes ──────────────────────────────────────────
+
+function makeMinimalSettings(overrides: Partial<TripSettings> = {}): TripSettings {
+  return {
+    units: 'metric',
+    currency: 'CAD',
+    maxDriveHours: 8,
+    numTravelers: 2,
+    numDrivers: 1,
+    budgetMode: 'plan-to-budget',
+    budget: { mode: 'plan-to-budget', allocation: 'flexible', profile: 'balanced', weights: { gas: 25, hotel: 35, food: 30, misc: 10 }, gas: 0, hotel: 0, food: 0, misc: 0, total: 0 },
+    departureDate: '2026-08-16',
+    departureTime: '09:00',
+    returnDate: '',
+    arrivalDate: '',
+    arrivalTime: '',
+    ...overrides,
+  } as TripSettings;
+}
+
+describe('getRoundTripDayTripStayMinutes', () => {
+  it('returns dayTripDurationHours * 60 for a qualifying RT day trip', () => {
+    const summary = { ...makeSummary(), totalDurationMinutes: 300 }; // 5h < 8h limit
+    const settings = makeMinimalSettings({ isRoundTrip: true, dayTripDurationHours: 3 });
+    expect(getRoundTripDayTripStayMinutes(summary as TripSummary, 1, settings)).toBe(180);
+  });
+
+  it('returns 0 when isRoundTrip is false', () => {
+    const summary = { ...makeSummary(), totalDurationMinutes: 200 };
+    const settings = makeMinimalSettings({ isRoundTrip: false, dayTripDurationHours: 4 });
+    expect(getRoundTripDayTripStayMinutes(summary as TripSummary, 1, settings)).toBe(0);
+  });
+
+  it('returns 0 when dayCount is more than 1', () => {
+    const summary = { ...makeSummary(), totalDurationMinutes: 200 };
+    const settings = makeMinimalSettings({ isRoundTrip: true, dayTripDurationHours: 4 });
+    expect(getRoundTripDayTripStayMinutes(summary as TripSummary, 2, settings)).toBe(0);
+  });
+
+  it('returns 0 when totalDurationMinutes exceeds maxDriveHours limit', () => {
+    const summary = { ...makeSummary(), totalDurationMinutes: 600 }; // 10h > 8h max
+    const settings = makeMinimalSettings({ isRoundTrip: true, dayTripDurationHours: 4 });
+    expect(getRoundTripDayTripStayMinutes(summary as TripSummary, 1, settings)).toBe(0);
+  });
+
+  it('returns 0 when dayTripDurationHours is undefined', () => {
+    const summary = { ...makeSummary(), totalDurationMinutes: 200 };
+    const settings = makeMinimalSettings({ isRoundTrip: true, dayTripDurationHours: undefined });
+    expect(getRoundTripDayTripStayMinutes(summary as TripSummary, 1, settings)).toBe(0);
+  });
+});
+
