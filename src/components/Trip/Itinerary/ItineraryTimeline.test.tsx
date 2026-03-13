@@ -197,4 +197,100 @@ describe('ItineraryTimeline', () => {
     fireEvent.click(screen.getByTitle('Dismiss suggestion'));
     expect(handleDismiss).toHaveBeenCalledWith('stop-1');
   });
+
+  it('shows "3 driving" in the header when accepted itinerary has 3 driving days', () => {
+    const seg1 = makeProcessedSegment({ distanceKm: 700, durationMinutes: 480 });
+    const seg2 = makeProcessedSegment({ distanceKm: 650, durationMinutes: 450 });
+    const seg3 = makeProcessedSegment({ distanceKm: 600, durationMinutes: 420 });
+
+    const day1 = makeDay(1, '2026-08-01', [seg1], [0]);
+    const day2 = makeDay(2, '2026-08-02', [seg2], [1]);
+    const day3 = makeDay(3, '2026-08-03', [seg3], [2]);
+    // Free day: no segments → freeDays=1, enabling the "X driving · Y free" breakdown
+    const freeDay = makeDay(4, '2026-08-04', [], []);
+
+    const multiDaySummary: TripSummary = {
+      ...SUMMARY,
+      drivingDays: 3,
+      segments: [seg1, seg2, seg3],
+      totalDistanceKm: 1950,
+    };
+
+    const acceptedItinerary3: AcceptedItineraryInput = {
+      summary: multiDaySummary,
+      days: [day1, day2, day3, freeDay].map(day => ({ meta: day, events: [] })),
+      events: [],
+    };
+
+    mockedUseTimelineData.mockReturnValue({
+      userOverrides: {},
+      startTime: new Date('2026-08-01T08:00:00.000Z'),
+      originTimezone: 'America/Winnipeg',
+      pacingSuggestions: [],
+      pacingSuggestionsByDay: new Map(),
+      activeSuggestions: [],
+      acceptedItinerary: acceptedItinerary3,
+      simulationItems: [],
+      pendingSuggestions: [],
+      pendingSuggestionsByDay: new Map(),
+      overnightNightsByDay: new Map(),
+      driverRotation: null,
+      driverBySegment: new Map(),
+      dayStartMap: new Map([[0, [{ day: day1, isFirst: true }]]]),
+      freeDaysAfterSegment: new Map(),
+      handleAccept: vi.fn(),
+      handleDismiss: vi.fn(),
+      editingActivity: null,
+      setEditingActivity: vi.fn(),
+      editingOvernight: null,
+      setEditingOvernight: vi.fn(),
+    });
+
+    render(
+      <ItineraryTimeline
+        summary={multiDaySummary}
+        settings={SETTINGS}
+        days={[makeDay(1, '2026-08-01', [seg1], [0])]}
+      />,
+    );
+
+    expect(screen.getByText(/3 driving/i)).toBeInTheDocument();
+  });
+
+  it('renders no suggestion action buttons when there are no pending suggestions', () => {
+    mockedUseTimelineData.mockReturnValue({
+      userOverrides: {},
+      startTime: new Date('2026-08-01T08:00:00.000Z'),
+      originTimezone: 'America/Winnipeg',
+      pacingSuggestions: [],
+      pacingSuggestionsByDay: new Map(),
+      activeSuggestions: [],
+      acceptedItinerary: makeAcceptedItinerary(),
+      simulationItems: [],
+      pendingSuggestions: [],
+      pendingSuggestionsByDay: new Map(),
+      overnightNightsByDay: new Map(),
+      driverRotation: null,
+      driverBySegment: new Map(),
+      dayStartMap: new Map([[0, [{ day: ACCEPTED_DAYS[0], isFirst: true }]]]),
+      freeDaysAfterSegment: new Map(),
+      handleAccept: vi.fn(),
+      handleDismiss: vi.fn(),
+      editingActivity: null,
+      setEditingActivity: vi.fn(),
+      editingOvernight: null,
+      setEditingOvernight: vi.fn(),
+    });
+
+    render(
+      <ItineraryTimeline
+        summary={SUMMARY}
+        settings={SETTINGS}
+        days={RAW_DAYS}
+      />,
+    );
+
+    expect(screen.queryByTitle('Add this stop')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Dismiss suggestion')).not.toBeInTheDocument();
+  });
 });
