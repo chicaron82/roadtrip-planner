@@ -15,7 +15,6 @@
  */
 
 import type { RouteSegment } from '../types';
-import type { TimedEvent } from './trip-timeline-types';
 
 // ==================== TYPES ====================
 
@@ -74,28 +73,26 @@ function buildTimeBasedRotationIndices(
 /**
  * Assign drivers to segments, rotating at natural swap points.
  *
- * Primary: rotates at fuel stops and any intent-declared stops (fuel, meal, overnight).
- * Fallback: if stop-based rotation points don't create enough rotations, splits total
+ * Primary: rotates at fuel stops (natural pause points on any road trip).
+ * Fallback: if fuel stops don't create enough rotations, splits total
  * drive time evenly across drivers using time-based rotation points.
  *
  * @param segments - Route segments to assign drivers to
  * @param numDrivers - Number of available drivers (1 = no rotation)
  * @param fuelStopIndices - Segment indices where fuel stops occur
- * @param extraRotationIndices - Additional rotation points (intent waypoints, overnight boundaries)
  * @returns Driver assignments, stats, and rotation points
  */
 export function assignDrivers(
   segments: RouteSegment[],
   numDrivers: number,
   fuelStopIndices: number[] = [],
-  extraRotationIndices: number[] = [],
 ): DriverRotationResult {
   if (numDrivers < 1) numDrivers = 1;
 
-  // Deduplicate all rotation indices: fuel stops + intent waypoints + overnight boundaries.
-  // Multiple en-route stops within one flat segment all resolve to the same flatIndex —
-  // dedup prevents phantom rotation points inflating the fuel-only path check.
-  const uniqueFuelIndices = [...new Set([...fuelStopIndices, ...extraRotationIndices])];
+  // Deduplicate fuel stop indices: multiple en-route stops within one flat segment
+  // all resolve to the same flatIndex. Without dedup, [0,0,0].length=3 triggers the
+  // fuel-only path for 4 drivers, then new Set collapses to {0} — one real swap point.
+  const uniqueFuelIndices = [...new Set(fuelStopIndices)];
 
   // Determine rotation points: fuel stops if they create enough rotations,
   // otherwise fall back to time-based even distribution
@@ -231,93 +228,6 @@ export function computeSwapAssignments(
     swapMap[stop.id] = unassigned[idx % unassigned.length];
   });
   return swapMap;
-}
-
-/**
- * Walk the timed-event stream to compute accurate per-driver stats when some
- * drivers only drive because of fuel-stop swap suggestions (i.e. they hold no
- * flat segments and would show "—" in the roster from segment-based stats alone).
- *
- * Algorithm:
- * - At each `departure` event, look ahead for the next indexed waypoint/arrival
- *   to identify which flat segment is starting — that segment's assignment gives
- *   the starting driver for the stint.
- * - At each `fuel`/`combo` event that has a swap suggestion, commit the current
- *   driver's elapsed time/distance and hand off to the suggested driver.
- * - At `overnight`, `arrival`, and `destination` events, commit the final stint
- *   for that driving block.
- *
- * Falls back to the existing segment-based stats when swapSuggestions is empty
- * (the intents-checked path already has enough rotation points to assign every
- * driver a real segment, so its roster is already correct).
- */
-export function buildRosterStatsFromTimedEvents(
-  timedEvents: TimedEvent[],
-  swapSuggestions: Record<string, number>,
-  rotation: DriverRotationResult,
-  numDrivers: number,
-): DriverStats[] {
-  if (Object.keys(swapSuggestions).length === 0) return rotation.stats;
-
-  const statsMap = new Map<number, DriverStats>();
-  for (let d = 1; d <= numDrivers; d++) {
-    statsMap.set(d, { driver: d, totalMinutes: 0, totalKm: 0, segmentCount: 0 });
-  }
-
-  let currentDriver = 1;
-  let stintStartTime: Date | null = null;
-  let stintStartKm = 0;
-
-  for (let i = 0; i < timedEvents.length; i++) {
-    const event = timedEvents[i];
-
-    if (event.type === 'departure') {
-      // Look ahead (up to the next departure) for the first event with a flat
-      // segment index — that tells us which assignment owns this driving block.
-      for (let j = i + 1; j < timedEvents.length; j++) {
-        const next = timedEvents[j];
-        if (next.type === 'departure') break;
-        if (typeof next.flatIndex === 'number') {
-          const assignment = rotation.assignments.find(a => a.segmentIndex === next.flatIndex);
-          if (assignment) currentDriver = assignment.driver;
-          break;
-        }
-      }
-      stintStartTime = event.departureTime;
-      stintStartKm = event.distanceFromOriginKm;
-
-    } else if ((event.type === 'fuel' || event.type === 'combo') && event.stops[0]) {
-      const swapTo = swapSuggestions[event.stops[0].id];
-      if (swapTo !== undefined && stintStartTime) {
-        const mins = (event.arrivalTime.getTime() - stintStartTime.getTime()) / 60000;
-        const km = event.distanceFromOriginKm - stintStartKm;
-        const stats = statsMap.get(currentDriver)!;
-        stats.totalMinutes += Math.max(0, mins);
-        stats.totalKm += Math.max(0, km);
-        stats.segmentCount += 1;
-        currentDriver = swapTo;
-        stintStartTime = event.departureTime;
-        stintStartKm = event.distanceFromOriginKm;
-      }
-
-    } else if (
-      event.type === 'overnight' ||
-      event.type === 'destination' ||
-      event.type === 'arrival'
-    ) {
-      if (stintStartTime) {
-        const mins = (event.arrivalTime.getTime() - stintStartTime.getTime()) / 60000;
-        const km = event.distanceFromOriginKm - stintStartKm;
-        const stats = statsMap.get(currentDriver)!;
-        stats.totalMinutes += Math.max(0, mins);
-        stats.totalKm += Math.max(0, km);
-        stats.segmentCount += 1;
-        stintStartTime = null;
-      }
-    }
-  }
-
-  return Array.from(statsMap.values()).filter(s => s.segmentCount > 0);
 }
 
 /**

@@ -10,7 +10,7 @@
  */
 
 import type { DriverRotationResult } from './driver-rotation';
-import { buildRosterStatsFromTimedEvents, computeSwapAssignments } from './driver-rotation';
+import { computeSwapAssignments } from './driver-rotation';
 import type { PrintInput } from './canonical-trip';
 import type { TimedEvent } from './trip-timeline';
 import { buildDayHTML } from './trip-print-day';
@@ -48,16 +48,8 @@ export function buildPrintHTML(
         )
       : {};
 
-  // Enrich driver roster with fuel-stop swap stats so drivers who only appear
-  // via computeSwapAssignments (no assigned flat segments) show real times
-  // instead of dashes.  Falls back to segment-based stats when not needed.
-  const enrichedStats =
-    driverRotation && settings.numDrivers > 1 && Object.keys(swapSuggestions).length > 0
-      ? buildRosterStatsFromTimedEvents(timedEvents, swapSuggestions, driverRotation, settings.numDrivers)
-      : undefined;
-
   const feasibility = analyzeFeasibility(summary, settings);
-  const coverHTML = buildCoverPageHTML(tripTitle, summary, settings, feasibility, driverRotation, vehicle, enrichedStats);
+  const coverHTML = buildCoverPageHTML(tripTitle, summary, settings, feasibility, driverRotation, vehicle);
 
   const daysHTML = itineraryDays.map(day => {
     runningTripSpend += day.budget.dayTotal;

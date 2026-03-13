@@ -75,31 +75,22 @@ export function buildAcceptedItineraryProjection({
   if (settings.numDrivers > 1) {
     const fuelIndices = extractFuelStopIndices(simulationItems);
     const flatSegments: typeof summary.segments = [];
-    const intentRotationIndices: number[] = [];
 
     if (days) {
       days.forEach(day => {
         if (day.segmentIndices.length > 0) {
           day.segments.forEach(seg => {
-            const intent = seg.to?.intent;
-            if (intent && (intent.fuel || intent.meal || intent.overnight)) {
-              intentRotationIndices.push(flatSegments.length);
-            }
             flatSegments.push(seg);
           });
         }
       });
     } else {
-      summary.segments.forEach((seg, idx) => {
-        const intent = seg.to?.intent;
-        if (intent && (intent.fuel || intent.meal || intent.overnight)) {
-          intentRotationIndices.push(idx);
-        }
+      summary.segments.forEach(seg => {
         flatSegments.push(seg);
       });
     }
 
-    driverRotation = assignDrivers(flatSegments, settings.numDrivers, fuelIndices, intentRotationIndices);
+    driverRotation = assignDrivers(flatSegments, settings.numDrivers, fuelIndices);
   }
 
   const driverBySegment = driverRotation
