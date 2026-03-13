@@ -13,6 +13,7 @@
 import type { CostBreakdown, Currency } from '../../../types';
 import type { TripBudget } from '../../../types/core';
 import { formatCurrency } from '../../../lib/trip-formatters';
+import { getBudgetSanityHints } from '../../../lib/budget';
 
 interface TripBudgetHealthProps {
   budget: TripBudget;
@@ -167,6 +168,13 @@ export function TripBudgetHealth({ budget, breakdown, currency }: TripBudgetHeal
       <p className="text-[11px] text-muted-foreground/70 leading-relaxed">
         {buildNarrativeLine()}
       </p>
+
+      {/* Soft sanity hints */}
+      {getBudgetSanityHints(breakdown).map((hint) => (
+        <p key={hint.category} className="text-[10px] text-amber-400/70 leading-snug">
+          {hint.message}
+        </p>
+      ))}
     </div>
   );
 }
