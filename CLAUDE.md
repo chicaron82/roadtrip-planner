@@ -122,6 +122,41 @@ The goal is not to second-guess everything — it's to catch the cases where div
 
 ---
 
+## Read Before Touch
+
+**Never edit a file you haven't read in the current session.**
+
+Before modifying any file:
+1. Read the relevant section (or the whole file if it's short)
+2. Confirm the function signatures, types, and exports match what you expect
+3. Then edit
+
+This applies even to "obvious" one-line fixes. The build-breaking `TimelineNode` / `intentRotationIndices` incident happened because a file was edited based on a cached mental model, not its actual current state.
+
+---
+
+## Breaking Change Protocol
+
+When **removing, renaming, or changing the signature** of any exported function, type, or constant:
+
+1. `grep` for all usages across `src/` before making the change
+2. Update all call sites in the same commit — no partial changes
+3. Run `npx tsc --noEmit` before committing to confirm zero type errors
+
+**Never commit a breaking change without sweeping its consumers first.**
+
+---
+
+## New Pure Function → Test Required
+
+When a new pure function lands in `src/lib/`:
+- A test file goes with it **in the same commit**, OR
+- An explicit entry is added to `docs/backlog.md` noting it's untested
+
+No pure lib functions accumulate at 0% coverage silently. The Wave 3 cleanup (10 files at 0%) is the example of what this prevents.
+
+---
+
 ## Build & Test
 
 ```bash
