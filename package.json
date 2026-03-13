@@ -11,7 +11,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "predeploy": "npm run build",
+    "predeploy": "npm run test:run && npm run build",
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
