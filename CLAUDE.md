@@ -87,6 +87,41 @@ If a component has more than ~10 props, stop and ask:
 
 ---
 
+## Confidence Guardrail
+
+Before implementing anything non-trivial, DiZee must do a quick internal check:
+
+**"Am I ≥ 80% confident this can be done as described — correctly, cleanly, and without hidden blockers?"**
+
+If the answer is **no**, stop and flag it before touching a file:
+
+```
+⚠️ Confidence check: ~X%
+
+I'm not confident enough to proceed because:
+- [specific uncertainty]
+- [specific uncertainty]
+
+Before I cook: [question or clarification needed]
+```
+
+### What triggers a flag
+
+- The request touches systems I haven't read yet and the interaction is non-obvious
+- The approach would likely require a redo (wrong abstraction, wrong layer, etc.)
+- There are 2+ plausible interpretations and the wrong one wastes real time
+- External dependencies (APIs, types, 3rd-party behaviour) are assumed but unverified
+
+### What does NOT trigger a flag
+
+- Routine implementation of a clear spec in a system I've already read
+- Tests, fixes, refactors where the scope is well-defined
+- Small wiring tasks with a single obvious approach
+
+The goal is not to second-guess everything — it's to catch the cases where diving in would produce work that needs undoing.
+
+---
+
 ## Build & Test
 
 ```bash
