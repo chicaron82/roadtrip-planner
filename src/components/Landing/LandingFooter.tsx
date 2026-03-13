@@ -67,6 +67,29 @@ export function LandingFooter({ activeDot }: Props) {
       >
         {ROUTE_DOTS[activeDot]?.label ?? ''}
       </p>
+
+      {/* Open-source attribution */}
+      <p
+        style={{
+          fontFamily: "'DM Mono', monospace",
+          fontSize: '10px',
+          color: 'rgba(255,255,255,0.12)',
+          letterSpacing: '0.06em',
+          margin: 0,
+          lineHeight: 1.6,
+        }}
+      >
+        Powered by{' '}
+        <a href="https://project-osrm.org" target="_blank" rel="noopener noreferrer" className="hover:text-white/30 transition-colors">OSRM</a>
+        {' · '}
+        <a href="https://photon.komoot.io" target="_blank" rel="noopener noreferrer" className="hover:text-white/30 transition-colors">Photon</a>
+        {' · '}
+        <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="hover:text-white/30 transition-colors">OpenStreetMap</a>
+        {' · '}
+        <a href="https://open-meteo.com" target="_blank" rel="noopener noreferrer" className="hover:text-white/30 transition-colors">Open-Meteo</a>
+        {' · '}
+        <a href="https://carto.com/attributions" target="_blank" rel="noopener noreferrer" className="hover:text-white/30 transition-colors">CARTO</a>
+      </p>
     </div>
   );
 }
