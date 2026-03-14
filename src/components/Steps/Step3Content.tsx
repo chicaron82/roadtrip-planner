@@ -4,6 +4,7 @@ import { EstimateBreakdown } from '../Trip/StepHelpers/EstimateBreakdown';
 import type { PlanningStep } from '../../hooks';
 import type { UseStep3ControllerReturn } from '../../hooks/useStep3Derivations';
 import { TripViewer } from '../Trip/Viewer/TripViewer';
+import { TripSignatureCard } from '../Trip/TripSignatureCard';
 import { Step3Header } from './Step3Header';
 import { Step3HealthSection } from './Step3HealthSection';
 import { Step3CommitSection } from './Step3CommitSection';
@@ -23,11 +24,13 @@ export function Step3Content({
   onGoToStep,
   onLoadHistoryTrip,
 }: Step3ContentProps) {
-  const { estimate, header, overnightPrompt, health, viewer, commit } = controller;
+  const { estimate, header, overnightPrompt, health, viewer, commit, signatureCard } = controller;
 
   return (
     <div className="space-y-4">
       {estimate && <EstimateBreakdown estimate={estimate} />}
+
+      {signatureCard && <TripSignatureCard model={signatureCard} />}
 
       <Step3Header {...header} />
 

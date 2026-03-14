@@ -2,6 +2,7 @@ import { useMemo, useCallback } from 'react';
 import { analyzeFeasibility } from '../lib/feasibility';
 import { generateEstimate } from '../lib/estimate-service';
 import { generateTripOverview } from '../lib/trip-analyzer';
+import { buildSignatureCardModel } from '../lib/trip-signature-card-model';
 import { useTimeline } from '../contexts/TripContext';
 import {
   buildStep3ArrivalInfo,
@@ -63,6 +64,7 @@ export function useStep3Controller({
   onDismissPOI,
   onConfirmTrip,
   onUnconfirmTrip,
+  locations,
 }: UseStep3ControllerOptions): UseStep3ControllerReturn {
   const {
     addDayActivity,
@@ -271,6 +273,21 @@ export function useStep3Controller({
     onCopyShareLink,
   ]);
 
+  const signatureCard = useMemo(() => {
+    if (!summary || !feasibility) return null;
+    const origin = locations[0];
+    const destination = locations[locations.length - 1];
+    if (!origin || !destination) return null;
+    return buildSignatureCardModel({
+      summary,
+      settings,
+      feasibility,
+      originName: origin.name,
+      destinationName: destination.name,
+      tripMode,
+    });
+  }, [summary, settings, feasibility, locations, tripMode]);
+
   return {
     feasibility,
     estimate,
@@ -282,5 +299,6 @@ export function useStep3Controller({
     health,
     viewer,
     commit,
+    signatureCard,
   };
 }

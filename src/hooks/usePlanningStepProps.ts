@@ -110,6 +110,7 @@ export function usePlanningStepProps(o: UsePlanningStepPropsOptions): PlanningSt
     summary: o.summary,
     settings: o.settings,
     vehicle: o.vehicle,
+    locations: o.locations,
     tripMode: o.tripMode,
     viewMode: o.viewMode,
     setViewMode: o.setViewMode,

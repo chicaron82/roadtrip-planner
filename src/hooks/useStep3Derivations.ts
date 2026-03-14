@@ -23,11 +23,14 @@ import type {
 } from './useStep3Models';
 import type { generateTripOverview } from '../lib/trip-analyzer';
 import type { TripEstimate } from '../lib/estimate-service';
+import type { SignatureCardModel } from '../lib/trip-signature-card-model';
 
 export interface UseStep3ControllerOptions {
   summary: TripSummary | null;
   settings: TripSettings;
   vehicle: Vehicle;
+  /** All trip locations — used to derive origin/destination for the Signature Card */
+  locations: Location[];
   tripMode: TripMode;
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
@@ -69,6 +72,8 @@ export interface UseStep3ControllerReturn {
   health: Step3HealthModel | null;
   viewer: Step3ViewerModel | null;
   commit: Step3CommitModel | null;
+  /** Signature Card model — null when no trip is calculated yet */
+  signatureCard: SignatureCardModel | null;
 }
 
 interface BuildStep3ArrivalInfoOptions {
