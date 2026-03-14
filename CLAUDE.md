@@ -181,3 +181,21 @@ npm run dev
 - OSRM (routing), Photon/Nominatim (geocoding), Overpass (POI)
 - Radix UI primitives
 - Vitest + Testing Library
+
+---
+
+## Session Ritual — Chicharons Kitchen
+
+At the end of every coding session, create a blog entry in the **chicharons-kitchen** repo:
+
+```
+../chicharons-kitchen/posts/YYYY/MM/slug.ts
+```
+
+Use the `BlogEntry` type from `@uv7/journal-core`. Full content, no TODOs. Write it like an editorial recap — narrative, specific, with flavour. Not a changelog.
+
+**Required fields:** `id`, `date`, `sortDate`, `title`, `type`, `emoji`, `tags`, `modelId`, `summary`, `highlights`
+
+**Encouraged fields:** `callout`, `technicalDetails`, `lessons`, `footer`
+
+Always include `'Roadtrip Planner'` in `tags` so the filter bar picks it up.
