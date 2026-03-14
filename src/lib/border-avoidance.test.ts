@@ -1,82 +1,105 @@
-import { describe, expect, it } from 'vitest';
-import type { Location } from '../types';
-import {
-  isNorthwesternOntarioSouthDetour,
-  shouldTryLakeSuperiorCorridor,
-} from './border-avoidance';
+/**
+ * border-avoidance.ts — unit tests for isLikelyInUS and detectBorderCrossing.
+ *
+ * Pure functions — no mocks needed.
+ */
 
-const REGINA: Location = {
-  id: 'regina',
-  name: 'Regina, SK',
-  lat: 50.4452,
-  lng: -104.6189,
-  type: 'origin',
-};
+import { describe, it, expect } from 'vitest';
+import { isLikelyInUS, detectBorderCrossing } from './border-avoidance';
 
-const THUNDER_BAY: Location = {
-  id: 'thunder-bay',
-  name: 'Thunder Bay, ON',
-  lat: 48.3822,
-  lng: -89.2461,
-  type: 'destination',
-};
+// ─── isLikelyInUS ─────────────────────────────────────────────────────────────
 
-const WINNIPEG: Location = {
-  id: 'winnipeg',
-  name: 'Winnipeg, MB',
-  lat: 49.8951,
-  lng: -97.1384,
-  type: 'origin',
-};
-
-describe('northwestern Ontario corridor detection', () => {
-  it('flags the southern detour corridor used by the problematic Regina route', () => {
-    const geometry: [number, number][] = [
-      [50.445, -104.619],
-      [49.975, -98.383],
-      [49.779, -97.150],
-      [48.931, -95.333],
-      [48.691, -94.447],
-      [48.606, -93.403],
-      [48.743, -92.324],
-      [48.667, -91.091],
-      [48.589, -89.858],
-      [48.382, -89.246],
-    ];
-
-    expect(isNorthwesternOntarioSouthDetour(geometry)).toBe(true);
-    expect(shouldTryLakeSuperiorCorridor([REGINA, THUNDER_BAY], geometry)).toBe(true);
+describe('isLikelyInUS', () => {
+  it('returns false for Winnipeg, MB', () => {
+    expect(isLikelyInUS(49.9, -97.1)).toBe(false);
   });
 
-  it('does not flag the normal Kenora/Dryden corridor', () => {
+  it('returns false for Saskatoon, SK', () => {
+    expect(isLikelyInUS(52.1, -106.7)).toBe(false);
+  });
+
+  it('returns false for Toronto, ON', () => {
+    expect(isLikelyInUS(43.7, -79.4)).toBe(false);
+  });
+
+  it('returns false for Montreal, QC', () => {
+    expect(isLikelyInUS(45.5, -73.6)).toBe(false);
+  });
+
+  it('returns true for Fargo, ND', () => {
+    expect(isLikelyInUS(46.9, -96.8)).toBe(true);
+  });
+
+  it('returns true for Minneapolis, MN', () => {
+    expect(isLikelyInUS(44.98, -93.3)).toBe(true);
+  });
+
+  it('returns true for Chicago, IL', () => {
+    expect(isLikelyInUS(41.9, -87.6)).toBe(true);
+  });
+
+  it('returns true for New York, NY', () => {
+    expect(isLikelyInUS(40.7, -74.0)).toBe(true);
+  });
+
+  it('returns false for European coords (lng out of range)', () => {
+    expect(isLikelyInUS(45.0, 10.0)).toBe(false);
+  });
+
+  it('returns false for far-west out-of-range longitude', () => {
+    expect(isLikelyInUS(45.0, -200.0)).toBe(false);
+  });
+});
+
+// ─── detectBorderCrossing ─────────────────────────────────────────────────────
+
+describe('detectBorderCrossing', () => {
+  it('returns crossesUS=false for empty geometry', () => {
+    const result = detectBorderCrossing([]);
+    expect(result.crossesUS).toBe(false);
+    expect(result.crossingRegions.size).toBe(0);
+  });
+
+  it('returns crossesUS=false for single point', () => {
+    const result = detectBorderCrossing([[49.9, -97.1]]);
+    expect(result.crossesUS).toBe(false);
+  });
+
+  it('returns crossesUS=false for all-Canadian route', () => {
     const geometry: [number, number][] = [
       [49.895, -97.138],
-      [49.656, -96.229],
-      [49.722, -94.913],
-      [49.802, -94.408],
-      [49.818, -93.998],
-      [49.855, -93.369],
-      [49.585, -92.356],
-      [49.343, -91.478],
-      [49.051, -90.474],
-      [48.534, -89.649],
-      [48.382, -89.246],
+      [49.5, -93.0],
+      [48.38, -89.25],
     ];
-
-    expect(isNorthwesternOntarioSouthDetour(geometry)).toBe(false);
-    expect(shouldTryLakeSuperiorCorridor([WINNIPEG, THUNDER_BAY], geometry)).toBe(false);
+    const result = detectBorderCrossing(geometry);
+    expect(result.crossesUS).toBe(false);
   });
 
-  it('ignores trips outside the prairie to northwestern Ontario corridor', () => {
+  it('detects US crossing for route through US territory', () => {
     const geometry: [number, number][] = [
-      [43.653, -79.383],
-      [44.231, -76.486],
-      [45.421, -75.697],
+      [49.895, -97.138],
+      [46.877, -96.789],
+      [44.978, -93.265],
     ];
+    const result = detectBorderCrossing(geometry);
+    expect(result.crossesUS).toBe(true);
+  });
 
-    expect(shouldTryLakeSuperiorCorridor([
-      { id: 'tor', name: 'Toronto, ON', lat: 43.653, lng: -79.383, type: 'origin' },
-      { id: 'ott', name: 'Ottawa, ON', lat: 45.421, lng: -75.697, type: 'destination' },
-    ], geometry)).toBe(false);
+  it('returns a Set for crossingRegions', () => {
+    const geometry: [number, number][] = [
+      [49.895, -97.138],
+      [46.877, -96.789],
+    ];
+    const result = detectBorderCrossing(geometry);
+    expect(result.crossingRegions).toBeInstanceOf(Set);
+  });
+
+  it('all-Canadian geometry has empty crossingRegions', () => {
+    const geometry: [number, number][] = [
+      [49.895, -97.138],
+      [52.0, -106.7],
+    ];
+    const result = detectBorderCrossing(geometry);
+    expect(result.crossingRegions.size).toBe(0);
   });
 });
