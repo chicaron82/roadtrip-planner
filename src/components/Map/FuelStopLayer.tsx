@@ -9,37 +9,18 @@ interface FuelStopLayerProps {
 const fuelIcon = L.divIcon({
   className: 'strategic-fuel-marker',
   html: `<div style="
-    position: relative;
-    width: 40px;
-    height: 40px;
-  ">
-    <div style="
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 36px;
-      height: 36px;
-      background: linear-gradient(135deg, #f97316, #fb923c);
-      border-radius: 50%;
-      border: 3px solid white;
-      box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-      animation: pulse-fuel 2s ease-in-out infinite;
-    ">⛽</div>
-    <style>
-      @keyframes pulse-fuel {
-        0%, 100% { box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4); }
-        50% { box-shadow: 0 4px 20px rgba(249, 115, 22, 0.8), 0 0 0 8px rgba(249, 115, 22, 0.1); }
-      }
-    </style>
-  </div>`,
-  iconSize: [40, 40],
-  iconAnchor: [20, 20],
-  popupAnchor: [0, -20],
+    background: #f97316;
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.75);
+    box-shadow: 0 2px 6px rgba(249, 115, 22, 0.3);
+    font-size: 13px;
+    opacity: 0.8;
+  ">⛽</div>`,
+  iconSize: [26, 26],
+  iconAnchor: [13, 13],
+  popupAnchor: [0, -14],
 });
 
 export function FuelStopLayer({ stops }: FuelStopLayerProps) {

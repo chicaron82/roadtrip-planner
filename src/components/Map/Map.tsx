@@ -9,7 +9,7 @@ import { POIPopup, type PopupDayOption } from './POIPopup';
 import { DayRouteLayer } from './DayRouteLayer';
 import { FuelStopLayer } from './FuelStopLayer';
 import { TILE_LAYERS, type TileStyle, PREVIEW_LINE_COLOR, FEASIBILITY_LINE_COLOR, DEFAULT_ROUTE_COLOR, weatherEmoji } from './map-constants';
-import { createCustomIcon, createAddedIcon } from './map-icons';
+import { createCustomIcon, createAddedIcon, createDeclaredWaypointIcon, createPassiveWaypointIcon } from './map-icons';
 import { MapUpdater, MapClickHandler } from './MapHelpers';
 import { findNearestSegment } from './map-utils';
 import { useMapPresentationModel } from '../../hooks/useMapPresentationModel';
@@ -174,7 +174,13 @@ export function Map({
 
         {/* Location Markers */}
         {locations.filter(loc => loc && typeof loc.lat === 'number' && typeof loc.lng === 'number' && !isNaN(loc.lat) && !isNaN(loc.lng) && loc.lat !== 0 && loc.lng !== 0).map((loc, index) => (
-          <Marker key={loc.id} position={[loc.lat, loc.lng]} icon={createCustomIcon(loc.type)}>
+          <Marker key={loc.id} position={[loc.lat, loc.lng]} icon={
+            loc.type === 'waypoint'
+              ? (loc.intent && (loc.intent.fuel || loc.intent.meal || loc.intent.overnight)
+                  ? createDeclaredWaypointIcon(loc.intent)
+                  : createPassiveWaypointIcon())
+              : createCustomIcon(loc.type)
+          }>
             <Popup className="font-sans">
               <div className="p-1">
                 <strong>{loc.type === 'origin' ? 'Start' : loc.type === 'destination' ? 'Destination' : `Stop ${index}`}</strong><br />

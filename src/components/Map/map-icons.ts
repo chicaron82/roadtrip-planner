@@ -1,4 +1,5 @@
 import L from 'leaflet';
+import type { WaypointIntent } from '../../types';
 
 export const markerColors: Record<string, string> = {
   origin: '#3b82f6',
@@ -40,6 +41,50 @@ export function createCustomIcon(type: string, categoryColor?: string, emoji?: s
     iconSize: [32, 32],
     iconAnchor: [16, 16],
     popupAnchor: [0, -18],
+  });
+}
+
+/** Declared waypoint — user-authored intent. Anchored, confident visual weight. */
+export function createDeclaredWaypointIcon(intent: WaypointIntent): L.DivIcon {
+  const emoji = intent.fuel ? '⛽' : intent.meal ? '🍽️' : intent.overnight ? '🌙' : '📍';
+  const color = intent.fuel ? '#f59e0b' : intent.meal ? '#f97316' : intent.overnight ? '#1E293B' : '#f59e0b';
+
+  return L.divIcon({
+    className: 'custom-marker-container',
+    html: `<div style="
+      background: ${color};
+      width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 50%;
+      border: 2.5px solid white;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+      font-size: 16px;
+    ">${emoji}</div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+    popupAnchor: [0, -18],
+  });
+}
+
+/** Passive waypoint — no declared intent; engine will infer. Quiet, secondary visual weight. */
+export function createPassiveWaypointIcon(): L.DivIcon {
+  return L.divIcon({
+    className: 'custom-marker-container',
+    html: `<div style="
+      background: #64748B;
+      width: 20px; height: 20px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 50%;
+      border: 1.5px solid rgba(255,255,255,0.75);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+      opacity: 0.7;
+      font-size: 9px;
+      color: white;
+      font-weight: bold;
+    ">•</div>`,
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+    popupAnchor: [0, -12],
   });
 }
 
