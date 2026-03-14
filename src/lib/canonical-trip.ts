@@ -114,4 +114,7 @@ export interface AcceptedItineraryTimeline {
 export type AcceptedItineraryInput = Pick<AcceptedItineraryTimeline, 'days' | 'summary' | 'events'>;
 
 /** What print / PDF formats */
-export type PrintInput = Pick<CanonicalTripTimeline, 'days' | 'summary' | 'inputs'>;
+export type PrintInput = Pick<CanonicalTripTimeline, 'days' | 'summary' | 'inputs'> & {
+  /** User-assigned trip name. Null/undefined = auto mode (MEE generates title). */
+  customTitle?: string | null;
+};

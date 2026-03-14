@@ -18,10 +18,12 @@ export interface TripCoreContextType {
   locations: Location[];
   vehicle: Vehicle;
   settings: TripSettings;
+  customTitle: string | null;
 
   setLocations: TripState['setLocations'];
   setVehicle: TripState['setVehicle'];
   setSettings: TripState['setSettings'];
+  setCustomTitle: TripState['setCustomTitle'];
 
   updateLocation: TripState['updateLocation'];
   addWaypoint: TripState['addWaypoint'];
@@ -111,9 +113,11 @@ export function useTripCore(): TripCoreContextType {
     locations: state.locations,
     vehicle: state.vehicle,
     settings: state.settings,
+    customTitle: state.customTitle,
     setLocations: state.setLocations,
     setVehicle: state.setVehicle,
     setSettings: state.setSettings,
+    setCustomTitle: state.setCustomTitle,
     updateLocation: state.updateLocation,
     addWaypoint: state.addWaypoint,
     removeLocation: state.removeLocation,

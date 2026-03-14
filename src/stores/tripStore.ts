@@ -74,6 +74,7 @@ export interface TripState {
   locations: Location[];
   vehicle: Vehicle;
   settings: TripSettings;
+  customTitle: string | null;
 
   // Timeline
   summary: TripSummary | null;
@@ -83,7 +84,8 @@ export interface TripState {
   setLocations: (locations: Location[] | ((prev: Location[]) => Location[])) => void;
   setVehicle: (vehicle: Vehicle | ((prev: Vehicle) => Vehicle)) => void;
   setSettings: (settings: TripSettings | ((prev: TripSettings) => TripSettings)) => void;
-  
+  setCustomTitle: (title: string | null) => void;
+
   updateLocation: (index: number, updates: Partial<Location>) => void;
   addWaypoint: () => void;
   removeLocation: (index: number) => void;
@@ -107,6 +109,7 @@ export const useTripStore = create<TripState>((set) => ({
   locations: DEFAULT_LOCATIONS,
   vehicle: getInitialVehicle(),
   settings: { ...DEFAULT_SETTINGS, ...loadSettingsDefaults() },
+  customTitle: null,
   summary: null,
   canonicalTimeline: null,
 
@@ -119,7 +122,8 @@ export const useTripStore = create<TripState>((set) => ({
   setSettings: (updater) => set((state) => ({
     settings: typeof updater === 'function' ? updater(state.settings) : updater,
   })),
-  
+  setCustomTitle: (title) => set({ customTitle: title }),
+
   updateLocation: (index, updates) => set((state) => ({
     locations: state.locations.map((loc, i) => i === index ? { ...loc, ...updates } : loc),
   })),

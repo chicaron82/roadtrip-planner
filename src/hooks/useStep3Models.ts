@@ -29,6 +29,7 @@ export interface Step3HeaderModel {
   difficulty?: ReturnType<typeof generateTripOverview>['difficulty'] | null;
   precomputedEvents?: TimedEvent[];
   isCalculating?: boolean;
+  tripMode?: TripMode;
   onOpenGoogleMaps: () => void;
   onCopyShareLink: () => void;
 }
@@ -94,6 +95,7 @@ export interface Step3CommitModel {
   shareUrl: string | null;
   precomputedEvents?: TimedEvent[];
   isCalculating?: boolean;
+  tripMode?: TripMode;
   onConfirmTrip: () => void;
   onUnconfirmTrip: () => void;
   onSetJournalMode: () => void;
@@ -108,6 +110,7 @@ interface BuildStep3HeaderModelOptions {
   difficulty?: ReturnType<typeof generateTripOverview>['difficulty'] | null;
   precomputedEvents?: TimedEvent[];
   isCalculating?: boolean;
+  tripMode?: TripMode;
   onOpenGoogleMaps: () => void;
   onCopyShareLink: () => void;
 }
@@ -234,6 +237,7 @@ interface BuildStep3CommitModelOptions {
   shareUrl: string | null;
   precomputedEvents?: TimedEvent[];
   isCalculating?: boolean;
+  tripMode?: TripMode;
   onConfirmTrip: () => void;
   onUnconfirmTrip: () => void;
   onSetJournalMode: () => void;

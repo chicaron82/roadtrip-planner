@@ -7,6 +7,8 @@ import { formatTimeInZone } from '../../../lib/trip-timezone';
 import { StopDurationPicker } from '../Itinerary/StopDurationPicker';
 import { ActivityBadge } from '../Itinerary/ActivityEditor';
 import { getWeatherEmoji } from '../../../lib/weather-ui-utils';
+import { SourceTierChip } from '../../UI/SourceTierChip';
+import { SOURCE_TIER_LABELS } from '../../../lib/mee-tokens';
 
 interface GasStopNodeProps {
   arrivalTime: Date;
@@ -97,6 +99,7 @@ export function GasStopNode({ arrivalTime, timezone, cost, litres, priority = 'r
             <div>
               <div className={`font-bold ${styles.titleText} text-sm flex items-center gap-2`}>
                 {styles.badge}
+                <SourceTierChip tier="inferred" label={SOURCE_TIER_LABELS.engineEstimated} />
               </div>
               <div className={`text-xs ${styles.bodyText} mt-0.5`}>{styles.description}</div>
             </div>
@@ -157,6 +160,7 @@ export function SuggestedStopNode({ arrivalTime, timezone, stop }: SuggestedStop
               <div className={`font-bold text-sm flex items-center gap-2 ${cardStyle.text}`}>
                 {STOP_TYPE_LABELS[stop.type] || 'Suggested Stop'}
                 <span className="text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded font-bold">ADDED</span>
+                <SourceTierChip tier="inferred" label={SOURCE_TIER_LABELS.engineEstimated} />
               </div>
               <div className={`text-xs mt-0.5 ${iconStyle.text}`}>{stop.reason}</div>
             </div>
@@ -229,8 +233,13 @@ export function WaypointNode({
         }`}>
           <div className="flex justify-between items-start mb-1">
             <div className="flex-1">
-              <div className="text-xs font-bold uppercase tracking-wider mb-0.5 text-muted-foreground">
-                {isDestination ? 'Destination' : 'Waypoint'}
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  {isDestination ? 'Destination' : 'Waypoint'}
+                </span>
+                {segment.stopType && segment.stopType !== 'drive' && (
+                  <SourceTierChip tier="declared" />
+                )}
               </div>
               <div className="font-bold text-lg leading-tight">{segment.to.name}</div>
 

@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { Check, CheckCircle2, BookOpen, Pencil, Sparkles } from 'lucide-react';
+import type { TripMode } from '../../../types';
+import { buildConfirmSubline } from '../../../lib/mode-voice';
 
 interface ConfirmTripCardProps {
   confirmed: boolean;
   addedStopCount: number;
   totalDays: number;
+  tripMode?: TripMode;
   onConfirm: () => void;
   onUnconfirm: () => void;
   onGoToJournal?: () => void;
@@ -36,6 +39,7 @@ export function ConfirmTripCard({
   confirmed,
   addedStopCount,
   totalDays,
+  tripMode,
   onConfirm,
   onUnconfirm,
   onGoToJournal,
@@ -101,7 +105,7 @@ export function ConfirmTripCard({
         {addedStopCount > 0 && ` · ${addedStopCount} stop${addedStopCount !== 1 ? 's' : ''} added`}
       </p>
       <p className="text-[11px] text-blue-400/60 mb-4">
-        Confirm your plan to unlock the trip journal.
+        {buildConfirmSubline(tripMode ?? 'plan')}
       </p>
       <button
         onClick={onConfirm}

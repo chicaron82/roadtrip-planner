@@ -2,7 +2,10 @@ import { Calendar, Upload } from 'lucide-react';
 import type { Location, TripChallenge, TripMode, TripSettings } from '../../types';
 import type { TemplateImportResult } from '../../lib/url';
 import { useStep1Controller } from '../../hooks/useStep1Controller';
+import { useTripCore } from '../../contexts/TripContext';
+import { buildAutoTitle } from '../../lib/mee-tokens';
 import { LocationList } from '../Trip/Location/LocationList';
+import { TripNameInput } from '../UI/TripNameInput';
 import { ChallengeCards } from '../Trip/Adventure/ChallengeCards';
 import { Button } from '../UI/Button';
 import { Label } from '../UI/Label';
@@ -38,6 +41,7 @@ export function Step1Content({
   onImportTemplate,
   onSelectChallenge,
 }: Step1ContentProps) {
+  const { customTitle, setCustomTitle } = useTripCore();
   const {
     openEndedDismissed, setOpenEndedDismissed,
     isOpenEnded, isSingleDay,
@@ -45,6 +49,10 @@ export function Step1Content({
     targetArrivalLabel, smartPreview,
     fileInputRef, handleImportFile,
   } = useStep1Controller({ locations, settings, onImportTemplate });
+
+  const autoTitle = lastDest?.name
+    ? buildAutoTitle({ destination: lastDest.name })
+    : 'Your MEE time';
 
   return (
     <div className="space-y-6">
@@ -177,6 +185,15 @@ export function Step1Content({
           isCalculating={false}
           hideCalculateButton
         />
+
+        {/* Trip name — revealed once a destination is set */}
+        {lastDest?.name && (
+          <TripNameInput
+            value={customTitle}
+            autoTitle={autoTitle}
+            onChange={setCustomTitle}
+          />
+        )}
 
         {/* Auto / Manual route mode */}
         <CollapsibleSection

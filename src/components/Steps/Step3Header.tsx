@@ -1,9 +1,11 @@
 import { Share2, Printer } from 'lucide-react';
 import type { TripPrintViewProps } from '../Trip/StepHelpers/TripPrintView';
 import type { TimedEvent } from '../../lib/trip-timeline';
+import type { TripMode } from '../../types';
 import { Button } from '../UI/Button';
 import { DifficultyBadge } from '../Trip/StepHelpers/DifficultyBadge';
 import { printTrip } from '../Trip/StepHelpers/TripPrintView';
+import { buildResultsFramingLine } from '../../lib/mode-voice';
 
 interface Difficulty {
   color: string;
@@ -18,6 +20,7 @@ interface Step3HeaderProps {
   difficulty?: Difficulty | null;
   precomputedEvents?: TimedEvent[];
   isCalculating?: boolean;
+  tripMode?: TripMode;
   onOpenGoogleMaps: () => void;
   onCopyShareLink: () => void;
 }
@@ -29,6 +32,7 @@ export function Step3Header({
   difficulty,
   precomputedEvents,
   isCalculating,
+  tripMode,
   onOpenGoogleMaps,
   onCopyShareLink,
 }: Step3HeaderProps) {
@@ -40,7 +44,9 @@ export function Step3Header({
             <h2 className="text-lg font-semibold">Your Trip</h2>
             {difficulty && <DifficultyBadge difficulty={difficulty} />}
           </div>
-          <p className="text-sm text-muted-foreground">Review your route and itinerary.</p>
+          <p className="text-sm text-muted-foreground">
+            {buildResultsFramingLine(tripMode ?? 'plan')}
+          </p>
         </div>
         <div className="flex gap-2">
           {hasTrip && (

@@ -3,7 +3,7 @@ import { analyzeFeasibility } from '../lib/feasibility';
 import { generateEstimate } from '../lib/estimate-service';
 import { generateTripOverview } from '../lib/trip-analyzer';
 import { buildSignatureCardModel } from '../lib/trip-signature-card-model';
-import { useTimeline } from '../contexts/TripContext';
+import { useTimeline, useTripCore } from '../contexts/TripContext';
 import {
   buildStep3ArrivalInfo,
   buildStep3OvernightTimes,
@@ -66,6 +66,7 @@ export function useStep3Controller({
   onUnconfirmTrip,
   locations,
 }: UseStep3ControllerOptions): UseStep3ControllerReturn {
+  const { customTitle } = useTripCore();
   const {
     addDayActivity,
     updateDayActivity,
@@ -124,9 +125,10 @@ export function useStep3Controller({
           summary: canonicalTimeline.summary,
           days: canonicalTimeline.days,
           inputs: canonicalTimeline.inputs,
+          customTitle: customTitle ?? undefined,
         }
       : undefined
-  ), [canonicalTimeline]);
+  ), [canonicalTimeline, customTitle]);
 
   const header = useMemo(() => buildStep3HeaderModel({
     hasTrip: !!summary,
@@ -135,6 +137,7 @@ export function useStep3Controller({
     difficulty: overview?.difficulty,
     precomputedEvents,
     isCalculating,
+    tripMode,
     onOpenGoogleMaps,
     onCopyShareLink,
   }), [
@@ -144,6 +147,7 @@ export function useStep3Controller({
     overview,
     precomputedEvents,
     isCalculating,
+    tripMode,
     onOpenGoogleMaps,
     onCopyShareLink,
   ]);
@@ -253,6 +257,7 @@ export function useStep3Controller({
     shareUrl,
     precomputedEvents,
     isCalculating,
+    tripMode,
     onConfirmTrip,
     onUnconfirmTrip,
     onSetJournalMode: () => setViewMode('journal'),
@@ -266,6 +271,7 @@ export function useStep3Controller({
     shareUrl,
     precomputedEvents,
     isCalculating,
+    tripMode,
     onConfirmTrip,
     onUnconfirmTrip,
     setViewMode,
@@ -285,8 +291,9 @@ export function useStep3Controller({
       originName: origin.name,
       destinationName: destination.name,
       tripMode,
+      customTitle: customTitle ?? undefined,
     });
-  }, [summary, settings, feasibility, locations, tripMode]);
+  }, [summary, settings, feasibility, locations, tripMode, customTitle]);
 
   return {
     feasibility,

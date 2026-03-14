@@ -15,6 +15,7 @@ import { type TimedEvent } from '../../../lib/trip-timeline';
 import type { PrintInput } from '../../../lib/canonical-trip';
 import { buildPrintHTML } from '../../../lib/trip-print-builders';
 import { getTripDisplayEndpoints } from '../../../lib/trip-summary-view';
+import { buildAutoTitle } from '../../../lib/mee-tokens';
 
 // ==================== TYPES ====================
 
@@ -70,9 +71,9 @@ export function printTrip(props: TripPrintViewProps): void {
   const timedEvents = precomputedEvents;
 
   const endpoints = getTripDisplayEndpoints(summary);
-  const origin = endpoints.origin?.name || 'Origin';
   const destination = endpoints.destination?.name || 'Destination';
-  const tripTitle = `${origin} → ${destination}`;
+  const tripTitle = printInput.customTitle
+    ?? buildAutoTitle({ destination });
 
   const html = buildPrintHTML(
     tripTitle,
