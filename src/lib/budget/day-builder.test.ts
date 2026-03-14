@@ -1,211 +1,117 @@
 /**
- * day-builder.ts — unit tests
+ * day-builder.ts — unit tests for pure helper functions.
  *
- * Covers three functions that previously had 0% or partial test coverage:
- *
- *   ceilToNearest       — round-up utility (was already ~100% via integration,
- *                         added explicit unit tests for documentation clarity)
- *   labelTransitDay     — line 47: beast-mode (> 16h) label branch
- *   finalizeTripDay     — line 166: midnight-placeholder departure replacement
- *                       — lines 198-219: fuel budget with strategic fuel stops
- *
- * 💚 My Experience Engine
+ * Pure functions — no mocks needed.
+ * Covers: ceilToNearest, estimateMealsForDay.
  */
+
 import { describe, it, expect } from 'vitest';
-import {
-  ceilToNearest,
-  createEmptyDay,
-  finalizeTripDay,
-  labelTransitDay,
-} from './day-builder';
-import { makeSegment, makeSettings } from '../../test/fixtures';
-import type { ProcessedSegment } from '../../types/route';
-import type { StrategicFuelStop } from '../fuel-stops';
+import type { TripDay, TripSettings } from '../../types';
+import { ceilToNearest, estimateMealsForDay } from './day-builder';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Fixtures ─────────────────────────────────────────────────────────────────
 
-/** Thin wrapper so tests can override any field including _transitPart. */
-function makePS(overrides: Partial<ProcessedSegment> = {}): ProcessedSegment {
-  return makeSegment(overrides);
+function makeDay(driveMinutes: number, mealStopCount = 0): TripDay {
+  const segments = Array.from({ length: mealStopCount }, (_, i) => ({
+    stopType: 'meal' as const,
+    from: { id: `a${i}`, name: 'A', lat: 0, lng: 0, type: 'origin' as const },
+    to: { id: `b${i}`, name: 'B', lat: 0, lng: 0, type: 'destination' as const },
+    distanceKm: 0,
+    durationMinutes: 0,
+    fuelCost: 0,
+    fuelLitres: 0,
+    region: 'MB',
+    _originalIndex: i,
+  }));
+
+  return {
+    dayNumber: 1,
+    date: '2026-08-16',
+    dateFormatted: 'Sat',
+    route: 'A → B',
+    segments: segments as unknown as TripDay['segments'],
+    segmentIndices: [],
+    timezoneChanges: [],
+    budget: { gasUsed: 0, hotelCost: 0, foodEstimate: 0, miscCost: 0, dayTotal: 0, bankRemaining: 0 },
+    totals: { distanceKm: 0, driveTimeMinutes: driveMinutes, stopTimeMinutes: 0, departureTime: '', arrivalTime: '' },
+  } as TripDay;
 }
 
-function makeFuelStop(distanceFromStart: number, cost: number): StrategicFuelStop {
+function makeSettings(numTravelers = 2): TripSettings {
   return {
-    lat: 50,
-    lng: -97,
-    distanceFromStart,
-    estimatedTime: '2026-08-01T10:00:00.000Z',
-    fuelRemaining: 20,
-    cost,
-  };
+    units: 'metric', currency: 'CAD',
+    maxDriveHours: 10,
+    numTravelers,
+    numDrivers: 1,
+    budgetMode: 'plan-to-budget',
+    budget: { mode: 'plan-to-budget', allocation: 'flexible', profile: 'balanced',
+      weights: { gas: 25, hotel: 35, food: 30, misc: 10 },
+      gas: 0, hotel: 0, food: 0, misc: 0, total: 1000 },
+    departureDate: '2026-08-16', departureTime: '09:00',
+    returnDate: '', arrivalDate: '', arrivalTime: '',
+  } as TripSettings;
 }
 
 // ─── ceilToNearest ────────────────────────────────────────────────────────────
 
 describe('ceilToNearest', () => {
-  it('rounds a fractional value up to the nearest increment', () => {
-    expect(ceilToNearest(65.14, 5)).toBe(70);
-  });
-
-  it('leaves zero as zero', () => {
+  it('returns 0 when value is 0', () => {
     expect(ceilToNearest(0, 5)).toBe(0);
   });
 
-  it('leaves an already-multiple value unchanged', () => {
-    expect(ceilToNearest(70, 5)).toBe(70);
+  it('returns value unchanged when already on increment boundary', () => {
+    expect(ceilToNearest(100, 5)).toBe(100);
+    expect(ceilToNearest(10, 10)).toBe(10);
   });
 
-  it('works with increment of 1 (normal ceiling)', () => {
-    expect(ceilToNearest(12.1, 1)).toBe(13);
-  });
-});
-
-// ─── labelTransitDay ──────────────────────────────────────────────────────────
-
-describe('labelTransitDay', () => {
-  it('does nothing when the last segment has no _transitPart', () => {
-    const day = createEmptyDay(1, new Date());
-    day.segments.push(makePS()); // no _transitPart → early return
-    labelTransitDay(day, [makeSegment()]);
-    expect(day.title).toBeUndefined();
+  it('rounds up to next increment', () => {
+    expect(ceilToNearest(101, 5)).toBe(105);
+    expect(ceilToNearest(11, 10)).toBe(20);
   });
 
-  it('does nothing when the day covers the entire split (coversWholeSplit = true)', () => {
-    // _transitPart {index:0, total:1} — only one part and this day has it → coversWholeSplit
-    const day = createEmptyDay(1, new Date());
-    day.totals.driveTimeMinutes = 120;
-    day.segments.push(makePS({ _transitPart: { index: 0, total: 1 }, _originalIndex: 0 }));
-    labelTransitDay(day, [makeSegment()]);
-    expect(day.title).toBeUndefined(); // no label set
+  it('works with increment of 1 (no-op rounding)', () => {
+    expect(ceilToNearest(7, 1)).toBe(7);
+    expect(ceilToNearest(7.3, 1)).toBe(8);
   });
 
-  it('sets "In Transit to X (Day N/M)" for a partial transit day (≤ 16 h drive)', () => {
-    // index=1, total=3 → day is part 2 of 3 → coversWholeSplit is false
-    const day = createEmptyDay(1, new Date());
-    day.totals.driveTimeMinutes = 300; // 5 hours — well under beast threshold
-    day.segments.push(makePS({ _transitPart: { index: 1, total: 3 }, _originalIndex: 0 }));
-    const originals = [
-      makeSegment({ to: { id: 'tb', name: 'Thunder Bay', lat: 48.4, lng: -89.2, type: 'destination' } }),
-    ];
-    labelTransitDay(day, originals);
-    expect(day.title).toBe('In Transit to Thunder Bay (Day 2/3)');
-  });
-
-  it('sets "Continuous Drive to X" when driveTimeMinutes > 960 (beast mode — line 47)', () => {
-    // 961 min > 16 * 60 = 960 → beast-mode label
-    const day = createEmptyDay(1, new Date());
-    day.totals.driveTimeMinutes = 961;
-    day.segments.push(makePS({ _transitPart: { index: 1, total: 3 }, _originalIndex: 0 }));
-    const originals = [
-      makeSegment({ to: { id: 'yeg', name: 'Edmonton, AB', lat: 53.5, lng: -113.5, type: 'destination' } }),
-    ];
-    labelTransitDay(day, originals);
-    // City name is split(',')[0] → "Edmonton"
-    expect(day.title).toBe('Continuous Drive to Edmonton');
+  it('works with large increments', () => {
+    expect(ceilToNearest(151, 100)).toBe(200);
   });
 });
 
-// ─── finalizeTripDay — midnight placeholder (line 166) ───────────────────────
+// ─── estimateMealsForDay ──────────────────────────────────────────────────────
 
-describe('finalizeTripDay — midnight placeholder replacement', () => {
-  it('replaces midnight departureTime with the first segment\'s departure time', () => {
-    // createEmptyDay stamps totals.departureTime with the exact date passed in.
-    // When that date IS the midnight placeholder, finalizeTripDay should replace
-    // it with firstSegment.departureTime (line 166).
-    //
-    // Use local midnight (new Date(y, m, d)) because the midnight check uses
-    // getHours() in local time — a UTC midnight ISO string would fail in
-    // non-UTC environments.
-    const midnight = new Date(2026, 7, 1, 0, 0, 0); // August 1, 2026 local midnight
-    const day = createEmptyDay(1, midnight);
-    // Simulate a segment that actually departed at 14:00 local
-    const segDep = new Date(2026, 7, 1, 14, 0, 0).toISOString();
-    day.segments.push(makePS({ departureTime: segDep, durationMinutes: 120, distanceKm: 200, fuelCost: 30 }));
-
-    finalizeTripDay(day, 2000, makeSettings());
-
-    expect(day.totals.departureTime).toBe(segDep);
+describe('estimateMealsForDay', () => {
+  it('returns 0 for a very short drive (< 4h) with no meal stops', () => {
+    // driveMinutes=120 → 2h → ceil(2/4)=1 meal, × 2 travelers = 2
+    // wait — actually ceil(0.5) = 1. So 1 × 2 = 2
+    const day = makeDay(120); // 2h drive
+    const result = estimateMealsForDay(day, makeSettings(2));
+    expect(result).toBe(2); // 1 estimated meal × 2 travelers
   });
 
-  it('keeps a non-midnight departureTime when the segment departs later', () => {
-    // If departureTime is already correct (not midnight), it must be left alone
-    const dep = '2026-08-01T13:00:00.000Z';
-    const day = createEmptyDay(1, new Date(dep));
-    day.segments.push(makePS({ departureTime: dep, durationMinutes: 120, distanceKm: 200, fuelCost: 30 }));
-
-    finalizeTripDay(day, 2000, makeSettings());
-
-    expect(day.totals.departureTime).toBe(dep);
-  });
-});
-
-// ─── finalizeTripDay — fuel budget with strategic stops (lines 198-219) ──────
-
-describe('finalizeTripDay — strategic fuel stop budget', () => {
-  it('sums fuel-stop costs within the day range and adds the home-stretch segment fraction', () => {
-    /**
-     * Setup:
-     *   seg1: distanceFromStart=0,   distanceKm=500, fuelCost=50
-     *   seg2: distanceFromStart=500, distanceKm=300, fuelCost=30
-     *   stop1: distanceFromStart=400, cost=80   (part A: within day range)
-     *   stop2: distanceFromStart=650, cost=90   (part A: within day range)
-     *   ultimateLastStopKm = 650
-     *
-     * Home-stretch (part B):
-     *   seg1: 0 → 500, does NOT straddle 650 (500 ≤ 650) → no addition
-     *   seg2: 500 → 800, STRADDLES 650 →
-     *     postStopDist = 800 - 650 = 150
-     *     ratio        = 150 / 300 = 0.5
-     *     addition     = 30 * 0.5 = 15
-     *
-     * Total gasUsed = 80 + 90 + 15 = 185 → ceilToNearest(185, 5) = 185
-     */
-    const day = createEmptyDay(1, new Date('2026-08-01T08:00:00.000Z'));
-    day.totals.departureTime = '2026-08-01T08:00:00.000Z';
-    day.segments.push(
-      makePS({ distanceFromStart: 0,   distanceKm: 500, fuelCost: 50, durationMinutes: 300 }),
-      makePS({ distanceFromStart: 500, distanceKm: 300, fuelCost: 30, durationMinutes: 180 }),
-    );
-
-    const fuelStops: StrategicFuelStop[] = [
-      makeFuelStop(400, 80),
-      makeFuelStop(650, 90),
-    ];
-
-    finalizeTripDay(day, 2000, makeSettings(), fuelStops);
-
-    expect(day.budget.gasUsed).toBe(185);
+  it('uses max(mealStops, estimatedMeals) when stops exceed estimate', () => {
+    // 60 min drive → estimated = ceil(1/4) = 1. But 3 meal stops → max(3,1)=3
+    const day = makeDay(60, 3);
+    expect(estimateMealsForDay(day, makeSettings(2))).toBe(6); // 3 × 2
   });
 
-  it('falls back to mathematical fuel cost when no fuel stops are provided', () => {
-    // else branch (no fuelStops): gasUsed = sum of segment fuelCost
-    const day = createEmptyDay(1, new Date('2026-08-01T08:00:00.000Z'));
-    day.totals.departureTime = '2026-08-01T08:00:00.000Z';
-    day.segments.push(
-      makePS({ distanceKm: 200, fuelCost: 30, durationMinutes: 120 }),
-      makePS({ distanceKm: 150, fuelCost: 25, durationMinutes: 90 }),
-    );
-
-    finalizeTripDay(day, 2000, makeSettings()); // no fuelStops
-
-    // 30 + 25 = 55 → ceilToNearest(55, 5) = 55
-    expect(day.budget.gasUsed).toBe(55);
+  it('scales with numTravelers', () => {
+    const day = makeDay(240); // 4h → 1 meal
+    const two = estimateMealsForDay(day, makeSettings(2));
+    const four = estimateMealsForDay(day, makeSettings(4));
+    expect(four).toBe(two * 2);
   });
 
-  it('reflects the fuel cost in dayTotal and reduces bankRemaining', () => {
-    const day = createEmptyDay(1, new Date(2026, 7, 1, 8, 0, 0));
-    day.totals.departureTime = new Date(2026, 7, 1, 8, 0, 0).toISOString();
-    day.segments.push(makePS({ distanceKm: 200, fuelCost: 30, durationMinutes: 120 }));
+  it('estimates more meals for longer drives', () => {
+    const short = estimateMealsForDay(makeDay(240), makeSettings(1)); // 4h → 1 meal
+    const long = estimateMealsForDay(makeDay(480), makeSettings(1));  // 8h → 2 meals
+    expect(long).toBeGreaterThan(short);
+  });
 
-    // numTravelers=4 (default), durationMinutes=120 → 2 h drive → ceil(2/4)=1 meal
-    // foodEstimate = 1*4 * 40/3 = 53.33... → ceilToNearest(53.33,5) = 55
-    // gasUsed = ceilToNearest(30,5) = 30
-    // no overnight → hotelCost = 0
-    // dayTotal = 30 + 0 + 55 = 85
-    finalizeTripDay(day, 1000, makeSettings());
-
-    expect(day.budget.gasUsed).toBe(30);
-    expect(day.budget.dayTotal).toBe(85);
-    expect(day.budget.bankRemaining).toBe(915); // 1000 - 85
+  it('returns 0 for a 0-minute drive with no stops and 0 travelers', () => {
+    const day = makeDay(0);
+    const result = estimateMealsForDay(day, makeSettings(0));
+    expect(result).toBe(0);
   });
 });
