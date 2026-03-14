@@ -123,31 +123,25 @@ describe('useRevealAnimation', () => {
 
   // ── Re-reveal after reset ──────────────────────────────────────────────────
 
-  it('re-runs the full stagger sequence after trip is cleared and recalculated', () => {
+  it('first build uses full stagger; recalculation reveals all layers instantly', () => {
     const { result, rerender } = renderHook(({ hasTrip }) => useRevealAnimation(hasTrip), {
       initialProps: { hasTrip: false },
     });
 
-    // First reveal
+    // First reveal — full luxury stagger
     act(() => { rerender({ hasTrip: true }); });
+    expect(result.current.layer1).toBe(true);
+    expect(result.current.layer2).toBe(false);   // staggered
     act(() => { vi.advanceTimersByTime(300); });
     expect(result.current).toEqual({ layer1: true, layer2: true, layer3: true });
 
-    // Trip cleared
+    // Trip cleared (recalculating)
     act(() => { rerender({ hasTrip: false }); });
     expect(result.current).toEqual({ layer1: false, layer2: false, layer3: false });
 
-    // Second reveal — stagger fires again
+    // Second reveal (recalculation) — instant, all layers together
     act(() => { rerender({ hasTrip: true }); });
-    expect(result.current.layer1).toBe(true);
-    expect(result.current.layer2).toBe(false);
-
-    act(() => { vi.advanceTimersByTime(150); });
-    expect(result.current.layer2).toBe(true);
-    expect(result.current.layer3).toBe(false);
-
-    act(() => { vi.advanceTimersByTime(130); });
-    expect(result.current.layer3).toBe(true);
+    expect(result.current).toEqual({ layer1: true, layer2: true, layer3: true });
   });
 
   // ── No double-reveal ───────────────────────────────────────────────────────

@@ -236,28 +236,26 @@ describe('buildHealthPhrase', () => {
     expect(buildHealthPhrase(input)).toBe('Over budget — worth reviewing');
   });
 
-  it('tight + shared drivers → "Ambitious but manageable"', () => {
-    const input = makeInput({
+  it('tight (any driver count) → "Ambitious but workable"', () => {
+    const inputShared = makeInput({
       feasibility: makeFeasibility('tight'),
       settings: makeSettings({ numDrivers: 2 }),
     });
-    expect(buildHealthPhrase(input)).toBe('Ambitious but manageable');
-  });
+    expect(buildHealthPhrase(inputShared)).toBe('Ambitious but workable');
 
-  it('tight + single driver → "Tight but doable"', () => {
-    const input = makeInput({
+    const inputSolo = makeInput({
       feasibility: makeFeasibility('tight'),
       settings: makeSettings({ numDrivers: 1 }),
     });
-    expect(buildHealthPhrase(input)).toBe('Tight but doable');
+    expect(buildHealthPhrase(inputSolo)).toBe('Ambitious but workable');
   });
 
-  it('drive-time warning → "Long push ahead"', () => {
+  it('drive-time warning → "A long push"', () => {
     const input = makeInput({
       feasibility: makeFeasibility('on-track', ['drive-time']),
       settings: makeSettings({ numDrivers: 1 }),
     });
-    expect(buildHealthPhrase(input)).toBe('Long push ahead');
+    expect(buildHealthPhrase(input)).toBe('A long push');
   });
 
   it('shared drivers on multi-day on-track → "Well suited to shared driving"', () => {

@@ -28,11 +28,10 @@ export type TripTitleMode = 'auto' | 'custom';
 export type TripHealthPhrase =
   | 'Balanced'
   | 'Comfort-first'
-  | 'Ambitious but manageable'
+  | 'Ambitious but workable'
   | 'Well suited to shared driving'
-  | 'Tight but doable'
   | 'Relaxed pace'
-  | 'Long push ahead'
+  | 'A long push'
   | 'Over budget — worth reviewing';
 
 export interface SignatureMetrics {
@@ -192,12 +191,11 @@ export function buildHealthPhrase(input: SignatureCardInput): TripHealthPhrase {
   }
 
   if (status === 'tight') {
-    if (hasSharedDrivers) return 'Ambitious but manageable';
-    return 'Tight but doable';
+    return 'Ambitious but workable';
   }
 
   if (feasibility.warnings.some(w => w.category === 'drive-time')) {
-    return 'Long push ahead';
+    return 'A long push';
   }
 
   if (hasSharedDrivers && days >= 2) {

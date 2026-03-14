@@ -3,7 +3,7 @@ import type { Location, TripChallenge, TripMode, TripSettings } from '../../type
 import type { TemplateImportResult } from '../../lib/url';
 import { useStep1Controller } from '../../hooks/useStep1Controller';
 import { useTripCore } from '../../contexts/TripContext';
-import { buildAutoTitle } from '../../lib/mee-tokens';
+import { buildAutoTitle, GUIDANCE } from '../../lib/mee-tokens';
 import { LocationList } from '../Trip/Location/LocationList';
 import { TripNameInput } from '../UI/TripNameInput';
 import { ChallengeCards } from '../Trip/Adventure/ChallengeCards';
@@ -216,7 +216,7 @@ export function Step1Content({
                 <span>🔄</span>
                 <span className="text-sm font-semibold">Auto</span>
               </div>
-              <div className="text-xs opacity-60">Returns to start</div>
+              <div className="text-xs opacity-60">{GUIDANCE.modeAuto}</div>
             </button>
             <button
               onClick={() => { setSettings(prev => ({ ...prev, isRoundTrip: false })); setOpenEndedDismissed(false); }}
@@ -230,7 +230,7 @@ export function Step1Content({
                 <span>✏️</span>
                 <span className="text-sm font-semibold">Manual</span>
               </div>
-              <div className="text-xs opacity-60">You plot the full route</div>
+              <div className="text-xs opacity-60">{GUIDANCE.modeManualSub}</div>
             </button>
           </div>
 
