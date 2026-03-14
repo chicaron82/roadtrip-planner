@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { validateTripInputs } from './validate-inputs';
 import type { RouteSegment, TripSettings } from '../types';
+import { makeSettings as _makeSettings, makeBudget } from '../test/fixtures';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -19,43 +20,15 @@ function makeSeg(overrides: Partial<RouteSegment> = {}): RouteSegment {
   };
 }
 
-function makeSettings(overrides = {}): TripSettings {
-  return {
-    units: 'metric',
-    currency: 'CAD',
-    maxDriveHours: 8,
-    numTravelers: 2,
-    numDrivers: 1,
-    budgetMode: 'open',
-    budget: {
-      mode: 'open',
-      allocation: 'flexible',
-      profile: 'balanced',
-      weights: { gas: 25, hotel: 35, food: 25, misc: 15 },
-      gas: 0, hotel: 0, food: 0, misc: 0,
-      total: 0,
-    },
-    departureDate: '2026-08-01',
-    departureTime: '08:00',
-    returnDate: '2026-08-05',
-    arrivalDate: '2026-08-05',
-    arrivalTime: '18:00',
-    useArrivalTime: false,
-    gasPrice: 1.60,
-    hotelPricePerNight: 120,
-    mealPricePerDay: 50,
-    isRoundTrip: false,
-    avoidTolls: false,
-    avoidBorders: false,
-    scenicMode: false,
-    routePreference: 'fastest',
-    stopFrequency: 'balanced',
-    tripPreferences: [],
-    targetArrivalHour: 21,
-    dayTripDurationHours: 0,
-    ...overrides,
-  } as TripSettings;
-}
+const makeSettings = (overrides: Partial<TripSettings> = {}) => _makeSettings({
+  maxDriveHours: 8, numTravelers: 2, numDrivers: 1,
+  budgetMode: 'open',
+  budget: makeBudget({ mode: 'open', weights: { gas: 25, hotel: 35, food: 25, misc: 15 }, gas: 0, hotel: 0, food: 0, misc: 0, total: 0 }),
+  departureDate: '2026-08-01', departureTime: '08:00',
+  returnDate: '2026-08-05', arrivalDate: '2026-08-05', arrivalTime: '18:00',
+  gasPrice: 1.60, hotelPricePerNight: 120, mealPricePerDay: 50,
+  ...overrides,
+});
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 

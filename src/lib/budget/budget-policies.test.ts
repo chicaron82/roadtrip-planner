@@ -17,23 +17,16 @@ import {
   computeSmartDepartureHour,
 } from './split-by-days-policies';
 import { getTimezoneOffset, getTimezoneName } from './timezone';
+import { makeSettings as _makeSettings, makeBudget } from '../../test/fixtures';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
-function makeSettings(overrides: Partial<TripSettings> = {}): TripSettings {
-  return {
-    units: 'metric', currency: 'CAD',
-    maxDriveHours: 10, numTravelers: 2, numDrivers: 1,
-    budgetMode: 'plan-to-budget',
-    budget: { mode: 'plan-to-budget', allocation: 'flexible', profile: 'balanced',
-      weights: { gas: 25, hotel: 35, food: 30, misc: 10 },
-      gas: 0, hotel: 0, food: 0, misc: 0, total: 1000 },
-    departureDate: '2026-08-16', departureTime: '09:00',
-    returnDate: '', arrivalDate: '', arrivalTime: '',
-    targetArrivalHour: 21,
-    ...overrides,
-  } as TripSettings;
-}
+const makeSettings = (overrides: Partial<TripSettings> = {}) => _makeSettings({
+  numTravelers: 2, numDrivers: 1,
+  budget: makeBudget({ gas: 0, hotel: 0, food: 0, misc: 0, total: 1000 }),
+  departureDate: '2026-08-16', returnDate: '', arrivalDate: '', arrivalTime: '',
+  ...overrides,
+});
 
 // ─── formatHour ───────────────────────────────────────────────────────────────
 

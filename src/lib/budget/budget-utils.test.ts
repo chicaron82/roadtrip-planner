@@ -124,11 +124,10 @@ describe('calculateCostBreakdown', () => {
   });
 
   it('perPerson is ceiled to nearest $5', () => {
-    // total=321, 2 travelers → 160.5 → ceil to 165
+    // total=321, 2 travelers → 160.5 → ceilToNearest(160.5, 5) = 165
     const day = makeDay({ gasUsed: 321, hotelCost: 0, foodEstimate: 0, miscCost: 0, dayTotal: 321 });
     const breakdown = calculateCostBreakdown([day], 2);
-    expect(breakdown.perPerson % 5).toBe(0); // multiple of 5
-    expect(breakdown.perPerson).toBeGreaterThanOrEqual(321 / 2);
+    expect(breakdown.perPerson).toBe(165);
   });
 
   it('returns 0 perPerson when numTravelers is 0', () => {

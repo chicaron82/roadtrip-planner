@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import type { Vehicle, TripSettings, TripBudget } from '../types';
+import type { TripSettings } from '../types';
+import { makeSettings as _makeSettings, makeBudget, makeVehicle } from '../test/fixtures';
 import {
   calculateHumanFuelCosts,
   calculateStrategicFuelStops,
@@ -9,55 +10,14 @@ import {
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
-function makeVehicle(overrides: Partial<Vehicle> = {}): Vehicle {
-  return {
-    year: '2023',
-    make: 'Toyota',
-    model: 'RAV4',
-    fuelEconomyCity: 10,  // 10 L/100km
-    fuelEconomyHwy: 8,    // 8 L/100km
-    tankSize: 60,         // 60 litres
-    ...overrides,
-  };
-}
-
-function makeSettings(overrides: Partial<TripSettings> = {}): TripSettings {
-  const budget: TripBudget = {
-    mode: 'open',
-    allocation: 'fixed',
-    profile: 'balanced',
-    weights: { gas: 25, hotel: 25, food: 25, misc: 25 },
-    gas: 250, hotel: 250, food: 250, misc: 250, total: 1000,
-  };
-  return {
-    units: 'metric',
-    currency: 'CAD',
-    maxDriveHours: 8,
-    numTravelers: 2,
-    numDrivers: 1,
-    budgetMode: 'open',
-    budget,
-    departureDate: '2025-08-16',
-    departureTime: '08:00',
-    returnDate: '2025-08-20',
-    arrivalDate: '2025-08-20',
-    arrivalTime: '18:00',
-    useArrivalTime: false,
-    gasPrice: 1.60,
-    hotelPricePerNight: 120,
-    mealPricePerDay: 60,
-    isRoundTrip: false,
-    avoidTolls: false,
-    avoidBorders: false,
-    scenicMode: false,
-    routePreference: 'fastest',
-    stopFrequency: 'balanced',
-    tripPreferences: [],
-    targetArrivalHour: 21,
-    dayTripDurationHours: 0,
-    ...overrides,
-  };
-}
+const makeSettings = (overrides: Partial<TripSettings> = {}) => _makeSettings({
+  maxDriveHours: 8, numTravelers: 2, numDrivers: 1,
+  budgetMode: 'open',
+  budget: makeBudget({ mode: 'open', allocation: 'fixed', weights: { gas: 25, hotel: 25, food: 25, misc: 25 }, gas: 250, hotel: 250, food: 250, misc: 250, total: 1000 }),
+  departureTime: '08:00', returnDate: '2025-08-20', arrivalDate: '2025-08-20', arrivalTime: '18:00',
+  gasPrice: 1.60, hotelPricePerNight: 120, mealPricePerDay: 60,
+  ...overrides,
+});
 
 // ─── calculateHumanFuelCosts ──────────────────────────────────────────────────
 

@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import type { TripSummary, TripSettings, Vehicle, Location } from '../types';
+import type { TripSummary, Vehicle, Location } from '../types';
 import type { Step3HealthSummary } from '../lib/trip-summary-slices';
 import type { ViewMode } from '../components/Trip/Journal/JournalModeToggle';
 import {
@@ -18,6 +18,7 @@ import {
   buildStep3ViewerModel,
   buildStep3CommitModel,
 } from './useStep3Models';
+import { makeSettings as _makeSettings, makeBudget } from '../test/fixtures';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -38,18 +39,11 @@ function makeSummary(overrides: Partial<TripSummary> = {}): TripSummary {
   };
 }
 
-function makeSettings(): TripSettings {
-  return {
-    units: 'metric', currency: 'CAD',
-    maxDriveHours: 10, numTravelers: 2, numDrivers: 1,
-    budgetMode: 'plan-to-budget',
-    budget: { mode: 'plan-to-budget', allocation: 'flexible', profile: 'balanced',
-      weights: { gas: 25, hotel: 35, food: 30, misc: 10 },
-      gas: 0, hotel: 0, food: 0, misc: 0, total: 0 },
-    departureDate: '2026-08-16', departureTime: '09:00',
-    returnDate: '', arrivalDate: '', arrivalTime: '',
-  } as TripSettings;
-}
+const makeSettings = () => _makeSettings({
+  numTravelers: 2, numDrivers: 1,
+  budget: makeBudget({ gas: 0, hotel: 0, food: 0, misc: 0, total: 0 }),
+  departureDate: '2026-08-16', returnDate: '', arrivalDate: '', arrivalTime: '',
+});
 
 const VEHICLE: Vehicle = {
   year: '2022', make: 'Toyota', model: 'Sienna',

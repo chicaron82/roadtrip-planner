@@ -14,23 +14,16 @@ import { analyzeDriveTime, analyzeDriverFatigue } from './analyze-drive-time';
 import { analyzeBudget } from './analyze-budget';
 import { analyzePerPersonCosts } from './analyze-costs';
 import type { FeasibilitySummary } from '../trip-summary-slices';
+import { makeSettings as _makeSettings, makeBudget } from '../../test/fixtures';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
-function makeSettings(overrides: Partial<TripSettings> = {}): TripSettings {
-  return {
-    units: 'metric', currency: 'CAD',
-    maxDriveHours: 10,
-    numTravelers: 2, numDrivers: 1,
-    budgetMode: 'plan-to-budget',
-    budget: { mode: 'plan-to-budget', allocation: 'flexible', profile: 'balanced',
-      weights: { gas: 25, hotel: 35, food: 30, misc: 10 },
-      gas: 0, hotel: 0, food: 0, misc: 0, total: 1000 },
-    departureDate: '2026-08-16', departureTime: '09:00',
-    returnDate: '', arrivalDate: '', arrivalTime: '',
-    ...overrides,
-  } as TripSettings;
-}
+const makeSettings = (overrides: Partial<TripSettings> = {}) => _makeSettings({
+  numTravelers: 2, numDrivers: 1,
+  budget: makeBudget({ gas: 0, hotel: 0, food: 0, misc: 0, total: 1000 }),
+  departureDate: '2026-08-16', returnDate: '', arrivalDate: '', arrivalTime: '',
+  ...overrides,
+});
 
 const LOC_WPG = { id: 'wpg', name: 'Winnipeg',    lat: 49.895, lng: -97.138, type: 'origin'      as const };
 const LOC_TB  = { id: 'tb',  name: 'Thunder Bay', lat: 48.381, lng: -89.247, type: 'destination' as const };

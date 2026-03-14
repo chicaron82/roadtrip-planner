@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ProcessedSegment, RouteSegment, TripDay, TripSettings } from '../types';
+import type { ProcessedSegment, RouteSegment, TripDay } from '../types';
+import { makeSettings as _makeSettings, makeBudget } from '../test/fixtures';
 import type { TimedEvent } from './trip-timeline-types';
 import {
   applyDayBoundary,
@@ -44,45 +45,14 @@ function makeDay(overrides: Partial<TripDay> = {}): TripDay {
   };
 }
 
-function makeSettings(): TripSettings {
-  return {
-    units: 'metric',
-    currency: 'CAD',
-    maxDriveHours: 8,
-    numTravelers: 2,
-    numDrivers: 1,
-    budgetMode: 'open',
-    budget: {
-      mode: 'open',
-      allocation: 'fixed',
-      profile: 'balanced',
-      weights: { gas: 25, hotel: 25, food: 25, misc: 25 },
-      gas: 0,
-      hotel: 0,
-      food: 0,
-      misc: 0,
-      total: 0,
-    },
-    departureDate: '2026-08-03',
-    departureTime: '08:00',
-    returnDate: '2026-08-05',
-    arrivalDate: '2026-08-04',
-    arrivalTime: '18:00',
-    useArrivalTime: false,
-    gasPrice: 1.6,
-    hotelPricePerNight: 150,
-    mealPricePerDay: 40,
-    isRoundTrip: false,
-    avoidTolls: false,
-    avoidBorders: false,
-    scenicMode: false,
-    routePreference: 'fastest',
-    stopFrequency: 'balanced',
-    tripPreferences: [],
-    targetArrivalHour: 21,
-    dayTripDurationHours: 0,
-  };
-}
+const makeSettings = () => _makeSettings({
+  maxDriveHours: 8, numTravelers: 2, numDrivers: 1,
+  budgetMode: 'open',
+  budget: makeBudget({ mode: 'open', allocation: 'fixed', weights: { gas: 25, hotel: 25, food: 25, misc: 25 }, gas: 0, hotel: 0, food: 0, misc: 0, total: 0 }),
+  departureDate: '2026-08-03', departureTime: '08:00',
+  returnDate: '2026-08-05', arrivalDate: '2026-08-04', arrivalTime: '18:00',
+  gasPrice: 1.6,
+});
 
 describe('applyDayBoundary', () => {
   beforeEach(() => {

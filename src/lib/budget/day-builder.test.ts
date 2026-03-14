@@ -6,8 +6,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import type { TripDay, TripSettings } from '../../types';
+import type { TripDay } from '../../types';
 import { ceilToNearest, estimateMealsForDay } from './day-builder';
+import { makeSettings as _makeSettings, makeBudget } from '../../test/fixtures';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -37,20 +38,11 @@ function makeDay(driveMinutes: number, mealStopCount = 0): TripDay {
   } as TripDay;
 }
 
-function makeSettings(numTravelers = 2): TripSettings {
-  return {
-    units: 'metric', currency: 'CAD',
-    maxDriveHours: 10,
-    numTravelers,
-    numDrivers: 1,
-    budgetMode: 'plan-to-budget',
-    budget: { mode: 'plan-to-budget', allocation: 'flexible', profile: 'balanced',
-      weights: { gas: 25, hotel: 35, food: 30, misc: 10 },
-      gas: 0, hotel: 0, food: 0, misc: 0, total: 1000 },
-    departureDate: '2026-08-16', departureTime: '09:00',
-    returnDate: '', arrivalDate: '', arrivalTime: '',
-  } as TripSettings;
-}
+const makeSettings = (numTravelers = 2) => _makeSettings({
+  numTravelers, numDrivers: 1,
+  budget: makeBudget({ gas: 0, hotel: 0, food: 0, misc: 0, total: 1000 }),
+  departureDate: '2026-08-16', returnDate: '', arrivalDate: '', arrivalTime: '',
+});
 
 // ─── ceilToNearest ────────────────────────────────────────────────────────────
 
@@ -82,9 +74,8 @@ describe('ceilToNearest', () => {
 // ─── estimateMealsForDay ──────────────────────────────────────────────────────
 
 describe('estimateMealsForDay', () => {
-  it('returns 0 for a very short drive (< 4h) with no meal stops', () => {
+  it('estimates 1 meal for a short drive (< 4h) — ceil(2/4)=1 × travelers', () => {
     // driveMinutes=120 → 2h → ceil(2/4)=1 meal, × 2 travelers = 2
-    // wait — actually ceil(0.5) = 1. So 1 × 2 = 2
     const day = makeDay(120); // 2h drive
     const result = estimateMealsForDay(day, makeSettings(2));
     expect(result).toBe(2); // 1 estimated meal × 2 travelers

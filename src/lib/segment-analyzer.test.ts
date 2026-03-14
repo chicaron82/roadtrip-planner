@@ -11,6 +11,7 @@ import {
   generatePacingSuggestions,
 } from './segment-analyzer';
 import type { RouteSegment, Location, TripSettings, SegmentWarning } from '../types';
+import { makeSettings as _makeSettings, makeBudget } from '../test/fixtures';
 
 // ==================== HELPERS ====================
 
@@ -30,46 +31,13 @@ function makeSegment(overrides: Partial<RouteSegment> = {}): RouteSegment {
   };
 }
 
-function makeSettings(overrides: Partial<TripSettings> = {}): TripSettings {
-  return {
-    units: 'metric',
-    currency: 'CAD',
-    maxDriveHours: 8,
-    numTravelers: 2,
-    numDrivers: 1,
-    budgetMode: 'plan-to-budget',
-    budget: {
-      mode: 'plan-to-budget',
-      profile: 'balanced',
-      weights: { gas: 25, hotel: 40, food: 25, misc: 10 },
-      allocation: 'flexible',
-      total: 2000,
-      gas: 500,
-      hotel: 800,
-      food: 500,
-      misc: 200,
-    },
-    departureDate: '2025-08-16',
-    departureTime: '09:00',
-    returnDate: '',
-    arrivalDate: '',
-    arrivalTime: '',
-    useArrivalTime: false,
-    gasPrice: 1.65,
-    hotelPricePerNight: 150,
-    mealPricePerDay: 50,
-    isRoundTrip: false,
-    avoidTolls: false,
-    avoidBorders: false,
-    scenicMode: false,
-    routePreference: 'fastest',
-    stopFrequency: 'balanced',
-    tripPreferences: [],
-    targetArrivalHour: 21,
-    dayTripDurationHours: 0,
-    ...overrides,
-  };
-}
+const makeSettings = (overrides: Partial<TripSettings> = {}) => _makeSettings({
+  maxDriveHours: 8, numTravelers: 2, numDrivers: 1,
+  budget: makeBudget({ weights: { gas: 25, hotel: 40, food: 25, misc: 10 }, gas: 500, hotel: 800, food: 500, misc: 200 }),
+  returnDate: '', arrivalDate: '', arrivalTime: '',
+  gasPrice: 1.65, mealPricePerDay: 50,
+  ...overrides,
+});
 
 // ==================== analyzeSegments ====================
 
