@@ -14,6 +14,11 @@ import { useState, useEffect, useRef } from 'react';
  * start visible — no animation, no flash.
  *
  * Resets immediately when hasTrip goes false (trip cleared or recalculating).
+ *
+ * Build distinction:
+ *   First build  — full staggered luxury reveal (the "signature moment")
+ *   Recalculation — fast cohesive reveal (~0ms, all layers together via CSS transition)
+ *   This way the signature moment stays earned and doesn't become friction.
  */
 export function useRevealAnimation(hasTrip: boolean): {
   layer1: boolean;
@@ -23,20 +28,31 @@ export function useRevealAnimation(hasTrip: boolean): {
   // Start fully revealed if a trip exists on mount (e.g. saved trip load).
   const [phase, setPhase] = useState<0 | 1 | 2 | 3>(() => (hasTrip ? 3 : 0));
   const prevHasTripRef = useRef(hasTrip);
+  // Track build count so recalculations get a lighter, faster reveal.
+  // Seed at 1 if trip already exists on mount (this session didn't "build" it).
+  const buildCountRef = useRef(hasTrip ? 1 : 0);
 
   useEffect(() => {
     const was = prevHasTripRef.current;
     prevHasTripRef.current = hasTrip;
 
     if (!was && hasTrip) {
-      // Fresh reveal — phase in layers sequentially.
-      setPhase(1);
-      const t2 = setTimeout(() => setPhase(2), 150);
-      const t3 = setTimeout(() => setPhase(3), 280);
-      return () => {
-        clearTimeout(t2);
-        clearTimeout(t3);
-      };
+      buildCountRef.current += 1;
+      const isFirstBuild = buildCountRef.current === 1;
+
+      if (isFirstBuild) {
+        // Full luxury reveal — phase in layers sequentially.
+        setPhase(1);
+        const t2 = setTimeout(() => setPhase(2), 150);
+        const t3 = setTimeout(() => setPhase(3), 280);
+        return () => {
+          clearTimeout(t2);
+          clearTimeout(t3);
+        };
+      } else {
+        // Recalculation — all layers in together, CSS transition handles the fade.
+        setPhase(3);
+      }
     }
 
     if (!hasTrip) {
