@@ -44,6 +44,9 @@
   --ring: 24 95% 52%;
 
   color-scheme: dark;
+  /* Ensure elements that don't re-declare color inherit the dark-theme foreground,
+     not the body's light-mode computed value. */
+  color: hsl(var(--foreground));
 }
 
 /* ── Sidebar header ── */

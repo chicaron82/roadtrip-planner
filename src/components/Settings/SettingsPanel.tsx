@@ -70,7 +70,7 @@ export function SettingsPanel() {
 
       {/* Settings overlay */}
       {isOpen && (
-        <div className="absolute inset-0 z-30 sidebar-dark flex flex-col md:rounded-[20px] overflow-hidden">
+        <div className="absolute inset-0 z-30 sidebar-dark mee-panel flex flex-col md:rounded-[20px] overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-700/60 shrink-0">
             <div className="flex items-center gap-2">

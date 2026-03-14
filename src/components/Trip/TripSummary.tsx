@@ -10,8 +10,6 @@ import { analyzeFeasibility, compareRefinements } from '../../lib/feasibility';
 import type { FeasibilityResult, FeasibilityWarning } from '../../lib/feasibility';
 
 // ─── Count-up hook: eases a number from 0 → target over ~700 ms ────────────────
-// Debounces the target by 200ms before starting the animation so rapid strategy
-// changes (user clicking through route options) don't cause stuttering restarts.
 function useCountUp(target: number, duration = 700): number {
   const [val, setVal] = useState(0);
   const [debouncedTarget, setDebouncedTarget] = useState(target);
@@ -51,19 +49,8 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
     [summary, settings],
   );
 
-  // Minimized by default; auto-expands when a new route arrives with non-green feasibility.
   const [isMinimized, setIsMinimized] = useState(true);
 
-  // ─── Refinement warning tracking ────────────────────────────────────────────
-  // We use "setState during render" instead of useEffect for two reasons:
-  //   1. useEffect fires *after* paint — using it here would cause a one-frame
-  //      flicker where the stale warning set is visible before the update lands.
-  //   2. React 18 batches all setState calls that happen during the same render
-  //      into a single commit, so setPrev + setRefinementWarnings produce exactly
-  //      one re-render — no cascading renders.
-  // eslint-plugin-react-hooks v7 forbids setState inside effects (even in conditionals),
-  // so we track previous values in state, detect changes during render, and batch
-  // all state updates in one block.
   interface PrevTrack {
     feasibility: FeasibilityResult | null;
     numTravelers: number;
@@ -89,10 +76,10 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
     const travelersChanged = prev.numTravelers !== settings.numTravelers;
     const driversChanged   = prev.numDrivers   !== settings.numDrivers;
 
-    // New route → clear stale refinement warnings
-    if (summaryChanged && refinementWarnings.length > 0) setRefinementWarnings([]);
+    if (summaryChanged && refinementWarnings.length > 0) {
+      setRefinementWarnings([]);
+    }
 
-    // Count changed on the same route → generate delta warnings
     if (sameSummary && (travelersChanged || driversChanged) && prev.feasibility && feasibility) {
       setRefinementWarnings(compareRefinements(prev.feasibility, feasibility, {
         ...(travelersChanged && { travelersBefore: prev.numTravelers, travelersAfter: settings.numTravelers }),
@@ -100,18 +87,17 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
       }));
     }
 
-    // Non-green feasibility → auto-expand so warnings are immediately visible
-    if (feasibility && feasibility.status !== 'on-track') setIsMinimized(false);
+    if (feasibility && feasibility.status !== 'on-track' && isMinimized) {
+      setIsMinimized(false);
+    }
   }
 
-  // Merge refinement warnings (at top, so they appear first) with base warnings.
   const displayFeasibility = useMemo(() => {
     if (!feasibility) return null;
     if (refinementWarnings.length === 0) return feasibility;
     return { ...feasibility, warnings: [...refinementWarnings, ...feasibility.warnings] };
   }, [feasibility, refinementWarnings]);
 
-  // Animated stat values — count up from 0 on first render
   const animDistKm      = useCountUp(summary?.totalDistanceKm     ?? 0);
   const animDurationMin = useCountUp(summary?.totalDurationMinutes ?? 0);
   const animFuelCost    = useCountUp(summary?.totalFuelCost        ?? 0);
@@ -129,7 +115,6 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
         style={{ background: cardBg, border: `1px solid ${borderC}`, backdropFilter: 'blur(24px)' }}
       >
         <div className="p-4 flex-1 overflow-y-auto flex flex-col">
-          {/* Header */}
           <div
             className="flex items-center justify-between mb-4 sticky top-0 z-10 -mx-4 px-4 py-2 rounded-t-[20px]"
             style={{ background: cardBg, borderBottom: `1px solid ${borderC}` }}
@@ -171,7 +156,6 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
             </div>
           </div>
 
-          {/* Stat Tiles */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <div className="rounded-lg p-2 border" style={{ background: 'rgba(59,130,246,0.1)', borderColor: 'rgba(59,130,246,0.22)' }}>
               <div className="flex items-center gap-1.5 mb-0.5">
@@ -221,7 +205,6 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
             </div>
           </div>
 
-          {/* Budget status row */}
           {summary.budgetStatus && summary.budgetRemaining !== undefined && settings.budgetMode === 'plan-to-budget' && settings.budget.total > 0 && (
             <div
               className="mt-3 rounded-xl px-3 py-2 flex items-center justify-between text-sm border"
@@ -249,20 +232,13 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
 
           {!isMinimized && (
             <div className="mt-4 animate-in fade-in duration-300">
-              {/* Trip Overview - Difficulty & Confidence */}
               <TripOverview summary={summary} settings={settings} />
-
-              {/* What-If Budget Scenarios */}
               {summary.costBreakdown && (
                 <BudgetSensitivity summary={summary} settings={settings} className="mt-3" />
               )}
-
-              {/* Hours Tradeoff — drive days vs free days for multi-driver round trips */}
               {settings.isRoundTrip && settings.numDrivers >= 2 && summary.days && (
                 <HoursTradeoff summary={summary} settings={settings} className="mt-3" />
               )}
-
-              {/* Feasibility Health Check */}
               {displayFeasibility && (
                 <FeasibilityBanner result={displayFeasibility} numTravelers={settings.numTravelers} className="mt-3" defaultCollapsed />
               )}
