@@ -33,6 +33,8 @@ function buildHeroSection(
   tripTitle: string,
   summary: PrintCoverSummary,
   settings: TripSettings,
+  tripSubtitle?: string,
+  tripRead?: string,
 ): string {
   const days = summary.days ?? [];
   const startDate = days[0]?.dateFormatted ?? '';
@@ -52,10 +54,16 @@ function buildHeroSection(
     metaParts.push(`${settings.numDrivers} drivers rotating`);
   }
 
+  // Subtitle already carries the date range; fall back to bare dates only if no subtitle.
+  const belowTitle = tripSubtitle
+    ? `<div class="cover-subtitle">${tripSubtitle}</div>`
+    : (dateRange ? `<div class="cover-dates">${dateRange}</div>` : '');
+
   return `
     <div class="cover-hero">
-      <h1>🗺️ ${tripTitle}</h1>
-      ${dateRange ? `<div class="cover-dates">${dateRange}</div>` : ''}
+      <h1>${tripTitle}</h1>
+      ${belowTitle}
+      ${tripRead ? `<div class="cover-read">${tripRead}</div>` : ''}
       <div class="cover-meta">${metaParts.join('  •  ')}</div>
     </div>
   `;
@@ -80,7 +88,7 @@ function buildBudgetStatusCard(
     // Open mode: just show the estimated cost
     if (!costBreakdown) return '';
     cardClass = 'cover-status-neutral';
-    headline = `📊 Estimated trip cost: ${formatCurrency(costBreakdown.total)}`;
+    headline = `Estimated trip cost: ${formatCurrency(costBreakdown.total)}`;
     detail = perPerson
       ? `≈ ${formatCurrency(perPerson)} per person`
       : '';
@@ -93,22 +101,22 @@ function buildBudgetStatusCard(
 
     if (budgetWarning && bankRemaining < 0) {
       cardClass = 'cover-status-over';
-      headline = `🚨 Trip may run over estimate.`;
+      headline = `Trip may run over estimate.`;
       detail = `Est. ${formatCurrency(estTotal)} vs ${formatCurrency(settings.budget.total)} budget — ${formatCurrency(Math.abs(bankRemaining))} over.${perPersonStr}`;
     } else if (budgetWarning) {
       cardClass = 'cover-status-tight';
-      headline = `⚡ Running close to budget.`;
+      headline = `Running close to budget.`;
       detail = `Est. ${formatCurrency(estTotal)} of ${formatCurrency(settings.budget.total)} — ${formatCurrency(Math.abs(bankRemaining))} to spare.${perPersonStr}`;
     } else {
       cardClass = 'cover-status-ok';
-      headline = `✅ Budget is sound.`;
+      headline = `Budget is sound.`;
       detail = `Est. ${formatCurrency(estTotal)} of ${formatCurrency(settings.budget.total)} — ${formatCurrency(bankRemaining)} to spare.${perPersonStr}`;
     }
   }
 
   return `
     <div class="cover-section">
-      <div class="cover-section-label">💰 Budget Status</div>
+      <div class="cover-section-label">Budget</div>
       <div class="cover-status-card ${cardClass}">
         <div class="cover-status-headline">${headline}</div>
         ${detail ? `<div class="cover-status-detail">${detail}</div>` : ''}
@@ -134,7 +142,7 @@ function buildWarningsSection(feasibility: FeasibilityResult): string {
 
   return `
     <div class="cover-section">
-      <div class="cover-section-label">⚠️ Heads Up</div>
+      <div class="cover-section-label">Heads Up</div>
       ${items}
     </div>
   `;
@@ -168,7 +176,7 @@ function buildPacingSection(
 
   return `
     <div class="cover-section">
-      <div class="cover-section-label">🏎️ Pacing</div>
+      <div class="cover-section-label">Route Pacing</div>
       <div class="cover-pacing">
         ${vehicleStr}
         <div>${driveLabel}${departureStr}</div>
@@ -204,7 +212,7 @@ function buildRosterSection(
 
   return `
     <div class="cover-section">
-      <div class="cover-section-label">🔁 Driver Roster</div>
+      <div class="cover-section-label">Driver Roster</div>
       <table class="cover-roster-table">
         <thead>
           <tr><th>Name</th><th>Drive Time</th><th>Distance</th><th>Segments</th></tr>
@@ -225,8 +233,10 @@ export function buildCoverPageHTML(
   driverRotation: DriverRotationResult | null,
   vehicle?: Vehicle,
   enrichedStats?: DriverStats[],
+  tripSubtitle?: string,
+  tripRead?: string,
 ): string {
-  const heroHTML    = buildHeroSection(tripTitle, summary, settings);
+  const heroHTML    = buildHeroSection(tripTitle, summary, settings, tripSubtitle, tripRead);
   const budgetHTML  = buildBudgetStatusCard(summary, settings, feasibility);
   const warningHTML = buildWarningsSection(feasibility);
   const pacingHTML  = buildPacingSection(summary, settings, vehicle);

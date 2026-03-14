@@ -49,7 +49,12 @@ export function buildPrintHTML(
       : {};
 
   const feasibility = analyzeFeasibility(summary, settings);
-  const coverHTML = buildCoverPageHTML(tripTitle, summary, settings, feasibility, driverRotation, vehicle);
+  const coverHTML = buildCoverPageHTML(
+    tripTitle, summary, settings, feasibility, driverRotation, vehicle,
+    undefined,
+    printInput.subtitle,
+    printInput.tripRead,
+  );
 
   const daysHTML = itineraryDays.map(day => {
     runningTripSpend += day.budget.dayTotal;

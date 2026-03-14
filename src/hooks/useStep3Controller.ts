@@ -119,6 +119,23 @@ export function useStep3Controller({
     onDismissOvernight();
   }, [summary, suggestedOvernightStop, onUpdateStopType, onDismissOvernight]);
 
+  // Moved before printInput so subtitle/tripRead can flow into the print artifact.
+  const signatureCard = useMemo(() => {
+    if (!summary || !feasibility) return null;
+    const origin = locations[0];
+    const destination = locations[locations.length - 1];
+    if (!origin || !destination) return null;
+    return buildSignatureCardModel({
+      summary,
+      settings,
+      feasibility,
+      originName: origin.name,
+      destinationName: destination.name,
+      tripMode,
+      customTitle: customTitle ?? undefined,
+    });
+  }, [summary, settings, feasibility, locations, tripMode, customTitle]);
+
   const printInput = useMemo(() => (
     canonicalTimeline
       ? {
@@ -126,9 +143,11 @@ export function useStep3Controller({
           days: canonicalTimeline.days,
           inputs: canonicalTimeline.inputs,
           customTitle: customTitle ?? undefined,
+          subtitle: signatureCard?.subtitle,
+          tripRead: signatureCard?.tripRead,
         }
       : undefined
-  ), [canonicalTimeline, customTitle]);
+  ), [canonicalTimeline, customTitle, signatureCard]);
 
   const header = useMemo(() => buildStep3HeaderModel({
     hasTrip: !!summary,
@@ -278,22 +297,6 @@ export function useStep3Controller({
     onOpenGoogleMaps,
     onCopyShareLink,
   ]);
-
-  const signatureCard = useMemo(() => {
-    if (!summary || !feasibility) return null;
-    const origin = locations[0];
-    const destination = locations[locations.length - 1];
-    if (!origin || !destination) return null;
-    return buildSignatureCardModel({
-      summary,
-      settings,
-      feasibility,
-      originName: origin.name,
-      destinationName: destination.name,
-      tripMode,
-      customTitle: customTitle ?? undefined,
-    });
-  }, [summary, settings, feasibility, locations, tripMode, customTitle]);
 
   return {
     feasibility,

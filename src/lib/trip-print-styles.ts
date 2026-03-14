@@ -396,20 +396,43 @@ export const PRINT_STYLES = `
   }
 
   .cover-hero h1 {
-    font-size: 22pt;
-    line-height: 1.25;
-    margin-bottom: 8px;
+    font-size: 26pt;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .cover-subtitle {
+    font-size: 12pt;
+    color: #555;
+    letter-spacing: 0.02em;
+    margin-top: 7px;
+    margin-bottom: 2px;
+  }
+
+  .cover-read {
+    font-size: 11pt;
+    color: #666;
+    font-style: italic;
+    margin-top: 12px;
+    margin-bottom: 6px;
+    padding-left: 12px;
+    border-left: 2px solid #ddd;
+    line-height: 1.65;
   }
 
   .cover-dates {
-    font-size: 13pt;
-    color: #444;
-    margin-bottom: 4px;
+    font-size: 12pt;
+    color: #555;
+    margin-top: 7px;
+    margin-bottom: 2px;
   }
 
   .cover-meta {
     font-size: 10pt;
     color: #777;
+    margin-top: 8px;
   }
 
   .cover-section {

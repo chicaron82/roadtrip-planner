@@ -117,4 +117,8 @@ export type AcceptedItineraryInput = Pick<AcceptedItineraryTimeline, 'days' | 's
 export type PrintInput = Pick<CanonicalTripTimeline, 'days' | 'summary' | 'inputs'> & {
   /** User-assigned trip name. Null/undefined = auto mode (MEE generates title). */
   customTitle?: string | null;
+  /** Mode-aware subtitle from buildSubtitle() — e.g. "Built by MEE · Sep 12–14". */
+  subtitle?: string;
+  /** Editorial interpretation sentence from buildTripRead() — the journey's soul. */
+  tripRead?: string;
 };
