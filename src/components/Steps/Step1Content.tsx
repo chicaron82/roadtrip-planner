@@ -17,7 +17,7 @@ import { CollapsibleSection } from '../UI/CollapsibleSection';
 const MODE_HEADERS: Record<TripMode, { title: string; subtitle: string }> = {
   plan: { title: 'Where is your MEE time?', subtitle: 'Add your starting point, destination, and any stops along the way.' },
   adventure: { title: 'Where does your MEE time begin?', subtitle: 'Set your origin — we\'ll find your adventure.' },
-  estimate: { title: 'Where is your MEE time?', subtitle: 'Add your stops — we\'ll calculate what it\'ll cost.' },
+  estimate: { title: 'Where is your MEE time?', subtitle: 'Declare your stops — MEE will map out the cost.' },
 };
 
 interface Step1ContentProps {

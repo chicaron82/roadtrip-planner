@@ -1,4 +1,5 @@
 import { Pencil, Sparkles } from 'lucide-react';
+import { GUIDANCE } from '../../lib/mee-tokens';
 
 interface TripNameInputProps {
   value: string | null;
@@ -23,7 +24,7 @@ export function TripNameInput({ value, autoTitle, onChange }: TripNameInputProps
           ? <Pencil className="h-3 w-3 text-muted-foreground" />
           : <Sparkles className="h-3 w-3 text-blue-400/70" />
         }
-        <span className="text-xs font-medium text-muted-foreground">Trip Name</span>
+        <span className="text-xs font-medium text-muted-foreground">Name this journey</span>
         {!isCustom && (
           <span className="text-[10px] text-blue-400/60 font-medium">auto</span>
         )}
@@ -38,6 +39,11 @@ export function TripNameInput({ value, autoTitle, onChange }: TripNameInputProps
         }}
         className="w-full bg-muted/30 border border-white/10 rounded-lg px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-blue-500/40 focus:bg-muted/50 transition-colors"
       />
+      {!isCustom && (
+        <p className="mt-1 text-[10px] text-muted-foreground/50 leading-snug">
+          {GUIDANCE.titlePrompt}
+        </p>
+      )}
       {isCustom && (
         <button
           onClick={() => onChange(null)}
