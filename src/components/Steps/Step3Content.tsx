@@ -10,6 +10,7 @@ import { Step3HealthSection } from './Step3HealthSection';
 import { Step3CommitSection } from './Step3CommitSection';
 import { Step3HistorySection } from './Step3HistorySection';
 import { Step3EmptyState } from './Step3EmptyState';
+import { useRevealAnimation } from '../../hooks/useRevealAnimation';
 
 export interface Step3ContentProps {
   controller: UseStep3ControllerReturn;
@@ -17,6 +18,12 @@ export interface Step3ContentProps {
   onGoToStep: (step: PlanningStep) => void;
   onLoadHistoryTrip?: (trip: HistoryTripSnapshot) => void;
 }
+
+// Shared Tailwind classes for reveal layer transitions.
+// motion-safe: respects prefers-reduced-motion — no animation for users who opt out.
+const revealBase = 'motion-safe:transition-all motion-safe:duration-300 motion-safe:ease-out';
+const visible   = 'opacity-100 translate-y-0';
+const hidden    = 'opacity-0 translate-y-2';
 
 export function Step3Content({
   controller,
@@ -26,11 +33,19 @@ export function Step3Content({
 }: Step3ContentProps) {
   const { estimate, header, overnightPrompt, health, viewer, commit, signatureCard } = controller;
 
+  const { layer1, layer2, layer3 } = useRevealAnimation(!!signatureCard);
+
   return (
     <div className="space-y-4">
+      {/* Always visible — pre-calculation estimate and step header */}
       {estimate && <EstimateBreakdown estimate={estimate} />}
 
-      {signatureCard && <TripSignatureCard model={signatureCard} />}
+      {/* Layer 1 — Trip identity: Signature Card arrives first */}
+      {signatureCard && (
+        <div className={`${revealBase} ${layer1 ? visible : hidden}`}>
+          <TripSignatureCard model={signatureCard} />
+        </div>
+      )}
 
       <Step3Header {...header} />
 
@@ -49,11 +64,16 @@ export function Step3Content({
 
       {viewer && health && commit ? (
         <>
-          <Step3HealthSection {...health} />
+          {/* Layer 2 — Trip shape: health + timeline follow at 150ms */}
+          <div className={`space-y-4 ${revealBase} ${layer2 ? visible : hidden}`}>
+            <Step3HealthSection {...health} />
+            <TripViewer {...viewer} />
+          </div>
 
-          <TripViewer {...viewer} />
-
-          <Step3CommitSection {...commit} />
+          {/* Layer 3 — Next actions: commit section closes at 280ms */}
+          <div className={`${revealBase} ${layer3 ? visible : hidden}`}>
+            <Step3CommitSection {...commit} />
+          </div>
         </>
       ) : (
         <Step3EmptyState onGoToStep={onGoToStep} />

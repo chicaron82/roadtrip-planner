@@ -17,3 +17,4 @@ export { useGhostCar, type GhostCarState } from './useGhostCar';
 export { useAppCallbacks } from './useAppCallbacks';
 export { useTripRestore } from './useTripRestore';
 export { useDebounce } from './useDebounce';
+export { useRevealAnimation } from './useRevealAnimation';
