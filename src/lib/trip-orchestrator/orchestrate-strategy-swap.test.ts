@@ -93,7 +93,7 @@ describe('orchestrateStrategySwap — external stops', () => {
   it('includes external stop events in the canonical timeline', () => {
     const externalStop = {
       id: 'poi-ext-1',
-      type: 'poi' as const,
+      type: 'meal' as const,
       reason: 'User added',
       afterSegmentIndex: 0,
       estimatedTime: new Date('2025-08-16T11:00:00'),

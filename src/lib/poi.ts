@@ -1,7 +1,7 @@
 import type { POI, POICategory, POISuggestionCategory } from '../types';
 import { NOMINATIM_BASE_URL } from './constants';
 import { executeOverpassQuery } from './poi-service/overpass';
-import { computeRouteBbox } from './poi-service/geo';
+import { estimateRouteDistanceKm, sampleRouteByKm } from './poi-service/geo';
 import { CATEGORY_TAG_QUERIES } from './poi-service/config';
 import type { OverpassElement } from './poi-service/types';
 
@@ -43,19 +43,28 @@ export async function searchPOIsAlongRoute(
     category: POICategory
 ): Promise<POI[]> {
     try {
-        const bbox = computeRouteBbox(routeGeometry, 15);
-        const categories = MARKER_CATEGORY_MAPPING[category];
+        // Use corridor sampling instead of a flat bounding box — a bbox over a
+        // 700km route (e.g. WPG→TB) is too large and Overpass times out or hits
+        // maxsize, silently returning nothing. Around-circles at sampled points
+        // stay tight to the actual road and scale correctly for any route length.
+        const routeKm = estimateRouteDistanceKm(routeGeometry);
+        const stepKm = Math.max(30, routeKm / 15);
+        const radiusM = Math.round(Math.min(stepKm * 500 + 5000, 20000)); // 5–20km radius
+        const samples = sampleRouteByKm(routeGeometry, stepKm, 15);
 
+        const categories = MARKER_CATEGORY_MAPPING[category];
         const lines: string[] = [];
-        for (const cat of categories) {
-            for (const tag of CATEGORY_TAG_QUERIES[cat]) {
-                lines.push(`      node${tag}(${bbox});`);
-                lines.push(`      way${tag}(${bbox});`);
+        for (const [lat, lng] of samples) {
+            for (const cat of categories) {
+                for (const tag of CATEGORY_TAG_QUERIES[cat]) {
+                    lines.push(`      node${tag}(around:${radiusM},${lat},${lng});`);
+                    lines.push(`      way${tag}(around:${radiusM},${lat},${lng});`);
+                }
             }
         }
 
         const query = `
-            [out:json][timeout:25][maxsize:2097152];
+            [out:json][timeout:30][maxsize:2097152];
             (
 ${lines.join('\n')}
             );

@@ -10,7 +10,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { TripOverview } from './TripOverview';
-import { makeSummary, makeSettings, makeSegment, makeLocation } from '../../../test/fixtures';
+import { makeSettings, makeSegment, makeLocation } from '../../../test/fixtures';
 import type { TripOverviewSummary } from '../../../lib/trip-summary-slices';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

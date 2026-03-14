@@ -148,6 +148,54 @@ describe('searchPOIsAlongRoute', () => {
     expect(result[0].id).toBe('route-node-1');
     expect(result[1].id).toBe('route-node-2');
   });
+
+  // ── Query shape: corridor sampling (the WPG→TB regression) ─────────────────
+  // These tests capture the query string sent to Overpass to ensure we use
+  // around: circles rather than a flat bounding box. A bbox over a 700km route
+  // hits Overpass timeout/maxsize limits and returns nothing silently.
+
+  it('sends an around: corridor query, not a bbox, for any route', async () => {
+    mockOverpass.mockResolvedValueOnce([]);
+    await searchPOIsAlongRoute(SIMPLE_ROUTE, 'gas');
+    const query: string = mockOverpass.mock.calls[0][0];
+    expect(query).toMatch(/around:\d+,/);
+    expect(query).not.toMatch(/\(\d+\.\d+,\d+\.\d+,\d+\.\d+,\d+\.\d+\)/); // no raw bbox tuple
+  });
+
+  it('uses around: for a long route (WPG→TB scale, ~700km)', async () => {
+    // Simulate a long route: Winnipeg → Thunder Bay (simplified)
+    const longRoute: [number, number][] = [
+      [49.8954, -97.1385],  // Winnipeg
+      [49.5,   -93.0],      // midpoint
+      [48.3809, -89.2477],  // Thunder Bay
+    ];
+    mockOverpass.mockResolvedValueOnce([]);
+    await searchPOIsAlongRoute(longRoute, 'food');
+    const query: string = mockOverpass.mock.calls[0][0];
+    expect(query).toMatch(/around:\d+,/);
+  });
+
+  it('caps around radius at 20000m for very long routes', async () => {
+    const longRoute: [number, number][] = [
+      [49.8954, -97.1385],
+      [48.3809, -89.2477],
+    ];
+    mockOverpass.mockResolvedValueOnce([]);
+    await searchPOIsAlongRoute(longRoute, 'gas');
+    const query: string = mockOverpass.mock.calls[0][0];
+    // Extract all radius values from around:RADIUS, patterns
+    const radii = [...query.matchAll(/around:(\d+),/g)].map(m => parseInt(m[1], 10));
+    expect(radii.length).toBeGreaterThan(0);
+    expect(radii.every(r => r <= 20000)).toBe(true);
+  });
+
+  it('includes both node and way queries per sample point', async () => {
+    mockOverpass.mockResolvedValueOnce([]);
+    await searchPOIsAlongRoute(SIMPLE_ROUTE, 'gas');
+    const query: string = mockOverpass.mock.calls[0][0];
+    expect(query).toMatch(/node\[/);
+    expect(query).toMatch(/way\[/);
+  });
 });
 
 // ─── searchNearbyPOIs ─────────────────────────────────────────────────────────
