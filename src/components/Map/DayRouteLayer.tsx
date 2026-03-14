@@ -86,9 +86,10 @@ const overnightIcon = L.divIcon({
 interface DayRouteLayerProps {
   days: TripDay[];
   fullGeometry: [number, number][];
+  showOvernight?: boolean;
 }
 
-export function DayRouteLayer({ days, fullGeometry }: DayRouteLayerProps) {
+export function DayRouteLayer({ days, fullGeometry, showOvernight = true }: DayRouteLayerProps) {
   const dayGeometries = useMemo(
     () => splitGeometryByDays(fullGeometry, days),
     [fullGeometry, days]
@@ -109,8 +110,8 @@ export function DayRouteLayer({ days, fullGeometry }: DayRouteLayerProps) {
         );
       })}
 
-      {/* Overnight stop markers */}
-      {days.map((day, i) => {
+      {/* Overnight stop markers — staggered after route draw */}
+      {showOvernight && days.map((day, i) => {
         if (!day.overnight?.location) return null;
         const loc = day.overnight.location;
         const nextDay = days[i + 1];

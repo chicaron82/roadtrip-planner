@@ -51,7 +51,8 @@ export function Map({
   const {
     tileStyle, setTileStyle,
     clickedSegment, setClickedSegment,
-    isMultiDay, getDetourMinutes
+    isMultiDay, getDetourMinutes,
+    markerPhase,
   } = useMapPresentationModel({ routeGeometry, tripDays });
 
   return (
@@ -124,7 +125,7 @@ export function Map({
             <AnimatedPolyline positions={routeGeometry} color="#000" weight={8} opacity={0.2} animationDuration={2000} />
 
             {isMultiDay && tripDays ? (
-              <DayRouteLayer days={tripDays} fullGeometry={routeGeometry} />
+              <DayRouteLayer days={tripDays} fullGeometry={routeGeometry} showOvernight={markerPhase >= 1} />
             ) : (
               <AnimatedPolyline
                 positions={routeGeometry}
@@ -172,8 +173,8 @@ export function Map({
           </>
         )}
 
-        {/* Location Markers */}
-        {locations.filter(loc => loc && typeof loc.lat === 'number' && typeof loc.lng === 'number' && !isNaN(loc.lat) && !isNaN(loc.lng) && loc.lat !== 0 && loc.lng !== 0).map((loc, index) => (
+        {/* Location Markers — phase 1 (after route draw) */}
+        {markerPhase >= 1 && locations.filter(loc => loc && typeof loc.lat === 'number' && typeof loc.lng === 'number' && !isNaN(loc.lat) && !isNaN(loc.lng) && loc.lat !== 0 && loc.lng !== 0).map((loc, index) => (
           <Marker key={loc.id} position={[loc.lat, loc.lng]} icon={
             loc.type === 'waypoint'
               ? (loc.intent && (loc.intent.fuel || loc.intent.meal || loc.intent.overnight)
@@ -190,8 +191,8 @@ export function Map({
           </Marker>
         ))}
 
-        {/* POI Markers */}
-        {pois.map((poi) => {
+        {/* POI Markers — phase 3 */}
+        {markerPhase >= 3 && pois.map((poi) => {
           const category = markerCategories.find(c => c.id === poi.category);
           if (!category || !category.visible) return null;
           const isAdded = addedPOIIds?.has(poi.id) ?? false;
@@ -212,8 +213,8 @@ export function Map({
           );
         })}
 
-        {/* Strategic Fuel Stop Markers */}
-        <FuelStopLayer stops={strategicFuelStops} />
+        {/* Strategic Fuel Stop Markers — phase 2 */}
+        {markerPhase >= 2 && <FuelStopLayer stops={strategicFuelStops} />}
       </MapContainer>
     </div>
   );
