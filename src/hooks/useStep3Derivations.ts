@@ -51,6 +51,8 @@ export interface UseStep3ControllerOptions {
   externalStops?: SuggestedStop[];
   onOpenGoogleMaps: () => void;
   onCopyShareLink: () => void;
+  isJournalComplete?: boolean;
+  onConfirmJournalComplete?: () => void;
   onStartJournal: (title?: string) => void;
   onUpdateJournal: (journal: TripJournal) => void;
   onUpdateStopType: (segmentIndex: number, stopType: StopType) => void;

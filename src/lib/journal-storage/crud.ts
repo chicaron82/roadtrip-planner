@@ -92,6 +92,26 @@ export async function getJournal(id: string): Promise<TripJournal | null> {
 
 
 /**
+ * Get all journals, sorted by createdAt descending (most recent first).
+ */
+export async function getAllJournals(): Promise<TripJournal[]> {
+  const db = await openDB();
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORES.JOURNALS, 'readonly');
+    const store = tx.objectStore(STORES.JOURNALS);
+    const request = store.getAll();
+
+    request.onsuccess = () => {
+      const journals: TripJournal[] = request.result || [];
+      journals.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      resolve(journals);
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+/**
  * Update a journal
  */
 export async function updateJournal(journal: TripJournal): Promise<TripJournal> {

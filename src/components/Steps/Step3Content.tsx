@@ -9,6 +9,7 @@ import { Step3Header } from './Step3Header';
 import { Step3HealthSection } from './Step3HealthSection';
 import { Step3CommitSection } from './Step3CommitSection';
 import { Step3HistorySection } from './Step3HistorySection';
+import { RecentJournalsList } from '../Trip/Journal/RecentJournalsList';
 import { Step3EmptyState } from './Step3EmptyState';
 import { useRevealAnimation } from '../../hooks/useRevealAnimation';
 
@@ -79,7 +80,10 @@ export function Step3Content({
         <Step3EmptyState onGoToStep={onGoToStep} />
       )}
 
-      <Step3HistorySection history={history} onLoadHistoryTrip={onLoadHistoryTrip} />
+      {viewer?.viewMode === 'journal'
+        ? <RecentJournalsList />
+        : <Step3HistorySection history={history} onLoadHistoryTrip={onLoadHistoryTrip} />
+      }
     </div>
   );
 }

@@ -38,6 +38,10 @@ export interface TripViewerProps {
   poiFetchFailed?: boolean;
   externalStops?: SuggestedStop[];
 
+  // Journal completion
+  isJournalComplete?: boolean;
+  onConfirmJournalComplete?: () => void;
+
   // Intent callbacks — viewer emits, upstream controller mutates canonical truth
   onStartJournal: (title?: string) => void;
   onUpdateJournal: (journal: TripJournal) => void;

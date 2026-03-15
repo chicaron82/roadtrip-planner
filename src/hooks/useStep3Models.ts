@@ -201,6 +201,8 @@ interface BuildStep3ViewerModelOptions {
   activeJournal: TripJournal | null;
   activeChallenge?: TripChallenge | null;
   tripMode: TripMode;
+  isJournalComplete?: boolean;
+  onConfirmJournalComplete?: () => void;
   onStartJournal: (title?: string) => void;
   onUpdateJournal: (journal: TripJournal) => void;
   onUpdateStopType: (segmentIndex: number, stopType: StopType) => void;

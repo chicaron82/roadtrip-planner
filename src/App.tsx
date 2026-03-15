@@ -104,7 +104,7 @@ function AppContent() {
     onAdventureComplete: () => setShowAdventureMode(false),
   });
 
-  const { activeJournal, viewMode, startJournal, updateActiveJournal, setViewMode, error: journalError, clearError: clearJournalError } =
+  const { activeJournal, viewMode, startJournal, updateActiveJournal, setViewMode, clearJournal, isJournalComplete, confirmComplete, error: journalError, clearError: clearJournalError } =
     useJournal({ summary, settings, vehicle, origin: tripOrigin, defaultTitle: activeChallenge?.title });
 
   const {
@@ -155,6 +155,7 @@ function AppContent() {
   const { resetTripSession, selectTripMode } = useAppReset({
     setLocations, resetPOIs, resetWizard, clearStops, clearTripCalculation,
     setActiveChallenge, setTripOrigin, setTripConfirmed, setTripMode, setShowAdventureMode,
+    clearJournal,
   });
 
   const { restoreHistoryTripSession } = useTripRestore({
@@ -187,7 +188,7 @@ function AppContent() {
     setShowAdventureMode,
     handleImportTemplate, handleSelectChallenge, activeChallenge,
     activePreset, presetOptions, handlePresetChange, handleSharePreset, shareJustCopied,
-    viewMode, setViewMode, activeJournal, startJournal, updateActiveJournal,
+    viewMode, setViewMode, activeJournal, isJournalComplete, startJournal, updateActiveJournal, confirmJournalComplete: confirmComplete,
     tripConfirmed, setTripConfirmed, history,
     addedStopCount: addedStops.length,
     externalStops: [...asSuggestedStops, ...mirroredReturnStops],

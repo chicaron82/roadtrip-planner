@@ -46,8 +46,10 @@ interface UsePlanningStepPropsOptions {
   viewMode: ViewMode;
   setViewMode: (m: ViewMode) => void;
   activeJournal: TripJournal | null;
+  isJournalComplete: boolean;
   startJournal: (title?: string) => void;
   updateActiveJournal: (j: TripJournal) => void;
+  confirmJournalComplete: () => void;
   // Trip state
   tripConfirmed: boolean;
   setTripConfirmed: (v: boolean) => void;
@@ -131,6 +133,8 @@ export function usePlanningStepProps(o: UsePlanningStepPropsOptions): PlanningSt
     externalStops: o.externalStops,
     onOpenGoogleMaps: o.openInGoogleMaps,
     onCopyShareLink: o.copyShareLink,
+    isJournalComplete: o.isJournalComplete,
+    onConfirmJournalComplete: o.confirmJournalComplete,
     onStartJournal: o.startJournal,
     onUpdateJournal: o.updateActiveJournal,
     onUpdateStopType: o.updateStopType,

@@ -9,6 +9,21 @@ import {
 
 export type ViewMode = 'plan' | 'journal';
 
+/** Returns true when every real (non-guard) stop has been visited. */
+function checkJournalComplete(journal: TripJournal): boolean {
+  const realSegmentIndices = new Set(
+    journal.tripSummary.segments
+      .map((s, i) => ({ s, i }))
+      .filter(({ s }) => !s.to.id?.startsWith('guard-'))
+      .map(({ i }) => i),
+  );
+  if (realSegmentIndices.size === 0) return false;
+  const stopsVisited = journal.entries.filter(
+    e => realSegmentIndices.has(e.segmentIndex) && e.status === 'visited',
+  ).length;
+  return stopsVisited >= realSegmentIndices.size;
+}
+
 interface UseJournalOptions {
   summary: TripSummary | null;
   settings: TripSettings;
@@ -25,12 +40,14 @@ interface UseJournalReturn {
   viewMode: ViewMode;
   isLoading: boolean;
   error: string | null;
+  isJournalComplete: boolean;
 
   // Actions
   startJournal: (title?: string) => Promise<void>;
   updateActiveJournal: (journal: TripJournal) => Promise<void>;
   setViewMode: (mode: ViewMode) => void;
   clearJournal: () => void;
+  confirmComplete: () => void;
   clearError: () => void;
 }
 
@@ -45,6 +62,7 @@ export function useJournal({
   const [viewMode, setViewMode] = useState<ViewMode>('plan');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isJournalComplete, setIsJournalComplete] = useState(false);
 
   // Load active journal on mount — but only if it's in-progress (not complete).
   // A completed journal means the trip is done; the next journey should start
@@ -68,9 +86,10 @@ export function useJournal({
         ).length;
 
         if (totalRealStops > 0 && stopsVisited >= totalRealStops) {
-          // Trip complete — unset the active pointer so the wizard starts fresh.
-          // The journal data stays in storage (accessible via history).
-          setActiveJournalId(null);
+          // Trip complete — load the journal so the completion confirmation UI
+          // can appear. The user explicitly confirms before we clear state.
+          setActiveJournal(journal);
+          setIsJournalComplete(true);
           return;
         }
 
@@ -121,10 +140,25 @@ export function useJournal({
     }
   }, []);
 
+  // Detect completion mid-journey (e.g. user marks the last stop as visited).
+  useEffect(() => {
+    if (!activeJournal || isJournalComplete) return;
+    if (checkJournalComplete(activeJournal)) {
+      setIsJournalComplete(true);
+    }
+  }, [activeJournal, isJournalComplete]);
+
   const clearJournal = useCallback(() => {
     setActiveJournal(null);
     setViewMode('plan');
+    setIsJournalComplete(false);
+    setActiveJournalId(null); // persist the clear — prevents stale journal reloading on next page load
   }, []);
+
+  /** User explicitly confirms the trip is done — clears active journal state. */
+  const confirmComplete = useCallback(() => {
+    clearJournal();
+  }, [clearJournal]);
 
   const clearError = useCallback(() => setError(null), []);
 
@@ -133,10 +167,12 @@ export function useJournal({
     viewMode,
     isLoading,
     error,
+    isJournalComplete,
     startJournal,
     updateActiveJournal,
     setViewMode,
     clearJournal,
+    confirmComplete,
     clearError,
   };
 }

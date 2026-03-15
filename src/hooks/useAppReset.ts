@@ -16,6 +16,7 @@ interface UseAppResetOptions {
   setTripConfirmed: (v: boolean) => void;
   setTripMode: (m: TripMode | null) => void;
   setShowAdventureMode: (v: boolean) => void;
+  clearJournal?: () => void;
 }
 
 interface UseAppResetReturn {
@@ -41,6 +42,7 @@ export function useAppReset({
   setTripConfirmed,
   setTripMode,
   setShowAdventureMode,
+  clearJournal,
 }: UseAppResetOptions): UseAppResetReturn {
   /**
    * Canonical trip reset — the single authoritative reset path for the app.
@@ -68,8 +70,9 @@ export function useAppReset({
       setActiveChallenge,
       setTripOrigin,
       setTripConfirmed,
+      clearJournal,
     });
-  }, [setLocations, clearTripCalculation, resetPOIs, clearStops, resetWizard, setActiveChallenge, setTripOrigin, setTripConfirmed]);
+  }, [setLocations, clearTripCalculation, resetPOIs, clearStops, resetWizard, setActiveChallenge, setTripOrigin, setTripConfirmed, clearJournal]);
 
   const selectTripMode = useCallback((mode: TripMode) => {
     resetAppAndSelectTripMode({

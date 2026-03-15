@@ -13,6 +13,7 @@ interface ResetTripSessionParams {
   setActiveChallenge: (challenge: TripChallenge | null) => void;
   setTripOrigin: (origin: TripOrigin | null) => void;
   setTripConfirmed: (value: boolean) => void;
+  clearJournal?: () => void;
 }
 
 interface SelectTripModeParams {
@@ -37,6 +38,7 @@ export function resetTripSession({
   setActiveChallenge,
   setTripOrigin,
   setTripConfirmed,
+  clearJournal,
 }: ResetTripSessionParams): void {
   resetTripPlanningInputs(setLocations);
   clearTripCalculation();
@@ -46,6 +48,7 @@ export function resetTripSession({
   setActiveChallenge(null);
   setTripOrigin(null);
   setTripConfirmed(false);
+  clearJournal?.();
 }
 
 export function resetAppAndSelectTripMode({

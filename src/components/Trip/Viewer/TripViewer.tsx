@@ -6,6 +6,7 @@ import type { TripViewerProps } from './viewer-types';
 import { Button } from '../../UI/Button';
 import { TripTimelineView } from '../TripTimelineView';
 import { JournalFullscreenOverlay } from '../Journal/JournalFullscreenOverlay';
+import { JournalCompleteOverlay } from '../Journal/JournalCompleteOverlay';
 
 function TimelineHeading({
   viewMode,
@@ -64,6 +65,8 @@ export function TripViewer({
   activeJournal,
   activeChallenge,
   tripMode,
+  isJournalComplete,
+  onConfirmJournalComplete,
   poiSuggestions,
   poiInference,
   isLoadingPOIs,
@@ -86,6 +89,11 @@ export function TripViewer({
   // Viewer-local UI state — per arch spec, lives here, not in the parent gate
   const [isExpanded, setIsExpanded] = useState(false);
   const [isJournalFullscreen, setIsJournalFullscreen] = useState(false);
+
+  // Show completion confirmation when the active journal has all stops visited.
+  if (viewMode === 'journal' && isJournalComplete && activeJournal && onConfirmJournalComplete) {
+    return <JournalCompleteOverlay journal={activeJournal} onConfirm={onConfirmJournalComplete} />;
+  }
 
   const timeline = (
     <TripTimelineView
