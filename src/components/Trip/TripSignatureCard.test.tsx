@@ -95,6 +95,18 @@ describe('TripSignatureCard', () => {
     expect(container.firstChild).toBeTruthy();
   });
 
+  it('does not render Rooms pill when nights is 0 (day trip)', () => {
+    const model = makeModel({ metrics: { ...makeModel().metrics, nights: 0, rooms: 2 } });
+    const { queryByText } = render(<TripSignatureCard model={model} />);
+    expect(queryByText('Rooms')).toBeNull();
+  });
+
+  it('renders Rooms pill when nights > 0', () => {
+    const model = makeModel({ metrics: { ...makeModel().metrics, nights: 1, rooms: 2 } });
+    const { getByText } = render(<TripSignatureCard model={model} />);
+    expect(getByText('Rooms')).toBeTruthy();
+  });
+
   it('renders custom title when titleMode is custom', () => {
     const model = makeModel({ title: 'Road to Grandma\'s', titleMode: 'custom' });
     const { getByText } = render(<TripSignatureCard model={model} />);

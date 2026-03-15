@@ -255,9 +255,13 @@ export function buildCoverPageHTML(
     const startMonth = start.toLocaleDateString('en-US', { month: 'long' });
     const endMonth   = end.toLocaleDateString('en-US',   { month: 'long' });
     const endYear    = end.getFullYear();
-    meeTimeStr = startMonth === endMonth
-      ? ` — ${startMonth} ${start.getDate()}–${end.getDate()}, ${endYear}`
-      : ` — ${startMonth} ${start.getDate()} – ${endMonth} ${end.getDate()}, ${endYear}`;
+    if (firstDay.date === lastDay.date) {
+      meeTimeStr = ` — ${startMonth} ${start.getDate()}, ${endYear}`;
+    } else if (startMonth === endMonth) {
+      meeTimeStr = ` — ${startMonth} ${start.getDate()}–${end.getDate()}, ${endYear}`;
+    } else {
+      meeTimeStr = ` — ${startMonth} ${start.getDate()} – ${endMonth} ${end.getDate()}, ${endYear}`;
+    }
   }
 
   return `

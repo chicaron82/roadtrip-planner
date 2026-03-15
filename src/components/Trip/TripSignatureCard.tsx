@@ -163,7 +163,7 @@ export function TripSignatureCard({ model, className = '' }: TripSignatureCardPr
           <MetricPill label="Drive time" value={metrics.driveTime} />
           <MetricPill label="Distance"   value={metrics.distance} />
           <MetricPill label="Nights"     value={metrics.nights} />
-          <MetricPill label="Rooms"      value={metrics.rooms} />
+          {metrics.nights > 0 && <MetricPill label="Rooms" value={metrics.rooms} />}
           <MetricPill label="Mode"       value={metrics.mode} />
           {metrics.drivers !== undefined && (
             <MetricPill label="Drivers" value={metrics.drivers} />
