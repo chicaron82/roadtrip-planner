@@ -1,7 +1,7 @@
 import { Share2, Printer } from 'lucide-react';
 import type { TripPrintViewProps } from '../Trip/StepHelpers/TripPrintView';
 import type { TimedEvent } from '../../lib/trip-timeline';
-import type { TripMode } from '../../types';
+import type { TripMode, TripJournal } from '../../types';
 import { Button } from '../UI/Button';
 import { DifficultyBadge } from '../Trip/StepHelpers/DifficultyBadge';
 import { printTrip } from '../Trip/StepHelpers/TripPrintView';
@@ -21,6 +21,7 @@ interface Step3HeaderProps {
   precomputedEvents?: TimedEvent[];
   isCalculating?: boolean;
   tripMode?: TripMode;
+  journal?: TripJournal | null;
   onOpenGoogleMaps: () => void;
   onCopyShareLink: () => void;
 }
@@ -33,6 +34,7 @@ export function Step3Header({
   precomputedEvents,
   isCalculating,
   tripMode,
+  journal,
   onOpenGoogleMaps,
   onCopyShareLink,
 }: Step3HeaderProps) {
@@ -68,7 +70,7 @@ export function Step3Header({
               variant="outline"
               className="gap-1"
               disabled={isCalculating || !precomputedEvents?.length}
-              onClick={() => printTrip({ printInput, precomputedEvents: precomputedEvents ?? [] })}
+              onClick={() => printTrip({ printInput, precomputedEvents: precomputedEvents ?? [], journal: journal ?? undefined })}
             >
               <Printer className="h-3 w-3" /> Print
             </Button>

@@ -41,6 +41,8 @@ interface UseJournalReturn {
   isLoading: boolean;
   error: string | null;
   isJournalComplete: boolean;
+  /** True when complete but overlay not yet dismissed — drives TripViewer overlay. */
+  showCompleteOverlay: boolean;
 
   // Actions
   startJournal: (title?: string) => Promise<void>;
@@ -63,6 +65,7 @@ export function useJournal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isJournalComplete, setIsJournalComplete] = useState(false);
+  const [completionAcknowledged, setCompletionAcknowledged] = useState(false);
 
   // Load active journal on mount — but only if it's in-progress (not complete).
   // A completed journal means the trip is done; the next journey should start
@@ -152,13 +155,15 @@ export function useJournal({
     setActiveJournal(null);
     setViewMode('plan');
     setIsJournalComplete(false);
+    setCompletionAcknowledged(false);
     setActiveJournalId(null); // persist the clear — prevents stale journal reloading on next page load
   }, []);
 
-  /** User explicitly confirms the trip is done — clears active journal state. */
+  /** User explicitly confirms the trip is done — dismisses the overlay but keeps
+   *  the journal alive so TripRecapCard (print, export) remains accessible. */
   const confirmComplete = useCallback(() => {
-    clearJournal();
-  }, [clearJournal]);
+    setCompletionAcknowledged(true);
+  }, []);
 
   const clearError = useCallback(() => setError(null), []);
 
@@ -168,6 +173,7 @@ export function useJournal({
     isLoading,
     error,
     isJournalComplete,
+    showCompleteOverlay: isJournalComplete && !completionAcknowledged,
     startJournal,
     updateActiveJournal,
     setViewMode,

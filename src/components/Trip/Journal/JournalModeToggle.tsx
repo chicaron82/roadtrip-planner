@@ -91,7 +91,8 @@ interface StartJournalCTAProps {
 }
 
 export function StartJournalCTA({ onStart, className, defaultName, tripMode = 'plan' }: StartJournalCTAProps) {
-  const [expanded, setExpanded] = useState(false);
+  // Skip the teaser step when a name is already known — go straight to the form
+  const [expanded, setExpanded] = useState(!!defaultName);
   const [name, setName] = useState(defaultName ?? '');
   const accentColor = MODE_COLOR[tripMode] ?? '#22C55E';
 

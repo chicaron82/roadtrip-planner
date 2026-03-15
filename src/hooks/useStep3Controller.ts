@@ -59,6 +59,7 @@ export function useStep3Controller({
   onStartJournal,
   onUpdateJournal,
   isJournalComplete,
+  showCompleteOverlay,
   onConfirmJournalComplete,
   onUpdateStopType,
   onDismissOvernight,
@@ -159,6 +160,7 @@ export function useStep3Controller({
     precomputedEvents,
     isCalculating,
     tripMode,
+    journal: activeJournal,
     onOpenGoogleMaps,
     onCopyShareLink,
   }), [
@@ -169,6 +171,7 @@ export function useStep3Controller({
     precomputedEvents,
     isCalculating,
     tripMode,
+    activeJournal,
     onOpenGoogleMaps,
     onCopyShareLink,
   ]);
@@ -224,6 +227,7 @@ export function useStep3Controller({
     activeChallenge,
     tripMode,
     isJournalComplete,
+    showCompleteOverlay,
     onConfirmJournalComplete,
     onStartJournal,
     onUpdateJournal,
@@ -274,6 +278,16 @@ export function useStep3Controller({
     externalStops,
   ]);
 
+  // "Open Journal" from ConfirmTripCard — switches view AND starts the journal in
+  // one shot so the user doesn't have to click through the StartJournalCTA.
+  const handleOpenJournal = useCallback(() => {
+    setViewMode('journal');
+    if (!activeJournal) {
+      const title = customTitle ?? activeChallenge?.title ?? undefined;
+      onStartJournal(title);
+    }
+  }, [setViewMode, activeJournal, customTitle, activeChallenge, onStartJournal]);
+
   const commit = useMemo(() => buildStep3CommitModel({
     printInput,
     viewMode,
@@ -283,9 +297,10 @@ export function useStep3Controller({
     precomputedEvents,
     isCalculating,
     tripMode,
+    journal: activeJournal,
     onConfirmTrip,
     onUnconfirmTrip,
-    onSetJournalMode: () => setViewMode('journal'),
+    onSetJournalMode: handleOpenJournal,
     onOpenGoogleMaps,
     onCopyShareLink,
   }), [
@@ -297,9 +312,10 @@ export function useStep3Controller({
     precomputedEvents,
     isCalculating,
     tripMode,
+    activeJournal,
     onConfirmTrip,
     onUnconfirmTrip,
-    setViewMode,
+    handleOpenJournal,
     onOpenGoogleMaps,
     onCopyShareLink,
   ]);

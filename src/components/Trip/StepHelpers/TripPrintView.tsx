@@ -16,6 +16,7 @@ import type { PrintInput } from '../../../lib/canonical-trip';
 import { buildPrintHTML } from '../../../lib/trip-print-builders';
 import { getTripDisplayEndpoints } from '../../../lib/trip-summary-view';
 import { buildAutoTitle } from '../../../lib/mee-tokens';
+import type { TripJournal } from '../../../types';
 
 // ==================== TYPES ====================
 
@@ -24,6 +25,8 @@ export interface TripPrintViewProps {
   /** Canonical timed events from the main trip calculation.
    *  Print must render from the same timeline the UI uses. */
   precomputedEvents: TimedEvent[];
+  /** Active journal — when present, photos/notes are woven into each day's output. */
+  journal?: TripJournal;
 }
 
 
@@ -31,6 +34,7 @@ export function printTrip(props: TripPrintViewProps): void {
   const {
     printInput,
     precomputedEvents,
+    journal,
   } = props;
   const {
     summary,
@@ -80,6 +84,7 @@ export function printTrip(props: TripPrintViewProps): void {
     printInput,
     driverRotation,
     timedEvents,
+    journal,
   );
 
   // Open print window

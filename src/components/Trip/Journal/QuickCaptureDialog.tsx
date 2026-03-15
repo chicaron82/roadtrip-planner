@@ -5,6 +5,7 @@ import { Input } from '../../UI/Input';
 import { Label } from '../../UI/Label';
 import type { QuickCapture, JournalPhoto } from '../../../types';
 import { showToast } from '../../../lib/toast';
+import { findKnownHub } from '../../../lib/hub-cache';
 
 interface QuickCaptureDialogProps {
   open: boolean;
@@ -37,7 +38,9 @@ export function QuickCaptureDialog({
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsStatus, setGpsStatus] = useState<GpsStatus>('idle');
+  const [resolvedGpsName, setResolvedGpsName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-request GPS when dialog opens so it's ready by save time
   useEffect(() => {
@@ -50,6 +53,7 @@ export function QuickCaptureDialog({
       setPhotoPreview(null);
       setGpsCoords(null);
       setGpsStatus('idle');
+      setResolvedGpsName(null);
       return;
     }
 
@@ -61,8 +65,11 @@ export function QuickCaptureDialog({
     setGpsStatus('loading');
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setGpsCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        const { latitude: lat, longitude: lng } = pos.coords;
+        setGpsCoords({ lat, lng });
         setGpsStatus('captured');
+        const hubName = findKnownHub(lat, lng);
+        if (hubName) setResolvedGpsName(hubName);
       },
       () => {
         setGpsStatus('unavailable');
@@ -75,10 +82,14 @@ export function QuickCaptureDialog({
     if (!navigator.geolocation) return;
     setGpsStatus('loading');
     setGpsCoords(null);
+    setResolvedGpsName(null);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setGpsCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        const { latitude: lat, longitude: lng } = pos.coords;
+        setGpsCoords({ lat, lng });
         setGpsStatus('captured');
+        const hubName = findKnownHub(lat, lng);
+        if (hubName) setResolvedGpsName(hubName);
       },
       () => setGpsStatus('unavailable'),
       { timeout: 10000, maximumAge: 0 }
@@ -102,7 +113,8 @@ export function QuickCaptureDialog({
       return;
     }
 
-    const resolvedName = locationName || autoTaggedLocation || '';
+    // Prefer: user-typed > GPS-resolved city name > segment destination fallback
+    const resolvedName = locationName || resolvedGpsName || autoTaggedLocation || '';
 
     const photo: JournalPhoto | undefined = photoPreview
       ? {
@@ -124,7 +136,7 @@ export function QuickCaptureDialog({
       id: `capture-${Date.now()}`,
       photo,
       autoTaggedSegment,
-      autoTaggedLocation: autoTaggedLocation || locationName,
+      autoTaggedLocation: locationName || resolvedGpsName || autoTaggedLocation || '',
       timestamp: new Date(),
       category: category as QuickCapture['category'],
       gpsCoords: gpsCoords ?? undefined,
@@ -166,14 +178,33 @@ export function QuickCaptureDialog({
                 </button>
               </div>
             ) : (
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full h-32 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-colors flex flex-col items-center justify-center gap-2 text-gray-500"
-              >
-                <Camera className="h-8 w-8" />
-                <span className="text-sm">Click to add photo</span>
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="h-24 border-2 border-dashed border-purple-300 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-colors flex flex-col items-center justify-center gap-1.5 text-purple-500"
+                >
+                  <Camera className="h-6 w-6" />
+                  <span className="text-xs font-medium">Take Photo</span>
+                </button>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="h-24 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 hover:bg-gray-50 transition-colors flex flex-col items-center justify-center gap-1.5 text-gray-500"
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                  </svg>
+                  <span className="text-xs font-medium">Upload</span>
+                </button>
+              </div>
             )}
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handlePhotoSelect}
+              className="hidden"
+            />
             <input
               ref={fileInputRef}
               type="file"
@@ -192,7 +223,7 @@ export function QuickCaptureDialog({
             <Input
               value={locationName}
               onChange={(e) => setLocationName(e.target.value)}
-              placeholder={autoTaggedLocation || 'e.g., Amazing Burger Joint'}
+              placeholder={resolvedGpsName || autoTaggedLocation || 'e.g., Amazing Burger Joint'}
             />
             {/* GPS status row */}
             <div className="flex items-center gap-2 mt-1.5">
@@ -206,7 +237,9 @@ export function QuickCaptureDialog({
                 <>
                   <CheckCircle2 className="h-3 w-3 text-green-500" />
                   <span className="text-[11px] text-green-600">
-                    GPS captured ({gpsCoords.lat.toFixed(4)}, {gpsCoords.lng.toFixed(4)})
+                    {resolvedGpsName
+                      ? `📍 ${resolvedGpsName}`
+                      : `GPS captured (${gpsCoords.lat.toFixed(4)}, ${gpsCoords.lng.toFixed(4)})`}
                   </span>
                 </>
               )}

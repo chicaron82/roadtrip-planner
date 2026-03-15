@@ -5,95 +5,199 @@ import { getExportBudgetBreakdown, getTripDisplayEndpoints } from './trip-summar
 import { resolveJournalEntryLocation } from './journal-trip-view';
 import type { JournalExportSummary, SegmentLookupSummary } from './trip-summary-slices';
 
+// ── Stylesheet ────────────────────────────────────────────────────────────────
+
+const JOURNAL_HTML_STYLES = `
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  @page { size: A4 portrait; margin: 15mm 18mm; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 11pt; line-height: 1.6; color: #1a1a1a;
+    background: #faf9f7; padding: 24px; max-width: 900px; margin: 0 auto;
+  }
+
+  /* Cover */
+  .cover { padding: 28px 0 22px; border-bottom: 2px solid #e5e0d8; margin-bottom: 28px; }
+  .cover-brand { font-size: 7.5pt; letter-spacing: 0.14em; text-transform: uppercase; color: #aaa; font-weight: 700; margin-bottom: 14px; }
+  .cover-title { font-size: 26pt; font-weight: 800; line-height: 1.15; letter-spacing: -0.02em; color: #111; margin-bottom: 6px; }
+  .cover-route { font-size: 11.5pt; color: #666; margin-bottom: 14px; }
+  .cover-dates { font-size: 9.5pt; color: #888; margin-bottom: 18px; }
+  .cover-stats { display: flex; gap: 28px; flex-wrap: wrap; }
+  .stat-value { font-size: 15pt; font-weight: 700; color: #10b981; display: block; }
+  .stat-label { font-size: 8pt; color: #999; text-transform: uppercase; letter-spacing: 0.08em; }
+
+  /* Section headings */
+  .section-heading {
+    font-size: 7.5pt; font-weight: 800; text-transform: uppercase; letter-spacing: 0.15em;
+    color: #aaa; margin: 26px 0 12px; padding-bottom: 6px; border-bottom: 1px solid #e5e0d8;
+  }
+
+  /* Stop cards */
+  .stop-card {
+    margin-bottom: 16px; padding: 14px 16px; border-radius: 8px;
+    background: #fff; border: 1px solid #ede8e0; border-left: 4px solid #10b981;
+    page-break-inside: avoid;
+  }
+  .stop-card.skipped { border-left-color: #d1d5db; opacity: 0.75; }
+  .stop-card.highlight { border-left-color: #f59e0b; background: #fffdf5; }
+  .stop-name { font-size: 13pt; font-weight: 700; margin-bottom: 6px; }
+  .stop-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .stop-status { font-size: 7.5pt; padding: 2px 8px; border-radius: 9999px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+  .status-visited { background: #d1fae5; color: #065f46; }
+  .status-skipped { background: #f3f4f6; color: #6b7280; }
+  .stop-rating { color: #f59e0b; font-size: 12pt; }
+  .highlight-badge { font-size: 8pt; color: #b45309; background: #fef3c7; padding: 2px 8px; border-radius: 9999px; font-weight: 600; }
+  .stop-notes { font-size: 10.5pt; color: #374151; line-height: 1.65; margin-top: 8px; }
+
+  /* Photo grid */
+  .photo-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+  .photo-figure { margin: 0; }
+  .photo-figure img { width: 195px; height: 138px; object-fit: cover; border-radius: 6px; border: 1px solid #ede8e0; display: block; }
+  .photo-caption { font-size: 7.5pt; color: #6b7280; margin-top: 4px; max-width: 195px; font-style: italic; }
+
+  /* Quick captures */
+  .captures-grid { display: flex; flex-wrap: wrap; gap: 14px; }
+  .capture-card { border: 1px solid #ede8e0; border-radius: 8px; overflow: hidden; background: #fff; page-break-inside: avoid; flex: 0 0 auto; max-width: 215px; }
+  .capture-card img { width: 215px; height: 140px; object-fit: cover; display: block; }
+  .capture-body { padding: 8px 10px; }
+  .capture-location { font-size: 9pt; font-weight: 700; color: #7c3aed; margin-bottom: 3px; }
+  .capture-category { font-size: 7.5pt; background: #f3e8ff; color: #6d28d9; padding: 1px 7px; border-radius: 9999px; display: inline-block; margin-bottom: 5px; }
+  .capture-caption { font-size: 8.5pt; color: #4b5563; font-style: italic; }
+  .capture-gps { font-size: 7.5pt; color: #9ca3af; margin-top: 5px; }
+  .capture-maps { color: #2563eb; text-decoration: none; }
+
+  /* Stats */
+  .stats-table { width: 100%; border-collapse: collapse; font-size: 10.5pt; margin-top: 6px; }
+  .stats-table td { padding: 7px 10px; border-bottom: 1px solid #ede8e0; }
+  .stats-table td:first-child { color: #777; font-size: 9.5pt; }
+  .stats-table td:last-child { font-weight: 700; text-align: right; }
+
+  footer { margin-top: 36px; padding-top: 12px; border-top: 1px solid #e5e0d8; text-align: center; font-size: 8.5pt; color: #ccc; }
+
+  @media print {
+    body { padding: 0; background: #fff; }
+    .stop-card, .capture-card { page-break-inside: avoid; }
+    a { color: inherit; text-decoration: none; }
+  }
+`;
+
+// ── HTML export ───────────────────────────────────────────────────────────────
+
 /**
- * Export the trip journal as a downloadable HTML file.
+ * Export the trip journal as a downloadable, print-ready HTML file.
  */
 export function exportJournalAsHTML(journal: TripJournal, summary: SegmentLookupSummary): void {
-  const journalHTML = `
-<!DOCTYPE html>
-<html>
+  const { metadata, stats, tripSummary, entries, quickCaptures } = journal;
+  const endpoints = getTripDisplayEndpoints(summary);
+  const routeLabel = endpoints.origin && endpoints.destination
+    ? `${escapeHtml(endpoints.origin.name)} → ${escapeHtml(endpoints.destination.name)}`
+    : '';
+
+  const tripDate = metadata.dates.actualStart ?? metadata.dates.plannedStart;
+  const tripEnd = metadata.dates.actualEnd ?? metadata.dates.plannedEnd;
+  const dateRange = tripDate
+    ? `${new Date(tripDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}${tripEnd && tripEnd !== tripDate ? ` – ${new Date(tripEnd).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}` : ''}`
+    : '';
+
+  const stopsHTML = entries.map(e => {
+    const stop = resolveJournalEntryLocation(summary, e);
+    const isHighlight = e.isHighlight;
+    const cardClass = `stop-card${isHighlight ? ' highlight' : ''}${e.status === 'skipped' ? ' skipped' : ''}`;
+    const statusClass = e.status === 'visited' ? 'status-visited' : 'status-skipped';
+    const ratingStars = e.rating ? '★'.repeat(e.rating) + '☆'.repeat(5 - e.rating) : '';
+    const photosHTML = e.photos.length > 0
+      ? `<div class="photo-grid">${e.photos.map(p => `
+          <figure class="photo-figure">
+            <img src="${p.dataUrl}" alt="${escapeHtml(p.caption || '')}" />
+            ${p.caption ? `<figcaption class="photo-caption">${escapeHtml(p.caption)}</figcaption>` : ''}
+          </figure>`).join('')}</div>`
+      : '';
+    return `
+    <div class="${cardClass}">
+      <div class="stop-name">${escapeHtml(stop?.name || 'Unknown Stop')}</div>
+      <div class="stop-meta">
+        <span class="stop-status ${statusClass}">${e.status}</span>
+        ${ratingStars ? `<span class="stop-rating">${ratingStars}</span>` : ''}
+        ${isHighlight && e.highlightReason ? `<span class="highlight-badge">✨ ${escapeHtml(e.highlightReason)}</span>` : ''}
+        ${isHighlight && !e.highlightReason ? `<span class="highlight-badge">✨ Highlight</span>` : ''}
+      </div>
+      ${e.notes ? `<p class="stop-notes">${escapeHtml(e.notes)}</p>` : ''}
+      ${photosHTML}
+    </div>`;
+  }).join('');
+
+  const capturesHTML = quickCaptures.length > 0 ? `
+    <h2 class="section-heading">Memories Along the Way</h2>
+    <div class="captures-grid">
+      ${quickCaptures.map(qc => {
+        const mapsLink = qc.gpsCoords
+          ? `https://www.google.com/maps?q=${qc.gpsCoords.lat},${qc.gpsCoords.lng}`
+          : qc.photo?.location && (qc.photo.location.lat !== 0 || qc.photo.location.lng !== 0)
+            ? `https://www.google.com/maps?q=${qc.photo.location.lat},${qc.photo.location.lng}`
+            : null;
+        return `
+        <div class="capture-card">
+          ${qc.photo ? `<img src="${qc.photo.dataUrl}" alt="${escapeHtml(qc.photo.caption || '')}" />` : ''}
+          <div class="capture-body">
+            <div class="capture-location">${escapeHtml(qc.autoTaggedLocation || 'Quick Memory')}</div>
+            ${qc.category ? `<span class="capture-category">${escapeHtml(qc.category)}</span>` : ''}
+            ${qc.photo?.caption ? `<p class="capture-caption">${escapeHtml(qc.photo.caption)}</p>` : ''}
+            ${qc.gpsCoords ? `<p class="capture-gps">${qc.gpsCoords.lat.toFixed(5)}, ${qc.gpsCoords.lng.toFixed(5)}${mapsLink ? ` · <a class="capture-maps" href="${mapsLink}">View on Maps</a>` : ''}</p>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>` : '';
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
 <head>
-  <title>${escapeHtml(journal.metadata.title)}</title>
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-    h1 { color: #2563eb; }
-    .stop { border-left: 3px solid #10b981; padding-left: 15px; margin: 20px 0; }
-    .highlight { background: #fef3c7; padding: 10px; border-radius: 8px; }
-    .rating { color: #f59e0b; }
-  </style>
+  <meta charset="UTF-8">
+  <title>${escapeHtml(metadata.title)}</title>
+  <style>${JOURNAL_HTML_STYLES}</style>
 </head>
 <body>
-  <h1>🚗 ${escapeHtml(journal.metadata.title)}</h1>
-  <p><strong>Distance:</strong> ${journal.tripSummary.totalDistanceKm.toFixed(1)} km |
-     <strong>Duration:</strong> ${(journal.tripSummary.totalDurationMinutes / 60).toFixed(1)} hours</p>
-  <p><strong>Travelers:</strong> ${escapeHtml(journal.metadata.travelers?.join(', ') || 'Unknown')}</p>
+  <div class="cover">
+    <div class="cover-brand">My Experience Engine · Trip Journal</div>
+    <h1 class="cover-title">${escapeHtml(metadata.title)}</h1>
+    ${routeLabel ? `<p class="cover-route">${routeLabel}</p>` : ''}
+    ${dateRange ? `<p class="cover-dates">${dateRange}</p>` : ''}
+    <div class="cover-stats">
+      <div><span class="stat-value">${tripSummary.totalDistanceKm.toFixed(0)} km</span><span class="stat-label">Distance</span></div>
+      <div><span class="stat-value">${stats.stopsVisited}</span><span class="stat-label">Stops visited</span></div>
+      <div><span class="stat-value">${stats.photosCount}</span><span class="stat-label">Photos</span></div>
+      <div><span class="stat-value">${stats.highlightsCount}</span><span class="stat-label">Highlights</span></div>
+      ${metadata.travelers?.length ? `<div><span class="stat-value">${escapeHtml(metadata.travelers.join(', '))}</span><span class="stat-label">Travelers</span></div>` : ''}
+    </div>
+  </div>
 
-  <h2>Journey Highlights</h2>
-  ${journal.entries.map(e => {
-    const stop = resolveJournalEntryLocation(summary, e);
-    const photosHTML = e.photos.length > 0
-      ? `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin: 15px 0;">
-          ${e.photos.map(p => `
-            <div>
-              <img src="${p.dataUrl}" alt="${escapeHtml(p.caption || 'Photo')}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" />
-              ${p.caption ? `<p style="font-size: 12px; color: #6b7280; margin-top: 4px; text-align: center;">${escapeHtml(p.caption)}</p>` : ''}
-            </div>
-          `).join('')}
-         </div>`
-      : '';
+  <h2 class="section-heading">Journey</h2>
+  ${stopsHTML}
 
-    return `
-    <div class="stop ${e.isHighlight ? 'highlight' : ''}">
-      <h3>${escapeHtml(stop?.name || 'Unknown')}</h3>
-      ${e.rating ? `<div class="rating">${'⭐'.repeat(e.rating)}</div>` : ''}
-      ${photosHTML}
-      ${e.notes ? `<p>${escapeHtml(e.notes)}</p>` : ''}
-      ${e.isHighlight ? `<p><strong>✨ ${escapeHtml(e.highlightReason || '')}</strong></p>` : ''}
-      <p><em>Status: ${e.status}</em></p>
-    </div>`;
-  }).join('')}
+  ${capturesHTML}
 
-  ${journal.quickCaptures.length > 0 ? `
-  <h2>📍 Memories Along the Way</h2>
-  ${journal.quickCaptures.map(qc => {
-    const mapsLink = qc.gpsCoords
-      ? `https://www.google.com/maps?q=${qc.gpsCoords.lat},${qc.gpsCoords.lng}`
-      : qc.photo?.location && (qc.photo.location.lat !== 0 || qc.photo.location.lng !== 0)
-        ? `https://www.google.com/maps?q=${qc.photo.location.lat},${qc.photo.location.lng}`
-        : null;
-    return `
-    <div style="border-left: 3px solid #a855f7; padding-left: 15px; margin: 15px 0;">
-      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-        <strong>${escapeHtml(qc.autoTaggedLocation || 'Quick Memory')}</strong>
-        ${qc.category ? `<span style="font-size: 11px; background: #f3e8ff; color: #7c3aed; padding: 2px 6px; border-radius: 9999px;">${escapeHtml(qc.category)}</span>` : ''}
-        ${mapsLink ? `<a href="${mapsLink}" style="font-size: 11px; color: #2563eb;">📍 View on Maps</a>` : ''}
-      </div>
-      ${qc.photo ? `<img src="${qc.photo.dataUrl}" alt="${escapeHtml(qc.photo.caption || 'Memory')}" style="width: 100%; max-width: 400px; height: 200px; object-fit: cover; border-radius: 8px; margin-bottom: 6px;" />` : ''}
-      ${qc.photo?.caption ? `<p style="margin: 4px 0; color: #374151;">${escapeHtml(qc.photo.caption)}</p>` : ''}
-      ${qc.gpsCoords ? `<p style="font-size: 11px; color: #9ca3af;">GPS: ${qc.gpsCoords.lat.toFixed(5)}, ${qc.gpsCoords.lng.toFixed(5)}</p>` : ''}
-    </div>`;
-  }).join('')}
-  ` : ''}
+  <h2 class="section-heading">Trip Stats</h2>
+  <table class="stats-table">
+    <tr><td>Total stops</td><td>${stats.stopsVisited + stats.stopsSkipped}</td></tr>
+    <tr><td>Visited</td><td>${stats.stopsVisited}</td></tr>
+    <tr><td>Skipped</td><td>${stats.stopsSkipped}</td></tr>
+    <tr><td>Photos captured</td><td>${stats.photosCount}</td></tr>
+    <tr><td>Highlights</td><td>${stats.highlightsCount}</td></tr>
+    <tr><td>Distance</td><td>${tripSummary.totalDistanceKm.toFixed(1)} km</td></tr>
+    <tr><td>Drive time</td><td>${(tripSummary.totalDurationMinutes / 60).toFixed(1)} h</td></tr>
+  </table>
 
-  <h2>Trip Statistics</h2>
-  <ul>
-    <li>Total Stops: ${journal.stats.stopsVisited + journal.stats.stopsSkipped}</li>
-    <li>Stops Visited: ${journal.stats.stopsVisited}</li>
-    <li>Photos Captured: ${journal.stats.photosCount}</li>
-    <li>Highlights: ${journal.stats.highlightsCount}</li>
-  </ul>
-
-  <p style="text-align: center; color: #6b7280; margin-top: 40px;">
-    Generated by My Experience Engine on ${new Date().toLocaleDateString()}
-  </p>
+  <footer>Generated by My Experience Engine · ${new Date().toLocaleDateString()}</footer>
 </body>
 </html>`;
 
-  const blob = new Blob([journalHTML], { type: 'text/html' });
+  const blob = new Blob([html], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  const safeTitle = journal.metadata.title
+  const safeTitle = metadata.title
     // eslint-disable-next-line no-control-regex
     .replace(/[<>:"/\\|?*\x00-\x1f]/g, '')
     .replace(/\s+/g, '-')
@@ -104,11 +208,13 @@ export function exportJournalAsHTML(journal: TripJournal, summary: SegmentLookup
   URL.revokeObjectURL(url);
 
   showToast({
-    message: 'Journal exported! Open the HTML file and print to PDF (Ctrl+P)',
+    message: 'Journal exported! Open the HTML file in your browser and print to PDF (Ctrl+P)',
     type: 'success',
     duration: 4000,
   });
 }
+
+// ── Template export ───────────────────────────────────────────────────────────
 
 /**
  * Export the trip as a loadable JSON template that others can import.

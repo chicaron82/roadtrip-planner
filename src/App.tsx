@@ -16,7 +16,7 @@ import {
 } from './hooks';
 import { useArrivalSnap } from './hooks/useArrivalSnap';
 import { useCalculationMessages } from './hooks/useCalculationMessages';
-import { getHistory } from './lib/storage';
+import { getHistory, saveActiveSession } from './lib/storage';
 import { getWeightedFuelEconomyL100km } from './lib/unit-conversions';
 import type { HistoryTripSnapshot } from './types';
 
@@ -104,7 +104,7 @@ function AppContent() {
     onAdventureComplete: () => setShowAdventureMode(false),
   });
 
-  const { activeJournal, viewMode, startJournal, updateActiveJournal, setViewMode, clearJournal, isJournalComplete, confirmComplete, error: journalError, clearError: clearJournalError } =
+  const { activeJournal, viewMode, startJournal, updateActiveJournal, setViewMode, clearJournal, isJournalComplete, showCompleteOverlay, confirmComplete, error: journalError, clearError: clearJournalError } =
     useJournal({ summary, settings, vehicle, origin: tripOrigin, defaultTitle: activeChallenge?.title });
 
   const {
@@ -160,10 +160,20 @@ function AppContent() {
 
   const { restoreHistoryTripSession } = useTripRestore({
     setLocations,
+    setSettings,
+    setTripConfirmed,
+    setTripMode,
     calculateAndDiscover,
     forceStep,
     markStepComplete,
   });
+
+  // Save active session to localStorage whenever the trip is confirmed and locations are valid.
+  // Cleared automatically by resetTripSession (Plan New Trip).
+  useEffect(() => {
+    if (!tripConfirmed || !locations.some(l => l.lat !== 0)) return;
+    saveActiveSession(locations, settings);
+  }, [tripConfirmed, locations, settings]);
 
   const hasActiveSession = locations.some(loc => loc.name && loc.name.trim() !== '');
   const lastDestination = (() => {
@@ -188,7 +198,7 @@ function AppContent() {
     setShowAdventureMode,
     handleImportTemplate, handleSelectChallenge, activeChallenge,
     activePreset, presetOptions, handlePresetChange, handleSharePreset, shareJustCopied,
-    viewMode, setViewMode, activeJournal, isJournalComplete, startJournal, updateActiveJournal, confirmJournalComplete: confirmComplete,
+    viewMode, setViewMode, activeJournal, isJournalComplete, showCompleteOverlay, startJournal, updateActiveJournal, confirmJournalComplete: confirmComplete,
     tripConfirmed, setTripConfirmed, history,
     addedStopCount: addedStops.length,
     externalStops: [...asSuggestedStops, ...mirroredReturnStops],

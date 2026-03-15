@@ -177,7 +177,7 @@ export function DayHeader({
       )}
 
       {/* Overnight Stop Info */}
-      {day.overnight && (
+      {day.overnight && overnightNights && overnightNights > 0 && (
         <div
           className={cn(
             "mb-4 p-3 rounded-lg bg-indigo-50 border border-indigo-200",

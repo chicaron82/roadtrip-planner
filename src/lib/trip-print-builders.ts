@@ -13,6 +13,7 @@ import type { DriverRotationResult, DriverStats } from './driver-rotation';
 import { computeSwapAssignments } from './driver-rotation';
 import type { PrintInput } from './canonical-trip';
 import type { TimedEvent } from './trip-timeline';
+import type { TripJournal, JournalEntry, QuickCapture } from '../types';
 import { buildDayHTML } from './trip-print-day';
 import { PRINT_STYLES } from './trip-print-styles';
 import { buildCoverPageHTML } from './trip-print-cover';
@@ -137,6 +138,7 @@ export function buildPrintHTML(
   printInput: PrintInput,
   driverRotation: DriverRotationResult | null,
   timedEvents: TimedEvent[],
+  journal?: TripJournal,
 ): string {
   const {
     summary,
@@ -179,7 +181,28 @@ export function buildPrintHTML(
     const tripBudgetRemaining = settings.budgetMode === 'plan-to-budget' && settings.budget.total > 0
       ? settings.budget.total - runningTripSpend
       : undefined;
-    return buildDayHTML(day, settings, driverRotation, units, timedEvents, tripBudgetRemaining, swapSuggestions, settings.driverNames);
+
+    // Collect journal entries for this day.
+    // Use stopId as the canonical anchor (per JournalEntry spec); fall back to
+    // segmentIndex only for older entries that predate the stopId field.
+    const journalEntries: JournalEntry[] = journal
+      ? (() => {
+          const stopIds = new Set(day.segments.map(seg => seg.to.id).filter(Boolean));
+          const segIndices = new Set(day.segmentIndices);
+          return journal.entries.filter(e =>
+            e.stopId ? stopIds.has(e.stopId) : segIndices.has(e.segmentIndex)
+          );
+        })()
+      : [];
+    // Quick captures use autoTaggedSegment (flat index) — no stopId equivalent.
+    const quickCaptures: QuickCapture[] = journal
+      ? day.segmentIndices.flatMap(si =>
+          journal.quickCaptures.filter(qc => qc.autoTaggedSegment === si)
+            .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+        )
+      : [];
+
+    return buildDayHTML(day, settings, driverRotation, units, timedEvents, tripBudgetRemaining, swapSuggestions, settings.driverNames, journalEntries, quickCaptures);
   }).join('\n');
 
   return `<!DOCTYPE html>

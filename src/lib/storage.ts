@@ -6,6 +6,7 @@ const KEYS = {
   SETTINGS: 'roadtrip_settings',
   LAST_ORIGIN: 'roadtrip_last_origin',
   DEFAULT_SETTINGS: 'roadtrip_default_settings',
+  ACTIVE_SESSION: 'roadtrip_active_session',
 };
 
 // Re-export vehicle/garage storage (moved to storage-garage.ts)
@@ -155,4 +156,49 @@ export const clearHistory = (): void => {
 
 export const clearSettingsDefaults = (): void => {
   localStorage.removeItem(KEYS.DEFAULT_SETTINGS);
+};
+
+// --- Active Trip Session ---
+// Persists the in-progress trip so it survives background tab refreshes on mobile.
+// Cleared explicitly when the user starts a new trip.
+
+const ACTIVE_SESSION_VERSION = 1;
+
+interface ActiveTripSession {
+  locations: Location[];
+  settings: TripSettings;
+  savedAt: string;
+  version: number;
+}
+
+export const saveActiveSession = (locations: Location[], settings: TripSettings): void => {
+  try {
+    const session: ActiveTripSession = {
+      locations,
+      settings,
+      savedAt: new Date().toISOString(),
+      version: ACTIVE_SESSION_VERSION,
+    };
+    localStorage.setItem(KEYS.ACTIVE_SESSION, JSON.stringify(session));
+  } catch (e) {
+    console.warn('Failed to save active session', e);
+  }
+};
+
+export const loadActiveSession = (): { locations: Location[]; settings: TripSettings } | null => {
+  try {
+    const data = localStorage.getItem(KEYS.ACTIVE_SESSION);
+    if (!data) return null;
+    const session = JSON.parse(data) as ActiveTripSession;
+    if (session.version !== ACTIVE_SESSION_VERSION) return null;
+    if (!Array.isArray(session.locations) || session.locations.length < 2) return null;
+    if (!session.locations.some(l => l.lat !== 0 && l.lng !== 0)) return null;
+    return { locations: session.locations, settings: session.settings };
+  } catch {
+    return null;
+  }
+};
+
+export const clearActiveSession = (): void => {
+  localStorage.removeItem(KEYS.ACTIVE_SESSION);
 };

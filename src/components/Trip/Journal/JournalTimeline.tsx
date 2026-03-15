@@ -156,7 +156,9 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
           const isCurrent = originalIndex === currentStopIndex;
           const isVisited = entry?.status === 'visited';
           const afterFreeDays = freeDaysAfterSegment.get(flatIndex) || [];
-          const segmentCaptures = journal.quickCaptures.filter(qc => qc.autoTaggedSegment === originalIndex);
+          const segmentCaptures = journal.quickCaptures
+            .filter(qc => qc.autoTaggedSegment === originalIndex)
+            .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
           return (
             <div key={`stop-${originalIndex}-${flatIndex}`}>
@@ -196,7 +198,9 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
                           <div className="font-semibold text-purple-900 text-sm">
                             {capture.autoTaggedLocation || 'Quick Memory'}
                           </div>
-                          <div className="text-xs text-purple-600 mt-0.5">Captured on the way</div>
+                          <div className="text-xs text-purple-600 mt-0.5">
+                            {formatTime(new Date(capture.timestamp))}
+                          </div>
                         </div>
                       </div>
                       {capture.photo && (

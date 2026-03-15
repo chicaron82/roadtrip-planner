@@ -30,6 +30,7 @@ export interface Step3HeaderModel {
   precomputedEvents?: TimedEvent[];
   isCalculating?: boolean;
   tripMode?: TripMode;
+  journal?: TripJournal | null;
   onOpenGoogleMaps: () => void;
   onCopyShareLink: () => void;
 }
@@ -96,6 +97,7 @@ export interface Step3CommitModel {
   precomputedEvents?: TimedEvent[];
   isCalculating?: boolean;
   tripMode?: TripMode;
+  journal?: TripJournal | null;
   onConfirmTrip: () => void;
   onUnconfirmTrip: () => void;
   onSetJournalMode: () => void;
@@ -111,6 +113,7 @@ interface BuildStep3HeaderModelOptions {
   precomputedEvents?: TimedEvent[];
   isCalculating?: boolean;
   tripMode?: TripMode;
+  journal?: TripJournal | null;
   onOpenGoogleMaps: () => void;
   onCopyShareLink: () => void;
 }
@@ -202,6 +205,7 @@ interface BuildStep3ViewerModelOptions {
   activeChallenge?: TripChallenge | null;
   tripMode: TripMode;
   isJournalComplete?: boolean;
+  showCompleteOverlay?: boolean;
   onConfirmJournalComplete?: () => void;
   onStartJournal: (title?: string) => void;
   onUpdateJournal: (journal: TripJournal) => void;
@@ -240,6 +244,7 @@ interface BuildStep3CommitModelOptions {
   precomputedEvents?: TimedEvent[];
   isCalculating?: boolean;
   tripMode?: TripMode;
+  journal?: TripJournal | null;
   onConfirmTrip: () => void;
   onUnconfirmTrip: () => void;
   onSetJournalMode: () => void;

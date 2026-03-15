@@ -52,6 +52,7 @@ export interface UseStep3ControllerOptions {
   onOpenGoogleMaps: () => void;
   onCopyShareLink: () => void;
   isJournalComplete?: boolean;
+  showCompleteOverlay?: boolean;
   onConfirmJournalComplete?: () => void;
   onStartJournal: (title?: string) => void;
   onUpdateJournal: (journal: TripJournal) => void;

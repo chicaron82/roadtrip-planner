@@ -26,6 +26,7 @@ import type { ViewMode } from './Journal/JournalModeToggle';
 import { ItineraryTimelineContent } from './Itinerary/ItineraryTimeline';
 import { StartJournalCTA } from './Journal/JournalModeToggle';
 import type { ViewerRouteSummary } from '../../lib/trip-summary-slices';
+import { useTripCore } from '../../contexts/TripContext';
 
 const SmartTimeline = lazy(() => import('./Timeline/SmartTimeline').then(m => ({ default: m.SmartTimeline })));
 const JournalTimeline = lazy(() => import('./Journal/JournalTimeline').then(m => ({ default: m.JournalTimeline })));
@@ -102,6 +103,8 @@ export function TripTimelineView({
 }: TripTimelineViewProps) {
   // Toggle for SmartTimeline (simulation view) — hidden by default, available for power users
   const [showSimulation, setShowSimulation] = useState(false);
+  const { customTitle } = useTripCore();
+  const defaultJournalName = activeChallenge?.title ?? customTitle ?? undefined;
 
   const handleStopOverridesChange = (overrides: StopOverrides) => {
     if (activeJournal) onUpdateJournal({ ...activeJournal, stopOverrides: overrides });
@@ -161,7 +164,7 @@ export function TripTimelineView({
         ) : (
           <StartJournalCTA
             onStart={onStartJournal}
-            defaultName={activeChallenge?.title}
+            defaultName={defaultJournalName}
             tripMode={tripMode}
           />
         )

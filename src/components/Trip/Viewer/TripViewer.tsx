@@ -65,7 +65,7 @@ export function TripViewer({
   activeJournal,
   activeChallenge,
   tripMode,
-  isJournalComplete,
+  showCompleteOverlay,
   onConfirmJournalComplete,
   poiSuggestions,
   poiInference,
@@ -90,8 +90,9 @@ export function TripViewer({
   const [isExpanded, setIsExpanded] = useState(false);
   const [isJournalFullscreen, setIsJournalFullscreen] = useState(false);
 
-  // Show completion confirmation when the active journal has all stops visited.
-  if (viewMode === 'journal' && isJournalComplete && activeJournal && onConfirmJournalComplete) {
+  // Show completion overlay until user dismisses it. Uses showCompleteOverlay
+  // (not isJournalComplete) so confirming keeps the journal alive for TripRecapCard.
+  if (viewMode === 'journal' && showCompleteOverlay && activeJournal && onConfirmJournalComplete) {
     return <JournalCompleteOverlay journal={activeJournal} onConfirm={onConfirmJournalComplete} />;
   }
 

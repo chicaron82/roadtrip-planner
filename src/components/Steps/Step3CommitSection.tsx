@@ -1,7 +1,7 @@
 import type { TimedEvent } from '../../lib/trip-timeline';
 import type { TripPrintViewProps } from '../Trip/StepHelpers/TripPrintView';
 import type { ViewMode } from '../Trip/Journal/JournalModeToggle';
-import type { TripMode } from '../../types';
+import type { TripMode, TripJournal } from '../../types';
 import { ConfirmTripCard } from '../Trip/StepHelpers/ConfirmTripCard';
 import { TripBottomActions } from '../Trip/StepHelpers/TripBottomActions';
 
@@ -15,6 +15,7 @@ interface Step3CommitSectionProps {
   precomputedEvents?: TimedEvent[];
   isCalculating?: boolean;
   tripMode?: TripMode;
+  journal?: TripJournal | null;
   onConfirmTrip: () => void;
   onUnconfirmTrip: () => void;
   onSetJournalMode: () => void;
@@ -32,6 +33,7 @@ export function Step3CommitSection({
   precomputedEvents,
   isCalculating,
   tripMode,
+  journal,
   onConfirmTrip,
   onUnconfirmTrip,
   onSetJournalMode,
@@ -57,6 +59,7 @@ export function Step3CommitSection({
         shareUrl={shareUrl}
         precomputedEvents={precomputedEvents}
         isCalculating={isCalculating}
+        journal={journal}
         onOpenGoogleMaps={onOpenGoogleMaps}
         onCopyShareLink={onCopyShareLink}
       />

@@ -547,6 +547,105 @@ export const PRINT_STYLES = `
     color: #bbb;
   }
 
+  /* ── Journal section ────────────────────────────────────────────────────── */
+
+  .journal-section {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: #faf7ff;
+    border: 1px solid #e0d7f5;
+    border-radius: 6px;
+    page-break-inside: avoid;
+  }
+
+  .journal-section-label {
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #7c3aed;
+    margin-bottom: 8px;
+  }
+
+  .journal-entry {
+    margin-bottom: 8px;
+  }
+
+  .journal-notes {
+    font-size: 9.5pt;
+    color: #333;
+    font-style: italic;
+    margin-bottom: 6px;
+    line-height: 1.5;
+  }
+
+  .journal-rating {
+    color: #f59e0b;
+    font-size: 10pt;
+    display: block;
+    margin-bottom: 3px;
+  }
+
+  .journal-photos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+  }
+
+  .journal-photo {
+    margin: 0;
+    flex: 0 0 auto;
+  }
+
+  .journal-photo img {
+    max-width: 180px;
+    max-height: 130px;
+    width: auto;
+    height: auto;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    display: block;
+  }
+
+  .journal-photo figcaption {
+    font-size: 8pt;
+    color: #666;
+    margin-top: 3px;
+    max-width: 180px;
+    font-style: italic;
+  }
+
+  .journal-captures {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 6px;
+  }
+
+  .capture-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+  }
+
+  .capture-photo img {
+    max-width: 140px;
+    max-height: 110px;
+    width: auto;
+    height: auto;
+    border-radius: 4px;
+    border: 1px solid #c4b5fd;
+    display: block;
+  }
+
+  .capture-time {
+    font-size: 7.5pt;
+    color: #7c3aed;
+    font-family: ui-monospace, monospace;
+  }
+
   /* Itinerary section header (top of Page 2) */
   .itinerary-header {
     font-size: 13pt;

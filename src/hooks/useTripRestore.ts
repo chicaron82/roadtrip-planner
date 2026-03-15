@@ -19,11 +19,15 @@
  * 💚 My Experience Engine
  */
 
-import { useCallback } from 'react';
-import type { HistoryTripSnapshot, Location } from '../types';
+import { useCallback, useEffect, useRef } from 'react';
+import type { HistoryTripSnapshot, Location, TripSettings, TripMode } from '../types';
+import { loadActiveSession } from '../lib/storage';
 
 interface UseTripRestoreOptions {
   setLocations: (locations: Location[]) => void;
+  setSettings: (settings: TripSettings) => void;
+  setTripConfirmed: (value: boolean) => void;
+  setTripMode: (mode: TripMode | null) => void;
   calculateAndDiscover: () => Promise<void>;
   forceStep: (step: 1 | 2 | 3) => void;
   markStepComplete: (step: number) => void;
@@ -36,6 +40,9 @@ interface UseTripRestoreReturn {
 
 export function useTripRestore({
   setLocations,
+  setSettings,
+  setTripConfirmed,
+  setTripMode,
   calculateAndDiscover,
   forceStep,
   markStepComplete,
@@ -58,6 +65,35 @@ export function useTripRestore({
     await new Promise<void>(resolve => setTimeout(resolve, 0));
     await calculateAndDiscover();
   }, [setLocations, calculateAndDiscover, forceStep, markStepComplete]);
+
+  // ── Active session restore (survives background tab refresh on mobile) ──
+  // Runs once on mount. If a saved session exists, restores locations + settings
+  // and recalculates the trip so the ghost car and journal resume automatically.
+  const sessionRestored = useRef(false);
+  const calculateRef = useRef(calculateAndDiscover);
+  calculateRef.current = calculateAndDiscover;
+
+  useEffect(() => {
+    if (sessionRestored.current) return;
+    sessionRestored.current = true;
+
+    const saved = loadActiveSession();
+    if (!saved) return;
+
+    setLocations(saved.locations);
+    setSettings(saved.settings);
+    setTripMode('plan');
+    forceStep(1);
+    markStepComplete(1);
+    markStepComplete(2);
+
+    setTimeout(async () => {
+      await calculateRef.current();
+      setTripConfirmed(true);
+    }, 0);
+  // Intentional: one-shot mount effect. All setters are stable Zustand/useState refs.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return {
     restoreHistoryTripSession,

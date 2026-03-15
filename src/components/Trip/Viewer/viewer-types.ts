@@ -40,6 +40,7 @@ export interface TripViewerProps {
 
   // Journal completion
   isJournalComplete?: boolean;
+  showCompleteOverlay?: boolean;
   onConfirmJournalComplete?: () => void;
 
   // Intent callbacks — viewer emits, upstream controller mutates canonical truth

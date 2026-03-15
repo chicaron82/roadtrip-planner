@@ -1,9 +1,10 @@
-import type { TripDay, TripSettings, RouteSegment } from '../types';
+import type { TripDay, TripSettings, RouteSegment, JournalEntry, QuickCapture } from '../types';
 import type { DriverRotationResult } from './driver-rotation';
 import type { TimedEvent } from './trip-timeline-types';
 import { formatDriveTime, getDriverName } from './driver-rotation';
 import { formatTime, formatDuration } from './trip-timeline';
 import { formatDateInZone, lngToIANA } from './trip-timezone';
+import { escapeHtml } from './utils';
 import {
   formatCurrency,
   formatDistance,
@@ -176,6 +177,8 @@ export function buildDayHTML(
   tripBudgetRemaining?: number,
   swapSuggestions?: Record<string, number>,
   driverNames?: string[],
+  journalEntries?: JournalEntry[],
+  quickCaptures?: QuickCapture[],
 ): string {
   const dayType = day.dayType || 'planned';
   const departureMs = day.totals.departureTime ? new Date(day.totals.departureTime).getTime() : null;
@@ -263,6 +266,7 @@ export function buildDayHTML(
   }
 
   const notesHTML = day.notes ? `<div class="day-notes">📝 ${day.notes}</div>` : '';
+  const journalHTML = buildJournalHTML(journalEntries, quickCaptures);
   const budgetHTML = buildBudgetHTML(day, tripBudgetRemaining);
 
   const departureTimezone = day.segments[0]?.from.lng != null ? lngToIANA(day.segments[0].from.lng) : undefined;
@@ -303,9 +307,55 @@ export function buildDayHTML(
       ${specialContent}
       ${timelineHTML}
       ${notesHTML}
+      ${journalHTML}
       ${budgetHTML}
     </div>
   `;
+}
+
+function buildJournalHTML(entries?: JournalEntry[], captures?: QuickCapture[]): string {
+  const hasEntries = entries && entries.some(e => e.notes || e.photos.length > 0);
+  const hasCaptures = captures && captures.length > 0;
+  if (!hasEntries && !hasCaptures) return '';
+
+  const parts: string[] = [];
+
+  if (hasEntries) {
+    for (const entry of entries!) {
+      if (!entry.notes && entry.photos.length === 0) continue;
+      const photosHTML = entry.photos.length > 0
+        ? `<div class="journal-photos">${entry.photos.map(p => `
+            <figure class="journal-photo">
+              <img src="${p.dataUrl}" alt="${escapeHtml(p.caption || '')}" />
+              ${p.caption ? `<figcaption>${escapeHtml(p.caption)}</figcaption>` : ''}
+            </figure>`).join('')}</div>`
+        : '';
+      const ratingHTML = entry.rating ? `<span class="journal-rating">${'★'.repeat(entry.rating)}${'☆'.repeat(5 - entry.rating)}</span>` : '';
+      parts.push(`
+        <div class="journal-entry">
+          ${ratingHTML}
+          ${entry.notes ? `<p class="journal-notes">${escapeHtml(entry.notes)}</p>` : ''}
+          ${photosHTML}
+        </div>`);
+    }
+  }
+
+  if (hasCaptures) {
+    const captureItems = captures!.map(qc => {
+      const timeStr = new Date(qc.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const photoHTML = qc.photo
+        ? `<figure class="journal-photo capture-photo">
+            <img src="${qc.photo.dataUrl}" alt="${escapeHtml(qc.photo.caption || '')}" />
+            ${qc.photo.caption ? `<figcaption>${escapeHtml(qc.photo.caption)}</figcaption>` : ''}
+           </figure>`
+        : '';
+      const location = qc.autoTaggedLocation ? ` · ${escapeHtml(qc.autoTaggedLocation)}` : '';
+      return `<div class="capture-item">${photoHTML}<span class="capture-time">${timeStr}${location}</span></div>`;
+    }).join('');
+    parts.push(`<div class="journal-captures">${captureItems}</div>`);
+  }
+
+  return `<div class="journal-section"><div class="journal-section-label">📔 Journal</div>${parts.join('')}</div>`;
 }
 
 function buildHotelHTML(day: TripDay): string {

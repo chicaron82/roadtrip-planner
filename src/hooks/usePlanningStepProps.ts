@@ -47,6 +47,7 @@ interface UsePlanningStepPropsOptions {
   setViewMode: (m: ViewMode) => void;
   activeJournal: TripJournal | null;
   isJournalComplete: boolean;
+  showCompleteOverlay: boolean;
   startJournal: (title?: string) => void;
   updateActiveJournal: (j: TripJournal) => void;
   confirmJournalComplete: () => void;
@@ -134,6 +135,7 @@ export function usePlanningStepProps(o: UsePlanningStepPropsOptions): PlanningSt
     onOpenGoogleMaps: o.openInGoogleMaps,
     onCopyShareLink: o.copyShareLink,
     isJournalComplete: o.isJournalComplete,
+    showCompleteOverlay: o.showCompleteOverlay,
     onConfirmJournalComplete: o.confirmJournalComplete,
     onStartJournal: o.startJournal,
     onUpdateJournal: o.updateActiveJournal,
