@@ -5,6 +5,9 @@
 		},
 		{
 			"path": "."
+		},
+		{
+			"path": "../chicharons-kitchen"
 		}
 	],
 	"settings": {
