@@ -6,6 +6,7 @@
  */
 import type { Location } from '../types';
 import { NOMINATIM_BASE_URL } from './constants';
+import { sanitizeLocationName } from './location-sanitizer';
 
 interface PhotonFeature {
   type: 'Feature';
@@ -97,7 +98,7 @@ export async function searchLocations(query: string): Promise<Partial<Location>[
       id: crypto.randomUUID(),
       lat: parseFloat(item.lat),
       lng: parseFloat(item.lon),
-      name: item.display_name.split(',').slice(0, 2).join(',').trim(),
+      name: sanitizeLocationName(item.display_name),
       address: item.display_name,
     }));
   } catch (error) {
