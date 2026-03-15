@@ -31,6 +31,7 @@ interface PlannerSidebarShellProps {
   onToggleCategory: (id: POICategory) => void;
   error: string | null;
   onClearError: () => void;
+  calculationMessage?: string | null;
   stepProps: React.ComponentProps<typeof PlanningStepContent>;
 }
 
@@ -55,6 +56,7 @@ export function PlannerSidebarShell({
   onToggleCategory,
   error,
   onClearError,
+  calculationMessage,
   stepProps,
 }: PlannerSidebarShellProps) {
   return (
@@ -86,6 +88,7 @@ export function PlannerSidebarShell({
             onToggleCategory={onToggleCategory}
             error={error}
             onClearError={onClearError}
+            calculationMessage={calculationMessage}
           >
             <ErrorBoundary FallbackComponent={ErrorFallback}>
               <PlanningStepContent {...stepProps} />

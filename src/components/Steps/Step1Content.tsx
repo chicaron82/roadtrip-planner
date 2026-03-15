@@ -1,12 +1,11 @@
 import { Calendar, Upload } from 'lucide-react';
-import type { Location, TripChallenge, TripMode, TripSettings } from '../../types';
+import type { Location, TripMode, TripSettings } from '../../types';
 import type { TemplateImportResult } from '../../lib/url';
 import { useStep1Controller } from '../../hooks/useStep1Controller';
 import { useTripCore } from '../../contexts/TripContext';
 import { buildAutoTitle, GUIDANCE } from '../../lib/mee-tokens';
 import { LocationList } from '../Trip/Location/LocationList';
 import { TripNameInput } from '../UI/TripNameInput';
-import { ChallengeCards } from '../Trip/Adventure/ChallengeCards';
 import { Button } from '../UI/Button';
 import { Label } from '../UI/Label';
 import { Switch } from '../UI/Switch';
@@ -28,7 +27,6 @@ interface Step1ContentProps {
   tripMode: TripMode;
   onShowAdventure: () => void;
   onImportTemplate?: (result: TemplateImportResult) => void;
-  onSelectChallenge?: (challenge: TripChallenge) => void;
 }
 
 export function Step1Content({
@@ -39,7 +37,6 @@ export function Step1Content({
   tripMode,
   onShowAdventure,
   onImportTemplate,
-  onSelectChallenge,
 }: Step1ContentProps) {
   const { customTitle, setCustomTitle } = useTripCore();
   const {
@@ -278,16 +275,6 @@ export function Step1Content({
           >
             🧭 Switch to Adventure Mode
           </button>
-        )}
-
-        {/* Chicharon's Challenges */}
-        {onSelectChallenge && (
-          <div className="mt-4">
-            <ChallengeCards
-              onSelectChallenge={onSelectChallenge}
-              initialOrigin={locations.find(l => l.type === 'origin') ?? locations[0] ?? null}
-            />
-          </div>
         )}
 
         {/* Load MEE Time Template */}

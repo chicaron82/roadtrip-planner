@@ -3,7 +3,7 @@ import { Step1Content } from './Step1Content';
 import { Step2Content } from './Step2Content';
 import { Step3Content, type Step3ContentProps } from './Step3Content';
 import type {
-  Location, Vehicle, TripSettings, TripSummary, TripMode, TripChallenge,
+  Location, Vehicle, TripSettings, TripSummary, TripMode,
 } from '../../types';
 import type { StylePreset } from '../../lib/style-presets';
 import type { TemplateImportResult } from '../../lib/url';
@@ -23,7 +23,6 @@ interface PlanningStepContentProps {
   // Step 1
   onShowAdventure: () => void;
   onImportTemplate: (r: TemplateImportResult) => void;
-  onSelectChallenge: (c: TripChallenge) => void;
   // Step 2
   activePreset: StylePreset;
   presetOptions: StylePreset[];
@@ -42,7 +41,6 @@ export function PlanningStepContent(p: PlanningStepContentProps) {
         tripMode={p.tripMode}
         onShowAdventure={p.onShowAdventure}
         onImportTemplate={p.onImportTemplate}
-        onSelectChallenge={p.onSelectChallenge}
       />
     );
   }

@@ -41,6 +41,9 @@ interface WizardContentProps {
   error: string | null;
   onClearError: () => void;
 
+  // Progressive calculation message
+  calculationMessage?: string | null;
+
   // Content
   children: React.ReactNode;
 }
@@ -58,6 +61,7 @@ export function WizardContent({
   onToggleCategory,
   error,
   onClearError,
+  calculationMessage,
   children,
 }: WizardContentProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -128,7 +132,7 @@ export function WizardContent({
               disabled={!canProceed || isCalculating}
             >
               {isCalculating ? (
-                <><Loader2 size={14} className="animate-spin" /> Calculating…</>
+                <><Loader2 size={14} className="animate-spin" /> {calculationMessage ?? 'Calculating…'}</>
               ) : planningStep === 2 ? (
                 <>{MODE_LABELS[tripMode]} <ChevronRight size={14} /></>
               ) : (

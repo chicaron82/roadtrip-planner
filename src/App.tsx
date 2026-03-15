@@ -15,6 +15,7 @@ import {
   useAppCallbacks, useTripRestore,
 } from './hooks';
 import { useArrivalSnap } from './hooks/useArrivalSnap';
+import { useCalculationMessages } from './hooks/useCalculationMessages';
 import { getHistory } from './lib/storage';
 import { getWeightedFuelEconomyL100km } from './lib/unit-conversions';
 import type { HistoryTripSnapshot } from './types';
@@ -199,6 +200,8 @@ function AppContent() {
     isCalculating,
   });
 
+  const calculationMessage = useCalculationMessages(isCalculating, locations);
+
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden">
       <div className="absolute inset-0">
@@ -245,6 +248,7 @@ function AppContent() {
             onToggleCategory={handleToggleCategory}
             error={error}
             onClearError={clearError}
+            calculationMessage={calculationMessage}
             stepProps={stepProps}
           />
 
@@ -281,6 +285,7 @@ function AppContent() {
                 setLocations(prev => prev.map(loc => loc.type === 'origin' ? { ...loc, ...newOrigin } : loc));
               }}
               onSelectDestination={handleAdventureSelect}
+              onSelectChallenge={(challenge) => { handleSelectChallenge(challenge); setShowAdventureMode(false); }}
               onClose={() => setShowAdventureMode(false)}
               fuelCostPerKm={(getWeightedFuelEconomyL100km(vehicle, settings.units) / 100) * settings.gasPrice}
             />

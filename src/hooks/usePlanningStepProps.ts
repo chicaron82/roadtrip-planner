@@ -153,7 +153,6 @@ export function usePlanningStepProps(o: UsePlanningStepPropsOptions): PlanningSt
     tripMode: o.tripMode,
     onShowAdventure,
     onImportTemplate: o.handleImportTemplate,
-    onSelectChallenge: o.handleSelectChallenge,
     activePreset: o.activePreset,
     presetOptions: o.presetOptions,
     onPresetChange: o.handlePresetChange,
