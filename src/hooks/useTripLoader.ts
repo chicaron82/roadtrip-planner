@@ -4,6 +4,14 @@ import { buildAdventureBudget } from '../lib/adventure/adventure-service';
 import type { AdventureSelection } from '../components/Trip/Adventure/AdventureMode';
 import type { TemplateImportResult } from '../lib/url';
 import type { PlanningStep } from './useWizard';
+import { formatLocalYMD } from '../lib/utils';
+
+/** Estimate one-way driving days given a distance and max daily drive hours. */
+function estimateDrivingDays(distanceKm: number, maxDriveHoursPerDay: number): number {
+  const avgSpeedKmh = 90;
+  const totalDriveHours = distanceKm / avgSpeedKmh;
+  return Math.max(1, Math.ceil(totalDriveHours / maxDriveHoursPerDay));
+}
 
 interface UseTripLoaderOptions {
   setLocations: React.Dispatch<React.SetStateAction<Location[]>>;
@@ -82,14 +90,34 @@ export function useTripLoader({
       selection.accommodationType,
     );
 
-    setSettings(prev => ({
+    setSettings(prev => {
+      // Calculate returnDate so the planner generates destination stay days to match
+      // the N-day budget Adventure Mode promised. Formula:
+      //   one-way driving days = ceil(distanceKm / (90 km/h × maxDriveHours))
+      //   stay days = max(0, totalDays - 2 × drivingDays)  [for round trip]
+      //   returnDate = departureDate + drivingDays + stayDays
+      const maxDriveHours = prev.maxDriveHours ?? 10;
+      const oneWayDistanceKm = selection.isRoundTrip
+        ? selection.estimatedDistanceKm / 2
+        : selection.estimatedDistanceKm;
+      const drivingDaysOneWay = estimateDrivingDays(oneWayDistanceKm, maxDriveHours);
+      const stayDays = selection.isRoundTrip
+        ? Math.max(0, selection.days - 2 * drivingDaysOneWay)
+        : 0;
+      const departure = new Date(selection.departureDate + 'T00:00:00');
+      const returnDay = new Date(departure);
+      returnDay.setDate(returnDay.getDate() + drivingDaysOneWay + stayDays);
+      const returnDate = selection.isRoundTrip ? formatLocalYMD(returnDay) : '';
+
+      return {
       ...prev,
       numTravelers: selection.travelers,
-      numDrivers: Math.min(selection.travelers, prev.numDrivers),
+      numDrivers: selection.travelers, // Adventure Mode has no separate drivers input — all travelers drive
       isRoundTrip: selection.isRoundTrip,
       tripPreferences: selection.preferences,
       departureDate: selection.departureDate,
       departureTime: selection.departureTime,
+      returnDate,
       budget: {
         ...prev.budget,
         profile: adventureBudget.profile,
@@ -101,7 +129,8 @@ export function useTripLoader({
         food: adventureBudget.food,
         misc: adventureBudget.misc,
       },
-    }));
+      };
+    });
 
     markStepComplete(1);
     goToStep(2);

@@ -200,6 +200,19 @@ export const PRINT_STYLES = `
     color: #3b82f6;
   }
 
+  .driver-annotation {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+    font-size: 8pt;
+    font-family: ui-monospace, monospace;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #16a34a;
+  }
+
   .time-saved {
     display: inline-block;
     background: #dcfce7;

@@ -38,6 +38,7 @@ export interface UseAdventureModeControllerReturn {
   budget: number; setBudget: (v: number) => void;
   days: number; setDays: (v: number) => void;
   travelers: number; setTravelers: (v: number) => void;
+  numRooms: number; setNumRooms: (v: number) => void;
   preferences: TripPreference[];
   accommodationType: 'budget' | 'moderate' | 'comfort';
   setAccommodationType: (v: 'budget' | 'moderate' | 'comfort') => void;
@@ -72,6 +73,7 @@ export function useAdventureModeController({
   const [budget, setBudget] = useState(1000);
   const [days, setDays] = useState(3);
   const [travelers, setTravelers] = useState(2);
+  const [numRooms, setNumRooms] = useState(1);
   const [preferences, setPreferences] = useState<TripPreference[]>([]);
   const [accommodationType, setAccommodationType] = useState<'budget' | 'moderate' | 'comfort'>('moderate');
   const [isRoundTrip, setIsRoundTrip] = useState(true);
@@ -91,7 +93,7 @@ export function useAdventureModeController({
       setIsCalculating(true);
       try {
         const result = await findAdventureDestinations({
-          origin, budget, days, travelers, preferences, accommodationType, isRoundTrip, fuelCostPerKm,
+          origin, budget, days, travelers, preferences, accommodationType, isRoundTrip, fuelCostPerKm, numRooms,
         });
         setDestinations(result.destinations);
         setHasSearched(true);
@@ -102,10 +104,10 @@ export function useAdventureModeController({
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [origin, budget, days, travelers, preferences, accommodationType, isRoundTrip, fuelCostPerKm]);
+  }, [origin, budget, days, travelers, numRooms, preferences, accommodationType, isRoundTrip, fuelCostPerKm]);
 
   const previewMaxKm = origin && origin.lat !== 0
-    ? calculateMaxDistance({ origin, budget, days, travelers, preferences, accommodationType, isRoundTrip, fuelCostPerKm })
+    ? calculateMaxDistance({ origin, budget, days, travelers, preferences, accommodationType, isRoundTrip, fuelCostPerKm, numRooms })
     : 0;
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
@@ -146,6 +148,7 @@ export function useAdventureModeController({
     budget, setBudget,
     days, setDays,
     travelers, setTravelers,
+    numRooms, setNumRooms,
     preferences,
     accommodationType, setAccommodationType,
     isRoundTrip, setIsRoundTrip,

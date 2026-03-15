@@ -16,6 +16,8 @@ export interface AdventureConfig {
   /** Fuel cost per km derived from user's actual vehicle + gas price.
    *  When provided overrides the hardcoded $0.12/km COST_ESTIMATES fallback. */
   fuelCostPerKm?: number;
+  /** Rooms to book per night. Defaults to 1. Users can override (e.g. 2 rooms for privacy). */
+  numRooms?: number;
 }
 
 // A reachable destination suggestion
@@ -38,6 +40,10 @@ export interface AdventureDestination {
     total: number;
     remaining: number; // Budget - total = spending money
   };
+
+  // Budget fit
+  /** True when estimated costs exceed the budget (shown with a "tight budget" warning). */
+  isOverBudget: boolean;
 
   // Ranking
   score: number; // 0-100 composite score

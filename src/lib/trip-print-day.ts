@@ -22,6 +22,7 @@ export function buildEventHTML(
   units: 'metric' | 'imperial',
   isFirst: boolean,
   swapDriverName?: string,
+  initialDriverName?: string,
 ): string {
   const emoji = getEventEmoji(event.type);
   const label = getEventLabel(event);
@@ -47,6 +48,7 @@ export function buildEventHTML(
           <span class="event-emoji">${emoji}</span>
           <strong>${label}</strong>
           <span class="event-location">${event.locationHint}</span>
+          ${initialDriverName ? `<div class="driver-annotation">🚗 ${initialDriverName} driving</div>` : ''}
         </div>
       </div>
     `;
@@ -210,6 +212,13 @@ export function buildDayHTML(
     ])
   );
 
+  // Determine the driver taking the wheel at the start of this day (for departure annotation).
+  const initialDriverName: string | undefined = (() => {
+    if (!driverRotation || settings.numDrivers <= 1 || day.segmentIndices.length === 0) return undefined;
+    const driver = getDriverForSegment(day.segmentIndices[0], driverRotation);
+    return driver ? getDriverName(driver, driverNames) : undefined;
+  })();
+
   let timelineHTML = '';
   if (normalizedDayEvents.length > 0) {
     let driveEventCount = 0;
@@ -220,7 +229,10 @@ export function buildDayHTML(
         const driverNum = stopId != null ? swapSuggestions[stopId] : undefined;
         if (driverNum != null) swapDriverName = getDriverName(driverNum, driverNames);
       }
-      const html = buildEventHTML(event, units, index === 0, swapDriverName);
+      const html = buildEventHTML(
+        event, units, index === 0, swapDriverName,
+        event.type === 'departure' ? initialDriverName : undefined,
+      );
       if (event.type === 'drive') {
         const tzBanner = tzAfterDriveIndex.get(driveEventCount) ?? '';
         driveEventCount++;

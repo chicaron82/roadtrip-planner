@@ -1,6 +1,7 @@
 import { Sparkles, MapPin, Clock, DollarSign, ChevronRight, Compass } from 'lucide-react';
-import type { AdventureDestination } from '../../../types';
+import type { AdventureDestination, TripChallenge, Location } from '../../../types';
 import { cn } from '../../../lib/utils';
+import { ChallengeCards } from './ChallengeCards';
 
 interface AdventureResultsPanelProps {
   isCalculating: boolean;
@@ -8,6 +9,8 @@ interface AdventureResultsPanelProps {
   hasSearched: boolean;
   isRoundTrip: boolean;
   onSelectDestination: (dest: AdventureDestination) => void;
+  origin: Location | null;
+  onSelectChallenge: (challenge: TripChallenge) => void;
 }
 
 const CATEGORY_EMOJI: Record<AdventureDestination['category'], string> = {
@@ -24,7 +27,14 @@ export function AdventureResultsPanel({
   hasSearched,
   isRoundTrip,
   onSelectDestination,
+  origin,
+  onSelectChallenge,
 }: AdventureResultsPanelProps) {
+  const challengesSection = origin && origin.lat !== 0 ? (
+    <div className="border-t border-purple-100 pt-4 mt-4">
+      <ChallengeCards onSelectChallenge={onSelectChallenge} initialOrigin={origin} />
+    </div>
+  ) : null;
   if (isCalculating) {
     return (
       <div className="flex-1 overflow-y-auto p-4 flex items-center justify-center py-12">
@@ -43,6 +53,7 @@ export function AdventureResultsPanel({
           <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
             {destinations.length} destinations within your budget
           </p>
+
 
           {destinations.map((dest) => (
             <button
@@ -67,15 +78,22 @@ export function AdventureResultsPanel({
                       <p className="text-xs text-gray-500 line-clamp-1">{dest.description}</p>
                     </div>
 
-                    <div className={cn(
-                      'px-2 py-1 rounded-full text-xs font-bold',
-                      dest.score >= 80
-                        ? 'bg-green-100 text-green-700'
-                        : dest.score >= 60
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : 'bg-gray-100 text-gray-600'
-                    )}>
-                      {dest.score}%
+                    <div className="flex flex-col items-end gap-1">
+                      {dest.isOverBudget && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700">
+                          tight budget
+                        </span>
+                      )}
+                      <div className={cn(
+                        'px-2 py-1 rounded-full text-xs font-bold',
+                        dest.score >= 80
+                          ? 'bg-green-100 text-green-700'
+                          : dest.score >= 60
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : 'bg-gray-100 text-gray-600'
+                      )}>
+                        {dest.score}%
+                      </div>
                     </div>
                   </div>
 
@@ -88,10 +106,17 @@ export function AdventureResultsPanel({
                       <Clock className="h-3 w-3" />
                       {dest.estimatedDriveHours}h drive
                     </span>
-                    <span className="flex items-center gap-1 text-green-600 font-medium">
-                      <DollarSign className="h-3 w-3" />
-                      ${dest.estimatedCosts.remaining} left to spend
-                    </span>
+                    {dest.isOverBudget ? (
+                      <span className="flex items-center gap-1 text-orange-600 font-medium">
+                        <DollarSign className="h-3 w-3" />
+                        ~${Math.abs(dest.estimatedCosts.remaining)} over budget
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-green-600 font-medium">
+                        <DollarSign className="h-3 w-3" />
+                        ${dest.estimatedCosts.remaining} left to spend
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex flex-wrap gap-1 mt-2">
@@ -128,6 +153,7 @@ export function AdventureResultsPanel({
               </div>
             </button>
           ))}
+          {challengesSection}
         </div>
       </div>
     );
@@ -135,8 +161,8 @@ export function AdventureResultsPanel({
 
   if (hasSearched) {
     return (
-      <div className="flex-1 overflow-y-auto p-4 flex items-center justify-center py-12">
-        <div className="text-center">
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex flex-col items-center justify-center py-12 text-center">
           <div className="text-4xl mb-3">😢</div>
           <p className="text-gray-600 font-medium">No destinations found in budget</p>
           <p className="text-sm text-gray-400 mt-1">
@@ -144,16 +170,18 @@ export function AdventureResultsPanel({
             {isRoundTrip && ', or switch to one-way'}
           </p>
         </div>
+        {challengesSection}
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 flex items-center justify-center py-12">
-      <div className="text-center">
+    <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex flex-col items-center justify-center py-12 text-center">
         <Compass className="h-12 w-12 text-gray-300 mx-auto mb-3" />
         <p className="text-gray-500">Enter your starting location to begin</p>
       </div>
+      {challengesSection}
     </div>
   );
 }

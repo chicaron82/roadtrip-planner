@@ -1,5 +1,5 @@
 import { Compass, MapPin, X } from 'lucide-react';
-import type { Location, TripPreference } from '../../../types';
+import type { Location, TripPreference, TripChallenge } from '../../../types';
 import { LocationSearchInput } from '../Location/LocationSearchInput';
 import { AdventureFormPanel } from './AdventureFormPanel';
 import { AdventureResultsPanel } from './AdventureResultsPanel';
@@ -24,6 +24,7 @@ interface AdventureModeProps {
   origin: Location | null;
   onOriginChange?: (origin: Location) => void;
   onSelectDestination: (selection: AdventureSelection) => void;
+  onSelectChallenge: (challenge: TripChallenge) => void;
   onClose: () => void;
   className?: string;
   fuelCostPerKm?: number;
@@ -33,6 +34,7 @@ export function AdventureMode({
   origin: externalOrigin,
   onOriginChange,
   onSelectDestination,
+  onSelectChallenge,
   onClose,
   className,
   fuelCostPerKm,
@@ -44,6 +46,7 @@ export function AdventureMode({
     budget, setBudget,
     days, setDays,
     travelers, setTravelers,
+    numRooms, setNumRooms,
     preferences,
     accommodationType, setAccommodationType,
     isRoundTrip, setIsRoundTrip,
@@ -120,6 +123,7 @@ export function AdventureMode({
             budget={budget} onBudgetChange={setBudget}
             days={days} onDaysChange={setDays}
             travelers={travelers} onTravelersChange={setTravelers}
+            numRooms={numRooms} onNumRoomsChange={setNumRooms}
             departureDate={departureDate} onDepartureDateChange={setDepartureDate}
             departureTime={departureTime} onDepartureTimeChange={setDepartureTime}
             accommodationType={accommodationType} onAccommodationTypeChange={setAccommodationType}
@@ -134,6 +138,8 @@ export function AdventureMode({
             hasSearched={hasSearched}
             isRoundTrip={isRoundTrip}
             onSelectDestination={handleSelectDestination}
+            origin={origin}
+            onSelectChallenge={(challenge) => { onSelectChallenge(challenge); onClose(); }}
           />
         </div>
 

@@ -95,7 +95,8 @@ export function calculateMaxDistance(config: AdventureConfig): number {
 
   // Calculate fixed costs
   const nights = Math.max(0, days - 1);
-  const accommodationCost = nights * COST_ESTIMATES.accommodation[accommodationType];
+  const roomsNeeded = config.numRooms ?? 1;
+  const accommodationCost = nights * roomsNeeded * COST_ESTIMATES.accommodation[accommodationType];
   const foodCost = days * travelers * COST_ESTIMATES.food.perPersonPerDay;
   const fixedCosts = accommodationCost + foodCost;
 
@@ -178,11 +179,12 @@ function calculateCosts(
   const accommodationType = config.accommodationType || 'moderate';
   const isRoundTrip = config.isRoundTrip !== false; // Default to true
   const nights = Math.max(0, days - 1);
+  const roomsNeeded = config.numRooms ?? 1;
 
   // Fuel: multiply by 2 for round trip, 1 for one-way
   const fuelMultiplier = isRoundTrip ? 2 : 1;
   const fuel = distanceKm * fuelMultiplier * COST_ESTIMATES.fuel.perKm;
-  const accommodation = nights * COST_ESTIMATES.accommodation[accommodationType];
+  const accommodation = nights * roomsNeeded * COST_ESTIMATES.accommodation[accommodationType];
   const food = days * travelers * COST_ESTIMATES.food.perPersonPerDay;
   const total = fuel + accommodation + food;
   const remaining = Math.max(0, budget - total);
@@ -226,8 +228,12 @@ export async function findAdventureDestinations(
     // Calculate costs
     const costs = calculateCosts(roadDistanceKm, config);
 
-    // Skip if over budget
-    if (costs.total > config.budget) continue;
+    // Skip destinations that are wildly over budget (>15% over). Destinations within
+    // 15% of budget still appear — marked isOverBudget — so users see them with a
+    // "tight budget" warning rather than having them silently hidden.
+    if (costs.total > config.budget * 1.15) continue;
+
+    const isOverBudget = costs.total > config.budget;
 
     // Calculate preference score
     const { score, reasons } = calculatePreferenceScore(dest.tags, config.preferences);
@@ -257,6 +263,7 @@ export async function findAdventureDestinations(
         total: Math.round(costs.total),
         remaining: Math.round(costs.remaining),
       },
+      isOverBudget,
       score: Math.round(finalScore),
       matchReasons: reasons,
       imageUrl: dest.imageUrl,

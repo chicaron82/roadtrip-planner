@@ -12,6 +12,8 @@ interface AdventureFormPanelProps {
   onDaysChange: (v: number) => void;
   travelers: number;
   onTravelersChange: (v: number) => void;
+  numRooms: number;
+  onNumRoomsChange: (v: number) => void;
   departureDate: string;
   onDepartureDateChange: (v: string) => void;
   departureTime: string;
@@ -37,6 +39,7 @@ export function AdventureFormPanel({
   budget, onBudgetChange,
   days, onDaysChange,
   travelers, onTravelersChange,
+  numRooms, onNumRoomsChange,
   departureDate, onDepartureDateChange,
   departureTime, onDepartureTimeChange,
   accommodationType, onAccommodationTypeChange,
@@ -88,6 +91,18 @@ export function AdventureFormPanel({
             <Button variant="outline" size="icon" className="h-10 w-10" onClick={() => onTravelersChange(Math.max(1, travelers - 1))}>-</Button>
             <div className="flex-1 text-center text-lg font-bold">{travelers}</div>
             <Button variant="outline" size="icon" className="h-10 w-10" onClick={() => onTravelersChange(Math.min(10, travelers + 1))}>+</Button>
+          </div>
+        </div>
+
+        {/* Rooms */}
+        <div>
+          <Label className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+            🛏️ Rooms
+          </Label>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" className="h-10 w-10" onClick={() => onNumRoomsChange(Math.max(1, numRooms - 1))}>-</Button>
+            <div className="flex-1 text-center text-lg font-bold">{numRooms}</div>
+            <Button variant="outline" size="icon" className="h-10 w-10" onClick={() => onNumRoomsChange(Math.min(travelers, numRooms + 1))}>+</Button>
           </div>
         </div>
       </div>
