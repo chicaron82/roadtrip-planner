@@ -179,14 +179,14 @@ describe('TripViewer — journal mode', () => {
 // ── Tests: journal complete overlay ──────────────────────────────────────────
 
 describe('TripViewer — journal complete overlay', () => {
-  it('renders JournalCompleteOverlay when isJournalComplete + journal active', () => {
+  it('renders JournalCompleteOverlay when showCompleteOverlay + journal active', () => {
     const onConfirm = vi.fn();
     render(
       <TripViewer
         {...makeProps({
           viewMode: 'journal',
           activeJournal: makeJournal(),
-          isJournalComplete: true,
+          showCompleteOverlay: true,
           onConfirmJournalComplete: onConfirm,
         })}
       />
@@ -201,7 +201,7 @@ describe('TripViewer — journal complete overlay', () => {
         {...makeProps({
           viewMode: 'journal',
           activeJournal: makeJournal(),
-          isJournalComplete: true,
+          showCompleteOverlay: true,
           onConfirmJournalComplete: onConfirm,
         })}
       />
@@ -210,13 +210,13 @@ describe('TripViewer — journal complete overlay', () => {
     expect(onConfirm).toHaveBeenCalledOnce();
   });
 
-  it('does not show complete overlay in itinerary mode (even if complete flag set)', () => {
+  it('does not show complete overlay in itinerary mode (even if showCompleteOverlay set)', () => {
     render(
       <TripViewer
         {...makeProps({
           viewMode: 'plan',
           activeJournal: makeJournal(),
-          isJournalComplete: true,
+          showCompleteOverlay: true,
           onConfirmJournalComplete: vi.fn(),
         })}
       />
@@ -230,7 +230,7 @@ describe('TripViewer — journal complete overlay', () => {
         {...makeProps({
           viewMode: 'journal',
           activeJournal: null,
-          isJournalComplete: true,
+          showCompleteOverlay: true,
           onConfirmJournalComplete: vi.fn(),
         })}
       />
