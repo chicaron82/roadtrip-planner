@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assignDrivers, extractFuelStopIndices, formatDriveTime } from './driver-rotation';
+import { assignDrivers, computeSwapAssignments, extractFuelStopIndices, formatDriveTime } from './driver-rotation';
 import type { RouteSegment } from '../types';
 
 // ==================== HELPERS ====================
@@ -139,6 +139,37 @@ describe('assignDrivers', () => {
     expect(result.rotationPoints).toHaveLength(0);
   });
 
+  it('time-based fallback fails for asymmetric 2-segment trips — documents known fragility', () => {
+    // OSRM returns slightly asymmetric durations for round trips (127+128 instead of 128+128).
+    // When segment[0].durationMinutes < primaryShare = ceil(total/2), accumulated time
+    // never hits nextTarget and no rotation fires — driver 1 takes both legs.
+    //
+    // TripPrintView works around this by using day-boundary indices instead of
+    // time-based rotation when no fuel stops exist.
+    const segments = [
+      makeSegment({ durationMinutes: 127 }),
+      makeSegment({ durationMinutes: 128 }),
+    ];
+    const result = assignDrivers(segments, 2, []);
+    // With time-based fallback: primaryShare=128, accumulated after seg0=127 < 128 → no rotation
+    expect(result.assignments[0].driver).toBe(1);
+    expect(result.assignments[1].driver).toBe(1); // BUG: should be driver 2
+    expect(result.stats).toHaveLength(1); // only driver 1 appears
+  });
+
+  it('day-boundary index (0) correctly rotates 2-segment round trip', () => {
+    // TripPrintView passes flatIdx-1 per new day as the rotation index.
+    // For a 2-day trip (Day1: seg0, Day2: seg1) that's [0].
+    const segments = [
+      makeSegment({ durationMinutes: 127 }),
+      makeSegment({ durationMinutes: 128 }),
+    ];
+    const result = assignDrivers(segments, 2, [0]); // day boundary after seg0
+    expect(result.assignments[0].driver).toBe(1);
+    expect(result.assignments[1].driver).toBe(2);
+    expect(result.stats).toHaveLength(2);
+  });
+
   it('ignores fuel stops beyond segment range', () => {
     const segments = makeSegments(3);
     // Fuel stop at index 99 — beyond range, should be ignored
@@ -155,6 +186,87 @@ describe('assignDrivers', () => {
     // Fuel at 0 means rotation after segment 0 → segment 1 should be driver 2
     expect(result.assignments[0].driver).toBe(1);
     expect(result.assignments[1].driver).toBe(2);
+  });
+});
+
+describe('computeSwapAssignments', () => {
+  it('returns empty when no fuel stops', () => {
+    const segments = makeSegments(2);
+    const rotation = assignDrivers(segments, 4, [0]);
+    expect(computeSwapAssignments([], rotation, 4)).toEqual({});
+  });
+
+  it('returns empty for single driver', () => {
+    const segments = makeSegments(2);
+    const rotation = assignDrivers(segments, 1, []);
+    expect(computeSwapAssignments([{ id: 'f1', segmentIndex: 0 }], rotation, 1)).toEqual({});
+  });
+
+  it('assigns all non-primary drivers round-robin across fuel stops in one segment', () => {
+    // 2 segments, 4 drivers: seg0=D1, seg1=D2
+    const segments = makeSegments(2);
+    const rotation = assignDrivers(segments, 4, [0]);
+    const stops = [
+      { id: 's1', segmentIndex: 0 },
+      { id: 's2', segmentIndex: 0 },
+      { id: 's3', segmentIndex: 0 },
+    ];
+    const result = computeSwapAssignments(stops, rotation, 4);
+    // seg0 primary=D1, candidates=[2,3,4], global idx 0,1,2
+    expect(result['s1']).toBe(2);
+    expect(result['s2']).toBe(3);
+    expect(result['s3']).toBe(4);
+  });
+
+  it('gives each driver both inbound and outbound stints on a 4-driver round trip', () => {
+    // 2 flat segments (1 per leg), 4 drivers, rotation at [0] (day boundary)
+    // seg0=D1 (DiZee), seg1=D2 (Aaron)
+    const segments = makeSegments(2);
+    const rotation = assignDrivers(segments, 4, [0]);
+
+    const stops = [
+      // 3 fuel stops in seg0 (DiZee's leg)
+      { id: 's1', segmentIndex: 0 },
+      { id: 's2', segmentIndex: 0 },
+      { id: 's3', segmentIndex: 0 },
+      // 3 fuel stops in seg1 (Aaron's leg)
+      { id: 's4', segmentIndex: 1 },
+      { id: 's5', segmentIndex: 1 },
+      { id: 's6', segmentIndex: 1 },
+    ];
+
+    const result = computeSwapAssignments(stops, rotation, 4);
+
+    // seg0 (primary=DiZee=1): candidates=[2,3,4], idx 0,1,2 → Aaron, Tori, Belle
+    expect(result['s1']).toBe(2); // Aaron gets a stint outbound
+    expect(result['s2']).toBe(3); // Tori gets a stint outbound
+    expect(result['s3']).toBe(4); // Belle gets a stint outbound
+
+    // seg1 (primary=Aaron=2): candidates=[1,3,4], idx 3,4,5 → 3%3=0→D1, 1→D3, 2→D4
+    expect(result['s4']).toBe(1); // DiZee gets a stint inbound
+    expect(result['s5']).toBe(3); // Tori gets a stint inbound
+    expect(result['s6']).toBe(4); // Belle gets a stint inbound
+  });
+
+  it('falls back to driver 1 as primary when segmentIndex is absent', () => {
+    const segments = makeSegments(2);
+    const rotation = assignDrivers(segments, 2, [0]); // seg0=D1, seg1=D2
+    const stops = [{ id: 'f1' }]; // no segmentIndex
+    const result = computeSwapAssignments(stops, rotation, 2);
+    // default primary = D1, candidates = [2]
+    expect(result['f1']).toBe(2);
+  });
+
+  it('works when all drivers already have assigned segments', () => {
+    // 4 segments, 4 drivers — everyone is assigned, old code returned {} early
+    const segments = makeSegments(4);
+    const rotation = assignDrivers(segments, 4, [0, 1, 2]);
+    const stops = [{ id: 'f1', segmentIndex: 0 }, { id: 'f2', segmentIndex: 2 }];
+    const result = computeSwapAssignments(stops, rotation, 4);
+    // seg0 primary=D1, candidates=[2,3,4] → f1=D2
+    // seg2 primary=D3, candidates=[1,2,4] → f2 cycles from globalIdx=1 → D2
+    expect(result['f1']).toBe(2);
+    expect(result['f2']).toBe(2); // idx=1%3=1 → candidates[1] of [1,2,4] = D2
   });
 });
 

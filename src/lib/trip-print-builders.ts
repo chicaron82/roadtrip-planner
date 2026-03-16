@@ -22,16 +22,17 @@ import { analyzeFeasibility } from './feasibility';
 /**
  * Compute per-driver stats that account for mid-segment swaps.
  *
- * assignDrivers() only rotates at flat-segment boundaries — trips with fewer
- * segments than drivers leave some drivers with zero stats. computeSwapAssignments()
+ * assignDrivers() only rotates at flat-segment boundaries. computeSwapAssignments()
  * annotates the itinerary with swap hints at fuel stops, but never feeds back into
  * the roster.  This function bridges that gap:
  *
  *  1. Seeds a stats map from driverRotation.stats (segment-assigned drivers).
- *  2. For each fuel/combo event whose stop ID is in swapSuggestions, finds the
- *     segment it falls within (via the next waypoint's flatIndex), computes the
- *     km/time fraction driven *after* the swap point, and transfers that portion
- *     from the primary driver to the swap driver.
+ *  2. Collects all fuel/combo events whose stop IDs are in swapSuggestions and
+ *     groups them by the segment they fall within (via the next waypoint's flatIndex).
+ *  3. Within each segment, sorts swaps by km and computes CONSECUTIVE SPANS:
+ *     primary → first swap → second swap → … → end of segment.
+ *     This prevents the independent-fraction over-subtraction bug where multiple
+ *     swaps each subtract from the primary's full-segment km, collapsing it to 0.
  *
  * If there are no swap suggestions the original stats are returned unchanged.
  */
@@ -65,7 +66,7 @@ function computeEnrichedStats(
     segStartKm.set(idx, prev !== undefined ? (segCumKm.get(prev) ?? 0) : 0);
   }
 
-  // Clone stats for all drivers (including unassigned ones who will receive splits).
+  // Clone stats for all drivers (including swap drivers who gain stints).
   const statsMap = new Map<number, DriverStats>();
   for (const s of driverRotation.stats) {
     statsMap.set(s.driver, { ...s });
@@ -76,7 +77,10 @@ function computeEnrichedStats(
     }
   }
 
-  // Process each fuel/combo event that carries a mid-segment swap.
+  // Collect all swap points, grouped by the flat segment they fall within.
+  interface SwapPoint { swapKm: number; swapDriver: number; }
+  const swapsBySegment = new Map<number, SwapPoint[]>();
+
   for (let i = 0; i < timedEvents.length; i++) {
     const ev = timedEvents[i];
     if (ev.type !== 'fuel' && ev.type !== 'combo') continue;
@@ -84,7 +88,7 @@ function computeEnrichedStats(
     if (!stopId || !(stopId in swapSuggestions)) continue;
     const swapDriver = swapSuggestions[stopId];
 
-    // The swap happens mid-segment; find the flatIndex of the next waypoint/arrival.
+    // Find the flatIndex of the segment this fuel stop is within.
     let segIdx: number | undefined;
     for (let j = i + 1; j < timedEvents.length; j++) {
       const next = timedEvents[j];
@@ -98,36 +102,62 @@ function computeEnrichedStats(
     }
     if (segIdx === undefined) continue;
 
+    if (!swapsBySegment.has(segIdx)) swapsBySegment.set(segIdx, []);
+    swapsBySegment.get(segIdx)!.push({ swapKm: ev.distanceFromOriginKm, swapDriver });
+  }
+
+  // For each segment with swaps, compute consecutive km spans and redistribute.
+  for (const [segIdx, swaps] of swapsBySegment) {
     const primaryAssignment = driverRotation.assignments.find(a => a.segmentIndex === segIdx);
-    if (!primaryAssignment || primaryAssignment.driver === swapDriver) continue;
+    if (!primaryAssignment) continue;
     const primaryDriver = primaryAssignment.driver;
 
-    const sStartKm = segStartKm.get(segIdx) ?? 0;
-    const sEndKm   = segCumKm.get(segIdx) ?? 0;
+    const sStartKm   = segStartKm.get(segIdx) ?? 0;
+    const sEndKm     = segCumKm.get(segIdx) ?? 0;
     const segTotalKm = sEndKm - sStartKm;
     if (segTotalKm <= 0) continue;
 
-    const kmAfterSwap = Math.max(0, sEndKm - ev.distanceFromOriginKm);
-    const fraction    = kmAfterSwap / segTotalKm;
+    // Sort swaps by km ascending so spans are consecutive
+    swaps.sort((a, b) => a.swapKm - b.swapKm);
+    // Drop any swap assigned to the primary (shouldn't happen, but guard anyway)
+    const validSwaps = swaps.filter(s => s.swapDriver !== primaryDriver);
+    if (validSwaps.length === 0) continue;
 
     const primaryStats = statsMap.get(primaryDriver)!;
-    const swapStats    = statsMap.get(swapDriver)!;
 
-    // Approximate segment minutes: if the primary driver has only one segment their
-    // totalMinutes *is* the segment minutes; otherwise scale proportionally by km.
-    const segMinutes = primaryStats.segmentCount === 1
-      ? primaryStats.totalMinutes
-      : Math.round((segTotalKm / Math.max(1, primaryStats.totalKm)) * primaryStats.totalMinutes);
+    // Compute segment minutes before any redistribution.
+    // If primary drove only this one segment, totalMinutes IS segMinutes.
+    // Otherwise scale proportionally by km.
+    const segMinutes =
+      primaryStats.segmentCount === 1
+        ? primaryStats.totalMinutes
+        : Math.round(
+            (segTotalKm / Math.max(1, primaryStats.totalKm)) * primaryStats.totalMinutes,
+          );
 
-    const minAfterSwap = Math.round(fraction * segMinutes);
-    const kmAfterSwapInt = Math.round(kmAfterSwap);
+    // Primary drives from sStartKm to the first swap point.
+    const primaryEndKm = validSwaps[0].swapKm;
+    const primaryKm    = Math.max(0, Math.round(primaryEndKm - sStartKm));
+    const primaryMin   = Math.round((primaryKm / Math.max(1, segTotalKm)) * segMinutes);
 
-    primaryStats.totalKm      = Math.max(0, primaryStats.totalKm - kmAfterSwapInt);
-    primaryStats.totalMinutes = Math.max(0, primaryStats.totalMinutes - minAfterSwap);
+    // Transfer: primary loses everything after their span.
+    const primaryLostKm  = Math.round(segTotalKm) - primaryKm;
+    const primaryLostMin = segMinutes - primaryMin;
+    primaryStats.totalKm      = Math.max(0, primaryStats.totalKm - primaryLostKm);
+    primaryStats.totalMinutes = Math.max(0, primaryStats.totalMinutes - primaryLostMin);
 
-    swapStats.totalKm      += kmAfterSwapInt;
-    swapStats.totalMinutes += minAfterSwap;
-    swapStats.segmentCount += 1;
+    // Each swap driver gets their consecutive span.
+    for (let k = 0; k < validSwaps.length; k++) {
+      const spanStartKm = validSwaps[k].swapKm;
+      const spanEndKm   = k + 1 < validSwaps.length ? validSwaps[k + 1].swapKm : sEndKm;
+      const spanKm      = Math.max(0, Math.round(spanEndKm - spanStartKm));
+      const spanMin     = Math.round((spanKm / Math.max(1, segTotalKm)) * segMinutes);
+
+      const swapStats = statsMap.get(validSwaps[k].swapDriver)!;
+      swapStats.totalKm      += spanKm;
+      swapStats.totalMinutes += spanMin;
+      swapStats.segmentCount += 1;
+    }
   }
 
   return Array.from(statsMap.values()).filter(s => s.segmentCount > 0 || s.totalKm > 0);
@@ -150,18 +180,33 @@ export function buildPrintHTML(
   let runningTripSpend = 0;
 
   // Compute driver swap suggestions for accepted fuel/combo events.
-  // Collect accepted fuel stop references in time order, distribute unassigned
-  // drivers round-robin — same logic as the itinerary view's swapSuggestions.
+  // Scan timedEvents in chronological order, resolving each fuel event's segment
+  // index by looking forward to the next waypoint's flatIndex (same convention as
+  // extractFuelIndicesFromTimedEvents). This lets computeSwapAssignments exclude
+  // the current segment's primary driver from the swap pool.
+  const fuelEventsForSwap: Array<{ id: string; segmentIndex?: number }> = [];
+  if (driverRotation && settings.numDrivers > 1) {
+    for (let i = 0; i < timedEvents.length; i++) {
+      const ev = timedEvents[i];
+      if ((ev.type !== 'fuel' && ev.type !== 'combo') || !ev.stops[0]) continue;
+      let segmentIndex: number | undefined;
+      for (let j = i + 1; j < timedEvents.length; j++) {
+        const next = timedEvents[j];
+        if (
+          (next.type === 'waypoint' || next.type === 'arrival' || next.type === 'destination') &&
+          typeof next.flatIndex === 'number'
+        ) {
+          segmentIndex = next.flatIndex;
+          break;
+        }
+      }
+      fuelEventsForSwap.push({ id: ev.stops[0].id, segmentIndex });
+    }
+  }
+
   const swapSuggestions: Record<string, number> =
     driverRotation && settings.numDrivers > 1
-      ? computeSwapAssignments(
-          timedEvents
-            .filter(e => (e.type === 'fuel' || e.type === 'combo') && e.stops[0])
-            .sort((a, b) => a.arrivalTime.getTime() - b.arrivalTime.getTime())
-            .map(e => ({ id: e.stops[0].id })),
-          driverRotation,
-          settings.numDrivers,
-        )
+      ? computeSwapAssignments(fuelEventsForSwap, driverRotation, settings.numDrivers)
       : {};
 
   const enrichedStats = driverRotation && settings.numDrivers > 1

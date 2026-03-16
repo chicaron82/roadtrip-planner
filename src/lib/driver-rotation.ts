@@ -202,31 +202,51 @@ export function extractFuelIndicesFromTimedEvents(
 }
 
 /**
- * Compute driver swap suggestions for fuel stops when not all drivers are
- * assigned segments (i.e. the trip has fewer flat segments than numDrivers).
+ * Compute driver swap suggestions for fuel stops.
  *
  * Returns a map of stopId → driver number for each fuel stop that should
- * carry a "swap here" annotation. Unassigned drivers are distributed across
- * the provided fuel stops in round-robin order by estimated time.
+ * carry a "swap here" annotation. For each fuel stop, the current segment's
+ * primary driver is excluded, and the remaining drivers are assigned in
+ * round-robin order — so every driver gets inbound AND outbound stints on a
+ * multi-day round trip, not just the drivers who lack segment assignments.
  *
- * Returns an empty map when every driver already has assigned segments — the
- * swap suggestion cleanly retires itself when the rotation covers everyone.
+ * @param fuelStops - Fuel stop events, each with an optional `segmentIndex`
+ *   (the flatIndex of the segment the stop falls within — same convention as
+ *   `DriverAssignment.segmentIndex`). When absent, driver 1 is treated as primary.
  */
 export function computeSwapAssignments(
-  fuelStops: Array<{ id: string }>,
+  fuelStops: Array<{ id: string; segmentIndex?: number }>,
   rotation: DriverRotationResult,
   numDrivers: number,
 ): Record<string, number> {
-  const assignedNums = new Set(rotation.stats.map(s => s.driver));
-  const unassigned = Array.from({ length: numDrivers }, (_, i) => i + 1)
-    .filter(d => !assignedNums.has(d));
+  if (fuelStops.length === 0 || numDrivers < 2) return {};
 
-  if (unassigned.length === 0 || fuelStops.length === 0) return {};
+  // Build segment → primary driver lookup
+  const segPrimaryMap = new Map<number, number>();
+  for (const a of rotation.assignments) {
+    segPrimaryMap.set(a.segmentIndex, a.driver);
+  }
+  const defaultPrimary = rotation.assignments[0]?.driver ?? 1;
 
   const swapMap: Record<string, number> = {};
-  fuelStops.forEach((stop, idx) => {
-    swapMap[stop.id] = unassigned[idx % unassigned.length];
-  });
+  let globalIdx = 0;
+
+  for (const stop of fuelStops) {
+    const primaryDriver =
+      stop.segmentIndex !== undefined
+        ? (segPrimaryMap.get(stop.segmentIndex) ?? defaultPrimary)
+        : defaultPrimary;
+
+    // All drivers except the current segment's primary, in ascending order
+    const candidates = Array.from({ length: numDrivers }, (_, i) => i + 1).filter(
+      d => d !== primaryDriver,
+    );
+    if (candidates.length === 0) continue;
+
+    swapMap[stop.id] = candidates[globalIdx % candidates.length];
+    globalIdx++;
+  }
+
   return swapMap;
 }
 

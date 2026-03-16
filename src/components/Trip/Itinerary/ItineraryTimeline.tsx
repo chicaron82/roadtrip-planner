@@ -131,7 +131,11 @@ export function ItineraryTimelineContent({
     );
     pendingSuggestions.filter(stop => stop.type === 'fuel').forEach(stop => allFuelStops.push(stop));
     allFuelStops.sort((left, right) => left.estimatedTime.getTime() - right.estimatedTime.getTime());
-    return computeSwapAssignments(allFuelStops, driverRotation, settings.numDrivers);
+    return computeSwapAssignments(
+      allFuelStops.map(s => ({ id: s.id, segmentIndex: Math.floor(s.afterSegmentIndex) })),
+      driverRotation,
+      settings.numDrivers,
+    );
   }, [driverRotation, pendingSuggestionsByDay, pendingSuggestions, settings.numDrivers]);
 
   return (

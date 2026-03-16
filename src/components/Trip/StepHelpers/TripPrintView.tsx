@@ -69,7 +69,31 @@ export function printTrip(props: TripPrintViewProps): void {
     // which is a user-set waypoint field — auto-generated simulation stops never set it,
     // so rotation always fell back to time-based and hit the flat-segment ceiling.
     const fuelIndices = extractFuelIndicesFromTimedEvents(precomputedEvents);
-    driverRotation = assignDrivers(flatSegments, settings.numDrivers, fuelIndices);
+
+    // Day-boundary rotation: when no fuel stops exist, rotate drivers at day boundaries
+    // rather than by accumulated drive time. Time-based splitting is fragile — OSRM
+    // returns slightly asymmetric durations (e.g. 127+128 min round trip), causing the
+    // accumulated total to land just under primaryShare and skipping the rotation entirely.
+    // Day boundaries are the natural human swap point: "you drove today, I drive tomorrow."
+    const rotationIndices = fuelIndices.length > 0
+      ? fuelIndices
+      : (() => {
+          if (!days || days.length === 0) return [];
+          const drivingDays = days.filter(d => d.meta.segmentIndices.length > 0);
+          const dayBoundary: number[] = [];
+          let flatIdx = 0;
+          drivingDays.forEach((day, di) => {
+            if (di > 0 && flatIdx > 0) {
+              // rotationSet uses "after segment i" semantics: add flatIdx-1 so the
+              // driver changes at the first segment of the new day (flatIdx).
+              dayBoundary.push(flatIdx - 1);
+            }
+            flatIdx += day.meta.segments.length;
+          });
+          return dayBoundary;
+        })();
+
+    driverRotation = assignDrivers(flatSegments, settings.numDrivers, rotationIndices);
   }
 
   const timedEvents = precomputedEvents;
