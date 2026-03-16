@@ -97,6 +97,7 @@ export function useJournal({
         }
 
         setActiveJournal(journal);
+        setViewMode('journal');
       } catch (err) {
         console.error('Failed to load active journal:', err);
       }

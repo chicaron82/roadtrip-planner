@@ -137,7 +137,7 @@ function AppContent() {
     });
 
   const ghostCar = useGhostCar(canonicalTimeline, summary, settings, asSuggestedStops);
-  useArrivalSnap(ghostCar.anchorAt, !!summary && tripConfirmed);
+  useArrivalSnap(ghostCar.anchorAt, ghostCar.anchorAtKm, summary?.segments ?? [], !!summary && tripConfirmed);
 
   // Keep canonical timeline in sync with user-added POI stops so print output
   // matches the itinerary. Fires synchronously (no network) on each add/remove.

@@ -113,8 +113,8 @@ export function QuickCaptureDialog({
       return;
     }
 
-    // Prefer: user-typed > GPS-resolved city name > segment destination fallback
-    const resolvedName = locationName || resolvedGpsName || autoTaggedLocation || '';
+    // Prefer: user-typed > GPS-resolved city name > segment destination (only if GPS was unavailable, not just slow)
+    const resolvedName = locationName || resolvedGpsName || (gpsStatus !== 'captured' ? autoTaggedLocation : '') || '';
 
     const photo: JournalPhoto | undefined = photoPreview
       ? {
@@ -136,7 +136,7 @@ export function QuickCaptureDialog({
       id: `capture-${Date.now()}`,
       photo,
       autoTaggedSegment,
-      autoTaggedLocation: locationName || resolvedGpsName || autoTaggedLocation || '',
+      autoTaggedLocation: locationName || resolvedGpsName || (gpsStatus !== 'captured' ? autoTaggedLocation : '') || '',
       timestamp: new Date(),
       category: category as QuickCapture['category'],
       gpsCoords: gpsCoords ?? undefined,

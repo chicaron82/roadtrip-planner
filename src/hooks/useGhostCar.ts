@@ -49,6 +49,8 @@ export interface GhostCarState {
 export interface UseGhostCarResult extends GhostCarState {
   /** Called by journal "tap to arrive" — snaps car to waypoint[idx] and re-anchors simulation */
   anchorAt: (waypointIndex: number) => void;
+  /** Called by quick-capture GPS — snaps car to an arbitrary km position along the route */
+  anchorAtKm: (km: number) => void;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -227,17 +229,23 @@ export function useGhostCar(
       return () => clearTimeout(initId);
     }
     const id = setInterval(computeState, TICK_MS);
+
+    // Mobile browsers suspend timers when backgrounded; snap to real time on return.
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') computeState();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
     return () => {
       clearTimeout(initId);
       clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [computeState, events.length]);
 
-  // ── anchorAt: snap + re-anchor after "tap to arrive" ──
-  const anchorAt = useCallback((waypointIndex: number) => {
+  // ── Shared: find the event closest to targetKm and set timeShift ──
+  const anchorAtKmValue = useCallback((targetKm: number) => {
     if (events.length === 0) return;
-    // Find the event whose distanceFromOriginKm best matches this waypoint's km
-    const targetKm = waypointKms[waypointIndex] ?? 0;
     let bestIdx = 0;
     let bestDelta = Infinity;
     for (let i = 0; i < events.length; i++) {
@@ -245,11 +253,14 @@ export function useGhostCar(
       if (d < bestDelta) { bestDelta = d; bestIdx = i; }
     }
     const scheduledMs = events[bestIdx].arrivalTime.getTime();
-    // timeShift = (real now) - (scheduled time at this waypoint)
-    // Applying this makes the simulation think "now" == scheduledMs for km interpolation
     timeShiftMsRef.current = Date.now() - scheduledMs;
     computeState();
-  }, [events, waypointKms, computeState]);
+  }, [events, computeState]);
 
-  return { ...state, anchorAt };
+  // ── anchorAt: snap + re-anchor after "tap to arrive" ──
+  const anchorAt = useCallback((waypointIndex: number) => {
+    anchorAtKmValue(waypointKms[waypointIndex] ?? 0);
+  }, [anchorAtKmValue, waypointKms]);
+
+  return { ...state, anchorAt, anchorAtKm: anchorAtKmValue };
 }

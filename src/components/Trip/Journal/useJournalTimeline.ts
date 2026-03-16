@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import type { TripSettings, TripJournal, JournalEntry, JournalPhoto, QuickCapture } from '../../../types';
 import { showToast } from '../../../lib/toast';
+import { dispatchCaptureGps } from '../../../hooks/useArrivalSnap';
 import { formatDisplayDateInZone, formatTimeInZone, getTripStartTime, lngToIANA } from '../../../lib/trip-timezone';
 import { buildAcceptedItineraryProjection } from '../../../lib/accepted-itinerary-projection';
 import {
@@ -144,6 +145,10 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
       stats: { ...journal.stats, photosCount: journal.stats.photosCount + 1 },
       updatedAt: new Date(),
     });
+    // Nudge the ghost car if we have real GPS coords
+    if (capture.gpsCoords) {
+      dispatchCaptureGps({ lat: capture.gpsCoords.lat, lng: capture.gpsCoords.lng });
+    }
     showToast({ message: '📸 Memory captured!', type: 'success' });
   };
 
