@@ -24,9 +24,11 @@ const Map = lazy(() => import('./components/Map/Map').then(m => ({ default: m.Ma
 
 /** App.tsx — Root orchestrator. Full-bleed map + floating glass panel. 💚 My Experience Engine */
 function AppContent() {
+  // ── Context ──────────────────────────────────────────────────────────────
   const { locations, setLocations, vehicle, setVehicle, settings, setSettings } = useTripCore();
   const { summary, canonicalTimeline } = useTimeline();
 
+  // ── L1: Independent state ─────────────────────────────────────────────────
   const previewGeometry = useEagerRoute(locations);
   const onCalcCompleteRef = useRef<() => void>(() => {});
   const [tripConfirmed, setTripConfirmed] = useState(false);
@@ -65,6 +67,7 @@ function AppContent() {
   const { addedStops, addedPOIIds, addStop, clearStops, asSuggestedStops, mirroredReturnStops } =
     useAddedStops(summary, settings);
 
+  // ── L2: Calculation ───────────────────────────────────────────────────────
   const {
     isCalculating, error: calcError, shareUrl,
     strategicFuelStops, showOvernightPrompt, suggestedOvernightStop,
@@ -94,6 +97,7 @@ function AppContent() {
       markStepComplete(1); markStepComplete(2); markStepComplete(3); forceStep(3);
     };
   });
+  // ── Trip loading & cross-cutting ─────────────────────────────────────────
   const {
     activeChallenge, tripOrigin,
     setActiveChallenge, setTripOrigin,
@@ -136,6 +140,7 @@ function AppContent() {
       setTripMode,
     });
 
+  // ── L3: Live journey experience ───────────────────────────────────────────
   const ghostCar = useGhostCar(canonicalTimeline, summary, settings, asSuggestedStops);
   useArrivalSnap(ghostCar.anchorAt, ghostCar.anchorAtKm, summary?.segments ?? [], !!summary && tripConfirmed);
 
@@ -152,6 +157,7 @@ function AppContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [asSuggestedStops, mirroredReturnStops]);
 
+  // ── Session / lifecycle ───────────────────────────────────────────────────
   const { resetTripSession, selectTripMode } = useAppReset({
     setLocations, resetPOIs, resetWizard, clearStops, clearTripCalculation,
     setActiveChallenge, setTripOrigin, setTripConfirmed, setTripMode, setShowAdventureMode,
@@ -181,6 +187,7 @@ function AppContent() {
     return locs && locs.length > 0 ? locs[locs.length - 1].name : undefined;
   })();
 
+  // ── Derived props ─────────────────────────────────────────────────────────
   const mapProps = useMapProps({
     locations, validRouteGeometry, routeFeasibilityStatus,
     pois, markerCategories, tripActive, strategicFuelStops, addedPOIIds,
