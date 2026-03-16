@@ -72,6 +72,36 @@ describe('analyzeTiming — late arrival', () => {
     const warnings = analyzeTiming([day]);
     expect(warnings.some(w => w.message.includes('Late arrival'))).toBe(false);
   });
+
+  it('warns at info level when arrival exceeds targetArrivalHour but is before 10 PM', () => {
+    const day = makeDay({
+      totals: { distanceKm: 600, driveTimeMinutes: 480, stopTimeMinutes: 0, departureTime: '2026-08-05T09:00:00', arrivalTime: '2026-08-05T19:30:00' },
+    });
+    // targetArrivalHour=18 (6 PM), arrival at 7:30 PM — past target but before 10 PM
+    const warnings = analyzeTiming([day], makeSettings({ targetArrivalHour: 18 }));
+    const late = warnings.find(w => w.message.includes('Late arrival'));
+    expect(late).toBeDefined();
+    expect(late?.severity).toBe('info');
+    expect(late?.detail).toContain('6 PM');
+  });
+
+  it('uses warning severity when arrival is past 10 PM regardless of target', () => {
+    const day = makeDay({
+      totals: { distanceKm: 800, driveTimeMinutes: 600, stopTimeMinutes: 0, departureTime: '2026-08-05T09:00:00', arrivalTime: '2026-08-05T23:00:00' },
+    });
+    const warnings = analyzeTiming([day], makeSettings({ targetArrivalHour: 18 }));
+    const late = warnings.find(w => w.message.includes('Late arrival'));
+    expect(late).toBeDefined();
+    expect(late?.severity).toBe('warning');
+  });
+
+  it('does not warn when arrival is before the targetArrivalHour', () => {
+    const day = makeDay({
+      totals: { distanceKm: 400, driveTimeMinutes: 300, stopTimeMinutes: 0, departureTime: '2026-08-05T09:00:00', arrivalTime: '2026-08-05T17:00:00' },
+    });
+    const warnings = analyzeTiming([day], makeSettings({ targetArrivalHour: 18 }));
+    expect(warnings.some(w => w.message.includes('Late arrival'))).toBe(false);
+  });
 });
 
 // ── analyzeTiming — early departure ───────────────────────────────────────────

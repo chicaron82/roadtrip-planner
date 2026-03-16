@@ -3,8 +3,8 @@ import type { FeasibilityWarning } from './types';
 import { formatTime } from './helpers';
 import { TRIP_CONSTANTS } from '../trip-constants';
 
-/** Late arrival threshold (hour of day, 24h format) */
-const LATE_ARRIVAL_HOUR = 22;         // 10 PM
+/** Absolute late-arrival ceiling — always warn past 10 PM regardless of target. */
+const ABSOLUTE_LATE_HOUR = 22;
 
 /** Early departure threshold */
 const EARLY_DEPARTURE_HOUR = 4;       // 4 AM
@@ -19,16 +19,25 @@ export function analyzeTiming(days: TripDay[], settings?: TripSettings): Feasibi
   const warnings: FeasibilityWarning[] = [];
   const longPushMinutes = TRIP_CONSTANTS.stops.longPushHours * 60;
 
+  // Use the user's arrival target as the warning threshold, falling back to 10 PM.
+  const lateArrivalHour = settings?.targetArrivalHour ?? ABSOLUTE_LATE_HOUR;
+
   for (const day of days) {
-    // Check late arrivals
+    // Check late arrivals — warn when arrival exceeds the user's target hour.
     if (day.totals.arrivalTime) {
       const arrival = new Date(day.totals.arrivalTime);
-      if (!isNaN(arrival.getTime()) && arrival.getHours() >= LATE_ARRIVAL_HOUR) {
+      if (!isNaN(arrival.getTime()) && arrival.getHours() >= lateArrivalHour) {
+        const targetLabel = lateArrivalHour <= 12
+          ? `${lateArrivalHour} AM`
+          : `${lateArrivalHour - 12} PM`;
+        const isAbsoluteLate = arrival.getHours() >= ABSOLUTE_LATE_HOUR;
         warnings.push({
           category: 'timing',
-          severity: 'warning',
+          severity: isAbsoluteLate ? 'warning' : 'info',
           message: `Day ${day.dayNumber}: Late arrival at ${formatTime(arrival)}`,
-          detail: 'Arriving after 10 PM can make hotel check-in difficult and reduces rest time.',
+          detail: isAbsoluteLate
+            ? `Arriving after 10 PM can make hotel check-in difficult and reduces rest time.`
+            : `Arriving past your ${targetLabel} daily target. Stop times and route variations may push arrival later than planned.`,
           dayNumber: day.dayNumber,
           suggestion: 'Consider departing earlier or splitting the drive.',
         });
