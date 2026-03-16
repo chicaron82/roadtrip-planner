@@ -1,8 +1,12 @@
 /**
- * api-geocoding.ts — Location search (Photon primary, Nominatim fallback).
+ * api-geocoding.ts — Location search (Nominatim primary, Photon fallback).
  *
- * Primary: Photon (komoot) — fuzzy/typo-tolerant, built on Nominatim data, no key needed.
- * Fallback: Nominatim — exact match only, used if Photon returns nothing.
+ * Primary: Nominatim — accurate results for exact city/place names.
+ * Fallback: Photon (komoot) — fuzzy/typo-tolerant, used when Nominatim
+ *           returns nothing (partial queries, misspellings).
+ *
+ * Photon's index is missing major Canadian cities (Toronto, Winnipeg, Ottawa)
+ * as of March 2026, so Nominatim must be the primary source.
  */
 import type { Location } from '../types';
 import { NOMINATIM_BASE_URL } from './constants';
@@ -51,14 +55,35 @@ function photonDisplayName(p: PhotonFeature['properties']): { name: string; addr
 }
 
 export async function searchLocations(query: string): Promise<Partial<Location>[]> {
-  // ── Photon (fuzzy) ──────────────────────────────────────────────────────
+  // ── Nominatim (accurate) ────────────────────────────────────────────────
   try {
-    const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=7&lang=en`;
+    const response = await fetch(
+      `${NOMINATIM_BASE_URL}/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1`
+    );
+    if (response.ok) {
+      const data: NominatimResult[] = await response.json();
+      if (data.length > 0) {
+        return data.map(item => ({
+          id: crypto.randomUUID(),
+          lat: parseFloat(item.lat),
+          lng: parseFloat(item.lon),
+          name: sanitizeLocationName(item.display_name),
+          address: item.display_name,
+        }));
+      }
+    }
+  } catch {
+    // fall through to Photon
+  }
+
+  // ── Photon fallback (fuzzy) ─────────────────────────────────────────────
+  // Catches partial queries and misspellings that Nominatim can't match.
+  try {
+    const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=7&lang=en&lat=50&lon=-95`;
     const res = await fetch(photonUrl);
     if (res.ok) {
       const data: PhotonResponse = await res.json();
       const results = data.features
-        // Keep only point-like results that have usable coords + a name
         .filter(f => f.geometry?.coordinates?.length === 2 && (f.properties.name || f.properties.city))
         .map(f => {
           const [lng, lat] = f.geometry.coordinates;
@@ -72,7 +97,7 @@ export async function searchLocations(query: string): Promise<Partial<Location>[
           } satisfies Partial<Location>;
         });
 
-      // Deduplicate by name+country (Photon sometimes returns dupes at different zoom levels)
+      // Deduplicate by name (Photon sometimes returns dupes at different zoom levels)
       const seen = new Set<string>();
       const deduped = results.filter(r => {
         const key = r.name?.toLowerCase() ?? '';
@@ -83,26 +108,9 @@ export async function searchLocations(query: string): Promise<Partial<Location>[
 
       if (deduped.length > 0) return deduped.slice(0, 6);
     }
-  } catch {
-    // fall through to Nominatim
-  }
-
-  // ── Nominatim fallback (exact) ──────────────────────────────────────────
-  try {
-    const response = await fetch(
-      `${NOMINATIM_BASE_URL}/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1`
-    );
-    if (!response.ok) return [];
-    const data: NominatimResult[] = await response.json();
-    return data.map(item => ({
-      id: crypto.randomUUID(),
-      lat: parseFloat(item.lat),
-      lng: parseFloat(item.lon),
-      name: sanitizeLocationName(item.display_name),
-      address: item.display_name,
-    }));
   } catch (error) {
     console.error('Search failed:', error);
-    return [];
   }
+
+  return [];
 }
