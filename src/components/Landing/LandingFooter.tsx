@@ -29,7 +29,7 @@ export function LandingFooter({ activeDot }: Props) {
       >
         My Experience Engine™ · Built by Aaron "Chicharon" with help from the{' '}
         <a
-          href="https://chicaron82.github.io/Version-848/#who"
+          href="https://chicaron82.github.io/VN-Project/#who"
           target="_blank"
           rel="noopener noreferrer"
           className="text-white/40 hover:text-white/60 underline decoration-white/20 underline-offset-4 transition-colors duration-200"
