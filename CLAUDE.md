@@ -83,7 +83,7 @@ If a component has more than ~10 props, stop and ask:
 - Should this component be split?
 - Is this component doing too much?
 
-`Step3Content` (37 props) is the current known offender — tracked for refactor.
+`Step3Content` was the known offender (37 props) — refactored Mar 2026. Now has 4 props; complexity lives in `useStep3Controller` + `useStep3Derivations` + `useStep3Models` as a typed derivation pipeline. Watch `usePlanningStepProps.ts` as the current convergence seam (~30 inputs assembling the step props object).
 
 ---
 
