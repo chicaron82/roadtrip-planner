@@ -142,11 +142,23 @@ export function splitTripByDays(
     const contextTolerance = getOverflowToleranceMinutes(settings, remainingMinutes <= maxDriveMinutes, days);
     const wouldExceedDailyMax = currentDayDriveMinutes + segmentDriveMinutes > maxDriveMinutes + contextTolerance;
 
+    // Arrival-target check: if adding this segment would push wall-clock arrival past
+    // the user's targetArrivalHour, end the day here — even if maxDriveHours is not yet hit.
+    // Uses drive minutes only (stop time excluded); the UI surfaces a note about this.
+    // Guard: skip if target is at or before departure (inverted config).
+    const dayStartMins = currentDate.getHours() * 60 + currentDate.getMinutes();
+    const targetArrivalMins = (settings.targetArrivalHour ?? 21) * 60;
+    const wouldExceedArrivalTarget =
+      dayStartMins < targetArrivalMins &&
+      (dayStartMins + currentDayDriveMinutes + segmentDriveMinutes) > targetArrivalMins + 15; // 15 min grace
+
     // Hub-snap: before splitting, check if extending the day by one segment would
     // land at a real city (hub). Humans prefer to push an extra hour to reach
     // Thunder Bay rather than stop at an anonymous highway km marker.
+    // Only applies when maxDriveHours is the binding constraint — if arrival target
+    // is binding, extending the day would push arrival even later.
     let hubSnapExtend = false;
-    if (wouldExceedDailyMax && currentDay.segments.length > 0 && !isOvernightStop) {
+    if (wouldExceedDailyMax && !wouldExceedArrivalTarget && currentDay.segments.length > 0 && !isOvernightStop) {
       const lastSeg = currentDay.segments[currentDay.segments.length - 1];
       const currentEndNearHub = findHubInWindow(lastSeg.to.lat, lastSeg.to.lng, 60);
       if (!currentEndNearHub && segmentDriveMinutes <= 90) {
@@ -156,7 +168,7 @@ export function splitTripByDays(
         }
       }
     }
-    if (wouldExceedDailyMax && currentDay.segments.length > 0 && !isOvernightStop && !hubSnapExtend) {
+    if ((wouldExceedDailyMax || wouldExceedArrivalTarget) && currentDay.segments.length > 0 && !isOvernightStop && !hubSnapExtend) {
       if (!currentDay.overnight) {
         const lastSeg = currentDay.segments[currentDay.segments.length - 1];
         if (lastSeg) {

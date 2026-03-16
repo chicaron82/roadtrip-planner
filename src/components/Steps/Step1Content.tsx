@@ -74,7 +74,7 @@ export function Step1Content({
         <div className="flex items-center gap-3">
           <div className="flex-1">
             <Label htmlFor="depTime" className="text-xs">
-              {settings.useArrivalTime ? 'Day 1 Arrival' : 'Day 1 Departure'}
+              {settings.useArrivalTime ? 'Destination Arrival' : 'Day 1 Departure'}
             </Label>
             <ClockPicker
               value={settings.useArrivalTime ? (settings.arrivalTime || '17:00') : settings.departureTime}
@@ -117,7 +117,7 @@ export function Step1Content({
           <div>
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs text-muted-foreground mt-0.5">
-                Each transit day auto-schedules its departure to hit this time.
+                Each transit day aims to arrive by this time. Drive time only — actual arrival may be later if stops are added.
               </p>
               <span className="text-sm font-semibold tabular-nums">{targetArrivalLabel}</span>
             </div>

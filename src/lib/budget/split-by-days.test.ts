@@ -158,6 +158,8 @@ describe('splitTripByDays — round trip day detection', () => {
   it('treats a round trip as a day trip when it fits within maxDriveHours', () => {
     // Each leg is 480 min (8h) → total 960 min. With maxDriveHours=16 (2-driver
     // team) the round trip fits in a single day (960 ≤ 1020 with 1h grace).
+    // targetArrivalHour set to departure hour (9) so the arrival-target check is
+    // bypassed — this test is explicitly about maxDriveHours capacity only.
     const outbound = makeSegment({ from: WINNIPEG, to: THUNDER, distanceKm: 700, durationMinutes: 480 });
     const returnSeg = makeSegment({ from: THUNDER, to: WINNIPEG, distanceKm: 700, durationMinutes: 480 });
     const allSegments = [outbound, returnSeg];
@@ -167,6 +169,7 @@ describe('splitTripByDays — round trip day detection', () => {
       isRoundTrip: true,
       departureDate: '2025-08-16',
       returnDate: '2025-08-16',
+      targetArrivalHour: 9, // == departure hour → disables arrival-target enforcement
     });
     const days = splitTripByDays(allSegments, settings, '2025-08-16', '09:00', 1);
 
@@ -475,5 +478,70 @@ describe('splitTripByDays — explicit overnight stopType', () => {
 
     // Day 2 must start on a later calendar date than day 1
     expect(day2.date > day1.date).toBe(true);
+  });
+});
+
+// ── 11. Daily arrival target enforcement ─────────────────────────────────────
+
+describe('splitTripByDays — arrival target enforcement', () => {
+  it('splits into 2 days when arrival target is tighter than max drive hours', () => {
+    // 9 AM departure, two 4h segments. maxDriveHours=10 would fit both in one day,
+    // but targetArrivalHour=13 (1 PM) means Day 1 ends after segment 1 (9+4=1 PM),
+    // and adding segment 2 would push to 5 PM — past the 1 PM target.
+    const segments: RouteSegment[] = [
+      makeSegment({ from: WINNIPEG, to: KENORA,  distanceKm: 350, durationMinutes: 240 }),
+      makeSegment({ from: KENORA,   to: THUNDER, distanceKm: 490, durationMinutes: 240 }),
+    ];
+    const settings = makeSettings({ maxDriveHours: 10, targetArrivalHour: 13 });
+    const days = splitTripByDays(segments, settings, '2025-08-16', '09:00');
+
+    expect(days.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('stays in one day when both max drive hours and arrival target are satisfied', () => {
+    // 9 AM departure, two 3h segments. maxDriveHours=8 (6h total fits), and
+    // 9AM + 6h = 3 PM < targetArrivalHour=21 (9 PM). No split needed.
+    const segments: RouteSegment[] = [
+      makeSegment({ from: WINNIPEG, to: KENORA,  distanceKm: 280, durationMinutes: 180 }),
+      makeSegment({ from: KENORA,   to: THUNDER, distanceKm: 280, durationMinutes: 180 }),
+    ];
+    const settings = makeSettings({ maxDriveHours: 8, targetArrivalHour: 21 });
+    const days = splitTripByDays(segments, settings, '2025-08-16', '09:00');
+
+    expect(days).toHaveLength(1);
+    expect(days[0].totals.driveTimeMinutes).toBe(360);
+  });
+
+  it('prioritizes arrival target over max drive hours when both are binding', () => {
+    // 9 AM departure, three 3h segments (9h total).
+    // maxDriveHours=10 would fit all in one day, but targetArrivalHour=15 (3 PM)
+    // means Day 1 can hold at most 6h (9AM + 6h = 3PM).
+    // Segment 3 pushes to 9PM — must split before it.
+    const segments: RouteSegment[] = [
+      makeSegment({ from: WINNIPEG, to: KENORA,  distanceKm: 280, durationMinutes: 180 }),
+      makeSegment({ from: KENORA,   to: THUNDER, distanceKm: 280, durationMinutes: 180 }),
+      makeSegment({ from: THUNDER,  to: TORONTO, distanceKm: 700, durationMinutes: 180 }),
+    ];
+    const settings = makeSettings({ maxDriveHours: 10, targetArrivalHour: 15 });
+    const days = splitTripByDays(segments, settings, '2025-08-16', '09:00');
+
+    // Should be at least 2 days because arrival target is hit after 6h (2 segments)
+    expect(days.length).toBeGreaterThanOrEqual(2);
+
+    // Day 1 must end at or before 3 PM (15:00) arrival
+    const day1ArrivalHour = new Date(days[0].totals.arrivalTime).getHours();
+    expect(day1ArrivalHour).toBeLessThanOrEqual(15);
+  });
+
+  it('arrival target with 15-min grace does not prematurely split tight-but-fitting trips', () => {
+    // 9 AM departure, one 6h segment. targetArrivalHour=15 (3 PM).
+    // 9AM + 6h = 3PM = exactly at target (within 15-min grace window) → no split.
+    const segments: RouteSegment[] = [
+      makeSegment({ from: WINNIPEG, to: THUNDER, distanceKm: 700, durationMinutes: 360 }),
+    ];
+    const settings = makeSettings({ maxDriveHours: 10, targetArrivalHour: 15 });
+    const days = splitTripByDays(segments, settings, '2025-08-16', '09:00');
+
+    expect(days).toHaveLength(1);
   });
 });
