@@ -4,6 +4,8 @@ import { escapeHtml } from './utils';
 import { getExportBudgetBreakdown, getTripDisplayEndpoints } from './trip-summary-view';
 import { resolveJournalEntryLocation } from './journal-trip-view';
 import type { JournalExportSummary, SegmentLookupSummary } from './trip-summary-slices';
+import type { PrintInput } from './canonical-trip';
+import { buildAutoTitle } from './mee-tokens';
 
 // ── Stylesheet ────────────────────────────────────────────────────────────────
 
@@ -307,6 +309,96 @@ export function exportJournalAsTemplate(journal: TripJournal, summary: JournalEx
 
   showToast({
     message: 'Trip template downloaded! Share it so others can follow your route.',
+    type: 'success',
+    duration: 4000,
+  });
+}
+
+/**
+ * Export a planned trip (no journal required) as a shareable .json template.
+ *
+ * Produces the same SharedTemplate format as exportJournalAsTemplate so the
+ * Step 1 "Load a MEE Time Template" importer can load it directly.
+ *
+ * All data comes from PrintInput — no extra props needed.
+ */
+export function exportTripAsTemplate(printInput: PrintInput): void {
+  const { summary, inputs: { locations, settings, vehicle } } = printInput;
+
+  const endpoints = getTripDisplayEndpoints(summary);
+  const destination = endpoints.destination?.name || 'Destination';
+  const tripTitle = printInput.customTitle ?? buildAutoTitle({ destination });
+
+  const origin = locations[0];
+  const dest   = locations[locations.length - 1];
+  const waypoints = locations.slice(1, -1);
+
+  const template = {
+    type: 'roadtrip-template' as const,
+    version: '1.0',
+    id: `template-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    createdAt: new Date().toISOString(),
+    author: 'MEE',
+
+    trip: {
+      title: tripTitle,
+      description: 'Follow this route with My Experience Engine!',
+      tags: [] as string[],
+      durationDays: summary.drivingDays ?? 1,
+      totalDistanceKm: Math.round(summary.totalDistanceKm),
+      totalDurationHours: (summary.totalDurationMinutes / 60).toFixed(1),
+    },
+
+    ...(summary.costBreakdown ? {
+      budget: {
+        profile: settings.budget?.profile ?? 'balanced',
+        totalSpent: summary.costBreakdown.total,
+        perPerson: summary.costBreakdown.perPerson,
+        breakdown: {
+          fuel: summary.costBreakdown.fuel,
+          accommodation: summary.costBreakdown.accommodation,
+          food: summary.costBreakdown.meals,
+          misc: summary.costBreakdown.misc,
+        },
+      },
+    } : {}),
+
+    route: { origin, destination: dest, waypoints },
+
+    settings: {
+      units: settings.units,
+      currency: settings.currency,
+      maxDriveHours: settings.maxDriveHours,
+      numTravelers: settings.numTravelers,
+      numDrivers: settings.numDrivers,
+      isRoundTrip: settings.isRoundTrip,
+      avoidTolls: settings.avoidTolls,
+      avoidBorders: settings.avoidBorders,
+      scenicMode: settings.scenicMode,
+      routePreference: settings.routePreference,
+      stopFrequency: settings.stopFrequency,
+      gasPrice: settings.gasPrice,
+      hotelPricePerNight: settings.hotelPricePerNight,
+      mealPricePerDay: settings.mealPricePerDay,
+    },
+
+    vehicle,
+
+    importInstructions: 'Load this file in My Experience Engine (Step 1 → Load a MEE Time Template) to follow the same route.',
+  };
+
+  const dataBlob = new Blob([JSON.stringify(template, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(dataBlob);
+  const link = document.createElement('a');
+  link.href = url;
+  // eslint-disable-next-line no-control-regex
+  const safeName = tripTitle.replace(/[<>:"/\\|?*\x00-\x1f]/g, '').replace(/\s+/g, '-').toLowerCase().slice(0, 100) || 'mee-time';
+  link.download = `mee-time-${safeName}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+
+  showToast({
+    message: 'MEE time saved! Share the .json so others can load your route.',
     type: 'success',
     duration: 4000,
   });

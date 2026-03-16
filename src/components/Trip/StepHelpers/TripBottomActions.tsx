@@ -1,5 +1,6 @@
-import { Share2, Printer } from 'lucide-react';
+import { Share2, Printer, Download } from 'lucide-react';
 import { printTrip } from './TripPrintView';
+import { exportTripAsTemplate } from '../../../lib/journal-export';
 import type { PrintInput } from '../../../lib/canonical-trip';
 import type { TimedEvent } from '../../../lib/trip-timeline';
 import type { TripJournal } from '../../../types';
@@ -40,6 +41,15 @@ export function TripBottomActions({ printInput, shareUrl, precomputedEvents, isC
           Share
         </button>
       )}
+      <button
+        onClick={() => exportTripAsTemplate(printInput)}
+        disabled={isCalculating}
+        className="inline-flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-full transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+        style={{ background: 'rgba(245,240,232,0.05)', border: '1px solid rgba(245,240,232,0.1)', color: 'rgba(245,240,232,0.45)' }}
+      >
+        <Download className="h-3 w-3" />
+        Share your MEE time
+      </button>
       <button
         onClick={() => printTrip({ printInput, precomputedEvents: precomputedEvents ?? [], journal: journal ?? undefined })}
         disabled={isCalculating || !precomputedEvents?.length}
