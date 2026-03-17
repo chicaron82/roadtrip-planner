@@ -36,6 +36,7 @@ function AppContent() {
   const [tripConfirmed, setTripConfirmed] = useState(false);
   const [mapRevealed, setMapRevealed] = useState(false);
   const [history] = useState<HistoryTripSnapshot[]>(() => getHistory());
+  const [adventurePreview, setAdventurePreview] = useState<{ lat: number; lng: number; radiusKm: number } | null>(null);
 
   const {
     tripMode, setTripMode,
@@ -105,7 +106,7 @@ function AppContent() {
     setActiveChallenge, setTripOrigin,
     handleImportTemplate, handleSelectChallenge, handleAdventureSelect,
   } = useTripLoader({
-    setLocations, setVehicle, setSettings,
+    setLocations, setVehicle, setSettings, setTripMode,
     markStepComplete, forceStep, goToStep,
     onAdventureComplete: () => setShowAdventureMode(false),
   });
@@ -212,7 +213,7 @@ function AppContent() {
     pois, markerCategories, tripActive, strategicFuelStops, addedPOIIds,
     mapDayOptions, handleMapClick, routeDetails: summary, handleAddPOIFromMap,
     previewGeometry, tripMode, routeStrategies, activeStrategyIndex, selectStrategy,
-    units: settings.units,
+    units: settings.units, adventurePreview,
   });
 
   const canProceed = planningStep === 1 ? canProceedFromStep1 : canProceedFromStep2;
@@ -278,8 +279,11 @@ function AppContent() {
       {!tripMode && icebreakerMode && !estimateWorkshopActive && (
         <IcebreakerGate
           mode={icebreakerMode}
-          onComplete={handleIcebreakerComplete}
-          onEscape={handleIcebreakerEscape}
+          onComplete={(mode, prefill) => { setAdventurePreview(null); handleIcebreakerComplete(mode, prefill); }}
+          onEscape={(mode, saveAsClassic) => { setAdventurePreview(null); handleIcebreakerEscape(mode, saveAsClassic); }}
+          onAdventurePreviewChange={(lat, lng, radiusKm) =>
+            setAdventurePreview({ lat, lng, radiusKm })
+          }
         />
       )}
 

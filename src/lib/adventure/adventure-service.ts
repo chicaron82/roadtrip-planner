@@ -115,6 +115,29 @@ export function calculateMaxDistance(config: AdventureConfig): number {
   return isRoundTrip ? maxDrivableKm / 2 : maxDrivableKm;
 }
 
+/** Minimal destination shape used for map preview pins. */
+export interface DestinationPreview {
+  lat: number;
+  lng: number;
+  name: string;
+  category: AdventureDestination['category'];
+}
+
+/**
+ * Return destinations within `radiusKm` of the given origin — fast local lookup.
+ * Used by the Adventure icebreaker map preview; avoids the full scoring pipeline.
+ */
+export function getDestinationsInRadius(
+  originLat: number,
+  originLng: number,
+  radiusKm: number,
+): DestinationPreview[] {
+  if (radiusKm <= 0) return [];
+  return POPULAR_DESTINATIONS
+    .filter(d => haversineDistance(originLat, originLng, d.lat, d.lng) <= radiusKm)
+    .map(d => ({ lat: d.lat, lng: d.lng, name: d.name, category: d.category }));
+}
+
 /**
  * Calculate Haversine distance between two points
  */

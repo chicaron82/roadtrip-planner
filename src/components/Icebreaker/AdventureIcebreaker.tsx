@@ -10,15 +10,18 @@
  * 💚 My Experience Engine
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Location } from '../../types';
 import type { IcebreakerPrefill } from './IcebreakerGate';
 import { IcebreakerQuestion } from './IcebreakerQuestion';
 import { LocationSearchInput } from '../Trip/Location/LocationSearchInput';
+import { calculateMaxDistance } from '../../lib/adventure/adventure-service';
 
 interface AdventureIcebreakerProps {
   onComplete: (prefill: IcebreakerPrefill) => void;
   onEscape: (saveAsClassic?: boolean) => void;
+  /** Fires whenever origin/budget/days changes so the map can render a live radius preview. */
+  onPreviewChange?: (lat: number, lng: number, radiusKm: number) => void;
 }
 
 const MIN_DAYS = 1;
@@ -37,7 +40,7 @@ const ACCOMMODATION_OPTIONS: { value: AccommodationType; label: string; emoji: s
   { value: 'comfort', label: 'Comfort', emoji: '✨' },
 ];
 
-export function AdventureIcebreaker({ onComplete, onEscape }: AdventureIcebreakerProps) {
+export function AdventureIcebreaker({ onComplete, onEscape, onPreviewChange }: AdventureIcebreakerProps) {
   const [step, setStep] = useState(1);
   const [isExiting, setIsExiting] = useState(false);
 
@@ -52,6 +55,20 @@ export function AdventureIcebreaker({ onComplete, onEscape }: AdventureIcebreake
   const [isRoundTrip, setIsRoundTrip] = useState(true);
 
   const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+
+  // Fire map preview whenever origin / budget / days changes
+  useEffect(() => {
+    if (!onPreviewChange) return;
+    if (!origin?.lat || origin.lat === 0) return;
+    const radiusKm = calculateMaxDistance({
+      origin: { lat: origin.lat, lng: origin.lng!, name: origin.name ?? '', id: '', type: 'origin' as const },
+      budget,
+      days,
+      travelers: 2,
+      preferences: [],
+    });
+    onPreviewChange(origin.lat, origin.lng!, radiusKm);
+  }, [origin, budget, days, onPreviewChange]);
 
   const transition = (fn: () => void) => {
     setIsExiting(true);

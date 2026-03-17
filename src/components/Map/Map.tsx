@@ -13,6 +13,7 @@ import { createCustomIcon, createAddedIcon, createDeclaredWaypointIcon, createPa
 import { MapUpdater, MapClickHandler } from './MapHelpers';
 import { findNearestSegment } from './map-utils';
 import { useMapPresentationModel } from '../../hooks/useMapPresentationModel';
+import { AdventureRadiusLayer } from './AdventureRadiusLayer';
 
 interface AlternateRouteGeometry {
   geometry: [number, number][];
@@ -40,13 +41,15 @@ interface MapProps {
   routeSegments?: RouteSegment[];
   routeTotals?: { distanceKm: number; durationMinutes: number };
   units?: 'metric' | 'imperial';
+  /** Adventure Icebreaker radius preview — shows reach circle + destination pins */
+  adventurePreview?: { lat: number; lng: number; radiusKm: number } | null;
 }
 
 export function Map({
   locations, routeGeometry, pois, markerCategories, strategicFuelStops = [],
   addedPOIIds, dayOptions, onMapClick, onAddPOI, previewGeometry, tripMode,
   feasibilityStatus, alternateGeometries, tripDays, routeSegments, routeTotals,
-  units = 'metric'
+  units = 'metric', adventurePreview,
 }: MapProps) {
   const {
     tileStyle, setTileStyle,
@@ -95,6 +98,15 @@ export function Map({
 
         <MapUpdater locations={locations} routeGeometry={routeGeometry} previewGeometry={previewGeometry} />
         <MapClickHandler onMapClick={onMapClick} />
+
+        {/* Adventure radius preview — visible during Adventure Icebreaker Q1 */}
+        {adventurePreview && (
+          <AdventureRadiusLayer
+            lat={adventurePreview.lat}
+            lng={adventurePreview.lng}
+            radiusKm={adventurePreview.radiusKm}
+          />
+        )}
 
         {/* Preview line */}
         {!routeGeometry && previewGeometry && (

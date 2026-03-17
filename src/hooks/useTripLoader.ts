@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { Location, Vehicle, TripSettings, TripChallenge, TripOrigin } from '../types';
+import type { Location, Vehicle, TripSettings, TripChallenge, TripOrigin, TripMode, HotelTier } from '../types';
 import { buildAdventureBudget } from '../lib/adventure/adventure-service';
 import type { AdventureSelection } from '../components/Trip/Adventure/AdventureMode';
 import type { TemplateImportResult } from '../lib/url';
@@ -13,10 +13,18 @@ function estimateDrivingDays(distanceKm: number, maxDriveHoursPerDay: number): n
   return Math.max(1, Math.ceil(totalDriveHours / maxDriveHoursPerDay));
 }
 
+/** Maps Adventure Mode's accommodation tier to Plan Mode hotel settings. */
+const ACCOMMODATION_TO_HOTEL: Record<'budget' | 'moderate' | 'comfort', { tier: HotelTier; pricePerNight: number }> = {
+  budget:   { tier: 'budget',  pricePerNight: 90  },
+  moderate: { tier: 'regular', pricePerNight: 140 },
+  comfort:  { tier: 'premium', pricePerNight: 220 },
+};
+
 interface UseTripLoaderOptions {
   setLocations: React.Dispatch<React.SetStateAction<Location[]>>;
   setVehicle: (vehicle: Vehicle) => void;
   setSettings: React.Dispatch<React.SetStateAction<TripSettings>>;
+  setTripMode: (mode: TripMode) => void;
   markStepComplete: (step: number) => void;
   forceStep: (step: PlanningStep) => void;
   goToStep: (step: PlanningStep) => void;
@@ -37,6 +45,7 @@ export function useTripLoader({
   setLocations,
   setVehicle,
   setSettings,
+  setTripMode,
   markStepComplete,
   forceStep,
   goToStep,
@@ -109,6 +118,9 @@ export function useTripLoader({
       returnDay.setDate(returnDay.getDate() + drivingDaysOneWay + stayDays);
       const returnDate = selection.isRoundTrip ? formatLocalYMD(returnDay) : '';
 
+      // Map Adventure accommodation tier → Plan Mode hotel settings
+      const hotel = ACCOMMODATION_TO_HOTEL[selection.accommodationType ?? 'moderate'];
+
       return {
       ...prev,
       numTravelers: selection.travelers,
@@ -118,6 +130,8 @@ export function useTripLoader({
       departureDate: selection.departureDate,
       departureTime: selection.departureTime,
       returnDate,
+      hotelTier: hotel.tier,
+      hotelPricePerNight: hotel.pricePerNight,
       budget: {
         ...prev.budget,
         profile: adventureBudget.profile,
@@ -132,10 +146,12 @@ export function useTripLoader({
       };
     });
 
+    // Switch to Plan Mode — "the conversation continues"
+    setTripMode('plan');
     markStepComplete(1);
     goToStep(2);
     onAdventureComplete?.();
-  }, [setLocations, setSettings, markStepComplete, goToStep, onAdventureComplete]);
+  }, [setLocations, setSettings, setTripMode, markStepComplete, goToStep, onAdventureComplete]);
 
   return {
     activeChallenge,

@@ -24,6 +24,7 @@ interface UseMapPropsOptions {
   activeStrategyIndex: number;
   selectStrategy: (i: number) => void;
   units?: 'metric' | 'imperial';
+  adventurePreview?: MapComponentProps['adventurePreview'];
 }
 
 /**
@@ -57,5 +58,6 @@ export function useMapProps(o: UseMapPropsOptions): MapComponentProps {
     routeSegments: o.routeDetails?.segments,
     routeTotals: o.routeDetails ? { distanceKm: o.routeDetails.totalDistanceKm, durationMinutes: o.routeDetails.totalDurationMinutes } : undefined,
     units: o.units,
+    adventurePreview: o.adventurePreview,
   };
 }
