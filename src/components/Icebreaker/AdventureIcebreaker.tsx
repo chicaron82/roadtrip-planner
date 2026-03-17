@@ -56,7 +56,8 @@ export function AdventureIcebreaker({ onComplete, onEscape, onPreviewChange }: A
 
   const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
-  // Fire map preview whenever origin / budget / days changes
+  // Fire map preview whenever origin / budget / days / travelers / accommodation changes.
+  // All five inputs affect the real results — radius must match.
   useEffect(() => {
     if (!onPreviewChange) return;
     if (!origin?.lat || origin.lat === 0) return;
@@ -64,11 +65,12 @@ export function AdventureIcebreaker({ onComplete, onEscape, onPreviewChange }: A
       origin: { lat: origin.lat, lng: origin.lng!, name: origin.name ?? '', id: '', type: 'origin' as const },
       budget,
       days,
-      travelers: 2,
+      travelers: numTravelers,
+      accommodationType,
       preferences: [],
     });
     onPreviewChange(origin.lat, origin.lng!, radiusKm);
-  }, [origin, budget, days, onPreviewChange]);
+  }, [origin, budget, days, numTravelers, accommodationType, onPreviewChange]);
 
   const transition = (fn: () => void) => {
     setIsExiting(true);

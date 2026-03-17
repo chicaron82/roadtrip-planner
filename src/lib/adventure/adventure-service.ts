@@ -133,8 +133,10 @@ export function getDestinationsInRadius(
   radiusKm: number,
 ): DestinationPreview[] {
   if (radiusKm <= 0) return [];
+  // Apply the same 1.3× road factor used in findAdventureDestinations so pins
+  // shown on the map match destinations that will survive the results filter.
   return POPULAR_DESTINATIONS
-    .filter(d => haversineDistance(originLat, originLng, d.lat, d.lng) <= radiusKm)
+    .filter(d => haversineDistance(originLat, originLng, d.lat, d.lng) * 1.3 <= radiusKm)
     .map(d => ({ lat: d.lat, lng: d.lng, name: d.name, category: d.category }));
 }
 
