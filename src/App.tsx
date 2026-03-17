@@ -5,6 +5,7 @@ import { RouteStrategyPicker } from './components/Trip/RouteStrategyPicker';
 import { ErrorFallback } from './components/UI/ErrorFallback';
 import { AdventureMode } from './components/Trip/Adventure/AdventureMode';
 import { LandingScreen } from './components/Landing/LandingScreen';
+import { IcebreakerGate } from './components/Icebreaker/IcebreakerGate';
 import { PlannerSidebarShell } from './components/App/PlannerSidebarShell';
 import './styles/sidebar.css';
 import { TripProvider, useTimeline, useTripCore } from './contexts';
@@ -12,7 +13,7 @@ import {
   useWizard, useTripCalculation, useJournal, usePOI, useEagerRoute, useAddedStops,
   useStylePreset, useTripMode, useTripLoader, useMapInteractions, useURLHydration,
   usePlanningStepProps, useAppReset, useCalculateAndDiscover, useMapProps, useGhostCar,
-  useAppCallbacks, useTripRestore,
+  useAppCallbacks, useTripRestore, useIcebreakerGate,
 } from './hooks';
 import { useArrivalSnap } from './hooks/useArrivalSnap';
 import { useCalculationMessages } from './hooks/useCalculationMessages';
@@ -174,6 +175,9 @@ function AppContent() {
     markStepComplete,
   });
 
+  const { icebreakerMode, handleLandingSelect, handleIcebreakerComplete, handleIcebreakerEscape } =
+    useIcebreakerGate({ selectTripMode, setLocations, setSettings, markStepComplete, forceStep });
+
   // Save active session to localStorage whenever the trip is confirmed and locations are valid.
   // Cleared automatically by resetTripSession (Plan New Trip).
   useEffect(() => {
@@ -230,14 +234,21 @@ function AppContent() {
         </ErrorBoundary>
       </div>
 
-      {!tripMode && (
+      {!tripMode && !icebreakerMode && (
         <LandingScreen
-          onSelectMode={selectTripMode}
+          onSelectMode={handleLandingSelect}
           hasSavedTrip={history.length > 0}
           onContinueSavedTrip={() => setTripMode('plan')}
           hasActiveSession={hasActiveSession}
           onResumeSession={handleResumeSession}
           lastDestination={lastDestination}
+        />
+      )}
+      {!tripMode && icebreakerMode && (
+        <IcebreakerGate
+          mode={icebreakerMode}
+          onComplete={handleIcebreakerComplete}
+          onEscape={handleIcebreakerEscape}
         />
       )}
 

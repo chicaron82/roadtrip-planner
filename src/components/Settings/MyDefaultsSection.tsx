@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import type { UnitSystem, Currency } from '../../types';
-import { getLastOrigin } from '../../lib/storage';
+import { getLastOrigin, getEntryPreference, saveEntryPreference } from '../../lib/storage';
 
 interface MyDefaultsSectionProps {
   units: UnitSystem;
@@ -11,6 +12,12 @@ interface MyDefaultsSectionProps {
 
 export function MyDefaultsSection({ units, currency, numTravelers, numDrivers, onChange }: MyDefaultsSectionProps) {
   const lastOrigin = getLastOrigin();
+  const [entryPref, setEntryPref] = useState(getEntryPreference() ?? 'conversational');
+
+  const handleEntryPrefChange = (pref: 'conversational' | 'classic') => {
+    setEntryPref(pref);
+    saveEntryPreference(pref);
+  };
 
   const clamp = (val: number, min: number, max: number) => Math.max(min, Math.min(max, val));
 
@@ -101,6 +108,33 @@ export function MyDefaultsSection({ units, currency, numTravelers, numDrivers, o
             </div>
           </div>
         </div>
+      </div>
+      {/* Entry Experience */}
+      <div>
+        <p className="text-xs text-zinc-400 uppercase tracking-wide mb-2">Entry Experience</p>
+        <div className="flex gap-2">
+          {([
+            { value: 'conversational', label: 'Walk me through it' },
+            { value: 'classic', label: 'Jump straight in' },
+          ] as const).map(({ value, label }) => (
+            <button
+              key={value}
+              onClick={() => handleEntryPrefChange(value)}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                entryPref === value
+                  ? 'bg-sky-500 text-white'
+                  : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-zinc-500 mt-1.5">
+          {entryPref === 'conversational'
+            ? 'MEE guides you through each mode step by step.'
+            : 'Go straight to the planner every time.'}
+        </p>
       </div>
     </div>
   );

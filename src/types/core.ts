@@ -5,6 +5,9 @@
 // Trip mode determines the user's intent — plan, explore, or estimate
 export type TripMode = 'plan' | 'adventure' | 'estimate';
 
+// Entry experience preference — conversational icebreaker or classic wizard
+export type EntryPreference = 'conversational' | 'classic';
+
 export type AccommodationType = 'hotel' | 'camping' | 'airbnb' | 'friends' | 'other';
 export type HotelTier = 'budget' | 'regular' | 'premium';
 

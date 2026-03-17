@@ -1,4 +1,4 @@
-import type { Location, TripSummary, TripSettings, HistoryTripSnapshot } from '../types';
+import type { Location, TripSummary, TripSettings, HistoryTripSnapshot, EntryPreference } from '../types';
 
 const KEYS = {
   FAVORITES: 'roadtrip_favorites',
@@ -7,6 +7,7 @@ const KEYS = {
   LAST_ORIGIN: 'roadtrip_last_origin',
   DEFAULT_SETTINGS: 'roadtrip_default_settings',
   ACTIVE_SESSION: 'roadtrip_active_session',
+  ENTRY_PREFERENCE: 'mee_entry_preference',
 };
 
 // Re-export vehicle/garage storage (moved to storage-garage.ts)
@@ -201,4 +202,21 @@ export const loadActiveSession = (): { locations: Location[]; settings: TripSett
 
 export const clearActiveSession = (): void => {
   localStorage.removeItem(KEYS.ACTIVE_SESSION);
+};
+
+// --- Entry Experience Preference ---
+// null = not set (first-timer) → always show icebreaker
+// 'conversational' → show icebreaker
+// 'classic' → skip to wizard
+
+export const getEntryPreference = (): EntryPreference | null => {
+  try {
+    const val = localStorage.getItem(KEYS.ENTRY_PREFERENCE);
+    if (val === 'classic' || val === 'conversational') return val;
+    return null;
+  } catch { return null; }
+};
+
+export const saveEntryPreference = (pref: EntryPreference): void => {
+  try { localStorage.setItem(KEYS.ENTRY_PREFERENCE, pref); } catch {}
 };

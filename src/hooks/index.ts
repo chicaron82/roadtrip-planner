@@ -18,3 +18,4 @@ export { useAppCallbacks } from './useAppCallbacks';
 export { useTripRestore } from './useTripRestore';
 export { useDebounce } from './useDebounce';
 export { useRevealAnimation } from './useRevealAnimation';
+export { useIcebreakerGate } from './useIcebreakerGate';
