@@ -1,4 +1,4 @@
-import { useRef, useState, useLayoutEffect, useEffect, lazy, Suspense } from 'react';
+import { useRef, useState, useLayoutEffect, useEffect, useMemo, lazy, Suspense } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { TripSummaryCard } from './components/Trip/TripSummary';
 import { RouteStrategyPicker } from './components/Trip/RouteStrategyPicker';
@@ -6,6 +6,7 @@ import { ErrorFallback } from './components/UI/ErrorFallback';
 import { AdventureMode } from './components/Trip/Adventure/AdventureMode';
 import { LandingScreen } from './components/Landing/LandingScreen';
 import { IcebreakerGate } from './components/Icebreaker/IcebreakerGate';
+import { EstimateWorkshop } from './components/Icebreaker/EstimateWorkshop';
 import { PlannerSidebarShell } from './components/App/PlannerSidebarShell';
 import './styles/sidebar.css';
 import { TripProvider, useTimeline, useTripCore } from './contexts';
@@ -175,8 +176,14 @@ function AppContent() {
     markStepComplete,
   });
 
-  const { icebreakerMode, handleLandingSelect, handleIcebreakerComplete, handleIcebreakerEscape } =
-    useIcebreakerGate({ selectTripMode, setLocations, setSettings, markStepComplete, forceStep });
+  const {
+    icebreakerMode, estimateWorkshopActive, adventureInitialValues,
+    handleLandingSelect, handleIcebreakerComplete, handleIcebreakerEscape,
+    handleEstimateWorkshopCommit, handleEstimateWorkshopEscape,
+  } = useIcebreakerGate({
+    selectTripMode, setTripMode, setShowAdventureMode, setLocations, setVehicle, setSettings,
+    markStepComplete, forceStep,
+  });
 
   // Save active session to localStorage whenever the trip is confirmed and locations are valid.
   // Cleared automatically by resetTripSession (Plan New Trip).
@@ -184,6 +191,14 @@ function AppContent() {
     if (!tripConfirmed || !locations.some(l => l.lat !== 0)) return;
     saveActiveSession(locations, settings);
   }, [tripConfirmed, locations, settings]);
+
+  // Trigger background route calculation when Estimate Workshop opens.
+  // useEffect fires after React commits the icebreaker prefill (locations, vehicle, settings),
+  // so calculateAndDiscover sees the correct new state — not the stale pre-icebreaker values.
+  useEffect(() => {
+    if (estimateWorkshopActive) calculateAndDiscover();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [estimateWorkshopActive]);
 
   const hasActiveSession = locations.some(loc => loc.name && loc.name.trim() !== '');
   const lastDestination = (() => {
@@ -224,6 +239,12 @@ function AppContent() {
 
   const calculationMessage = useCalculationMessages(isCalculating, locations);
 
+  // Stable object reference for LiveReflectionBar — avoids re-creating on every parent render.
+  const liveReflection = useMemo(
+    () => summary ? { summary, vehicle, settings } : null,
+    [summary, vehicle, settings],
+  );
+
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden">
       <div className="absolute inset-0">
@@ -234,7 +255,7 @@ function AppContent() {
         </ErrorBoundary>
       </div>
 
-      {!tripMode && !icebreakerMode && (
+      {!tripMode && !icebreakerMode && !estimateWorkshopActive && (
         <LandingScreen
           onSelectMode={handleLandingSelect}
           hasSavedTrip={history.length > 0}
@@ -244,7 +265,17 @@ function AppContent() {
           lastDestination={lastDestination}
         />
       )}
-      {!tripMode && icebreakerMode && (
+      {!tripMode && estimateWorkshopActive && (
+        <EstimateWorkshop
+          summary={summary ?? null}
+          vehicle={vehicle}
+          settings={settings}
+          isCalculating={isCalculating}
+          onCommit={handleEstimateWorkshopCommit}
+          onEscape={handleEstimateWorkshopEscape}
+        />
+      )}
+      {!tripMode && icebreakerMode && !estimateWorkshopActive && (
         <IcebreakerGate
           mode={icebreakerMode}
           onComplete={handleIcebreakerComplete}
@@ -279,6 +310,7 @@ function AppContent() {
             onClearError={clearError}
             calculationMessage={calculationMessage}
             stepProps={stepProps}
+            liveReflection={liveReflection}
           />
 
           {summary && planningStep === 3 && (
@@ -310,6 +342,7 @@ function AppContent() {
           {showAdventureMode && (
             <AdventureMode
               origin={locations.find(l => l.type === 'origin') || null}
+              initialValues={adventureInitialValues ?? undefined}
               onOriginChange={(newOrigin) => {
                 setLocations(prev => prev.map(loc => loc.type === 'origin' ? { ...loc, ...newOrigin } : loc));
               }}

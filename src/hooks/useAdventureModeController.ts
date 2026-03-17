@@ -21,8 +21,17 @@ import { findAdventureDestinations, calculateMaxDistance } from '../lib/adventur
 import { formatLocalYMD } from '../lib/utils';
 import type { AdventureSelection } from '../components/Trip/Adventure/AdventureMode';
 
+export interface AdventureInitialValues {
+  budget?: number;
+  days?: number;
+  travelers?: number;
+  accommodationType?: 'budget' | 'moderate' | 'comfort';
+  isRoundTrip?: boolean;
+}
+
 interface UseAdventureModeControllerOptions {
   initialOrigin: Location | null;
+  initialValues?: AdventureInitialValues;
   onOriginChange?: (origin: Location) => void;
   onSelectDestination: (selection: AdventureSelection) => void;
   onClose: () => void;
@@ -64,19 +73,20 @@ function makeTomorrow(): string {
 
 export function useAdventureModeController({
   initialOrigin,
+  initialValues,
   onOriginChange,
   onSelectDestination,
   onClose,
   fuelCostPerKm,
 }: UseAdventureModeControllerOptions): UseAdventureModeControllerReturn {
   const [localOrigin, setLocalOrigin] = useState<Location | null>(initialOrigin);
-  const [budget, setBudget] = useState(1000);
-  const [days, setDays] = useState(3);
-  const [travelers, setTravelers] = useState(2);
+  const [budget, setBudget] = useState(initialValues?.budget ?? 1000);
+  const [days, setDays] = useState(initialValues?.days ?? 3);
+  const [travelers, setTravelers] = useState(initialValues?.travelers ?? 2);
   const [numRooms, setNumRooms] = useState(1);
   const [preferences, setPreferences] = useState<TripPreference[]>([]);
-  const [accommodationType, setAccommodationType] = useState<'budget' | 'moderate' | 'comfort'>('moderate');
-  const [isRoundTrip, setIsRoundTrip] = useState(true);
+  const [accommodationType, setAccommodationType] = useState<'budget' | 'moderate' | 'comfort'>(initialValues?.accommodationType ?? 'moderate');
+  const [isRoundTrip, setIsRoundTrip] = useState(initialValues?.isRoundTrip ?? true);
   const [departureDate, setDepartureDate] = useState(makeTomorrow);
   const [departureTime, setDepartureTime] = useState('09:00');
 

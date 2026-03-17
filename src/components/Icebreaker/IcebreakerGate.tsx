@@ -1,9 +1,9 @@
 /**
  * IcebreakerGate — Routes to the correct icebreaker based on trip mode.
  *
- * Plan     → PlanIcebreaker (3-question flow)
- * Adventure → passthrough (icebreaker TBD next session)
- * Estimate  → passthrough (icebreaker TBD next session)
+ * Plan      → PlanIcebreaker     (3-question: where / when / who)
+ * Adventure → AdventureIcebreaker (2-question: what you've got / who's coming)
+ * Estimate  → EstimateIcebreaker  (2-question: where / what's your ride)
  *
  * Renders as a full-screen overlay in the same glass aesthetic as the landing screen.
  * The map remains visible behind it — the world the trip lives in.
@@ -11,12 +11,22 @@
  * 💚 My Experience Engine
  */
 
-import type { Location, TripMode, TripSettings } from '../../types';
+import type { Location, TripMode, TripSettings, Vehicle } from '../../types';
 import { PlanIcebreaker } from './PlanIcebreaker';
+import { AdventureIcebreaker } from './AdventureIcebreaker';
+import { EstimateIcebreaker } from './EstimateIcebreaker';
 
 export interface IcebreakerPrefill {
   locations?: Partial<Location>[];
   settingsPartial?: Partial<TripSettings>;
+  vehiclePrefill?: Vehicle;
+  adventurePrefill?: {
+    budget?: number;
+    days?: number;
+    travelers?: number;
+    accommodationType?: 'budget' | 'moderate' | 'comfort';
+    isRoundTrip?: boolean;
+  };
 }
 
 interface IcebreakerGateProps {
@@ -26,12 +36,6 @@ interface IcebreakerGateProps {
 }
 
 export function IcebreakerGate({ mode, onComplete, onEscape }: IcebreakerGateProps) {
-  if (mode !== 'plan') {
-    // Adventure + Estimate icebreakers coming next session — pass through
-    onEscape(mode);
-    return null;
-  }
-
   return (
     <div
       className="landing-screen"
@@ -48,10 +52,24 @@ export function IcebreakerGate({ mode, onComplete, onEscape }: IcebreakerGatePro
         maxWidth: '480px',
         padding: 'clamp(32px, 6vw, 64px) clamp(20px, 5vw, 48px)',
       }}>
-        <PlanIcebreaker
-          onComplete={onComplete}
-          onEscape={(saveAsClassic) => onEscape(mode, saveAsClassic)}
-        />
+        {mode === 'plan' && (
+          <PlanIcebreaker
+            onComplete={(prefill) => onComplete(mode, prefill)}
+            onEscape={(saveAsClassic) => onEscape(mode, saveAsClassic)}
+          />
+        )}
+        {mode === 'adventure' && (
+          <AdventureIcebreaker
+            onComplete={(prefill) => onComplete(mode, prefill)}
+            onEscape={(saveAsClassic) => onEscape(mode, saveAsClassic)}
+          />
+        )}
+        {mode === 'estimate' && (
+          <EstimateIcebreaker
+            onComplete={(prefill) => onComplete(mode, prefill)}
+            onEscape={(saveAsClassic) => onEscape(mode, saveAsClassic)}
+          />
+        )}
       </div>
     </div>
   );

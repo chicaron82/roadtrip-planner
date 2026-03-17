@@ -12,14 +12,14 @@
  */
 
 import { useState } from 'react';
-import type { Location, TripMode } from '../../types';
+import type { Location } from '../../types';
 import type { IcebreakerPrefill } from './IcebreakerGate';
 import { IcebreakerQuestion } from './IcebreakerQuestion';
 import { LocationSearchInput } from '../Trip/Location/LocationSearchInput';
 import { DateRangePicker } from '../UI/DateRangePicker';
 
 interface PlanIcebreakerProps {
-  onComplete: (mode: TripMode, prefill: IcebreakerPrefill) => void;
+  onComplete: (prefill: IcebreakerPrefill) => void;
   onEscape: (saveAsClassic?: boolean) => void;
 }
 
@@ -65,7 +65,7 @@ export function PlanIcebreaker({ onComplete, onEscape }: PlanIcebreakerProps) {
       ...(stop?.lat ? [{ ...stop, type: 'waypoint' as const }] : []),
       { ...destination, type: 'destination' as const },
     ];
-    onComplete('plan', {
+    onComplete({
       locations,
       settingsPartial: { departureDate, returnDate, departureTime, numTravelers, numDrivers },
     });

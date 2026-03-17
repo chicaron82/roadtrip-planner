@@ -8,7 +8,8 @@ import { ErrorFallback } from '../UI/ErrorFallback';
 import { SettingsPanel } from '../Settings/SettingsPanel';
 import type { PlanningStep } from '../../hooks';
 import type { GhostCarState } from '../../hooks/useGhostCar';
-import type { MarkerCategory, POICategory, TripMode } from '../../types';
+import type { MarkerCategory, POICategory, TripMode, TripSummary, Vehicle, TripSettings } from '../../types';
+import { LiveReflectionBar } from './LiveReflectionBar';
 
 interface PlannerSidebarShellProps {
   tripMode: TripMode;
@@ -33,6 +34,8 @@ interface PlannerSidebarShellProps {
   onClearError: () => void;
   calculationMessage?: string | null;
   stepProps: React.ComponentProps<typeof PlanningStepContent>;
+  // Live reflection bar (shown at Step 2+ once a calculation exists)
+  liveReflection?: { summary: TripSummary; vehicle: Vehicle; settings: TripSettings } | null;
 }
 
 export function PlannerSidebarShell({
@@ -58,6 +61,7 @@ export function PlannerSidebarShell({
   onClearError,
   calculationMessage,
   stepProps,
+  liveReflection,
 }: PlannerSidebarShellProps) {
   return (
     <div className="absolute inset-0 z-20 md:inset-auto md:left-6 md:top-6 md:bottom-6 md:w-[420px] pointer-events-none">
@@ -75,6 +79,13 @@ export function PlannerSidebarShell({
             onSwitchMode={onSwitchMode}
             ghostCar={ghostCar}
           />
+          {planningStep >= 2 && liveReflection && (
+            <LiveReflectionBar
+              summary={liveReflection.summary}
+              vehicle={liveReflection.vehicle}
+              settings={liveReflection.settings}
+            />
+          )}
           <WizardContent
             planningStep={planningStep}
             canProceed={canProceed}

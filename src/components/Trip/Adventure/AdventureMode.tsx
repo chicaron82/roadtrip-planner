@@ -4,7 +4,7 @@ import { LocationSearchInput } from '../Location/LocationSearchInput';
 import { AdventureFormPanel } from './AdventureFormPanel';
 import { AdventureResultsPanel } from './AdventureResultsPanel';
 import { cn } from '../../../lib/utils';
-import { useAdventureModeController } from '../../../hooks/useAdventureModeController';
+import { useAdventureModeController, type AdventureInitialValues } from '../../../hooks/useAdventureModeController';
 
 // Settings to carry over when selecting a destination
 export interface AdventureSelection {
@@ -22,6 +22,7 @@ export interface AdventureSelection {
 
 interface AdventureModeProps {
   origin: Location | null;
+  initialValues?: AdventureInitialValues;
   onOriginChange?: (origin: Location) => void;
   onSelectDestination: (selection: AdventureSelection) => void;
   onSelectChallenge: (challenge: TripChallenge) => void;
@@ -32,6 +33,7 @@ interface AdventureModeProps {
 
 export function AdventureMode({
   origin: externalOrigin,
+  initialValues,
   onOriginChange,
   onSelectDestination,
   onSelectChallenge,
@@ -58,6 +60,7 @@ export function AdventureMode({
     handleSelectDestination,
   } = useAdventureModeController({
     initialOrigin: externalOrigin,
+    initialValues,
     onOriginChange,
     onSelectDestination,
     onClose,
@@ -137,6 +140,7 @@ export function AdventureMode({
             destinations={destinations}
             hasSearched={hasSearched}
             isRoundTrip={isRoundTrip}
+            days={days}
             onSelectDestination={handleSelectDestination}
             origin={origin}
             onSelectChallenge={(challenge) => { onSelectChallenge(challenge); onClose(); }}
