@@ -11,12 +11,14 @@
  * 💚 My Experience Engine
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Location } from '../../types';
 import type { IcebreakerPrefill } from './IcebreakerGate';
 import { IcebreakerQuestion } from './IcebreakerQuestion';
 import { LocationSearchInput } from '../Trip/Location/LocationSearchInput';
 import { DateRangePicker } from '../UI/DateRangePicker';
+import { ClockPicker } from '../UI/ClockPicker';
+import { TripDNAStrand } from './TripDNAStrand';
 
 interface PlanIcebreakerProps {
   onComplete: (prefill: IcebreakerPrefill) => void;
@@ -48,6 +50,13 @@ export function PlanIcebreaker({ onComplete, onEscape }: PlanIcebreakerProps) {
 
   const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+
   const transition = (fn: () => void) => {
     setIsExiting(true);
     setTimeout(() => { fn(); setIsExiting(false); }, 220);
@@ -58,6 +67,19 @@ export function PlanIcebreaker({ onComplete, onEscape }: PlanIcebreakerProps) {
 
   const canAdvanceQ1 = !!(origin?.lat && origin.lat !== 0 && destination?.lat && destination.lat !== 0);
   const canAdvanceQ2 = !!departureDate;
+
+  const strandPhase = ((): 1 | 2 | 3 | 4 => {
+    if (step === 3) return 4;
+    if (departureDate) return 3;
+    if (canAdvanceQ1) return 2;
+    return 1;
+  })();
+
+  const numDays = departureDate
+    ? returnDate
+      ? Math.max(1, Math.ceil((new Date(returnDate).getTime() - new Date(departureDate).getTime()) / 86_400_000))
+      : 1
+    : undefined;
 
   const handleComplete = () => {
     const locations: Partial<Location>[] = [
@@ -71,17 +93,6 @@ export function PlanIcebreaker({ onComplete, onEscape }: PlanIcebreakerProps) {
     });
   };
 
-  const inputStyle: React.CSSProperties = {
-    width: '100%',
-    padding: '12px 14px',
-    background: 'rgba(255,255,255,0.07)',
-    border: '1px solid rgba(255,255,255,0.12)',
-    borderRadius: '10px',
-    color: '#f5f0e8',
-    fontSize: '15px',
-    outline: 'none',
-    boxSizing: 'border-box',
-  };
 
   const stepperRow = (label: string, value: number, onDec: () => void, onInc: () => void) => (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -95,7 +106,13 @@ export function PlanIcebreaker({ onComplete, onEscape }: PlanIcebreakerProps) {
   );
 
   return (
-    <>
+    <div style={{
+      display: 'flex',
+      flexDirection: isMobile ? 'column' : 'row',
+      alignItems: 'flex-start',
+      gap: isMobile ? 0 : 28,
+    }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
       {step === 1 && (
         <IcebreakerQuestion
           key={1}
@@ -149,19 +166,18 @@ export function PlanIcebreaker({ onComplete, onEscape }: PlanIcebreakerProps) {
           onBack={goBack}
           onEscape={() => onEscape()}
         >
-          <DateRangePicker
-            startDate={departureDate}
-            endDate={returnDate}
-            onChange={(start, end) => { setDepartureDate(start); setReturnDate(end); }}
-            minDate={today}
-          />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ color: 'rgba(245,240,232,0.5)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Departure time</label>
-            <input
-              type="time"
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+            <DateRangePicker
+              alwaysOpen
+              startDate={departureDate}
+              endDate={returnDate}
+              onChange={(start, end) => { setDepartureDate(start); setReturnDate(end); }}
+              minDate={today}
+            />
+            <ClockPicker
+              alwaysOpen
               value={departureTime}
-              onChange={(e) => setDepartureTime(e.target.value)}
-              style={inputStyle}
+              onChange={setDepartureTime}
             />
           </div>
           {canAdvanceQ2 && (
@@ -207,6 +223,19 @@ export function PlanIcebreaker({ onComplete, onEscape }: PlanIcebreakerProps) {
           </button>
         </IcebreakerQuestion>
       )}
-    </>
+      </div>
+
+      <TripDNAStrand
+        phase={strandPhase}
+        orientation={isMobile ? 'horizontal' : 'vertical'}
+        originName={origin?.name}
+        destinationName={destination?.name}
+        numDays={numDays}
+        originLat={origin?.lat}
+        originLng={origin?.lng}
+        destLat={destination?.lat}
+        destLng={destination?.lng}
+      />
+    </div>
   );
 }

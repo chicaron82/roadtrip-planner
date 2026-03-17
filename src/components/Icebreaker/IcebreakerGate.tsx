@@ -51,7 +51,7 @@ export function IcebreakerGate({ mode, onComplete, onEscape, onAdventurePreviewC
         position: 'relative',
         zIndex: 10,
         width: '100%',
-        maxWidth: '480px',
+        maxWidth: mode === 'plan' ? '720px' : '480px',
         padding: 'clamp(32px, 6vw, 64px) clamp(20px, 5vw, 48px)',
       }}>
         {mode === 'plan' && (

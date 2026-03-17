@@ -4,6 +4,8 @@ interface ClockPickerProps {
   value: string;       // "HH:mm" 24-hour format
   onChange: (value: string) => void;
   disabled?: boolean;
+  /** Renders the clock inline — no trigger button, always visible. */
+  alwaysOpen?: boolean;
 }
 
 const SIZE = 164;
@@ -38,7 +40,7 @@ function to24(hour12: number, pm: boolean): number {
   return hour12 === 12 ? 0 : hour12;
 }
 
-export function ClockPicker({ value, onChange, disabled }: ClockPickerProps) {
+export function ClockPicker({ value, onChange, disabled, alwaysOpen = false }: ClockPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<'hour' | 'minute'>('hour');
   const ref = useRef<HTMLDivElement>(null);
@@ -53,7 +55,7 @@ export function ClockPicker({ value, onChange, disabled }: ClockPickerProps) {
 
   // Close on outside click, reset step for next open
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || alwaysOpen) return;
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setIsOpen(false);
@@ -85,6 +87,52 @@ export function ClockPicker({ value, onChange, disabled }: ClockPickerProps) {
   const handleAmPm = (pm: boolean) => {
     onChange(format(to24(hour12, pm), m));
   };
+
+  // ── Inline variant (icebreaker) ─────────────────────────────────────────
+  if (alwaysOpen) {
+    return (
+      <div className="rounded-xl border border-border bg-background p-3" style={{ width: SIZE + 24 }}>
+        <div className="flex gap-2 mb-3">
+          {(['AM', 'PM'] as const).map(period => (
+            <button key={period} type="button" onClick={() => handleAmPm(period === 'PM')}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                (period === 'PM') === isPM ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'
+              }`}
+            >{period}</button>
+          ))}
+        </div>
+        <div className="flex items-center justify-center gap-0.5 mb-2">
+          <button type="button" onClick={() => setStep('hour')}
+            className={`px-2 py-0.5 rounded font-mono text-lg font-semibold transition-colors ${step === 'hour' ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground'}`}
+          >{String(hour12).padStart(2, '0')}</button>
+          <span className="text-lg font-semibold text-muted-foreground select-none">:</span>
+          <button type="button" onClick={() => setStep('minute')}
+            className={`px-2 py-0.5 rounded font-mono text-lg font-semibold transition-colors ${step === 'minute' ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground'}`}
+          >{String(m).padStart(2, '0')}</button>
+        </div>
+        <div className="relative mx-auto" style={{ width: SIZE, height: SIZE }}>
+          <div className="absolute inset-0 rounded-full border-2 border-border/60" />
+          <div className="absolute w-2 h-2 rounded-full bg-muted-foreground/40" style={{ left: CENTER - 4, top: CENTER - 4 }} />
+          {step === 'hour' && HOUR_POSITIONS.map(({ hour, x, y }) => (
+            <button key={hour} type="button" onClick={() => handleHour(hour)}
+              style={{ position: 'absolute', left: x - 15, top: y - 15, width: 30, height: 30 }}
+              className={`rounded-full text-xs font-medium transition-colors flex items-center justify-center ${
+                hour === hour12 ? 'bg-primary text-primary-foreground shadow-sm' : 'text-foreground hover:bg-muted'
+              }`}
+            >{hour}</button>
+          ))}
+          {step === 'minute' && MINUTE_POSITIONS.map(({ minute, x, y }) => (
+            <button key={minute} type="button" onClick={() => handleMinute(minute)}
+              style={{ position: 'absolute', left: x - 15, top: y - 15, width: 30, height: 30 }}
+              className={`rounded-full text-xs font-medium transition-colors flex items-center justify-center ${
+                minute === snappedM ? 'bg-primary text-primary-foreground shadow-sm' : 'text-foreground hover:bg-muted'
+              }`}
+            >{String(minute).padStart(2, '0')}</button>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div ref={ref} className="relative">

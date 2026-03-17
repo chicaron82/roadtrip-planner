@@ -145,6 +145,8 @@ interface DateRangePickerProps {
   onChange: (start: string, end: string) => void;
   minDate?: string;
   label?: string;
+  /** Renders the calendar inline — no trigger button, no dropdown chrome. */
+  alwaysOpen?: boolean;
 }
 
 export function DateRangePicker({
@@ -153,6 +155,7 @@ export function DateRangePicker({
   onChange,
   minDate,
   label = 'Travel Dates',
+  alwaysOpen = false,
 }: DateRangePickerProps) {
   const today    = toYMD(new Date());
   const minBound = minDate ?? today;
@@ -188,8 +191,8 @@ export function DateRangePicker({
     if (ymd < startDate) { onChange(ymd, ''); return; }
     onChange(startDate, ymd);
     setHoverDate(null);
-    setIsOpen(false);
-  }, [phase, startDate, onChange]);
+    if (!alwaysOpen) setIsOpen(false);
+  }, [phase, startDate, onChange, alwaysOpen]);
 
   const handleDayHover = useCallback((ymd: string | null) => {
     if (phase === 'end') setHoverDate(ymd);
@@ -214,6 +217,29 @@ export function DateRangePicker({
     startDate, endDate, effectiveEnd, phase, today, minDate: minBound,
     onDayClick: handleDayClick, onDayHover: handleDayHover,
   };
+
+  // ── Inline variant (icebreaker) ─────────────────────────────────────────
+  if (alwaysOpen) {
+    return (
+      <div className="flex-1 min-w-0 rounded-xl border border-border bg-background overflow-hidden">
+        <div className="flex items-center justify-between px-3 py-2.5 border-b border-border/60 bg-muted/30">
+          <button type="button" onClick={prevMonth} className="h-7 w-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors" aria-label="Previous month">
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="text-sm font-semibold">{MONTHS[leftMonth.getMonth()]} {leftMonth.getFullYear()}</span>
+          <button type="button" onClick={nextMonth} className="h-7 w-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors" aria-label="Next month">
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="px-3 pt-2 pb-1">
+          <MonthPanel year={leftMonth.getFullYear()} month={leftMonth.getMonth()} {...sharedPanelProps} />
+        </div>
+        <div className="px-3 py-2 border-t border-border/60 bg-muted/20 flex items-center justify-center">
+          <p className="text-[11px] text-muted-foreground">{phaseHint}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full relative" ref={panelRef}>
