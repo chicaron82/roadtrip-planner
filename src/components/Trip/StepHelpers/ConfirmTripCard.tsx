@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Check, CheckCircle2, BookOpen, Pencil, Sparkles } from 'lucide-react';
 import type { TripMode } from '../../../types';
 import { buildConfirmSubline } from '../../../lib/mode-voice';
+import { useTripCore } from '../../../contexts/TripContext';
 
 interface ConfirmTripCardProps {
   confirmed: boolean;
@@ -44,6 +45,7 @@ export function ConfirmTripCard({
   onUnconfirm,
   onGoToJournal,
 }: ConfirmTripCardProps) {
+  const { icebreakerOrigin } = useTripCore();
   const [showConfetti, setShowConfetti] = useState(false);
   const prevConfirmed = useRef(false);
 
@@ -96,10 +98,14 @@ export function ConfirmTripCard({
 
   return (
     <div className="rounded-xl border-2 border-dashed border-blue-500/25 bg-blue-500/8 p-5 text-center">
-      <div className="w-10 h-10 rounded-full bg-blue-500/15 flex items-center justify-center mx-auto mb-2">
-        <Sparkles className="h-5 w-5 text-blue-400" />
-      </div>
-      <h3 className="font-bold text-blue-300 mb-1">Ready to go?</h3>
+      {!icebreakerOrigin && (
+        <>
+          <div className="w-10 h-10 rounded-full bg-blue-500/15 flex items-center justify-center mx-auto mb-2">
+            <Sparkles className="h-5 w-5 text-blue-400" />
+          </div>
+          <h3 className="font-bold text-blue-300 mb-1">Ready to go?</h3>
+        </>
+      )}
       <p className="text-xs text-blue-400 mb-1">
         {totalDays} day{totalDays !== 1 ? 's' : ''}
         {addedStopCount > 0 && ` · ${addedStopCount} stop${addedStopCount !== 1 ? 's' : ''} added`}
@@ -112,7 +118,7 @@ export function ConfirmTripCard({
         className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition-colors shadow-sm"
       >
         <Check className="h-4 w-4" />
-        Confirm Trip
+        {icebreakerOrigin ? 'Lock it in' : 'Confirm Trip'}
       </button>
     </div>
   );

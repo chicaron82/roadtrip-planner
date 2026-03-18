@@ -35,7 +35,26 @@ export function buildResultsFramingLine(tripMode: TripMode): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 2. Confirm card subline (ConfirmTripCard supporting copy)
+// 2. Sketch card framing line (Beat 2 — "Let MEE sketch this out")
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Returns the subline beneath the sketch card numbers in Beat 2.
+ * MEE just computed a rough estimate — this frames what it did.
+ */
+export function buildSketchFramingLine(tripMode: TripMode): string {
+  switch (tripMode) {
+    case 'adventure':
+      return 'MEE drew the first outline. Ready to shape it?';
+    case 'plan':
+    case 'estimate':
+    default:
+      return 'A rough shape of your trip. Make it personal, or calculate now.';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. Confirm card subline (ConfirmTripCard supporting copy)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**

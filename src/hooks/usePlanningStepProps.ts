@@ -80,6 +80,8 @@ interface UsePlanningStepPropsOptions {
   openInGoogleMaps: () => void;
   copyShareLink: () => void;
   onLoadHistoryTrip: (trip: HistoryTripSnapshot) => void;
+  /** Called when user taps a tune option — applies settings patch and recalculates. */
+  onTune?: (patch: Partial<TripSettings>) => void;
 }
 
 /**
@@ -169,6 +171,7 @@ export function usePlanningStepProps(o: UsePlanningStepPropsOptions): PlanningSt
       history: o.history,
       onGoToStep: o.goToStep,
       onLoadHistoryTrip: o.onLoadHistoryTrip,
+      onTune: o.onTune,
     },
   };
 }

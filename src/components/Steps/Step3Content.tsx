@@ -1,4 +1,4 @@
-import type { HistoryTripSnapshot } from '../../types';
+import type { HistoryTripSnapshot, TripSettings } from '../../types';
 import { OvernightStopPrompt } from '../Trip/StepHelpers/OvernightStopPrompt';
 import { EstimateBreakdown } from '../Trip/StepHelpers/EstimateBreakdown';
 import type { PlanningStep } from '../../hooks';
@@ -12,12 +12,15 @@ import { Step3HistorySection } from './Step3HistorySection';
 import { RecentJournalsList } from '../Trip/Journal/RecentJournalsList';
 import { Step3EmptyState } from './Step3EmptyState';
 import { useRevealAnimation } from '../../hooks/useRevealAnimation';
+import { TunePanel } from '../Icebreaker/TunePanel';
+import { useTripCore, useTimeline } from '../../contexts/TripContext';
 
 export interface Step3ContentProps {
   controller: UseStep3ControllerReturn;
   history: HistoryTripSnapshot[];
   onGoToStep: (step: PlanningStep) => void;
   onLoadHistoryTrip?: (trip: HistoryTripSnapshot) => void;
+  onTune?: (patch: Partial<TripSettings>) => void;
 }
 
 // Shared Tailwind classes for reveal layer transitions.
@@ -31,8 +34,11 @@ export function Step3Content({
   history,
   onGoToStep,
   onLoadHistoryTrip,
+  onTune,
 }: Step3ContentProps) {
   const { estimate, header, overnightPrompt, health, viewer, commit, signatureCard } = controller;
+  const { icebreakerOrigin, settings } = useTripCore();
+  const { summary } = useTimeline();
 
   const { layer1, layer2, layer3 } = useRevealAnimation(!!signatureCard);
 
@@ -70,6 +76,13 @@ export function Step3Content({
             <Step3HealthSection {...health} />
             <TripViewer {...viewer} />
           </div>
+
+          {/* Tune Panel — post-reveal quick adjustments (icebreaker users only) */}
+          {icebreakerOrigin && summary && onTune && (
+            <div className={`${revealBase} ${layer2 ? visible : hidden}`}>
+              <TunePanel settings={settings} summary={summary} onTune={onTune} />
+            </div>
+          )}
 
           {/* Layer 3 — Next actions: commit section closes at 280ms */}
           <div className={`${revealBase} ${layer3 ? visible : hidden}`}>

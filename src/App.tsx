@@ -1,4 +1,4 @@
-import { useRef, useState, useLayoutEffect, useEffect, useMemo, lazy, Suspense } from 'react';
+import { useRef, useState, useCallback, useLayoutEffect, useEffect, useMemo, lazy, Suspense } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { TripSummaryCard } from './components/Trip/TripSummary';
 import { RouteStrategyPicker } from './components/Trip/RouteStrategyPicker';
@@ -7,6 +7,9 @@ import { AdventureMode } from './components/Trip/Adventure/AdventureMode';
 import { LandingScreen } from './components/Landing/LandingScreen';
 import { IcebreakerGate } from './components/Icebreaker/IcebreakerGate';
 import { EstimateWorkshop } from './components/Icebreaker/EstimateWorkshop';
+import { SketchCard } from './components/Icebreaker/SketchCard';
+import { WorkshopPanel } from './components/Icebreaker/WorkshopPanel';
+import { VoilaReveal } from './components/Icebreaker/VoilaReveal';
 import { PlannerSidebarShell } from './components/App/PlannerSidebarShell';
 import './styles/sidebar.css';
 import { TripProvider, useTimeline, useTripCore } from './contexts';
@@ -18,16 +21,17 @@ import {
 } from './hooks';
 import { useArrivalSnap } from './hooks/useArrivalSnap';
 import { useCalculationMessages } from './hooks/useCalculationMessages';
+import { useFourBeatArc } from './hooks/useFourBeatArc';
 import { getHistory, saveActiveSession } from './lib/storage';
 import { getWeightedFuelEconomyL100km } from './lib/unit-conversions';
-import type { HistoryTripSnapshot } from './types';
+import type { HistoryTripSnapshot, Location } from './types';
 
 const Map = lazy(() => import('./components/Map/Map').then(m => ({ default: m.Map })));
 
 /** App.tsx — Root orchestrator. Full-bleed map + floating glass panel. 💚 My Experience Engine */
 function AppContent() {
   // ── Context ──────────────────────────────────────────────────────────────
-  const { locations, setLocations, vehicle, setVehicle, settings, setSettings } = useTripCore();
+  const { locations, setLocations, vehicle, setVehicle, settings, setSettings, icebreakerOrigin, setIcebreakerOrigin } = useTripCore();
   const { summary, canonicalTimeline } = useTimeline();
 
   // ── L1: Independent state ─────────────────────────────────────────────────
@@ -97,7 +101,12 @@ function AppContent() {
 
   useLayoutEffect(() => {
     onCalcCompleteRef.current = () => {
-      markStepComplete(1); markStepComplete(2); markStepComplete(3); forceStep(3);
+      if (arc.beat === 4) {
+        // Four-Beat Arc: calculation done → transition to voilà reveal
+        arc.onBuildComplete();
+      } else {
+        markStepComplete(1); markStepComplete(2); markStepComplete(3); forceStep(3);
+      }
     };
   });
   // ── Trip loading & cross-cutting ─────────────────────────────────────────
@@ -177,6 +186,9 @@ function AppContent() {
     markStepComplete,
   });
 
+  // ── Four-Beat Arc (plan mode icebreaker) ──────────────────────────────────
+  const arc = useFourBeatArc();
+
   const {
     icebreakerMode, estimateWorkshopActive, adventureInitialValues,
     handleLandingSelect, handleIcebreakerComplete, handleIcebreakerEscape,
@@ -184,6 +196,15 @@ function AppContent() {
   } = useIcebreakerGate({
     selectTripMode, setTripMode, setShowAdventureMode, setLocations, setVehicle, setSettings,
     markStepComplete, forceStep,
+    onFourBeatArc: (prefill) => {
+      // Prefill already applied to store by handleIcebreakerComplete.
+      // Pass data directly to arc since React state hasn't committed yet.
+      const prefillLocations = (prefill.locations ?? locations) as Location[];
+      const mergedSettings = prefill.settingsPartial
+        ? { ...settings, ...prefill.settingsPartial }
+        : settings;
+      arc.enterSketch(prefillLocations, vehicle, mergedSettings);
+    },
   });
 
   // Save active session to localStorage whenever the trip is confirmed and locations are valid.
@@ -201,6 +222,15 @@ function AppContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estimateWorkshopActive]);
 
+  /** Called when the Four-Beat Arc voilà completes — opens the wizard at Step 3. */
+  const handleArcComplete = () => {
+    arc.onRevealComplete();
+    setIcebreakerOrigin(true);
+    markStepComplete(1); markStepComplete(2); markStepComplete(3);
+    forceStep(3);
+    setTripMode('plan');
+  };
+
   const hasActiveSession = locations.some(loc => loc.name && loc.name.trim() !== '');
   const lastDestination = (() => {
     const locs = history[0]?.locations;
@@ -217,6 +247,12 @@ function AppContent() {
   });
 
   const canProceed = planningStep === 1 ? canProceedFromStep1 : canProceedFromStep2;
+
+  // TunePanel: apply settings patch and recalculate
+  const handleTune = useCallback((patch: Partial<typeof settings>) => {
+    setSettings(prev => ({ ...prev, ...patch }));
+    setTimeout(() => calculateAndDiscover(), 0);
+  }, [setSettings, calculateAndDiscover]);
 
   const stepProps = usePlanningStepProps({
     planningStep, goToStep,
@@ -236,9 +272,10 @@ function AppContent() {
     onLoadHistoryTrip: restoreHistoryTripSession,
     precomputedEvents: canonicalTimeline?.events,
     isCalculating,
+    onTune: handleTune,
   });
 
-  const calculationMessage = useCalculationMessages(isCalculating, locations);
+  const calculationMessage = useCalculationMessages(isCalculating, locations, icebreakerOrigin);
 
   // Stable object reference for LiveReflectionBar — avoids re-creating on every parent render.
   const liveReflection = useMemo(
@@ -256,7 +293,52 @@ function AppContent() {
         </ErrorBoundary>
       </div>
 
-      {!tripMode && !icebreakerMode && !estimateWorkshopActive && (
+      {/* Four-Beat Arc overlays — Beat 2 (Sketch), Beat 3 (Workshop), Beat 4 (Building/Voilà) */}
+      {!tripMode && arc.beat === 2 && arc.sketchData && (
+        <SketchCard
+          sketchData={arc.sketchData}
+          tripMode="plan"
+          onMakePersonal={arc.enterWorkshop}
+          onCalculateDefaults={() => { arc.startCalculation(); calculateAndDiscover(); }}
+          onAdjustRoute={() => { arc.exitArc(); selectTripMode('plan'); }}
+        />
+      )}
+      {!tripMode && arc.beat === 3 && arc.sketchData && (
+        <WorkshopPanel
+          sketchDistanceKm={arc.sketchData.distanceKm}
+          sketchDurationMinutes={Math.round((arc.sketchData.distanceKm / 90) * 60)}
+          vehicle={vehicle}
+          settings={settings}
+          onCommit={(overrides) => {
+            if (overrides.vehicle) setVehicle(overrides.vehicle);
+            if (overrides.settings) setSettings(prev => ({ ...prev, ...overrides.settings }));
+            arc.startCalculation();
+            // calculateAndDiscover reads from store — defer to next tick so state commits first
+            setTimeout(() => calculateAndDiscover(), 0);
+          }}
+          onEscape={() => { arc.exitArc(); selectTripMode('plan'); }}
+        />
+      )}
+      {!tripMode && arc.beat === 4 && arc.isBuilding && (
+        /* Beat 4 building state — calculation in progress */
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <p style={{ color: '#f5f0e8', fontSize: 18, fontFamily: '"Cormorant Garamond", Georgia, serif', marginBottom: 12 }}>✦</p>
+          <p style={{ color: '#f5f0e8', fontSize: 16, fontFamily: '"Cormorant Garamond", Georgia, serif' }}>
+            {calculationMessage || 'Building your MEE time...'}
+          </p>
+        </div>
+      )}
+      {!tripMode && arc.beat === 4 && arc.isRevealing && summary && (
+        <VoilaReveal
+          summary={summary}
+          settings={settings}
+          originName={locations.find(l => l.type === 'origin')?.name ?? ''}
+          destinationName={locations.find(l => l.type === 'destination')?.name ?? ''}
+          onComplete={handleArcComplete}
+        />
+      )}
+
+      {!tripMode && !icebreakerMode && !estimateWorkshopActive && !arc.beat && (
         <LandingScreen
           onSelectMode={handleLandingSelect}
           hasSavedTrip={history.length > 0}

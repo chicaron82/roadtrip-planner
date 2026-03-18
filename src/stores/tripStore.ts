@@ -75,6 +75,8 @@ export interface TripState {
   vehicle: Vehicle;
   settings: TripSettings;
   customTitle: string | null;
+  /** True when the trip was initiated via the icebreaker conversational flow. */
+  icebreakerOrigin: boolean;
 
   // Timeline
   summary: TripSummary | null;
@@ -91,6 +93,7 @@ export interface TripState {
   removeLocation: (index: number) => void;
   reorderLocations: (fromIndex: number, toIndex: number) => void;
   updateBudget: (updates: Partial<TripBudget>) => void;
+  setIcebreakerOrigin: (value: boolean) => void;
 
   // Actions: Timeline
   setSummary: (summary: TripSummary | null | ((prev: TripSummary | null) => TripSummary | null)) => void;
@@ -110,6 +113,7 @@ export const useTripStore = create<TripState>((set) => ({
   vehicle: getInitialVehicle(),
   settings: { ...DEFAULT_SETTINGS, ...loadSettingsDefaults() },
   customTitle: null,
+  icebreakerOrigin: false,
   summary: null,
   canonicalTimeline: null,
 
@@ -123,6 +127,7 @@ export const useTripStore = create<TripState>((set) => ({
     settings: typeof updater === 'function' ? updater(state.settings) : updater,
   })),
   setCustomTitle: (title) => set({ customTitle: title }),
+  setIcebreakerOrigin: (value) => set({ icebreakerOrigin: value }),
 
   updateLocation: (index, updates) => set((state) => ({
     locations: state.locations.map((loc, i) => i === index ? { ...loc, ...updates } : loc),

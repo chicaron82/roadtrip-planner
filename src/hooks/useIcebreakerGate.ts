@@ -27,6 +27,8 @@ interface UseIcebreakerGateOptions {
   setSettings: (updater: (prev: TripSettings) => TripSettings) => void;
   markStepComplete: (step: number) => void;
   forceStep: (step: 1 | 2 | 3) => void;
+  /** When set, plan-mode icebreaker flows through the Four-Beat Arc instead of opening the wizard directly. */
+  onFourBeatArc?: (prefill: IcebreakerPrefill) => void;
 }
 
 export function useIcebreakerGate({
@@ -38,6 +40,7 @@ export function useIcebreakerGate({
   setSettings,
   markStepComplete,
   forceStep,
+  onFourBeatArc,
 }: UseIcebreakerGateOptions) {
   const [icebreakerMode, setIcebreakerMode] = useState<TripMode | null>(null);
   const [adventureInitialValues, setAdventureInitialValues] = useState<AdventureInitialValues | null>(null);
@@ -87,13 +90,16 @@ export function useIcebreakerGate({
       // calculateAndDiscover fires in a useEffect in App.tsx watching estimateWorkshopActive
       // (after React commits state) so it reads the correct icebreaker locations/vehicle.
       setEstimateWorkshopActive(true);
+    } else if (onFourBeatArc) {
+      // Plan → Four-Beat Arc (prefill already applied above)
+      onFourBeatArc(prefill);
     } else {
-      // Plan → open wizard at Step 2
+      // Plan → open wizard at Step 2 (classic)
       markStepComplete(1);
       forceStep(2);
       setTripMode('plan');
     }
-  }, [setTripMode, setShowAdventureMode, setLocations, setVehicle, setSettings, markStepComplete, forceStep]);
+  }, [setTripMode, setShowAdventureMode, setLocations, setVehicle, setSettings, markStepComplete, forceStep, onFourBeatArc]);
 
   /** Called when user hits escape hatch — optionally saves classic preference. */
   const handleIcebreakerEscape = useCallback((mode: TripMode, saveAsClassic = false) => {
