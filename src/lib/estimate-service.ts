@@ -106,14 +106,16 @@ export function generateEstimate(
   vehicle: Vehicle,
   settings: TripSettings,
 ): TripEstimate {
-  const distanceKm = settings.isRoundTrip
-    ? summary.totalDistanceKm * 2
-    : summary.totalDistanceKm;
+  // totalDistanceKm is already the full round-trip total after buildRoundTripSegments
+  // mutates it — do NOT double it again here.
+  const distanceKm = summary.totalDistanceKm;
 
-  // Use returnDate if set (user-defined trip length), otherwise derive from route
-  // Append T00:00:00 to avoid UTC-midnight timezone shift on date-only strings
+  // Use returnDate if set (user-defined trip length), otherwise derive from route.
+  // Append T00:00:00 to avoid UTC-midnight timezone shift on date-only strings.
+  // Use Math.round() + 1 to match splitTripByDays's totalTripDays formula
+  // (departure day + intermediate days + return day = calendar days, not just nights).
   const daysFromDates = settings.returnDate && settings.departureDate
-    ? Math.max(1, Math.ceil((new Date(settings.returnDate + 'T00:00:00').getTime() - new Date(settings.departureDate + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24)))
+    ? Math.max(1, Math.round((new Date(settings.returnDate + 'T00:00:00').getTime() - new Date(settings.departureDate + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24)) + 1)
     : 0;
   const days = daysFromDates || summary.days?.length || Math.max(1, Math.ceil(summary.totalDurationMinutes / (settings.maxDriveHours * 60)));
   const nights = Math.max(0, days - 1);
@@ -161,7 +163,7 @@ export function generateEstimate(
       category: 'Fuel',
       emoji: '⛽',
       ...fuel,
-      note: `${distanceKm.toFixed(0)} km ${settings.isRoundTrip ? '(round trip)' : '(one way)'}`,
+      note: `${distanceKm.toFixed(0)} km ${settings.isRoundTrip ? '(round trip total)' : '(one way)'}`,
     },
     {
       category: 'Hotels',

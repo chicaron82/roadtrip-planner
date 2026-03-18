@@ -122,10 +122,17 @@ describe('generateEstimate', () => {
 // ── Round trip doubles the distance ──────────────────────────────────────────
 
 describe('generateEstimate — round trip vs one-way', () => {
-  it('round trip fuel cost is higher than one-way for same distance', () => {
+  it('uses summary.totalDistanceKm directly (not doubled) since buildRoundTripSegments already doubles it', () => {
+    // The orchestration layer (buildRoundTripSegments) is responsible for doubling
+    // totalDistanceKm before the summary reaches generateEstimate.
+    // generateEstimate must NOT double it again — so round-trip vs one-way with the
+    // same mock summary should produce the same fuel cost.
     const oneWay = generateEstimate(makeSummary(), BASE_VEHICLE, makeSettings({ isRoundTrip: false }));
     const roundTrip = generateEstimate(makeSummary(), BASE_VEHICLE, makeSettings({ isRoundTrip: true }));
-    expect(roundTrip.totalLow).toBeGreaterThan(oneWay.totalLow);
+    const fuelOne = roundTrip.breakdown.find(b => b.category === 'Fuel')!;
+    const fuelTwo = oneWay.breakdown.find(b => b.category === 'Fuel')!;
+    // Same summary → same distance → same fuel
+    expect(fuelOne.mid).toBe(fuelTwo.mid);
   });
 
   it('round trip fuel note contains "(round trip)"', () => {
@@ -170,14 +177,15 @@ describe('generateEstimate — imperial units', () => {
 
 describe('generateEstimate — days / nights', () => {
   it('uses returnDate minus departureDate for days when both set', () => {
-    // July 1 → July 5 = 4 days, 3 nights
+    // July 1 → July 5 = 5 calendar days (departure + 3 intermediate + return), 4 nights
+    // Matches splitTripByDays's totalTripDays = Math.round(diff_days) + 1
     const result = generateEstimate(
       makeSummary(),
       BASE_VEHICLE,
       makeSettings({ departureDate: '2026-07-01', returnDate: '2026-07-05' })
     );
-    expect(result.days).toBe(4);
-    expect(result.nights).toBe(3);
+    expect(result.days).toBe(5);
+    expect(result.nights).toBe(4);
   });
 
   it('nights = days - 1 for multi-day trips', () => {
@@ -195,13 +203,14 @@ describe('generateEstimate — days / nights', () => {
   });
 
   it('hotel note reflects nights count', () => {
+    // Jul 1→Jul 5 = 5 calendar days = 4 nights
     const result = generateEstimate(
       makeSummary(),
       BASE_VEHICLE,
       makeSettings({ departureDate: '2026-07-01', returnDate: '2026-07-05' })
     );
     const hotelRow = result.breakdown.find(b => b.category === 'Hotels');
-    expect(hotelRow?.note).toContain('3 nights');
+    expect(hotelRow?.note).toContain('4 nights');
   });
 });
 
