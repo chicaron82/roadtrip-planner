@@ -23,6 +23,9 @@ Could be: a secondary info-level notice on the budget card, or a note on the PDF
 ## Wave 4 — Feature Integration Tests
 *Noted: Mar 12 2026*
 
+> **✅ Closed Mar 2026.** 15 component test files now exist covering Health,
+> Itinerary, Journal, Viewer, and StepHelpers. Wave 4 is complete.
+
 **Context:** Waves 1–3 cover pure math/logic (966 tests passing). The gap flagged by dev
 buddy review: math is tested but user-visible feature behaviour is not. A regression in
 how data flows from a hook to a renderer won't be caught — it'll only surface during
@@ -72,6 +75,11 @@ Both are needed before a demo or deploy with confidence.
 
 ## Step UX — Collapsible Sections ("Smart Defaults + Accordion")
 *Noted: Mar 12 2026*
+
+> **✅ Closed Mar 2026.** `CollapsibleSection` component built and wired into
+> Step 1 (arrival target, round-trip mode) and Step 2 (Travelers, Accommodation,
+> Driving prefs, Trip style). BudgetProfilesSection in Settings is the remaining
+> open item from this surface.
 
 **Problem:** Each step is too busy. Steps 1 and 2 currently render everything open at once,
 giving every field equal visual weight. Most users only touch 2–3 fields per step — the
@@ -128,6 +136,10 @@ confirm their defaults without opening anything.
 
 ## Settings Panel — Dedicated User Preferences
 *Noted: Mar 12 2026*
+
+> **⚠️ Partially closed Mar 2026.** 4 of 5 sections shipped: MyDefaults,
+> TravelStyle, Privacy, About. BudgetProfilesSection outstanding — see kitchen
+> ticket Mar 16.
 
 **Context:** `src/components/Settings/` exists but is empty. The codebase already has
 significant infrastructure for user preferences that has no UI surface — it operates

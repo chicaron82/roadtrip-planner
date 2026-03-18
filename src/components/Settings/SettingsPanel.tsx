@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings, X, MapPin, Palette, Shield, Info } from 'lucide-react';
+import { Settings, X, MapPin, Palette, Shield, Info, Wallet } from 'lucide-react';
 import type { UnitSystem, Currency, HotelTier } from '../../types';
 import { loadSettingsDefaults, saveSettingsDefaults } from '../../lib/storage';
 import { HOTEL_TIERS } from '../../lib/budget';
@@ -9,6 +9,7 @@ import { MyDefaultsSection } from './MyDefaultsSection';
 import { TravelStyleSection } from './TravelStyleSection';
 import { PrivacySection } from './PrivacySection';
 import { AboutSection } from './AboutSection';
+import { BudgetProfilesSection } from './BudgetProfilesSection';
 
 interface SettingsState {
   units: UnitSystem;
@@ -105,6 +106,10 @@ export function SettingsPanel() {
                 mealPricePerDay={settings.mealPricePerDay}
                 onChange={persist}
               />
+            </CollapsibleSection>
+
+            <CollapsibleSection title="Budget Profiles" icon={<Wallet size={14} />}>
+              <BudgetProfilesSection />
             </CollapsibleSection>
 
             <CollapsibleSection title="Privacy & Data" icon={<Shield size={14} />}>

@@ -257,13 +257,13 @@ Activate when you're actually on the road, not just planning.
 | OSRM | Real road routing |
 | Photon / Nominatim | Location search and reverse geocoding |
 | Overpass API | POI data from OpenStreetMap |
-| OpenWeatherMap | Weather per segment endpoint |
+| Open-Meteo | Weather forecasts per segment endpoint |
 | React 19 + TypeScript | UI, strict mode |
 | Vite | Build tool |
 | Tailwind CSS | Styling |
 | Leaflet / React Leaflet | Maps |
 | Radix UI | Accessible component primitives |
-| Vitest + Testing Library | 678 tests across 40 test files |
+| Vitest + Testing Library | 1,997+ assertions across 105 test files |
 | Zero backend | Everything runs in the browser. No server, no database, no auth |
 
 The entire engine — routing, simulation, budget math, feasibility, POI ranking, hub cache, driver rotation, journal export — is pure TypeScript in `src/lib/`. No frameworks, no dependencies beyond the project stack. Every feature was built through conversation.
