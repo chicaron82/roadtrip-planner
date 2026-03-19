@@ -11,10 +11,12 @@
  * 💚 My Experience Engine — Beat 3 of the Four-Beat Arc
  */
 
-import { useState, useMemo } from 'react';
-import type { Vehicle, TripSettings, TripSummary } from '../../types';
-import { generateEstimate } from '../../lib/estimate-service';
-import { formatHoursFromMinutes } from '../../lib/utils';
+import type { CSSProperties } from 'react';
+import type { Vehicle, TripSettings } from '../../types';
+import {
+  useWorkshopPresets,
+  VEHICLE_TYPES, HOTEL_OPTIONS, PACE_OPTIONS, CATEGORY_COLORS,
+} from './useWorkshopPresets';
 
 interface WorkshopPanelProps {
   sketchDistanceKm: number;
@@ -25,112 +27,26 @@ interface WorkshopPanelProps {
   onEscape: () => void;
 }
 
-// ── Vehicle presets (simplified for workshop) ────────────────────────────────
-
-type VehicleType = 'sedan' | 'suv' | 'truck' | 'van' | 'hybrid';
-
-const VEHICLE_TYPES: { type: VehicleType; emoji: string; label: string; vehicle: Vehicle }[] = [
-  { type: 'sedan', emoji: '🚗', label: 'Sedan', vehicle: { year: '2024', make: 'Toyota', model: 'Camry', fuelEconomyCity: 8.2, fuelEconomyHwy: 6.0, tankSize: 60 } },
-  { type: 'suv', emoji: '🚙', label: 'SUV', vehicle: { year: '2024', make: 'Toyota', model: 'RAV4', fuelEconomyCity: 9.4, fuelEconomyHwy: 7.2, tankSize: 55 } },
-  { type: 'truck', emoji: '🛻', label: 'Truck', vehicle: { year: '2024', make: 'Ford', model: 'F-150', fuelEconomyCity: 13.5, fuelEconomyHwy: 10.2, tankSize: 87 } },
-  { type: 'van', emoji: '🚐', label: 'Van', vehicle: { year: '2024', make: 'Chrysler', model: 'Pacifica', fuelEconomyCity: 10.8, fuelEconomyHwy: 8.0, tankSize: 68 } },
-  { type: 'hybrid', emoji: '⚡', label: 'Hybrid', vehicle: { year: '2024', make: 'Toyota', model: 'Prius', fuelEconomyCity: 4.3, fuelEconomyHwy: 4.0, tankSize: 43 } },
-];
-
-type HotelTier = 'budget' | 'regular' | 'premium';
-const HOTEL_OPTIONS: { tier: HotelTier; emoji: string; label: string; price: number }[] = [
-  { tier: 'budget', emoji: '🏕', label: 'Budget', price: 90 },
-  { tier: 'regular', emoji: '🏨', label: 'Regular', price: 140 },
-  { tier: 'premium', emoji: '✨', label: 'Premium', price: 220 },
-];
-
-type Pace = 'relaxed' | 'balanced' | 'push';
-const PACE_OPTIONS: { pace: Pace; emoji: string; label: string; hours: number }[] = [
-  { pace: 'relaxed', emoji: '🐢', label: 'Relaxed', hours: 6 },
-  { pace: 'balanced', emoji: '⚖️', label: 'Balanced', hours: 8 },
-  { pace: 'push', emoji: '🚀', label: 'Push it', hours: 10 },
-];
-
-const CATEGORY_COLORS = ['#ea580c', '#7c3aed', '#16a34a', '#0891b2'] as const;
-
 export function WorkshopPanel({
   sketchDistanceKm,
   sketchDurationMinutes,
-  vehicle: initialVehicle,
-  settings: initialSettings,
+  vehicle,
+  settings,
   onCommit,
   onEscape,
 }: WorkshopPanelProps) {
-  // ── Local overrides ──────────────────────────────────────────────────────
-  const initialType = VEHICLE_TYPES.find(v =>
-    v.vehicle.fuelEconomyHwy === initialVehicle.fuelEconomyHwy
-  )?.type ?? 'sedan';
+  const {
+    vehicleType, setVehicleType,
+    hotelTier, setHotelTier,
+    pace, setPace,
+    showMore, setShowMore,
+    budgetEnabled, setBudgetEnabled,
+    budgetAmount, setBudgetAmount,
+    estimate, driveLabel, percents,
+    handleCommit,
+  } = useWorkshopPresets({ sketchDistanceKm, sketchDurationMinutes, vehicle, settings, onCommit });
 
-  const [vehicleType, setVehicleType] = useState<VehicleType>(initialType);
-  const [hotelTier, setHotelTier] = useState<HotelTier>(
-    (initialSettings.hotelTier as HotelTier) || 'regular'
-  );
-  const [pace, setPace] = useState<Pace>('balanced');
-  const [showMore, setShowMore] = useState(false);
-  const [budgetEnabled, setBudgetEnabled] = useState(initialSettings.budgetMode === 'plan-to-budget');
-  const [budgetAmount, setBudgetAmount] = useState(
-    initialSettings.budget?.total ?? 2000
-  );
-
-  const selectedVehicle = VEHICLE_TYPES.find(v => v.type === vehicleType)!;
-  const selectedHotel = HOTEL_OPTIONS.find(h => h.tier === hotelTier)!;
-  const selectedPace = PACE_OPTIONS.find(p => p.pace === pace)!;
-
-  // ── Live estimate ────────────────────────────────────────────────────────
-  const mergedSettings: TripSettings = useMemo(() => ({
-    ...initialSettings,
-    hotelTier,
-    hotelPricePerNight: selectedHotel.price,
-    maxDriveHours: selectedPace.hours,
-    budgetMode: budgetEnabled ? 'plan-to-budget' as const : 'open' as const,
-    budget: budgetEnabled
-      ? { ...initialSettings.budget, total: budgetAmount }
-      : initialSettings.budget,
-  }), [initialSettings, hotelTier, selectedHotel.price, selectedPace.hours, budgetEnabled, budgetAmount]);
-
-  const sketchSummary: TripSummary = useMemo(() => ({
-    totalDistanceKm: sketchDistanceKm,
-    totalDurationMinutes: sketchDurationMinutes,
-    totalFuelLitres: 0,
-    totalFuelCost: 0,
-    gasStops: 0,
-    costPerPerson: 0,
-    drivingDays: Math.max(1, Math.ceil(sketchDurationMinutes / (selectedPace.hours * 60))),
-    segments: [],
-    fullGeometry: [],
-  }), [sketchDistanceKm, sketchDurationMinutes, selectedPace.hours]);
-
-  const estimate = useMemo(
-    () => generateEstimate(sketchSummary, selectedVehicle.vehicle, mergedSettings),
-    [sketchSummary, selectedVehicle.vehicle, mergedSettings],
-  );
-
-  const driveLabel = formatHoursFromMinutes(Math.round(sketchDurationMinutes));
-  const totals = [estimate.breakdown[0].mid, estimate.breakdown[1].mid, estimate.breakdown[2].mid, estimate.breakdown[3].mid];
-  const total = totals.reduce((a, b) => a + b, 0);
-  const percents = totals.map(v => total > 0 ? (v / total) * 100 : 25);
-
-  // ── Commit ───────────────────────────────────────────────────────────────
-  const handleCommit = () => {
-    onCommit({
-      settings: {
-        hotelTier,
-        hotelPricePerNight: selectedHotel.price,
-        maxDriveHours: selectedPace.hours,
-        budgetMode: budgetEnabled ? 'plan-to-budget' : 'open',
-        budget: budgetEnabled ? { ...initialSettings.budget, total: budgetAmount } : initialSettings.budget,
-      },
-      vehicle: selectedVehicle.vehicle,
-    });
-  };
-
-  // ── Chip button style ────────────────────────────────────────────────────
-  const chip = (active: boolean): React.CSSProperties => ({
+  const chip = (active: boolean): CSSProperties => ({
     padding: '8px 14px',
     borderRadius: '10px',
     border: active ? '1.5px solid rgba(234, 88, 12, 0.6)' : '1px solid rgba(255, 255, 255, 0.1)',
