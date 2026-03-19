@@ -1,4 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
+
+const DISMISSED_KEY = 'mee-dismissed-pois';
 import { useQuery } from '@tanstack/react-query';
 import type { Location, POISuggestion, TripPreference, TripSummary } from '../types';
 import { fetchPOISuggestions } from '../lib/poi-service';
@@ -33,8 +35,18 @@ export function usePOISuggestions({
   tripPreferences = [],
   roundTripMidpoint,
 }: UsePOISuggestionsOptions = {}): UsePOISuggestionsReturn {
-  // Local state for optimistic UI actions (added / dismissed)
-  const [poiActions, setPoiActions] = useState<Record<string, 'added' | 'dismissed'>>({});
+  // Local state for optimistic UI actions (added / dismissed).
+  // Dismissed IDs are persisted to localStorage so they survive page refresh.
+  const [poiActions, setPoiActions] = useState<Record<string, 'added' | 'dismissed'>>(() => {
+    try {
+      const stored = localStorage.getItem(DISMISSED_KEY);
+      if (stored) {
+        const ids: string[] = JSON.parse(stored);
+        return Object.fromEntries(ids.map(id => [id, 'dismissed' as const]));
+      }
+    } catch { /* ignore */ }
+    return {};
+  });
   const [lastRouteHash, setLastRouteHash] = useState<string | null>(null);
 
   const addPOI = useCallback((poiId: string) => {
@@ -42,11 +54,21 @@ export function usePOISuggestions({
   }, []);
 
   const dismissPOI = useCallback((poiId: string) => {
-    setPoiActions(prev => ({ ...prev, [poiId]: 'dismissed' }));
+    setPoiActions(prev => {
+      const next = { ...prev, [poiId]: 'dismissed' as const };
+      try {
+        const dismissedIds = Object.entries(next)
+          .filter(([, action]) => action === 'dismissed')
+          .map(([id]) => id);
+        localStorage.setItem(DISMISSED_KEY, JSON.stringify(dismissedIds));
+      } catch { /* ignore */ }
+      return next;
+    });
   }, []);
 
   const resetPOISuggestions = useCallback(() => {
     setPoiActions({});
+    try { localStorage.removeItem(DISMISSED_KEY); } catch { /* ignore */ }
   }, []);
 
   // Use a stable query key based on geometry hash mapping
@@ -56,10 +78,11 @@ export function usePOISuggestions({
   }, [routeGeometry, destination, tripPreferences]);
 
   // Derive state asynchronously to avoid effect cascades.
-  // If the route strictly changed, flush the recorded POI actions.
+  // If the route strictly changed, flush recorded POI actions (including localStorage).
   if (currentRouteHash !== lastRouteHash) {
     setLastRouteHash(currentRouteHash);
     setPoiActions({});
+    try { localStorage.removeItem(DISMISSED_KEY); } catch { /* ignore */ }
   }
 
   const queryKey = useMemo(() => ['poiSuggestions', currentRouteHash], [currentRouteHash]);

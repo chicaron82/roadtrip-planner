@@ -116,6 +116,7 @@ const STUB_SUMMARY: Partial<TripSummary> = {
   totalDurationMinutes: 120,
   totalFuelCost: 24,
   costPerPerson: 12,
+  // total: 24 here because mock has no hotel/food/misc — in real trips total >> fuel alone
   costBreakdown: { fuel: 24, accommodation: 0, meals: 0, misc: 0, total: 24, perPerson: 12 },
   budgetStatus: 'at',
   budgetRemaining: 976,

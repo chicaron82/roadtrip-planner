@@ -1,18 +1,21 @@
 import { useState } from 'react';
 import type { UnitSystem, Currency } from '../../types';
 import { getLastOrigin, getEntryPreference, saveEntryPreference } from '../../lib/storage';
+import { getAdaptiveDefaults, isAdaptiveMeaningful, CHICHARON_BASELINE } from '../../lib/user-profile';
 
 interface MyDefaultsSectionProps {
   units: UnitSystem;
   currency: Currency;
   numTravelers: number;
   numDrivers: number;
-  onChange: (updates: { units?: UnitSystem; currency?: Currency; numTravelers?: number; numDrivers?: number }) => void;
+  onChange: (updates: { units?: UnitSystem; currency?: Currency; numTravelers?: number; numDrivers?: number; hotelPricePerNight?: number; mealPricePerDay?: number }) => void;
 }
 
 export function MyDefaultsSection({ units, currency, numTravelers, numDrivers, onChange }: MyDefaultsSectionProps) {
   const lastOrigin = getLastOrigin();
   const [entryPref, setEntryPref] = useState(getEntryPreference() ?? 'conversational');
+  const adaptiveDefaults = getAdaptiveDefaults();
+  const showAdaptive = adaptiveDefaults !== null && isAdaptiveMeaningful(adaptiveDefaults);
 
   const handleEntryPrefChange = (pref: 'conversational' | 'classic') => {
     setEntryPref(pref);
@@ -136,6 +139,32 @@ export function MyDefaultsSection({ units, currency, numTravelers, numDrivers, o
             : 'Go straight to the planner every time.'}
         </p>
       </div>
+
+      {/* Adaptive profile — only shown after 3+ trips with meaningful deviation */}
+      {showAdaptive && adaptiveDefaults && (
+        <div>
+          <p className="text-xs text-zinc-400 uppercase tracking-wide mb-2">What MEE has learned from your trips</p>
+          <div className="rounded-lg bg-zinc-800 border border-zinc-700 p-3 space-y-1.5 mb-3">
+            <p className="text-xs text-zinc-400">Based on your last {adaptiveDefaults.tripCount} trips:</p>
+            <p className="text-sm text-zinc-200">Average hotel: <span className="font-semibold text-white">~${adaptiveDefaults.hotelPricePerNight}/night</span></p>
+            <p className="text-sm text-zinc-200">Average daily spend: <span className="font-semibold text-white">~${adaptiveDefaults.mealPricePerDay}/person</span></p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => onChange({ hotelPricePerNight: adaptiveDefaults.hotelPricePerNight, mealPricePerDay: adaptiveDefaults.mealPricePerDay })}
+              className="flex-1 py-2 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
+            >
+              Use these as my defaults
+            </button>
+            <button
+              onClick={() => onChange({ hotelPricePerNight: CHICHARON_BASELINE.hotelPricePerNight, mealPricePerDay: CHICHARON_BASELINE.mealPricePerDay })}
+              className="flex-1 py-2 rounded-lg text-sm font-medium bg-zinc-700 hover:bg-zinc-600 text-zinc-300 transition-colors"
+            >
+              Reset to baseline
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -104,7 +104,8 @@ export function useFourBeatArc(): FourBeatArcState {
   }, []);
 
   const enterWorkshop = useCallback(() => {
-    setBeat(3);
+    // No-op if arc isn't active — callers should only call from beat 2
+    setBeat(prev => prev === null ? null : 3);
   }, []);
 
   const startCalculation = useCallback(() => {

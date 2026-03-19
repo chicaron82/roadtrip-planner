@@ -6,6 +6,7 @@ import { resolveJournalEntryLocation } from './journal-trip-view';
 import type { JournalExportSummary, SegmentLookupSummary } from './trip-summary-slices';
 import type { PrintInput } from './canonical-trip';
 import { buildAutoTitle } from './mee-tokens';
+import { buildTemplateLineage } from './url';
 
 // ── Stylesheet ────────────────────────────────────────────────────────────────
 
@@ -225,11 +226,17 @@ export function exportJournalAsTemplate(journal: TripJournal, summary: JournalEx
   const endpoints = getTripDisplayEndpoints(summary);
   const exportBudget = getExportBudgetBreakdown(summary);
 
+  const forkLineage = journal.origin?.type === 'template' && journal.origin.id
+    ? buildTemplateLineage({ templateId: journal.origin.id, lineage: undefined, title: '', author: '', description: '', recommendations: undefined })
+    : undefined;
+
   const template = {
     type: 'roadtrip-template',
     version: '1.0',
+    id: `template-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
     createdAt: new Date().toISOString(),
     author: journal.metadata.travelers?.[0] || 'Anonymous',
+    ...(forkLineage ? { lineage: forkLineage } : {}),
 
     trip: {
       title: journal.metadata.title,
@@ -321,6 +328,11 @@ export function exportJournalAsTemplate(journal: TripJournal, summary: JournalEx
  * Step 1 "Load a MEE Time Template" importer can load it directly.
  *
  * All data comes from PrintInput — no extra props needed.
+ *
+ * TODO: Refactor — lineage not yet written here. PrintInput doesn't carry templateMeta
+ * (tripOrigin isn't threaded through to this call site). Needs optional templateMeta
+ * prop added to this function and wired from TripBottomActions/Step3CommitSection
+ * before fork lineage will work for plan-mode exports.
  */
 export function exportTripAsTemplate(printInput: PrintInput): void {
   const { summary, inputs: { locations, settings, vehicle } } = printInput;

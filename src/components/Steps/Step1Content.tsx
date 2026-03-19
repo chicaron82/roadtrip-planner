@@ -12,6 +12,7 @@ import { Switch } from '../UI/Switch';
 import { DateRangePicker } from '../UI/DateRangePicker';
 import { ClockPicker } from '../UI/ClockPicker';
 import { CollapsibleSection } from '../UI/CollapsibleSection';
+import { TemplateRecommendations } from '../Trip/StepHelpers/TemplateRecommendations';
 
 const MODE_HEADERS: Record<TripMode, { title: string; subtitle: string }> = {
   plan: { title: 'Where is your MEE time?', subtitle: 'Add your starting point, destination, and any stops along the way.' },
@@ -27,6 +28,7 @@ interface Step1ContentProps {
   tripMode: TripMode;
   onShowAdventure: () => void;
   onImportTemplate?: (result: TemplateImportResult) => void;
+  templateRecommendations?: TemplateImportResult['meta']['recommendations'];
 }
 
 export function Step1Content({
@@ -37,6 +39,7 @@ export function Step1Content({
   tripMode,
   onShowAdventure,
   onImportTemplate,
+  templateRecommendations,
 }: Step1ContentProps) {
   const { customTitle, setCustomTitle } = useTripCore();
   const {
@@ -182,6 +185,10 @@ export function Step1Content({
           isCalculating={false}
           hideCalculateButton
         />
+
+        {templateRecommendations && templateRecommendations.length > 0 && (
+          <TemplateRecommendations recommendations={templateRecommendations} />
+        )}
 
         {/* Trip name — revealed once a destination is set */}
         {lastDest?.name && (

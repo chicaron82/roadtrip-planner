@@ -34,6 +34,7 @@ interface UseTripLoaderOptions {
 interface UseTripLoaderReturn {
   activeChallenge: TripChallenge | null;
   tripOrigin: TripOrigin | null;
+  templateRecommendations: TemplateImportResult['meta']['recommendations'];
   setActiveChallenge: (challenge: TripChallenge | null) => void;
   setTripOrigin: (origin: TripOrigin | null) => void;
   handleImportTemplate: (result: TemplateImportResult) => void;
@@ -53,12 +54,14 @@ export function useTripLoader({
 }: UseTripLoaderOptions): UseTripLoaderReturn {
   const [activeChallenge, setActiveChallenge] = useState<TripChallenge | null>(null);
   const [tripOrigin, setTripOrigin] = useState<TripOrigin | null>(null);
+  const [templateRecommendations, setTemplateRecommendations] = useState<TemplateImportResult['meta']['recommendations']>(undefined);
 
   const handleImportTemplate = useCallback((result: TemplateImportResult) => {
     if (result.locations.length > 0) setLocations(result.locations);
     if (result.vehicle) setVehicle(result.vehicle);
     if (result.settings) setSettings(prev => ({ ...prev, ...result.settings }));
     setActiveChallenge(null);
+    setTemplateRecommendations(result.meta.recommendations);
     setTripOrigin({
       type: 'template',
       id: result.meta.templateId,
@@ -156,6 +159,7 @@ export function useTripLoader({
   return {
     activeChallenge,
     tripOrigin,
+    templateRecommendations,
     setActiveChallenge,
     setTripOrigin,
     handleImportTemplate,

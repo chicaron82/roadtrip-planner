@@ -103,6 +103,7 @@ function AppContent() {
   // ── Trip loading & cross-cutting ─────────────────────────────────────────
   const {
     activeChallenge, tripOrigin,
+    templateRecommendations,
     setActiveChallenge, setTripOrigin,
     handleImportTemplate, handleSelectChallenge, handleAdventureSelect,
   } = useTripLoader({
@@ -223,7 +224,7 @@ function AppContent() {
     locations, setLocations, vehicle, setVehicle, settings, setSettings,
     summary, tripMode: tripMode ?? 'plan',
     setShowAdventureMode,
-    handleImportTemplate, handleSelectChallenge, activeChallenge,
+    handleImportTemplate, handleSelectChallenge, activeChallenge, templateRecommendations,
     activePreset, presetOptions, handlePresetChange, handleSharePreset, shareJustCopied,
     viewMode, setViewMode, activeJournal, isJournalComplete, showCompleteOverlay, startJournal, updateActiveJournal, confirmJournalComplete: confirmComplete,
     tripConfirmed, setTripConfirmed, history,

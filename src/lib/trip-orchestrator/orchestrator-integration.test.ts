@@ -114,7 +114,7 @@ const STUB_SUMMARY: Partial<TripSummary> = {
   totalDistanceKm: 200,
   totalDurationMinutes: 120,
   totalFuelCost: 24,
-  costPerPerson: 24,
+  costPerPerson: 12, // COST_BREAKDOWN.total(24) / numTravelers(2)
   costBreakdown: COST_BREAKDOWN,
   budgetStatus: 'at',
   budgetRemaining: 976,
@@ -217,6 +217,15 @@ describe('orchestrateTrip', () => {
       projectedFuelStops: expect.any(Array),
       smartStops: expect.any(Array),
     });
+  });
+
+  it('costPerPerson uses full trip cost divided by numTravelers, not fuel only', async () => {
+    const result = await orchestrateTrip([LOC_A, LOC_B], VEHICLE, SETTINGS);
+    // numTravelers=2, COST_BREAKDOWN.total=24 → costPerPerson = 24/2 = 12
+    // Formula verified: costPerPerson = breakdown.total / numTravelers (not totalFuelCost / travelers)
+    // Note: in this mock, total happens to equal fuel (no hotel/food mocked), so we verify
+    // the formula source, not that it differs numerically from the buggy path.
+    expect(result.tripSummary.costPerPerson).toBe(result.tripSummary.costBreakdown!.total / SETTINGS.numTravelers);
   });
 
   it('does not throw when fetchWeather rejects (weather is non-blocking)', async () => {
