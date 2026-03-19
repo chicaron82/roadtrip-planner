@@ -7,7 +7,7 @@
  * 💚 My Experience Engine — Beat 3 of the Four-Beat Arc
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { Vehicle, TripSettings } from '../../types';
 import { generateEstimate } from '../../lib/estimate-service';
 import { formatHoursFromMinutes } from '../../lib/utils';
@@ -55,6 +55,8 @@ interface UseWorkshopPresetsOptions {
 export interface WorkshopPresetsResult {
   travelers: number;
   setTravelers: (n: number) => void;
+  numRooms: number;
+  setNumRooms: (n: number) => void;
   vehicleType: VehicleType;
   setVehicleType: (t: VehicleType) => void;
   hotelTier: HotelTier;
@@ -85,6 +87,21 @@ export function useWorkshopPresets({
   )?.type ?? 'sedan';
 
   const [travelers, setTravelers] = useState(initialSettings.numTravelers ?? 1);
+
+  // Smart room default: 1 room for ≤4 travelers, 2 for 5+.
+  // userSetRooms tracks whether the user has manually touched the stepper —
+  // if so, auto-sync is suspended so their choice is preserved when travelers changes.
+  const defaultRooms = (n: number) => Math.max(1, Math.ceil(n / 4));
+  const [numRooms, setNumRoomsState] = useState(defaultRooms(initialSettings.numTravelers ?? 1));
+  const [userSetRooms, setUserSetRooms] = useState(false);
+
+  const setNumRooms = (n: number) => { setNumRoomsState(n); setUserSetRooms(true); };
+
+  // Auto-sync rooms when travelers changes, unless the user has overridden.
+  useEffect(() => {
+    if (!userSetRooms) setNumRoomsState(defaultRooms(travelers));
+  }, [travelers, userSetRooms]);
+
   const [vehicleType, setVehicleType] = useState<VehicleType>(initialType);
   const [hotelTier, setHotelTier] = useState<HotelTier>(
     (initialSettings.hotelTier as HotelTier) || 'regular'
@@ -103,6 +120,7 @@ export function useWorkshopPresets({
   const mergedSettings: TripSettings = useMemo(() => ({
     ...initialSettings,
     numTravelers: travelers,
+    numRooms,
     hotelTier,
     hotelPricePerNight: selectedHotel.price,
     maxDriveHours: selectedPace.hours,
@@ -110,7 +128,7 @@ export function useWorkshopPresets({
     budget: budgetEnabled
       ? { ...initialSettings.budget, total: budgetAmount }
       : initialSettings.budget,
-  }), [initialSettings, travelers, hotelTier, selectedHotel.price, selectedPace.hours, budgetEnabled, budgetAmount]);
+  }), [initialSettings, travelers, numRooms, hotelTier, selectedHotel.price, selectedPace.hours, budgetEnabled, budgetAmount]);
 
   const sketchSummary = useMemo(() => ({
     totalDistanceKm: sketchDistanceKm,
@@ -141,6 +159,7 @@ export function useWorkshopPresets({
     onCommit({
       settings: {
         numTravelers: travelers,
+        numRooms,
         hotelTier,
         hotelPricePerNight: selectedHotel.price,
         maxDriveHours: selectedPace.hours,
@@ -153,6 +172,7 @@ export function useWorkshopPresets({
 
   return {
     travelers, setTravelers,
+    numRooms, setNumRooms,
     vehicleType, setVehicleType,
     hotelTier, setHotelTier,
     pace, setPace,

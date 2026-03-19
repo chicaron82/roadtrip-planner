@@ -120,7 +120,9 @@ export function generateEstimate(
   const days = daysFromDates || summary.days?.length || Math.max(1, Math.ceil(summary.totalDurationMinutes / (settings.maxDriveHours * 60)));
   const nights = Math.max(0, days - 1);
   const numTravelers = settings.numTravelers || 1;
-  const roomsNeeded = Math.ceil(numTravelers / ESTIMATES.travelersPerRoom);
+  // Use explicit numRooms when provided (user-controlled stepper).
+  // Default: 1 room for ≤4 travelers, +1 room per additional 4 people.
+  const roomsNeeded = settings.numRooms ?? Math.max(1, Math.ceil(numTravelers / 4));
 
   const currencySymbol = settings.currency === 'USD' ? '$' : 'C$';
 
@@ -133,10 +135,13 @@ export function generateEstimate(
   };
 
   // ── Hotels ──
+  // Use the user's selected hotel price (set by tier in WorkshopPanel / Settings).
+  // Fall back to ESTIMATES mid-tier only when hotelPricePerNight is not set.
+  const hotelMidRate = settings.hotelPricePerNight || ESTIMATES.hotel.mid;
   const hotel = {
-    low: Math.round(nights * roomsNeeded * ESTIMATES.hotel.low),
-    mid: roundToBudget(nights * roomsNeeded * ESTIMATES.hotel.mid),
-    high: roundToBudget(nights * roomsNeeded * ESTIMATES.hotel.high),
+    low: Math.round(nights * roomsNeeded * hotelMidRate * 0.85),
+    mid: roundToBudget(nights * roomsNeeded * hotelMidRate),
+    high: roundToBudget(nights * roomsNeeded * hotelMidRate * 1.25),
   };
 
   // ── Food ──
@@ -169,7 +174,7 @@ export function generateEstimate(
       category: 'Hotels',
       emoji: '🏨',
       ...hotel,
-      note: `${nights} night${nights !== 1 ? 's' : ''} × ${roomsNeeded} room${roomsNeeded !== 1 ? 's' : ''}`,
+      note: `${nights} night${nights !== 1 ? 's' : ''} × ${roomsNeeded} room${roomsNeeded !== 1 ? 's' : ''} @ $${hotelMidRate}/night`,
     },
     {
       category: 'Food',

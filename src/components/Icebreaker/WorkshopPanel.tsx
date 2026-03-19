@@ -37,6 +37,7 @@ export function WorkshopPanel({
 }: WorkshopPanelProps) {
   const {
     travelers, setTravelers,
+    numRooms, setNumRooms,
     vehicleType, setVehicleType,
     hotelTier, setHotelTier,
     pace, setPace,
@@ -198,6 +199,49 @@ export function WorkshopPanel({
                 background: travelers >= 8 ? 'rgba(255,255,255,0.03)' : 'rgba(234,88,12,0.2)',
                 color: travelers >= 8 ? 'rgba(245,240,232,0.2)' : '#f5f0e8',
                 fontSize: 20, cursor: travelers >= 8 ? 'default' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 150ms ease', flexShrink: 0,
+              }}
+            >+</button>
+          </div>
+
+          {/* Rooms needed */}
+          <p style={{ color: 'rgba(245,240,232,0.5)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+            Rooms needed?
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 22 }}>
+            <button
+              onClick={() => setNumRooms(Math.max(1, numRooms - 1))}
+              disabled={numRooms <= 1}
+              style={{
+                width: 36, height: 36, borderRadius: '50%',
+                border: numRooms <= 1 ? '1px solid rgba(255,255,255,0.08)' : '1.5px solid rgba(234,88,12,0.5)',
+                background: numRooms <= 1 ? 'rgba(255,255,255,0.03)' : 'rgba(234,88,12,0.12)',
+                color: numRooms <= 1 ? 'rgba(245,240,232,0.2)' : 'rgba(234,88,12,0.9)',
+                fontSize: 20, cursor: numRooms <= 1 ? 'default' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 150ms ease', flexShrink: 0,
+              }}
+            >−</button>
+
+            <div style={{ flex: 1, textAlign: 'center' }}>
+              <span style={{ fontSize: 28, fontWeight: 700, color: '#f5f0e8', lineHeight: 1 }}>
+                {numRooms}
+              </span>
+              <span style={{ fontSize: 13, color: 'rgba(245,240,232,0.45)', marginLeft: 6 }}>
+                {numRooms === 1 ? 'room' : 'rooms'}
+              </span>
+            </div>
+
+            <button
+              onClick={() => setNumRooms(Math.min(4, numRooms + 1))}
+              disabled={numRooms >= 4}
+              style={{
+                width: 36, height: 36, borderRadius: '50%',
+                border: numRooms >= 4 ? '1px solid rgba(255,255,255,0.08)' : '1.5px solid rgba(234,88,12,0.6)',
+                background: numRooms >= 4 ? 'rgba(255,255,255,0.03)' : 'rgba(234,88,12,0.2)',
+                color: numRooms >= 4 ? 'rgba(245,240,232,0.2)' : '#f5f0e8',
+                fontSize: 20, cursor: numRooms >= 4 ? 'default' : 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'all 150ms ease', flexShrink: 0,
               }}
