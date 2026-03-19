@@ -197,11 +197,18 @@ export function TripSummaryCard({ summary, settings, onStop, tripActive, onOpenV
             <div className="rounded-lg p-2 border" style={{ background: 'rgba(168,85,247,0.1)', borderColor: 'rgba(168,85,247,0.22)' }}>
               <div className="flex items-center gap-1.5 mb-0.5">
                 <Users className="w-3.5 h-3.5 text-purple-400" />
-                <div className="text-[9px] uppercase tracking-wider text-purple-400 font-semibold">Per Person</div>
+                <div className="text-[9px] uppercase tracking-wider text-purple-400 font-semibold">
+                  {settings.numTravelers > 1 ? 'Per Person' : 'Est. Total'}
+                </div>
               </div>
               <div className="text-base font-bold text-purple-300">
                 {formatCurrency(animPerPerson, settings.currency)}
               </div>
+              {settings.numTravelers > 1 && summary.costBreakdown && (
+                <div className="text-[9px] mt-0.5" style={{ color: 'rgba(196,148,255,0.45)' }}>
+                  {settings.numTravelers} people · {formatCurrency(summary.costBreakdown.total, settings.currency)} total
+                </div>
+              )}
             </div>
           </div>
 

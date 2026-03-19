@@ -97,8 +97,8 @@ export async function orchestrateTrip(
     tripSummary.budgetRemaining = settings.budget.total - tripSummary.costBreakdown.total;
     tripSummary.totalFuelCost = tripSummary.costBreakdown.fuel;
     tripSummary.costPerPerson = settings.numTravelers > 0
-      ? tripSummary.totalFuelCost / settings.numTravelers
-      : tripSummary.totalFuelCost;
+      ? tripSummary.costBreakdown.total / settings.numTravelers
+      : tripSummary.costBreakdown.total;
   }
 
   const rawSmartStops = generateSmartStops(

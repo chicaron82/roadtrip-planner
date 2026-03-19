@@ -46,6 +46,8 @@ export function WorkshopPanel({
     handleCommit,
   } = useWorkshopPresets({ sketchDistanceKm, sketchDurationMinutes, vehicle, settings, onCommit });
 
+  const multiPerson = settings.numTravelers > 1;
+
   const chip = (active: boolean): CSSProperties => ({
     padding: '8px 14px',
     borderRadius: '10px',
@@ -107,8 +109,19 @@ export function WorkshopPanel({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
             <span style={{ color: '#f5f0e8', fontSize: 14, fontWeight: 700 }}>
-              ~{estimate.currency}{estimate.totalMid.toLocaleString()} est.
+              {multiPerson
+                ? `~${estimate.currency}${estimate.perPersonMid.toLocaleString()}/person`
+                : `~${estimate.currency}${estimate.totalMid.toLocaleString()} est.`
+              }
             </span>
+            {multiPerson && (
+              <>
+                <span style={{ color: 'rgba(245,240,232,0.3)', fontSize: 13 }}>·</span>
+                <span style={{ color: 'rgba(245,240,232,0.45)', fontSize: 13 }}>
+                  {estimate.currency}{estimate.totalMid.toLocaleString()} total
+                </span>
+              </>
+            )}
             <span style={{ color: 'rgba(245,240,232,0.3)', fontSize: 13 }}>·</span>
             <span style={{ color: 'rgba(245,240,232,0.55)', fontSize: 13 }}>
               {estimate.days} day{estimate.days !== 1 ? 's' : ''}
@@ -129,9 +142,11 @@ export function WorkshopPanel({
                 {emoji} {Math.round(percents[i])}%
               </span>
             ))}
-            <span style={{ marginLeft: 'auto', color: 'rgba(245,240,232,0.25)', fontSize: 10 }}>
-              per person ~{estimate.currency}{estimate.perPersonMid}
-            </span>
+            {!multiPerson && (
+              <span style={{ marginLeft: 'auto', color: 'rgba(245,240,232,0.25)', fontSize: 10 }}>
+                per person ~{estimate.currency}{estimate.perPersonMid}
+              </span>
+            )}
           </div>
         </div>
 

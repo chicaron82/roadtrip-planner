@@ -36,6 +36,8 @@ export function LiveReflectionBar({ summary, vehicle, settings }: LiveReflection
   const total = totals.reduce((a, b) => a + b, 0);
   const percents = totals.map(v => total > 0 ? (v / total) * 100 : 25);
 
+  const multiPerson = estimate.numTravelers > 1;
+
   return (
     <div style={{
       padding: '10px 16px 8px',
@@ -46,8 +48,19 @@ export function LiveReflectionBar({ summary, vehicle, settings }: LiveReflection
       {/* Summary line */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: 6 }}>
         <span style={{ color: '#f5f0e8', fontSize: '14px', fontWeight: 700 }}>
-          ~{estimate.currency}{estimate.totalMid.toLocaleString()} est.
+          {multiPerson
+            ? `~${estimate.currency}${estimate.perPersonMid.toLocaleString()}/person`
+            : `~${estimate.currency}${estimate.totalMid.toLocaleString()} est.`
+          }
         </span>
+        {multiPerson && (
+          <>
+            <span style={{ color: 'rgba(245,240,232,0.3)', fontSize: '13px' }}>·</span>
+            <span style={{ color: 'rgba(245,240,232,0.45)', fontSize: '13px' }}>
+              {estimate.currency}{estimate.totalMid.toLocaleString()} total
+            </span>
+          </>
+        )}
         <span style={{ color: 'rgba(245,240,232,0.3)', fontSize: '13px' }}>·</span>
         <span style={{ color: 'rgba(245,240,232,0.55)', fontSize: '13px' }}>
           {days} day{days !== 1 ? 's' : ''}
@@ -75,9 +88,11 @@ export function LiveReflectionBar({ summary, vehicle, settings }: LiveReflection
             {emoji} {Math.round(percents[i])}%
           </span>
         ))}
-        <span style={{ marginLeft: 'auto', color: 'rgba(245,240,232,0.25)', fontSize: '10px' }}>
-          per person ~{estimate.currency}{estimate.perPersonMid}
-        </span>
+        {!multiPerson && (
+          <span style={{ marginLeft: 'auto', color: 'rgba(245,240,232,0.25)', fontSize: '10px' }}>
+            per person ~{estimate.currency}{estimate.perPersonMid}
+          </span>
+        )}
       </div>
     </div>
   );
