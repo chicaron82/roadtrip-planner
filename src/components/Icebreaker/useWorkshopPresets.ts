@@ -53,6 +53,8 @@ interface UseWorkshopPresetsOptions {
 }
 
 export interface WorkshopPresetsResult {
+  travelers: number;
+  setTravelers: (n: number) => void;
   vehicleType: VehicleType;
   setVehicleType: (t: VehicleType) => void;
   hotelTier: HotelTier;
@@ -82,6 +84,7 @@ export function useWorkshopPresets({
     v.vehicle.fuelEconomyHwy === initialVehicle.fuelEconomyHwy
   )?.type ?? 'sedan';
 
+  const [travelers, setTravelers] = useState(initialSettings.numTravelers ?? 1);
   const [vehicleType, setVehicleType] = useState<VehicleType>(initialType);
   const [hotelTier, setHotelTier] = useState<HotelTier>(
     (initialSettings.hotelTier as HotelTier) || 'regular'
@@ -99,6 +102,7 @@ export function useWorkshopPresets({
 
   const mergedSettings: TripSettings = useMemo(() => ({
     ...initialSettings,
+    numTravelers: travelers,
     hotelTier,
     hotelPricePerNight: selectedHotel.price,
     maxDriveHours: selectedPace.hours,
@@ -106,7 +110,7 @@ export function useWorkshopPresets({
     budget: budgetEnabled
       ? { ...initialSettings.budget, total: budgetAmount }
       : initialSettings.budget,
-  }), [initialSettings, hotelTier, selectedHotel.price, selectedPace.hours, budgetEnabled, budgetAmount]);
+  }), [initialSettings, travelers, hotelTier, selectedHotel.price, selectedPace.hours, budgetEnabled, budgetAmount]);
 
   const sketchSummary = useMemo(() => ({
     totalDistanceKm: sketchDistanceKm,
@@ -136,6 +140,7 @@ export function useWorkshopPresets({
   const handleCommit = () => {
     onCommit({
       settings: {
+        numTravelers: travelers,
         hotelTier,
         hotelPricePerNight: selectedHotel.price,
         maxDriveHours: selectedPace.hours,
@@ -147,6 +152,7 @@ export function useWorkshopPresets({
   };
 
   return {
+    travelers, setTravelers,
     vehicleType, setVehicleType,
     hotelTier, setHotelTier,
     pace, setPace,

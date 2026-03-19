@@ -36,6 +36,7 @@ export function WorkshopPanel({
   onEscape,
 }: WorkshopPanelProps) {
   const {
+    travelers, setTravelers,
     vehicleType, setVehicleType,
     hotelTier, setHotelTier,
     pace, setPace,
@@ -46,7 +47,7 @@ export function WorkshopPanel({
     handleCommit,
   } = useWorkshopPresets({ sketchDistanceKm, sketchDurationMinutes, vehicle, settings, onCommit });
 
-  const multiPerson = settings.numTravelers > 1;
+  const multiPerson = travelers > 1;
 
   const chip = (active: boolean): CSSProperties => ({
     padding: '8px 14px',
@@ -159,6 +160,49 @@ export function WorkshopPanel({
           }}>
             Let MEE make this personal
           </p>
+
+          {/* Primary: Who's coming */}
+          <p style={{ color: 'rgba(245,240,232,0.5)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+            Who's coming?
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 22 }}>
+            <button
+              onClick={() => setTravelers(Math.max(1, travelers - 1))}
+              disabled={travelers <= 1}
+              style={{
+                width: 36, height: 36, borderRadius: '50%',
+                border: travelers <= 1 ? '1px solid rgba(255,255,255,0.08)' : '1.5px solid rgba(234,88,12,0.5)',
+                background: travelers <= 1 ? 'rgba(255,255,255,0.03)' : 'rgba(234,88,12,0.12)',
+                color: travelers <= 1 ? 'rgba(245,240,232,0.2)' : 'rgba(234,88,12,0.9)',
+                fontSize: 20, cursor: travelers <= 1 ? 'default' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 150ms ease', flexShrink: 0,
+              }}
+            >−</button>
+
+            <div style={{ flex: 1, textAlign: 'center' }}>
+              <span style={{ fontSize: 28, fontWeight: 700, color: '#f5f0e8', lineHeight: 1 }}>
+                {travelers}
+              </span>
+              <span style={{ fontSize: 13, color: 'rgba(245,240,232,0.45)', marginLeft: 6 }}>
+                {travelers === 1 ? 'person' : 'people'}
+              </span>
+            </div>
+
+            <button
+              onClick={() => setTravelers(Math.min(8, travelers + 1))}
+              disabled={travelers >= 8}
+              style={{
+                width: 36, height: 36, borderRadius: '50%',
+                border: travelers >= 8 ? '1px solid rgba(255,255,255,0.08)' : '1.5px solid rgba(234,88,12,0.6)',
+                background: travelers >= 8 ? 'rgba(255,255,255,0.03)' : 'rgba(234,88,12,0.2)',
+                color: travelers >= 8 ? 'rgba(245,240,232,0.2)' : '#f5f0e8',
+                fontSize: 20, cursor: travelers >= 8 ? 'default' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 150ms ease', flexShrink: 0,
+              }}
+            >+</button>
+          </div>
 
           {/* Primary: Vehicle */}
           <p style={{ color: 'rgba(245,240,232,0.5)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
