@@ -84,18 +84,26 @@ function buildBudgetStatusCard(
   let headline: string;
   let detail: string;
 
+  const multiTraveler = settings.numTravelers > 1;
+
   if (!hasBudget) {
     // Open mode: just show the estimated cost
     if (!costBreakdown) return '';
     cardClass = 'cover-status-neutral';
-    headline = `Estimated trip cost: ${formatCurrency(costBreakdown.total)}`;
-    detail = perPerson
-      ? `≈ ${formatCurrency(perPerson)} per person`
-      : '';
+    if (multiTraveler && perPerson) {
+      // Per-person is the headline for groups — total is the context
+      headline = `${formatCurrency(perPerson)} per person`;
+      detail = `${formatCurrency(costBreakdown.total)} total · ${settings.numTravelers} travelers`;
+    } else {
+      headline = `Estimated trip cost: ${formatCurrency(costBreakdown.total)}`;
+      detail = '';
+    }
   } else {
     const bankRemaining = summary.budgetRemaining ?? 0;
     const estTotal = costBreakdown?.total ?? (settings.budget.total - bankRemaining);
-    const perPersonStr = perPerson ? `  •  ≈ ${formatCurrency(perPerson)} per person` : '';
+    const perPersonStr = multiTraveler && perPerson
+      ? `  •  ${formatCurrency(perPerson)}/person`
+      : '';
 
     const budgetWarning = feasibility.warnings.find(w => w.category === 'budget' && w.severity !== 'info');
 
