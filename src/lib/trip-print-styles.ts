@@ -483,6 +483,21 @@ export const PRINT_STYLES = `
     margin-top: 5px;
   }
 
+  .cover-estimate-cta {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #e5e7eb;
+    font-size: 9pt;
+    color: #6b7280;
+    line-height: 1.5;
+    font-style: italic;
+  }
+
+  .cover-estimate-cta strong {
+    color: #374151;
+    font-style: normal;
+  }
+
   .cover-warning-item {
     padding: 10px 14px;
     border-radius: 6px;

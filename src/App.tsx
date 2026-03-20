@@ -17,6 +17,7 @@ import {
 } from './hooks';
 import { useArrivalSnap } from './hooks/useArrivalSnap';
 import { useCalculationMessages } from './hooks/useCalculationMessages';
+import { useBackButtonGuard } from './hooks/useBackButtonGuard';
 import { getHistory, saveActiveSession } from './lib/storage';
 import { getWeightedFuelEconomyL100km } from './lib/unit-conversions';
 import type { HistoryTripSnapshot } from './types';
@@ -188,6 +189,21 @@ function AppContent() {
     calculateAndDiscover, isCalculating, summary, calculationMessage,
     setAdventurePreview,
   });
+
+  // ── Android back button guard ─────────────────────────────────────────────
+  const handleBackPress = useCallback(() => {
+    // 1. Journal active — exit to plan view
+    if (activeJournal && viewMode === 'journal') { setViewMode('plan'); return; }
+    // 2. Arc / icebreaker — delegate to orchestrator (it knows beat state)
+    if (icebreaker.arcActive) { icebreaker.handleBack(); return; }
+    // 3. Wizard steps
+    if (tripMode && planningStep === 3) { goToStep(2); return; }
+    if (tripMode && planningStep === 2) { goToStep(1); return; }
+    // 4. Already at root — do nothing
+  }, [activeJournal, viewMode, setViewMode, icebreaker, tripMode, planningStep, goToStep]);
+
+  const backGuardActive = !!(tripMode || icebreaker.arcActive);
+  useBackButtonGuard(backGuardActive, handleBackPress);
 
   // Save active session to localStorage whenever the trip is confirmed and locations are valid.
   // Cleared automatically by resetTripSession (Plan New Trip).

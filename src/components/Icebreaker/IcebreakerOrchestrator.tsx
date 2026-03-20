@@ -65,6 +65,8 @@ export interface IcebreakerOrchestratorState {
   arcActive: boolean;
   /** Arc intercept for onCalcCompleteRef. Returns true if arc handled it. */
   onCalcComplete: () => boolean;
+  /** Android back button handler — navigates within the arc/icebreaker instead of exiting. */
+  handleBack: () => void;
 }
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
@@ -122,6 +124,19 @@ export function useIcebreakerOrchestrator(
     return false;
   }, [arc]);
 
+  /**
+   * Android back button handler — navigates within the arc/icebreaker.
+   * Priority: arc beats → icebreaker gate → estimate workshop.
+   * Beat 4 is no-op (let calculation complete rather than interrupting).
+   */
+  const handleBack = useCallback(() => {
+    if (arc.beat === 3) { arc.returnToSketch(); return; }
+    if (arc.beat === 2) { arc.exitArc(); return; }
+    if (arc.beat === 4) return; // calculation in flight — don't interrupt
+    if (icebreakerMode) { handleIcebreakerEscape(icebreakerMode); return; }
+    if (estimateWorkshopActive) { handleEstimateWorkshopEscape(); return; }
+  }, [arc, icebreakerMode, estimateWorkshopActive, handleIcebreakerEscape, handleEstimateWorkshopEscape]);
+
   const arcActive = !!(icebreakerMode || estimateWorkshopActive || arc.beat);
 
   const overlayProps: IcebreakerOverlayProps = {
@@ -152,6 +167,7 @@ export function useIcebreakerOrchestrator(
     adventureInitialValues,
     arcActive,
     onCalcComplete,
+    handleBack,
     overlayProps,
   };
 }

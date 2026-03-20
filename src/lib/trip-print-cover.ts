@@ -128,6 +128,11 @@ function buildBudgetStatusCard(
       <div class="cover-status-card ${cardClass}">
         <div class="cover-status-headline">${headline}</div>
         ${detail ? `<div class="cover-status-detail">${detail}</div>` : ''}
+        ${!hasBudget ? `
+        <div class="cover-estimate-cta">
+          Want low/mid/high cost ranges before you commit?
+          Try <strong>Estimate Mode</strong> at myexperienceengine.com
+        </div>` : ''}
       </div>
     </div>
   `;

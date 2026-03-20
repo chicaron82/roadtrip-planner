@@ -50,6 +50,8 @@ export interface FourBeatArcState {
   onRevealComplete: () => void;
   /** Escape to classic wizard at any beat. */
   exitArc: () => void;
+  /** Return to Beat 2 from Beat 3 without recomputing sketch data. Used by back button. */
+  returnToSketch: () => void;
 }
 
 /**
@@ -130,6 +132,11 @@ export function useFourBeatArc(): FourBeatArcState {
     setSketchData(null);
   }, []);
 
+  /** Return to Beat 2 without recomputing — preserves existing sketchData. */
+  const returnToSketch = useCallback(() => {
+    setBeat(2);
+  }, []);
+
   return useMemo(() => ({
     beat,
     isBuilding,
@@ -141,5 +148,6 @@ export function useFourBeatArc(): FourBeatArcState {
     onBuildComplete,
     onRevealComplete,
     exitArc,
-  }), [beat, isBuilding, isRevealing, sketchData, enterSketch, enterWorkshop, startCalculation, onBuildComplete, onRevealComplete, exitArc]);
+    returnToSketch,
+  }), [beat, isBuilding, isRevealing, sketchData, enterSketch, enterWorkshop, startCalculation, onBuildComplete, onRevealComplete, exitArc, returnToSketch]);
 }

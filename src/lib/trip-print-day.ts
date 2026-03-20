@@ -380,14 +380,14 @@ function buildHotelHTML(day: TripDay): string {
 
 function buildBudgetHTML(day: TripDay, tripBudgetRemaining?: number): string {
   const budget = day.budget;
+
+  // Only show budget tracking when the user actually set a budget.
+  // tripBudgetRemaining is undefined in open mode — don't compare against $0.
   const tripBudgetHTML = tripBudgetRemaining === undefined
-    ? ''
-    : `
-      &nbsp;|&nbsp;
-      ${tripBudgetRemaining < 0
-        ? `Trip budget over by: ${formatCurrency(Math.abs(tripBudgetRemaining))}`
-        : `Trip budget remaining: ${formatCurrency(tripBudgetRemaining)}`}
-    `;
+    ? ''  // open mode — no tracker, no "over by" nonsense
+    : tripBudgetRemaining < 0
+      ? `&nbsp;|&nbsp; ⚠️ Trip budget over by: ${formatCurrency(Math.abs(tripBudgetRemaining))}`
+      : `&nbsp;|&nbsp; ${formatCurrency(tripBudgetRemaining)} remaining`;
 
   return `
     <div class="budget-row">
@@ -397,11 +397,6 @@ function buildBudgetHTML(day: TripDay, tripBudgetRemaining?: number): string {
       • 🍽️ ${formatCurrency(budget.foodEstimate)} meals est.
       • Est. total: <strong>${formatCurrency(budget.dayTotal)}</strong>
       ${tripBudgetHTML}
-      ${tripBudgetRemaining === undefined ? `
-      <br />
-      📊 <strong>Trip budget after Day ${day.dayNumber}:</strong>
-      ${budget.bankRemaining < 0 ? `Over by ${formatCurrency(Math.abs(budget.bankRemaining))}` : `${formatCurrency(budget.bankRemaining)} remaining`}
-      ` : ''}
     </div>
   `;
 }

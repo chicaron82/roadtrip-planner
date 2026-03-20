@@ -268,7 +268,7 @@ describe('buildDayHTML', () => {
   it('shows trip budget remaining and per-day cost breakdown', () => {
     const html = buildDayHTML(DAY, SETTINGS, null, 'metric', EVENTS, 2895);
 
-    expect(html).toContain('Trip budget remaining: $2895.00');
+    expect(html).toContain('$2895.00 remaining');
     expect(html).toContain('Day Estimate:');
     expect(html).toContain('fuel est.');
     expect(html).toContain('hotel est.');
