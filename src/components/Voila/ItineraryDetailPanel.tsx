@@ -2,7 +2,7 @@
  * ItineraryDetailPanel — Tier A fullscreen itinerary detail.
  *
  * Shows the day-by-day breakdown with ← Back to return to VoilaScreen.
- * Journal mode is offered from here after "Lock it in →".
+ * Each day: date + route, drive time + distance, overnight city.
  *
  * 💚 My Experience Engine — Voilà Tier A
  */
@@ -14,9 +14,10 @@ interface ItineraryDetailPanelProps {
   summary: TripSummary;
   onBack: () => void;
   onLockIn: () => void;
+  onEditTrip: () => void;
 }
 
-export function ItineraryDetailPanel({ summary, onBack, onLockIn }: ItineraryDetailPanelProps) {
+export function ItineraryDetailPanel({ summary, onBack, onLockIn, onEditTrip }: ItineraryDetailPanelProps) {
   const days: TripDay[] = summary.days ?? [];
 
   return (
@@ -69,42 +70,74 @@ export function ItineraryDetailPanel({ summary, onBack, onLockIn }: ItineraryDet
 
       {/* Day list */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
-        {days.length > 0 ? days.map((day: TripDay, i: number) => (
-          <div key={i} style={{
-            padding: '16px 20px',
-            borderBottom: '1px solid rgba(245, 240, 232, 0.05)',
-          }}>
-            <p style={{
-              fontFamily: '"DM Sans", system-ui, sans-serif',
-              fontSize: 11,
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-              color: '#f97316',
-              margin: '0 0 6px',
+        {days.length > 0 ? days.map((day: TripDay, i: number) => {
+          const overnightCity = day.overnight?.location.name?.split(',')[0].trim();
+          return (
+            <div key={i} style={{
+              padding: '18px 20px',
+              borderBottom: '1px solid rgba(245, 240, 232, 0.05)',
             }}>
-              Day {day.dayNumber}
-            </p>
-            <p style={{
-              fontFamily: '"Cormorant Garamond", Georgia, serif',
-              fontSize: 20,
-              fontWeight: 600,
-              color: '#f5f0e8',
-              margin: '0 0 6px',
-              lineHeight: 1.2,
-            }}>
-              {day.title ?? day.route}
-            </p>
-            <p style={{
-              fontFamily: '"DM Sans", system-ui, sans-serif',
-              fontSize: 13,
-              color: 'rgba(245, 240, 232, 0.4)',
-              margin: 0,
-            }}>
-              {formatHoursFromMinutes(Math.round(day.totals.driveTimeMinutes))} driving
-              {` · ${Math.round(day.totals.distanceKm).toLocaleString()} km`}
-            </p>
-          </div>
-        )) : (
+              {/* Day label + date */}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
+                <p style={{
+                  fontFamily: '"DM Sans", system-ui, sans-serif',
+                  fontSize: 11,
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                  color: '#f97316',
+                  margin: 0,
+                }}>
+                  Day {day.dayNumber}
+                </p>
+                {day.dateFormatted && (
+                  <p style={{
+                    fontFamily: '"DM Sans", system-ui, sans-serif',
+                    fontSize: 11,
+                    color: 'rgba(245, 240, 232, 0.3)',
+                    margin: 0,
+                  }}>
+                    {day.dateFormatted}
+                  </p>
+                )}
+              </div>
+
+              {/* Route / title */}
+              <p style={{
+                fontFamily: '"Cormorant Garamond", Georgia, serif',
+                fontSize: 20,
+                fontWeight: 600,
+                color: '#f5f0e8',
+                margin: '0 0 6px',
+                lineHeight: 1.2,
+              }}>
+                {day.title ?? day.route}
+              </p>
+
+              {/* Drive stats */}
+              <p style={{
+                fontFamily: '"DM Sans", system-ui, sans-serif',
+                fontSize: 13,
+                color: 'rgba(245, 240, 232, 0.4)',
+                margin: overnightCity ? '0 0 4px' : 0,
+              }}>
+                {formatHoursFromMinutes(Math.round(day.totals.driveTimeMinutes))} driving
+                {` · ${Math.round(day.totals.distanceKm).toLocaleString()} km`}
+              </p>
+
+              {/* Overnight city */}
+              {overnightCity && (
+                <p style={{
+                  fontFamily: '"DM Sans", system-ui, sans-serif',
+                  fontSize: 12,
+                  color: 'rgba(245, 240, 232, 0.3)',
+                  margin: 0,
+                }}>
+                  Overnight · {overnightCity}
+                </p>
+              )}
+            </div>
+          );
+        }) : (
           <div style={{ padding: '32px 20px', textAlign: 'center' }}>
             <p style={{
               fontFamily: '"Cormorant Garamond", Georgia, serif',
@@ -127,7 +160,7 @@ export function ItineraryDetailPanel({ summary, onBack, onLockIn }: ItineraryDet
         flexShrink: 0,
       }}>
         <button
-          onClick={onBack}
+          onClick={onEditTrip}
           style={{
             flex: 1,
             padding: '13px 0',

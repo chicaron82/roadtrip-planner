@@ -18,7 +18,7 @@
 
 import { useState, useCallback } from 'react';
 import type { TripSummary, TripSettings, Vehicle, Location } from '../../types';
-import { buildAutoTitle } from '../../lib/mee-tokens';
+import { buildSeededTitle } from '../../lib/trip-title-seeds';
 import { VoilaHero } from './VoilaHero';
 import { VoilaDashboard } from './VoilaDashboard';
 import { VoilaRoutePreview } from './VoilaRoutePreview';
@@ -52,10 +52,13 @@ export function VoilaScreen({
   const dest = locations.find(l => l.type === 'destination')?.name?.split(',')[0].trim() ?? '';
   const routeLabel = origin && dest ? `${origin} → ${dest}` : dest || origin || 'Your Route';
 
-  // Title: custom if set, otherwise auto-generated
+  // Title: custom if set, otherwise seeded (deterministic by destination + days + travelers)
   const destination = dest || (locations[locations.length - 1]?.name?.split(',')[0].trim() ?? '');
-  const departureDate = settings.departureDate || undefined;
-  const title = customTitle || buildAutoTitle({ destination, departureDate });
+  const title = customTitle || buildSeededTitle({
+    destination,
+    days: summary.drivingDays,
+    travelerCount: settings.numTravelers ?? 1,
+  });
 
   const handleLockIn = useCallback(() => {
     setLockInActive(true);
@@ -202,6 +205,7 @@ export function VoilaScreen({
             summary={summary}
             onBack={() => setActiveDetail(null)}
             onLockIn={() => { setActiveDetail(null); handleLockIn(); }}
+            onEditTrip={() => { setActiveDetail(null); onEditTrip(); }}
           />
         )}
 

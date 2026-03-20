@@ -1,8 +1,8 @@
 /**
  * TripSnapshotPanel — Tier B grouped surface.
  *
- * The lighter trip facts that don't need their own fullscreen.
- * Pace, longest day, fuel stops, rooms, avg daily drive, drive style.
+ * Budget section (when costBreakdown is available): fuel · hotels · total.
+ * Trip facts: pace, longest day, fuel stops, rooms, avg daily drive, drive style.
  *
  * 💚 My Experience Engine — Voilà Tier B
  */
@@ -62,9 +62,10 @@ export function TripSnapshotPanel({ summary, settings, onBack }: TripSnapshotPan
   }, 0) ?? 0;
 
   const fuelStops = summary.gasStops ?? 0;
-
   const numRooms = settings.numRooms ?? Math.ceil((settings.numTravelers ?? 1) / 2);
   const numDrivers = settings.numDrivers ?? 1;
+  const currency = settings.currency === 'USD' ? '$' : 'C$';
+  const cb = summary.costBreakdown;
 
   return (
     <div style={{
@@ -114,8 +115,48 @@ export function TripSnapshotPanel({ summary, settings, onBack }: TripSnapshotPan
         <div style={{ width: 48 }} />
       </div>
 
-      {/* Stats */}
       <div style={{ flex: 1 }}>
+        {/* Budget section — shown when costBreakdown is available */}
+        {cb && (
+          <>
+            <div style={{
+              padding: '12px 20px 6px',
+              borderBottom: '1px solid rgba(245, 240, 232, 0.07)',
+            }}>
+              <p style={{
+                fontFamily: '"DM Sans", system-ui, sans-serif',
+                fontSize: 11,
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                color: 'rgba(245, 240, 232, 0.3)',
+                margin: '0 0 2px',
+              }}>
+                Budget
+              </p>
+            </div>
+            <SnapshotRow label="Fuel" value={`${currency}${Math.round(cb.fuel).toLocaleString()}`} />
+            <SnapshotRow label="Hotels" value={`${currency}${Math.round(cb.accommodation).toLocaleString()}`} />
+            <SnapshotRow label="Total" value={`${currency}${Math.round(cb.total).toLocaleString()}`} />
+            {/* Section divider */}
+            <div style={{
+              padding: '12px 20px 6px',
+              borderBottom: '1px solid rgba(245, 240, 232, 0.07)',
+            }}>
+              <p style={{
+                fontFamily: '"DM Sans", system-ui, sans-serif',
+                fontSize: 11,
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                color: 'rgba(245, 240, 232, 0.3)',
+                margin: '0 0 2px',
+              }}>
+                Trip Stats
+              </p>
+            </div>
+          </>
+        )}
+
+        {/* Stats */}
         <SnapshotRow label="Pace" value={settings.maxDriveHours <= 6 ? 'Relaxed' : settings.maxDriveHours <= 8 ? 'Balanced' : 'Ambitious'} />
         {longestDayMinutes > 0 && (
           <SnapshotRow label="Longest driving day" value={formatHoursFromMinutes(Math.round(longestDayMinutes))} />
