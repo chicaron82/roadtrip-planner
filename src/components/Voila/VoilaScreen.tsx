@@ -17,6 +17,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import type { TripSummary, TripSettings, Vehicle, Location } from '../../types';
 import { buildSeededTitle } from '../../lib/trip-title-seeds';
 import { VoilaHero } from './VoilaHero';
@@ -122,7 +123,12 @@ export function VoilaScreen({
             fontFamily: '"Cormorant Garamond", Georgia, serif',
             fontSize: 15,
             color: 'rgba(245, 240, 232, 0.5)',
-            margin: 0,
+            margin: '0 8px',
+            flex: 1,
+            textAlign: 'center',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
           }}>
             {routeLabel}
           </p>
@@ -144,16 +150,43 @@ export function VoilaScreen({
           </button>
         </div>
 
-        {/* Scrollable content */}
+        {/* Scrollable content — staggered reveal */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          <VoilaHero routeLabel={routeLabel} title={title} />
-          <VoilaDashboard summary={summary} settings={settings} />
-          <VoilaRoutePreview geometry={summary.fullGeometry} />
-          <VoilaCardRail
-            summary={summary}
-            settings={settings}
-            onOpenDetail={setActiveDetail}
-          />
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: 'easeOut', delay: 0.05 }}
+          >
+            <VoilaHero routeLabel={routeLabel} title={title} />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: 'easeOut', delay: 0.2 }}
+          >
+            <VoilaDashboard summary={summary} settings={settings} />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: 'easeOut', delay: 0.35 }}
+          >
+            <VoilaRoutePreview geometry={summary.fullGeometry} />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: 'easeOut', delay: 0.5 }}
+          >
+            <VoilaCardRail
+              summary={summary}
+              settings={settings}
+              onOpenDetail={setActiveDetail}
+            />
+          </motion.div>
         </div>
 
         {/* Sticky bottom bar — always visible */}
