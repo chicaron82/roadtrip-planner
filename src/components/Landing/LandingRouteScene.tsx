@@ -2,10 +2,11 @@
  * ═══════════════════════════════════════════════════════════
  * MY EXPERIENCE ENGINE — LANDING ROUTE SCENE
  *
- * Flat horizontal route, four evenly spaced waypoints — three
- * modes + one contextual resume/destination node. Popover
- * description card appears below the route on desktop, centered
- * on the selected node. Stacks below SVG on mobile portrait.
+ * Flat horizontal route with dynamic node count:
+ * - First-timers: 3 evenly spaced nodes (plan/adventure/estimate)
+ * - Returning users: 4 nodes, fourth is contextual session resume
+ * Popover description centered on selected node (desktop).
+ * Stacks below SVG on mobile portrait.
  *
  * 💚 Built by Aaron "Chicharon" — 18 years on the road
  * ═══════════════════════════════════════════════════════════
@@ -15,7 +16,6 @@ import type { TripMode } from '../../types';
 import { MODE_CONFIG, ROUTE_DOTS } from './mode-config';
 
 type NodeId = TripMode | 'resume';
-const NODE_ORDER: NodeId[] = ['plan', 'adventure', 'estimate', 'resume'];
 
 interface Props {
   onSelectMode: (mode: TripMode) => void;
@@ -32,7 +32,13 @@ const PATH_LENGTH  = 110;
 const WAVE_ABOVE = 'M-5,8 Q15,5 30,9 Q50,13 65,7 Q80,3 95,8 Q105,9 110,8';
 const WAVE_BELOW = 'M-5,17 Q20,21 40,15 Q60,11 80,18 Q95,22 110,16';
 
-const WAYPOINTS: Record<NodeId, { x: number; y: number; d: number }> = {
+const WAYPOINTS_3: Partial<Record<NodeId, { x: number; y: number; d: number }>> = {
+  plan:      { x: 25, y: 12, d: 30 },
+  adventure: { x: 50, y: 12, d: 55 },
+  estimate:  { x: 75, y: 12, d: 80 },
+};
+
+const WAYPOINTS_4: Partial<Record<NodeId, { x: number; y: number; d: number }>> = {
   plan:      { x: 20, y: 12, d: 25 },
   adventure: { x: 40, y: 12, d: 45 },
   estimate:  { x: 60, y: 12, d: 65 },
@@ -61,6 +67,12 @@ export function LandingRouteScene({
   hasSavedTrip, onContinueSavedTrip,
   onExitStart,
 }: Props) {
+  const hasResume = !!(hasActiveSession || hasSavedTrip);
+  const NODE_ORDER: NodeId[] = hasResume
+    ? ['plan', 'adventure', 'estimate', 'resume']
+    : ['plan', 'adventure', 'estimate'];
+  const WAYPOINTS = (hasResume ? WAYPOINTS_4 : WAYPOINTS_3) as Record<NodeId, { x: number; y: number; d: number }>;
+
   const [selectedNode, setSelectedNode] = useState<NodeId | null>(null);
   const [descVisible, setDescVisible] = useState(false);
   const [routeMounted, setRouteMounted] = useState(false);
