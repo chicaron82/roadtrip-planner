@@ -21,6 +21,7 @@ import type { TripSummary, TripSettings, Vehicle, Location } from '../../types';
 import { buildAutoTitle } from '../../lib/mee-tokens';
 import { VoilaHero } from './VoilaHero';
 import { VoilaDashboard } from './VoilaDashboard';
+import { VoilaRoutePreview } from './VoilaRoutePreview';
 import { VoilaCardRail } from './VoilaCardRail';
 import { VoilaLockIn } from './VoilaLockIn';
 import { ItineraryDetailPanel } from './ItineraryDetailPanel';
@@ -144,6 +145,7 @@ export function VoilaScreen({
         <div style={{ flex: 1, overflowY: 'auto' }}>
           <VoilaHero routeLabel={routeLabel} title={title} />
           <VoilaDashboard summary={summary} settings={settings} />
+          <VoilaRoutePreview geometry={summary.fullGeometry} />
           <VoilaCardRail
             summary={summary}
             settings={settings}

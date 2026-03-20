@@ -93,7 +93,7 @@ export function VoilaCardRail({ summary, settings, onOpenDetail }: VoilaCardRail
     : 'No estimate';
 
   const itineraryPreview = `${summary.drivingDays} day${summary.drivingDays !== 1 ? 's' : ''} planned`;
-  const stopsCount = summary.segments?.length ?? 0;
+  const gasStops = summary.gasStops ?? 0;
 
   return (
     <div style={{ padding: '0 0 8px' }}>
@@ -139,11 +139,11 @@ export function VoilaCardRail({ summary, settings, onOpenDetail }: VoilaCardRail
           onClick={() => onOpenDetail('itinerary')}
         />
 
-        {/* Stops — Tier A (simplified preview) */}
-        {stopsCount > 0 && (
+        {/* Stops & Discoveries — Tier A (shown when route has fuel stops) */}
+        {gasStops > 0 && (
           <Card
             label="Stops & Discoveries"
-            preview={`${stopsCount} segment${stopsCount !== 1 ? 's' : ''}`}
+            preview={`${gasStops} fuel stop${gasStops !== 1 ? 's' : ''}`}
             sub="Along the route"
             onClick={() => onOpenDetail('snapshot')}
           />

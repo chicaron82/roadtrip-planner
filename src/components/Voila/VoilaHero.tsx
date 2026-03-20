@@ -16,28 +16,28 @@ interface VoilaHeroProps {
 
 export function VoilaHero({ routeLabel, title }: VoilaHeroProps) {
   return (
-    <div style={{ padding: '32px 28px 20px', textAlign: 'center' }}>
-      {/* Route label — first breath, largest */}
+    <div style={{ padding: '48px 32px 24px', textAlign: 'center' }}>
+      {/* Route label — first breath, seen first */}
       <p style={{
         fontFamily: '"Cormorant Garamond", Georgia, serif',
-        fontSize: 'clamp(18px, 3.5vw, 28px)',
+        fontSize: 'clamp(22px, 4vw, 32px)',
         fontWeight: 500,
-        color: 'rgba(245, 240, 232, 0.65)',
-        letterSpacing: '0.01em',
-        margin: '0 0 16px',
-        lineHeight: 1.2,
+        color: 'rgba(245, 240, 232, 0.6)',
+        letterSpacing: '0.02em',
+        margin: '0 0 24px',
+        lineHeight: 1.15,
       }}>
         {routeLabel}
       </p>
 
-      {/* Trip title — dominant */}
+      {/* Trip title — dominant emotional layer */}
       <h1 style={{
         fontFamily: '"Cormorant Garamond", Georgia, serif',
-        fontSize: 'clamp(26px, 5vw, 38px)',
+        fontSize: 'clamp(28px, 5.5vw, 42px)',
         fontWeight: 600,
         color: '#f5f0e8',
-        lineHeight: 1.25,
-        margin: '0 0 20px',
+        lineHeight: 1.2,
+        margin: '0 0 24px',
         letterSpacing: '-0.01em',
       }}>
         {title}
@@ -46,11 +46,11 @@ export function VoilaHero({ routeLabel, title }: VoilaHeroProps) {
       {/* Reveal line — confirmation, not a shout */}
       <p style={{
         fontFamily: '"DM Mono", "Courier New", monospace',
-        fontSize: 13,
+        fontSize: 12,
         color: '#f97316',
-        letterSpacing: '0.08em',
+        letterSpacing: '0.1em',
         margin: 0,
-        opacity: 0.9,
+        opacity: 0.85,
       }}>
         ✦ Here&apos;s your MEE time.
       </p>
