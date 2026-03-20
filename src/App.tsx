@@ -6,7 +6,7 @@ import { ErrorFallback } from './components/UI/ErrorFallback';
 import { AdventureMode } from './components/Trip/Adventure/AdventureMode';
 import { LandingScreen } from './components/Landing/LandingScreen';
 import { useIcebreakerOrchestrator, IcebreakerOverlays } from './components/Icebreaker/IcebreakerOrchestrator';
-import { PlannerSidebarShell } from './components/App/PlannerSidebarShell';
+import { PlannerFullscreenShell } from './components/App/PlannerFullscreenShell';
 import './styles/sidebar.css';
 import { TripProvider, useTimeline, useTripCore } from './contexts';
 import {
@@ -290,7 +290,7 @@ function AppContent() {
         <>
           <div className="mee-vignette absolute inset-0 pointer-events-none z-[1]" />
 
-          <PlannerSidebarShell
+          <PlannerFullscreenShell
             tripMode={tripMode}
             onRevealChange={setMapRevealed}
             planningStep={planningStep}

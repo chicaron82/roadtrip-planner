@@ -615,13 +615,12 @@
   }
 }
 
-/* Left-to-right vignette: panel side opaque, map side open */
+/* Centered radial vignette: subtle depth behind the content column */
 .mee-vignette {
-  background: linear-gradient(
-    to right,
-    rgba(10, 10, 11, 0.55) 0%,
-    rgba(10, 10, 11, 0.2) 45%,
-    rgba(10, 10, 11, 0) 100%
+  background: radial-gradient(
+    ellipse 55% 70% at 50% 40%,
+    rgba(0, 0, 0, 0.15) 0%,
+    rgba(0, 0, 0, 0) 100%
   );
 }
 

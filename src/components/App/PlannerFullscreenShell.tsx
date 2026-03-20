@@ -11,7 +11,7 @@ import type { GhostCarState } from '../../hooks/useGhostCar';
 import type { MarkerCategory, POICategory, TripMode, TripSummary, Vehicle, TripSettings } from '../../types';
 import { LiveReflectionBar } from './LiveReflectionBar';
 
-interface PlannerSidebarShellProps {
+interface PlannerFullscreenShellProps {
   tripMode: TripMode;
   onRevealChange: (revealed: boolean) => void;
   planningStep: PlanningStep;
@@ -38,7 +38,7 @@ interface PlannerSidebarShellProps {
   liveReflection?: { summary: TripSummary; vehicle: Vehicle; settings: TripSettings } | null;
 }
 
-export function PlannerSidebarShell({
+export function PlannerFullscreenShell({
   tripMode,
   onRevealChange,
   planningStep,
@@ -62,11 +62,11 @@ export function PlannerSidebarShell({
   calculationMessage,
   stepProps,
   liveReflection,
-}: PlannerSidebarShellProps) {
+}: PlannerFullscreenShellProps) {
   return (
-    <div className="absolute inset-0 z-20 md:inset-auto md:left-6 md:top-6 md:bottom-6 md:w-[420px] pointer-events-none">
+    <div className="absolute inset-0 z-20 pointer-events-none md:flex md:justify-center md:items-stretch md:py-6">
       <SwipeableWizard tripMode={tripMode} onRevealChange={onRevealChange}>
-        <div className="sidebar-dark mee-panel relative w-full h-full flex flex-col pointer-events-auto md:rounded-[20px]">
+        <div className="sidebar-dark mee-panel relative w-full h-full flex flex-col pointer-events-auto md:rounded-[20px] md:max-w-[620px]">
           <StepsBanner
             currentStep={planningStep}
             completedSteps={completedSteps}

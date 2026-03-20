@@ -43,7 +43,7 @@ type CarTrackProps = CarTrackWizardProps | CarTrackTripProps;
 const WIZARD_STOPS: { number: PlanningStep; label: string }[] = [
   { number: 1, label: 'Route'   },
   { number: 2, label: 'Vehicle' },
-  { number: 3, label: 'Results' },
+  { number: 3, label: 'Your Trip' },
 ];
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
