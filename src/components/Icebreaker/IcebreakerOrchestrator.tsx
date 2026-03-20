@@ -21,8 +21,9 @@ import { useIcebreakerGate } from '../../hooks/useIcebreakerGate';
 import { IcebreakerGate } from './IcebreakerGate';
 import { EstimateWorkshop } from './EstimateWorkshop';
 import { SketchCard } from './SketchCard';
-import { WorkshopPanel } from './WorkshopPanel';
 import { VoilaReveal } from './VoilaReveal';
+import { UnifiedWorkshopPanel } from '../Workshop/UnifiedWorkshopPanel';
+import { buildSeededTitle } from '../../lib/trip-title-seeds';
 
 // ── Props (what App.tsx passes in) ───────────────────────────────────────────
 
@@ -56,6 +57,8 @@ interface IcebreakerOrchestratorProps {
   setAdventurePreview: (v: { lat: number; lng: number; radiusKm: number } | null) => void;
   /** Called when the arc bloom completes — mounts VoilaScreen universally. */
   onShowVoila: () => void;
+  customTitle: string | null;
+  setCustomTitle: (title: string | null) => void;
 }
 
 // ── Return (what App.tsx reads) ──────────────────────────────────────────────
@@ -82,6 +85,7 @@ export function useIcebreakerOrchestrator(
     tripMode, setTripMode, selectTripMode, setShowAdventureMode,
     calculateAndDiscover, isCalculating, summary, calculationMessage,
     setAdventurePreview, onShowVoila,
+    customTitle, setCustomTitle,
   } = props;
 
   const arc = useFourBeatArc();
@@ -139,6 +143,16 @@ export function useIcebreakerOrchestrator(
 
   const arcActive = !!(icebreakerMode || estimateWorkshopActive || arc.beat);
 
+  // Seeded title derived from sketch data — stable for the duration of the workshop session.
+  // Computed from the last sketch location as destination + estimated days at balanced pace.
+  const seededTitle = arc.sketchData
+    ? buildSeededTitle({
+        destination: arc.sketchData.destinationName.split(',')[0].trim(),
+        days: Math.max(1, Math.ceil(arc.sketchData.distanceKm / 720)),
+        travelerCount: settings.numTravelers ?? 1,
+      })
+    : '';
+
   const overlayProps: IcebreakerOverlayProps = {
     tripMode,
     arc,
@@ -160,6 +174,9 @@ export function useIcebreakerOrchestrator(
     handleIcebreakerEscape,
     handleEstimateWorkshopCommit,
     handleEstimateWorkshopEscape,
+    customTitle,
+    setCustomTitle,
+    seededTitle,
   };
 
   return {
@@ -195,6 +212,9 @@ interface IcebreakerOverlayProps {
   handleIcebreakerEscape: (mode: TripMode, saveAsClassic?: boolean) => void;
   handleEstimateWorkshopCommit: (settingsOverride: Partial<TripSettings>) => void;
   handleEstimateWorkshopEscape: () => void;
+  customTitle: string | null;
+  setCustomTitle: (title: string | null) => void;
+  seededTitle: string;
 }
 
 export function IcebreakerOverlays(p: IcebreakerOverlayProps) {
@@ -211,19 +231,22 @@ export function IcebreakerOverlays(p: IcebreakerOverlayProps) {
         />
       )}
 
-      {/* Beat 3 — Workshop Panel */}
+      {/* Beat 3 — Unified Workshop Panel */}
       {!p.tripMode && p.arc.beat === 3 && p.arc.sketchData && (
-        <WorkshopPanel
+        <UnifiedWorkshopPanel
           sketchDistanceKm={p.arc.sketchData.distanceKm}
           sketchDurationMinutes={Math.round((p.arc.sketchData.distanceKm / 90) * 60)}
           vehicle={p.vehicle}
           settings={p.settings}
+          customTitle={p.customTitle}
+          seededTitle={p.seededTitle}
           onCommit={(overrides) => {
             if (overrides.vehicle) p.setVehicle(overrides.vehicle);
             if (overrides.settings) p.setSettings(prev => ({ ...prev, ...overrides.settings }));
             p.arc.startCalculation();
             setTimeout(() => p.calculateAndDiscover(), 0);
           }}
+          onTitleChange={p.setCustomTitle}
           onEscape={() => { p.arc.exitArc(); p.selectTripMode('plan'); }}
         />
       )}

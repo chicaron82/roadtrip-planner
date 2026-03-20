@@ -28,7 +28,7 @@ const Map = lazy(() => import('./components/Map/Map').then(m => ({ default: m.Ma
 /** App.tsx — Root orchestrator. Full-bleed map + floating glass panel. 💚 My Experience Engine */
 function AppContent() {
   // ── Context ──────────────────────────────────────────────────────────────
-  const { locations, setLocations, vehicle, setVehicle, settings, setSettings, icebreakerOrigin, setIcebreakerOrigin, customTitle } = useTripCore();
+  const { locations, setLocations, vehicle, setVehicle, settings, setSettings, icebreakerOrigin, setIcebreakerOrigin, customTitle, setCustomTitle } = useTripCore();
   const { summary, canonicalTimeline } = useTimeline();
 
   // ── L1: Independent state ─────────────────────────────────────────────────
@@ -216,6 +216,7 @@ function AppContent() {
     tripMode, setTripMode, selectTripMode, setShowAdventureMode,
     calculateAndDiscover, isCalculating, summary, calculationMessage,
     setAdventurePreview, onShowVoila: handleShowVoila,
+    customTitle, setCustomTitle,
   });
 
   // ── Android back button guard ─────────────────────────────────────────────
