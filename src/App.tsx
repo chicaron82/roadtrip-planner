@@ -7,6 +7,7 @@ import { AdventureMode } from './components/Trip/Adventure/AdventureMode';
 import { LandingScreen } from './components/Landing/LandingScreen';
 import { useIcebreakerOrchestrator, IcebreakerOverlays } from './components/Icebreaker/IcebreakerOrchestrator';
 import { PlannerFullscreenShell } from './components/App/PlannerFullscreenShell';
+import { VoilaScreen } from './components/Voila/VoilaScreen';
 import './styles/sidebar.css';
 import { TripProvider, useTimeline, useTripCore } from './contexts';
 import {
@@ -27,7 +28,7 @@ const Map = lazy(() => import('./components/Map/Map').then(m => ({ default: m.Ma
 /** App.tsx — Root orchestrator. Full-bleed map + floating glass panel. 💚 My Experience Engine */
 function AppContent() {
   // ── Context ──────────────────────────────────────────────────────────────
-  const { locations, setLocations, vehicle, setVehicle, settings, setSettings, icebreakerOrigin, setIcebreakerOrigin } = useTripCore();
+  const { locations, setLocations, vehicle, setVehicle, settings, setSettings, icebreakerOrigin, setIcebreakerOrigin, customTitle } = useTripCore();
   const { summary, canonicalTimeline } = useTimeline();
 
   // ── L1: Independent state ─────────────────────────────────────────────────
@@ -37,6 +38,8 @@ function AppContent() {
   const [mapRevealed, setMapRevealed] = useState(false);
   const [history] = useState<HistoryTripSnapshot[]>(() => getHistory());
   const [adventurePreview, setAdventurePreview] = useState<{ lat: number; lng: number; radiusKm: number } | null>(null);
+  const [showVoila, setShowVoila] = useState(false);
+  const [flyoverActive, setFlyoverActive] = useState(false);
 
   const {
     tripMode, setTripMode,
@@ -98,7 +101,9 @@ function AppContent() {
   useLayoutEffect(() => {
     onCalcCompleteRef.current = () => {
       if (icebreaker.onCalcComplete()) return;
-      markStepComplete(1); markStepComplete(2); markStepComplete(3); forceStep(3);
+      // Classic wizard path: trigger Flyover → VoilaScreen
+      markStepComplete(1); markStepComplete(2);
+      setFlyoverActive(true);
     };
   });
   // ── Trip loading & cross-cutting ─────────────────────────────────────────
@@ -181,13 +186,36 @@ function AppContent() {
 
   const calculationMessage = useCalculationMessages(isCalculating, locations, icebreakerOrigin);
 
+  // ── VoilaScreen callbacks ─────────────────────────────────────────────────
+  const handleShowVoila = useCallback(() => setShowVoila(true), []);
+
+  const handleFlyoverComplete = useCallback(() => {
+    setFlyoverActive(false);
+    setShowVoila(true);
+  }, []);
+
+  const handleVoilaEdit = useCallback(() => {
+    setShowVoila(false);
+    if (icebreakerOrigin) setTripMode('plan');
+    goToStep(2);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [icebreakerOrigin, setTripMode]);
+
+  const handleVoilaLockIn = useCallback(() => {
+    setTripConfirmed(true);
+    setShowVoila(false);
+    if (icebreakerOrigin) setTripMode('plan');
+    forceStep(3);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [icebreakerOrigin, setTripMode, forceStep, setTripConfirmed]);
+
   // ── Icebreaker orchestrator (Four-Beat Arc + icebreaker gate + estimate workshop) ──
   const icebreaker = useIcebreakerOrchestrator({
     locations, setLocations, vehicle, setVehicle, settings, setSettings, setIcebreakerOrigin,
     markStepComplete, forceStep,
     tripMode, setTripMode, selectTripMode, setShowAdventureMode,
     calculateAndDiscover, isCalculating, summary, calculationMessage,
-    setAdventurePreview,
+    setAdventurePreview, onShowVoila: handleShowVoila,
   });
 
   // ── Android back button guard ─────────────────────────────────────────────
@@ -267,7 +295,11 @@ function AppContent() {
       <div className="absolute inset-0">
         <ErrorBoundary FallbackComponent={ErrorFallback}>
           <Suspense fallback={<div className="w-full h-full bg-[#1c1c1e] animate-pulse" />}>
-            <Map {...mapProps} />
+            <Map
+              {...mapProps}
+              flyoverActive={flyoverActive}
+              onFlyoverComplete={handleFlyoverComplete}
+            />
           </Suspense>
         </ErrorBoundary>
       </div>
@@ -286,7 +318,21 @@ function AppContent() {
         />
       )}
 
-      {tripMode && (
+      {/* VoilaScreen — universal results surface for both paths */}
+      {showVoila && summary && (
+        <VoilaScreen
+          summary={summary}
+          settings={settings}
+          vehicle={vehicle}
+          locations={locations}
+          customTitle={customTitle}
+          onEditTrip={handleVoilaEdit}
+          onLockIn={handleVoilaLockIn}
+          onShare={copyShareLink}
+        />
+      )}
+
+      {tripMode && !showVoila && (
         <>
           <div className="mee-vignette absolute inset-0 pointer-events-none z-[1]" />
 

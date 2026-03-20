@@ -54,6 +54,8 @@ interface IcebreakerOrchestratorProps {
 
   // Adventure preview (map circle)
   setAdventurePreview: (v: { lat: number; lng: number; radiusKm: number } | null) => void;
+  /** Called when the arc bloom completes — mounts VoilaScreen universally. */
+  onShowVoila: () => void;
 }
 
 // ── Return (what App.tsx reads) ──────────────────────────────────────────────
@@ -79,7 +81,7 @@ export function useIcebreakerOrchestrator(
     markStepComplete, forceStep,
     tripMode, setTripMode, selectTripMode, setShowAdventureMode,
     calculateAndDiscover, isCalculating, summary, calculationMessage,
-    setAdventurePreview,
+    setAdventurePreview, onShowVoila,
   } = props;
 
   const arc = useFourBeatArc();
@@ -106,14 +108,12 @@ export function useIcebreakerOrchestrator(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estimateWorkshopActive]);
 
-  /** Called when the Four-Beat Arc voilà completes — opens the wizard at Step 3. */
+  /** Called when the Four-Beat Arc voilà bloom completes — mounts VoilaScreen. */
   const handleArcComplete = useCallback(() => {
     arc.onRevealComplete();
     setIcebreakerOrigin(true);
-    markStepComplete(1); markStepComplete(2); markStepComplete(3);
-    forceStep(3);
-    setTripMode('plan');
-  }, [arc, setIcebreakerOrigin, markStepComplete, forceStep, setTripMode]);
+    onShowVoila();
+  }, [arc, setIcebreakerOrigin, onShowVoila]);
 
   /** Arc intercept — returns true if the arc handled the calc completion. */
   const onCalcComplete = useCallback((): boolean => {

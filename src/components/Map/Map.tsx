@@ -11,6 +11,7 @@ import { FuelStopLayer } from './FuelStopLayer';
 import { TILE_LAYERS, type TileStyle, PREVIEW_LINE_COLOR, FEASIBILITY_LINE_COLOR, DEFAULT_ROUTE_COLOR, weatherEmoji } from './map-constants';
 import { createCustomIcon, createAddedIcon, createDeclaredWaypointIcon, createPassiveWaypointIcon } from './map-icons';
 import { MapUpdater, MapClickHandler } from './MapHelpers';
+import { FlyoverTrigger } from './FlyoverTrigger';
 import { findNearestSegment } from './map-utils';
 import { useMapPresentationModel } from '../../hooks/useMapPresentationModel';
 import { AdventureRadiusLayer } from './AdventureRadiusLayer';
@@ -43,13 +44,16 @@ interface MapProps {
   units?: 'metric' | 'imperial';
   /** Adventure Icebreaker radius preview — shows reach circle + destination pins */
   adventurePreview?: { lat: number; lng: number; radiusKm: number } | null;
+  /** When true, triggers the Flyover (fitBounds + moveend + 150ms → onFlyoverComplete). */
+  flyoverActive?: boolean;
+  onFlyoverComplete?: () => void;
 }
 
 export function Map({
   locations, routeGeometry, pois, markerCategories, strategicFuelStops = [],
   addedPOIIds, dayOptions, onMapClick, onAddPOI, previewGeometry, tripMode,
   feasibilityStatus, alternateGeometries, tripDays, routeSegments, routeTotals,
-  units = 'metric', adventurePreview,
+  units = 'metric', adventurePreview, flyoverActive, onFlyoverComplete,
 }: MapProps) {
   const {
     tileStyle, setTileStyle,
@@ -98,6 +102,14 @@ export function Map({
 
         <MapUpdater locations={locations} routeGeometry={routeGeometry} previewGeometry={previewGeometry} />
         <MapClickHandler onMapClick={onMapClick} />
+        {flyoverActive && onFlyoverComplete && (
+          <FlyoverTrigger
+            active={flyoverActive}
+            locations={locations}
+            routeGeometry={routeGeometry}
+            onComplete={onFlyoverComplete}
+          />
+        )}
 
         {/* Adventure radius preview — visible during Adventure Icebreaker Q1 */}
         {adventurePreview && (
