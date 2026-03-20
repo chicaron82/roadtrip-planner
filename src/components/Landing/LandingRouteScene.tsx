@@ -2,284 +2,292 @@
  * ═══════════════════════════════════════════════════════════
  * MY EXPERIENCE ENGINE — LANDING ROUTE SCENE
  *
- * Flat horizontal route, three waypoints (one per mode).
- * Two organic waves float above and below for texture — pure
- * aesthetics, no function. Route draws in on mount, orange fill
- * travels to selected waypoint on click.
+ * Flat horizontal route, four evenly spaced waypoints — three
+ * modes + one contextual resume/destination node. Popover
+ * description card appears below the route on desktop, centered
+ * on the selected node. Stacks below SVG on mobile portrait.
  *
  * 💚 Built by Aaron "Chicharon" — 18 years on the road
  * ═══════════════════════════════════════════════════════════
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { TripMode } from '../../types';
-import { MODE_CONFIG, MODE_ORDER, ROUTE_DOTS } from './mode-config';
+import { MODE_CONFIG, ROUTE_DOTS } from './mode-config';
+
+type NodeId = TripMode | 'resume';
+const NODE_ORDER: NodeId[] = ['plan', 'adventure', 'estimate', 'resume'];
 
 interface Props {
   onSelectMode: (mode: TripMode) => void;
   lastDestination?: string;
+  hasActiveSession?: boolean;
+  onResumeSession?: () => void;
+  hasSavedTrip?: boolean;
+  onContinueSavedTrip?: () => void;
+  onExitStart: (fn: () => void) => void;
 }
 
-// Primary route — horizontal, extends 5 units past each edge so it clips clean
-// with overflow:visible on SVG + overflow:hidden on wrapper
 const PRIMARY_PATH = 'M-5,12 L105,12';
-const PATH_LENGTH  = 110; // exact (straight line, -5 to 105)
-
-// Decorative waves — organic texture, no interaction
+const PATH_LENGTH  = 110;
 const WAVE_ABOVE = 'M-5,8 Q15,5 30,9 Q50,13 65,7 Q80,3 95,8 Q105,9 110,8';
 const WAVE_BELOW = 'M-5,17 Q20,21 40,15 Q60,11 80,18 Q95,22 110,16';
 
-// Waypoint positions — fixed on the horizontal line (d = distance from path start at x=-5)
-// Symmetric 22-unit spacing. Estimate at x=62 keeps the full label clear of the
-// desc panel in mobile landscape (panel left ≈ 663px, label right edge ≈ 616px).
-const WAYPOINTS: Record<TripMode, { x: number; y: number; d: number }> = {
-  plan:      { x: 18, y: 12, d: 23 },
+const WAYPOINTS: Record<NodeId, { x: number; y: number; d: number }> = {
+  plan:      { x: 20, y: 12, d: 25 },
   adventure: { x: 40, y: 12, d: 45 },
-  estimate:  { x: 62, y: 12, d: 67 },
+  estimate:  { x: 60, y: 12, d: 65 },
+  resume:    { x: 80, y: 12, d: 85 },
 };
 
-// Subtle map tint per mode
-const MAP_TINT: Record<TripMode, string> = {
+const MAP_TINT: Record<NodeId, string> = {
   plan:      'transparent',
   adventure: 'rgba(245,158,11,0.07)',
   estimate:  'rgba(14,165,233,0.07)',
+  resume:    'transparent',
 };
 
-// Ghost label — strip province suffix ("Banff, AB" → "Banff"), cap length
-const formatGhostLabel = (name: string) => name.split(',')[0].trim().slice(0, 14);
-// Fallback cycles through ROUTE_DOTS by day-of-week so it feels alive without state
-const GHOST_FALLBACK = ROUTE_DOTS[new Date().getDay() % ROUTE_DOTS.length].label;
+const formatLabel = (name: string) => name.split(',')[0].trim().slice(0, 14);
+const DEST_FALLBACK = ROUTE_DOTS[new Date().getDay() % ROUTE_DOTS.length].label;
 
-export function LandingRouteScene({ onSelectMode, lastDestination }: Props) {
-  const [selectedMode, setSelectedMode] = useState<TripMode>('plan');
-  const [descVisible, setDescVisible]   = useState(true);
+interface NodeConfig {
+  icon: string; tag: string; tagColor: string; accentColor: string;
+  heading: string; description: string; stats: string[];
+  cta: string; borderColor: string;
+}
+
+export function LandingRouteScene({
+  onSelectMode, lastDestination,
+  hasActiveSession, onResumeSession,
+  hasSavedTrip, onContinueSavedTrip,
+  onExitStart,
+}: Props) {
+  const [selectedNode, setSelectedNode] = useState<NodeId | null>(null);
+  const [descVisible, setDescVisible] = useState(false);
   const [routeMounted, setRouteMounted] = useState(false);
+  const [popoverLeft, setPopoverLeft] = useState<number | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Staggered draw-in entrance
   useEffect(() => {
     const id = setTimeout(() => setRouteMounted(true), 300);
     return () => clearTimeout(id);
   }, []);
 
-  const config    = MODE_CONFIG[selectedMode];
-  const traveledD = WAYPOINTS[selectedMode].d;
+  // Compute popover horizontal position from SVG coordinate math
+  const computePosition = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const { width: cw, height: ch } = el.getBoundingClientRect();
+    const mobile = cw <= 640;
+    setIsMobile(mobile);
+    if (!selectedNode || mobile) { setPopoverLeft(null); return; }
 
-  const selectMode = (mode: TripMode) => {
-    if (mode === selectedMode) return;
-    setDescVisible(false);
-    setTimeout(() => { setSelectedMode(mode); setDescVisible(true); }, 180);
+    const vbAspect = 100 / 24;
+    const cAspect = cw / ch;
+    let scale: number, offsetX: number;
+    if (cAspect < vbAspect) { scale = cw / 100; offsetX = 0; }
+    else { scale = ch / 24; offsetX = (cw - 100 * scale) / 2; }
+
+    const wp = WAYPOINTS[selectedNode];
+    let left = offsetX + wp.x * scale;
+    const halfPanel = 130;
+    left = Math.max(halfPanel, Math.min(cw - halfPanel, left));
+    setPopoverLeft(left);
+  }, [selectedNode]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    computePosition();
+    const ro = new ResizeObserver(computePosition);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [computePosition]);
+
+  // Click-outside — desktop only
+  useEffect(() => {
+    if (selectedNode === null || isMobile) return;
+    const handler = (e: MouseEvent) => {
+      const t = e.target as Element;
+      if (t.closest('[role="button"]') || t.closest('.lrs-desc-panel')) return;
+      setDescVisible(false);
+      setTimeout(() => setSelectedNode(null), 180);
+    };
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [selectedNode, isMobile]);
+
+  const resumeLabel = formatLabel(lastDestination ?? DEST_FALLBACK);
+
+  const getNodeConfig = (node: NodeId): NodeConfig => {
+    if (node !== 'resume') {
+      const mc = MODE_CONFIG[node];
+      return { icon: mc.icon, tag: mc.tag, tagColor: mc.tagColor, accentColor: mc.accentColor,
+        heading: mc.heading, description: mc.description, stats: mc.stats,
+        cta: mc.cta, borderColor: mc.borderColor };
+    }
+    if (hasActiveSession) return {
+      icon: '✦', tag: 'ACTIVE SESSION', tagColor: '#FDBA74', accentColor: '#f97316',
+      heading: resumeLabel, description: 'Pick up right where you left off.',
+      stats: ['Route preserved', 'Journal intact'],
+      cta: 'Resume My Trip', borderColor: 'rgba(249, 115, 22, 0.6)' };
+    if (hasSavedTrip) return {
+      icon: '📌', tag: 'SAVED TRIP', tagColor: '#FDBA74', accentColor: '#f97316',
+      heading: resumeLabel, description: 'Continue your saved adventure.',
+      stats: ['Trip data ready', 'Pick up anytime'],
+      cta: 'Continue Trip', borderColor: 'rgba(249, 115, 22, 0.6)' };
+    return {
+      icon: '📍', tag: 'DESTINATION', tagColor: '#FDBA74', accentColor: 'rgba(249,115,22,0.5)',
+      heading: 'Destination\nMEE', description: 'Your next journey starts here.',
+      stats: [], cta: 'Start Planning', borderColor: 'rgba(249, 115, 22, 0.3)' };
   };
 
+  const config = selectedNode ? getNodeConfig(selectedNode) : null;
+  const traveledD = selectedNode ? WAYPOINTS[selectedNode].d : 0;
+  const highlightColor = selectedNode
+    ? (selectedNode === 'resume' ? '#f97316' : MODE_CONFIG[selectedNode].accentColor)
+    : '#f97316';
+
+  const selectNode = (node: NodeId) => {
+    if (node === selectedNode) {
+      if (!isMobile) { setDescVisible(false); setTimeout(() => setSelectedNode(null), 180); }
+      return;
+    }
+    if (selectedNode) {
+      setDescVisible(false);
+      setTimeout(() => { setSelectedNode(node); setDescVisible(true); }, 180);
+    } else {
+      setSelectedNode(node); setDescVisible(true);
+    }
+  };
+
+  const handleCtaClick = () => {
+    if (!selectedNode) return;
+    if (selectedNode === 'resume') {
+      if (hasActiveSession && onResumeSession) onExitStart(onResumeSession);
+      else if (hasSavedTrip && onContinueSavedTrip) onExitStart(onContinueSavedTrip);
+      else onSelectMode('plan');
+    } else { onSelectMode(selectedNode); }
+  };
+
+  const getAccent = (node: NodeId) => node === 'resume'
+    ? (hasActiveSession || hasSavedTrip ? '#f97316' : 'rgba(249,115,22,0.5)')
+    : MODE_CONFIG[node].accentColor;
+
   return (
-    <div className="lrs-container">
+    <div className="lrs-container" ref={containerRef}>
+      <div className="lrs-tint" style={{ background: MAP_TINT[selectedNode ?? 'plan'] }} />
 
-      {/* Mode tint — world shifts colour with your choice */}
-      <div className="lrs-tint" style={{ background: MAP_TINT[selectedMode] }} />
-
-      {/* ── SVG route ── */}
       <div className="lrs-svg-wrap">
-        <svg
-          viewBox="0 0 100 24"
-          preserveAspectRatio="xMidYMid meet"
-          overflow="visible"
-          className="lrs-svg"
-          aria-hidden="true"
-        >
+        <svg viewBox="0 0 100 24" preserveAspectRatio="xMidYMid meet"
+          overflow="visible" className="lrs-svg">
           <defs>
             <filter id="lrs-glow" x="-20%" y="-100%" width="140%" height="300%">
               <feGaussianBlur stdDeviation="0.6" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
+              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
             </filter>
           </defs>
 
-          {/* Decorative wave — above (tan) */}
-          <path
-            d={WAVE_ABOVE}
-            stroke="#c4a882" strokeWidth="0.7" fill="none" opacity={0.3}
-            strokeDasharray="300"
-            strokeDashoffset={routeMounted ? 0 : 300}
-            style={{ transition: 'stroke-dashoffset 3.2s ease 0.6s' }}
-          />
+          <path d={WAVE_ABOVE} stroke="#c4a882" strokeWidth="0.7" fill="none" opacity={0.3}
+            strokeDasharray="300" strokeDashoffset={routeMounted ? 0 : 300}
+            style={{ transition: 'stroke-dashoffset 3.2s ease 0.6s' }} />
 
-          {/* Decorative wave — below (orange) */}
-          <path
-            d={WAVE_BELOW}
-            stroke="#f97316" strokeWidth="0.6" fill="none" opacity={0.12}
-            strokeDasharray="300"
-            strokeDashoffset={routeMounted ? 0 : 300}
-            style={{ transition: 'stroke-dashoffset 3.5s ease 0.8s' }}
-          />
+          <path d={WAVE_BELOW} stroke="#f97316" strokeWidth="0.6" fill="none" opacity={0.12}
+            strokeDasharray="300" strokeDashoffset={routeMounted ? 0 : 300}
+            style={{ transition: 'stroke-dashoffset 3.5s ease 0.8s' }} />
 
-          {/* Dim base route — always present */}
           <path d={PRIMARY_PATH} stroke="rgba(249,115,22,0.15)" strokeWidth="1.5" fill="none" />
 
-          {/* Route draw-in */}
-          <path
-            d={PRIMARY_PATH}
-            stroke="rgba(249,115,22,0.40)" strokeWidth="1.5" fill="none"
-            strokeDasharray={PATH_LENGTH}
-            strokeDashoffset={routeMounted ? 0 : PATH_LENGTH}
-            style={{ transition: 'stroke-dashoffset 2.5s ease' }}
-          />
+          <path d={PRIMARY_PATH} stroke="rgba(249,115,22,0.40)" strokeWidth="1.5" fill="none"
+            strokeDasharray={PATH_LENGTH} strokeDashoffset={routeMounted ? 0 : PATH_LENGTH}
+            style={{ transition: 'stroke-dashoffset 2.5s ease' }} />
 
-          {/* Traveled highlight — animates to selected waypoint */}
-          <path
-            d={PRIMARY_PATH}
-            stroke={config.accentColor} strokeWidth="2.2" fill="none"
+          <path d={PRIMARY_PATH} stroke={highlightColor} strokeWidth="2.2" fill="none"
             strokeLinecap="round" filter="url(#lrs-glow)"
             strokeDasharray={PATH_LENGTH}
-            strokeDashoffset={PATH_LENGTH - traveledD}
-            style={{ transition: 'stroke-dashoffset 0.75s cubic-bezier(0.4,0,0.2,1), stroke 0.4s ease' }}
-          />
+            strokeDashoffset={selectedNode ? PATH_LENGTH - traveledD : PATH_LENGTH}
+            style={{ transition: 'stroke-dashoffset 0.75s cubic-bezier(0.4,0,0.2,1), stroke 0.4s ease' }} />
 
-          {/* ── Waypoints ── */}
-          {MODE_ORDER.map((mode) => {
-            const mc = MODE_CONFIG[mode];
-            const wp = WAYPOINTS[mode];
-            const isActive = mode === selectedMode;
+          {NODE_ORDER.map((node) => {
+            const wp = WAYPOINTS[node];
+            const isActive = node === selectedNode;
+            const accent = getAccent(node);
+            const isResume = node === 'resume';
+            const label = isResume ? resumeLabel : node.toUpperCase();
+
+            const isPlanHint = node === 'plan' && selectedNode === null;
 
             return (
-              <g
-                key={mode}
-                role="button"
-                tabIndex={0}
-                aria-pressed={isActive}
-                aria-label={mc.cta}
-                onClick={() => selectMode(mode)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectMode(mode); } }}
-                style={{ cursor: 'pointer', outline: 'none' }}
-              >
-                {/* Hit area */}
+              <g key={node} role="button" tabIndex={0} aria-pressed={isActive}
+                aria-label={isResume ? resumeLabel : MODE_CONFIG[node as TripMode].cta}
+                onClick={() => selectNode(node)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectNode(node); } }}
+                style={{ cursor: 'pointer', outline: 'none' }}>
                 <circle cx={wp.x} cy={wp.y} r={8} fill="transparent" />
-
-                {/* Outer glow ring */}
-                <circle
-                  cx={wp.x} cy={wp.y}
-                  r={isActive ? 5 : 3}
-                  fill="none" stroke={mc.accentColor} strokeWidth="0.5"
-                  opacity={isActive ? 0.35 : 0.1}
-                  style={{ transition: 'opacity 0.3s ease' }}
-                />
-
-                {/* Pulse ring — active only */}
-                {isActive && (
-                  <circle
-                    cx={wp.x} cy={wp.y} r={7}
-                    fill="none" stroke={mc.accentColor} strokeWidth="0.4" opacity={0.22}
+                <circle cx={wp.x} cy={wp.y} r={isActive ? 5 : 3}
+                  fill="none" stroke={accent} strokeWidth="0.5"
+                  opacity={isActive ? 0.35 : 0.1} style={{ transition: 'opacity 0.3s ease' }} />
+                {(isActive || isPlanHint) && (
+                  <circle cx={wp.x} cy={wp.y} r={7}
+                    fill="none" stroke={accent} strokeWidth="0.4" opacity={0.22}
                     className="lrs-pulse-ring"
-                    style={{ transformBox: 'fill-box', transformOrigin: 'center' } as React.CSSProperties}
-                  />
+                    style={{ transformBox: 'fill-box', transformOrigin: 'center' } as React.CSSProperties} />
                 )}
-
-                {/* Core dot */}
-                <circle
-                  cx={wp.x} cy={wp.y}
-                  r={isActive ? 2.2 : 1.6}
-                  fill={isActive ? mc.accentColor : 'rgba(255,255,255,0.3)'}
-                  style={{ transition: 'fill 0.3s ease' }}
-                />
-
-                {/* Mode label — above dot */}
-                <text
-                  x={wp.x} y={wp.y - 5.5}
-                  textAnchor="middle"
-                  fill={isActive ? mc.accentColor : 'rgba(255,255,255,0.25)'}
-                  fontSize="2.5" fontFamily="DM Mono, monospace" letterSpacing="0.08em"
-                  style={{ transition: 'fill 0.3s ease' }}
-                >
-                  {mode.toUpperCase()}
+                <circle cx={wp.x} cy={wp.y} r={isActive ? 2.2 : 1.6}
+                  fill={isActive ? accent : 'rgba(255,255,255,0.3)'}
+                  style={{ transition: 'fill 0.3s ease' }} />
+                <text x={wp.x} y={wp.y - 5.5} textAnchor="middle"
+                  fill={isActive ? accent : (isResume ? 'rgba(249,115,22,0.45)' : 'rgba(255,255,255,0.25)')}
+                  fontSize={isResume ? '2.4' : '2.5'}
+                  fontFamily={isResume ? 'Cormorant Garamond, Georgia, serif' : 'DM Mono, monospace'}
+                  fontStyle={isResume ? 'italic' : 'normal'}
+                  letterSpacing={isResume ? '0.04em' : '0.08em'}
+                  style={{ transition: 'fill 0.3s ease' }}>
+                  {label}
                 </text>
-
-                {/* Tap hint — inactive only */}
                 {!isActive && (
-                  <text
-                    x={wp.x} y={wp.y + 7}
-                    textAnchor="middle"
+                  <text x={wp.x} y={wp.y + 7} textAnchor="middle"
                     fill="rgba(255,255,255,0.15)"
-                    fontSize="1.9" fontFamily="DM Mono, monospace" letterSpacing="0.03em"
-                  >
-                    tap
+                    fontSize="1.9" fontFamily="DM Mono, monospace" letterSpacing="0.03em">
+                    {isResume && (hasActiveSession || hasSavedTrip) ? 'resume' : 'tap'}
                   </text>
                 )}
               </g>
             );
           })}
-
-          {/* ── Ghost destination — decorative 4th waypoint, balances desktop ── */}
-          {(() => {
-            const label = formatGhostLabel(lastDestination ?? GHOST_FALLBACK);
-            return (
-              <g aria-hidden="true">
-                {/* Outer ring */}
-                <circle cx={84} cy={12} r={3} fill="none" stroke="rgba(249,115,22,0.18)" strokeWidth="0.5" />
-                {/* Core dot */}
-                <circle cx={84} cy={12} r={1.4} fill="rgba(249,115,22,0.28)" />
-                {/* City name — italic serif, dim */}
-                <text
-                  x={84} y={6.5}
-                  textAnchor="middle"
-                  fill="rgba(249,115,22,0.65)"
-                  fontSize="2.4"
-                  fontFamily="Cormorant Garamond, Georgia, serif"
-                  fontStyle="italic"
-                  letterSpacing="0.04em"
-                >
-                  {label}
-                </text>
-                {/* Subtle "next?" hint below */}
-                <text
-                  x={84} y={18.5}
-                  textAnchor="middle"
-                  fill="rgba(255,255,255,0.1)"
-                  fontSize="1.8"
-                  fontFamily="DM Mono, monospace"
-                  letterSpacing="0.05em"
-                >
-                  next?
-                </text>
-              </g>
-            );
-          })()}
         </svg>
       </div>
 
-      {/* ── Description panel — lower-right glass card ── */}
-      <div
-        className={`lrs-desc-panel${descVisible ? ' lrs-desc-visible' : ''}`}
-        style={{ borderColor: config.borderColor }}
-      >
-        <div
-          className="lrs-desc-tag"
-          style={{ color: config.tagColor, background: `${config.accentColor}20` }}
-        >
-          {config.icon}&nbsp;{config.tag}
-        </div>
-
-        <h3 className="lrs-desc-heading">{config.heading}</h3>
-        <p className="lrs-desc-sub">{config.description}</p>
-
-        <ul className="lrs-desc-stats">
-          {config.stats.map((s) => (
-            <li key={s} style={{ '--lrs-dot': config.accentColor } as React.CSSProperties}>{s}</li>
-          ))}
-        </ul>
-
-        <button
-          className="lrs-desc-cta"
-          onClick={() => onSelectMode(selectedMode)}
+      {config && (
+        <div className={`lrs-desc-panel${descVisible ? ' lrs-desc-visible' : ''}`}
           style={{
-            background: `${config.accentColor}18`,
-            color: config.tagColor,
-            borderColor: `${config.accentColor}40`,
-          }}
-        >
-          {config.cta} →
-        </button>
-
-        <p className="lrs-desc-hint">tap any waypoint to explore modes</p>
-      </div>
+            borderColor: config.borderColor,
+            ...(popoverLeft != null ? { '--lrs-left': `${popoverLeft}px` } as React.CSSProperties : {}),
+          }}>
+          <div className="lrs-desc-tag"
+            style={{ color: config.tagColor, background: `${config.accentColor}20` }}>
+            {config.icon}&nbsp;{config.tag}
+          </div>
+          <h3 className="lrs-desc-heading">{config.heading}</h3>
+          <p className="lrs-desc-sub">{config.description}</p>
+          {config.stats.length > 0 && (
+            <ul className="lrs-desc-stats">
+              {config.stats.map((s) => (
+                <li key={s} style={{ '--lrs-dot': config.accentColor } as React.CSSProperties}>{s}</li>
+              ))}
+            </ul>
+          )}
+          <button className="lrs-desc-cta" onClick={handleCtaClick}
+            style={{
+              background: `${config.accentColor}18`,
+              color: config.tagColor,
+              borderColor: `${config.accentColor}40`,
+            }}>
+            {config.cta} →
+          </button>
+          <p className="lrs-desc-hint">tap any waypoint to explore modes</p>
+        </div>
+      )}
     </div>
   );
 }

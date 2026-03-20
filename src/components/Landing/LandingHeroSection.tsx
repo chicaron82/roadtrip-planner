@@ -1,20 +1,8 @@
 interface Props {
   pulseActive: boolean;
-  hasSavedTrip?: boolean;
-  onContinueSavedTrip?: () => void;
-  hasActiveSession?: boolean;
-  onResumeSession?: () => void;
-  onExitStart: (fn: () => void) => void;
 }
 
-export function LandingHeroSection({
-  pulseActive,
-  hasSavedTrip,
-  onContinueSavedTrip,
-  hasActiveSession,
-  onResumeSession,
-  onExitStart,
-}: Props) {
+export function LandingHeroSection({ pulseActive }: Props) {
   return (
     <div className="landing-hero-root" style={{ textAlign: 'center', maxWidth: '600px' }}>
 
@@ -93,52 +81,9 @@ export function LandingHeroSection({
           letterSpacing: '0.02em',
           WebkitTextFillColor: 'rgba(255,255,255,0.35)',
         }}>
-          Get driving. Enjoy your MEE time.
+          Get driving. Let MEE make it happen.
         </span>
       </h1>
-
-      {/* Continue Saved Trip */}
-      {hasSavedTrip && onContinueSavedTrip && !hasActiveSession && (
-        <div className="landing-hero-session" style={{ marginBottom: '24px' }}>
-          <p style={{
-            fontFamily: "'DM Mono', monospace",
-            fontSize: '11px',
-            color: '#fb923c',
-            letterSpacing: '0.05em',
-            marginBottom: '8px',
-          }}>
-            ✦ You have a saved trip
-          </p>
-          <button
-            onClick={(e) => { e.stopPropagation(); onExitStart(onContinueSavedTrip); }}
-            className="landing-ghost-btn"
-          >
-            Continue where you left off →
-          </button>
-        </div>
-      )}
-
-      {/* Active Session Resume */}
-      {hasActiveSession && onResumeSession && (
-        <div className="landing-hero-session" style={{ marginBottom: '24px' }}>
-          <p style={{
-            fontFamily: "'DM Mono', monospace",
-            fontSize: '11px',
-            color: '#fb923c',
-            letterSpacing: '0.05em',
-            marginBottom: '8px',
-          }}>
-            ✦ Session restored from background
-          </p>
-          <button
-            onClick={(e) => { e.stopPropagation(); onExitStart(onResumeSession); }}
-            className="resume-session-btn landing-ghost-btn"
-            style={{ background: 'rgba(249, 115, 22, 0.15)', border: '1px solid rgba(249, 115, 22, 0.4)', boxShadow: '0 0 20px rgba(249, 115, 22, 0.1)' }}
-          >
-            Resume where you left off →
-          </button>
-        </div>
-      )}
 
     </div>
   );

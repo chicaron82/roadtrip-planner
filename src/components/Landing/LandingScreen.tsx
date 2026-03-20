@@ -91,16 +91,16 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip,
           overflowX: 'hidden',
         }}
       >
-        <LandingHeroSection
-          pulseActive={pulseActive}
-          hasSavedTrip={hasSavedTrip}
-          onContinueSavedTrip={onContinueSavedTrip}
+        <LandingHeroSection pulseActive={pulseActive} />
+        <LandingRouteScene
+          onSelectMode={handleSelect}
+          lastDestination={lastDestination}
           hasActiveSession={hasActiveSession}
           onResumeSession={onResumeSession}
+          hasSavedTrip={hasSavedTrip}
+          onContinueSavedTrip={onContinueSavedTrip}
           onExitStart={(fn) => { setIsExiting(true); setTimeout(fn, 600); }}
         />
-        {/* Route scene — diagonal map route with waypoints */}
-        <LandingRouteScene onSelectMode={handleSelect} lastDestination={lastDestination} />
 
         <LandingFooter activeDot={activeDot} />
 </div>

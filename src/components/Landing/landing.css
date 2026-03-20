@@ -351,8 +351,9 @@
 .lrs-container {
   position: relative;
   width: 100%;
-  height: clamp(280px, 32vh, 380px);
+  height: 380px;
   align-self: stretch;
+  flex-shrink: 0;
 }
 
 /* Mode tint — world shifts colour with your choice */
@@ -386,11 +387,11 @@
   animation: lrs-pulse 2.2s ease-out infinite;
 }
 
-/* ── Description panel — lower-right glass card ── */
+/* ── Description panel — popover on desktop, stacked on mobile ── */
 .lrs-desc-panel {
   position: absolute;
-  bottom: 16px;
-  right: 20px;
+  top: 53%;
+  left: var(--lrs-left, 50%);
   width: clamp(200px, 26vw, 280px);
   background: rgba(14, 11, 7, 0.88);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -400,13 +401,13 @@
   -webkit-backdrop-filter: blur(24px);
   z-index: 10;
   opacity: 0;
-  transform: translateY(10px);
+  transform: translateX(-50%) translateY(10px);
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
 .lrs-desc-panel.lrs-desc-visible {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateX(-50%) translateY(0);
 }
 
 .lrs-desc-tag {
@@ -495,16 +496,19 @@
 
 /* ── Short viewports (landscape phone) — compact everything ── */
 @media (max-height: 520px) {
-  /* Route scene — shorter container */
   .lrs-container {
     height: clamp(180px, 44vh, 240px);
   }
-  /* Panel — pin to top, narrow so waypoints stay visible */
   .lrs-desc-panel {
     top: 8px;
-    bottom: auto;
+    left: auto;
+    right: 8px;
+    transform: translateY(10px);
     padding: 10px 14px;
     width: clamp(180px, 22vw, 220px);
+  }
+  .lrs-desc-panel.lrs-desc-visible {
+    transform: translateY(0);
   }
   .lrs-desc-stats {
     display: none;
@@ -532,9 +536,6 @@
   .landing-hero-eyebrow {
     margin-bottom: 6px !important;
   }
-  .landing-hero-session {
-    margin-bottom: 6px !important;
-  }
 
   /* Footer — hide to reclaim space */
   .landing-footer {
@@ -559,12 +560,16 @@
 
   .lrs-desc-panel {
     position: relative;
-    bottom: unset;
-    right: unset;
+    top: unset;
+    left: unset;
+    transform: translateY(10px);
     width: 100%;
     border-radius: 0 0 14px 14px;
     border-top: 0;
     margin-top: 0;
+  }
+  .lrs-desc-panel.lrs-desc-visible {
+    transform: translateY(0);
   }
 }
 
