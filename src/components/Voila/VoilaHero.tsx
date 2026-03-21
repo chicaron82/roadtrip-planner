@@ -43,17 +43,6 @@ export function VoilaHero({ routeLabel, title }: VoilaHeroProps) {
         {title}
       </h1>
 
-      {/* Reveal line — confirmation, not a shout */}
-      <p style={{
-        fontFamily: '"DM Mono", "Courier New", monospace',
-        fontSize: 12,
-        color: '#f97316',
-        letterSpacing: '0.1em',
-        margin: 0,
-        opacity: 0.85,
-      }}>
-        ✦ Here&apos;s your MEE time.
-      </p>
     </div>
   );
 }

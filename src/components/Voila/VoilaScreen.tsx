@@ -121,17 +121,17 @@ export function VoilaScreen({
           </button>
 
           <p style={{
-            fontFamily: '"Cormorant Garamond", Georgia, serif',
-            fontSize: 15,
-            color: 'rgba(245, 240, 232, 0.5)',
+            fontFamily: '"DM Mono", "Courier New", monospace',
+            fontSize: 12,
+            color: '#f97316',
+            letterSpacing: '0.1em',
+            opacity: 0.85,
             margin: '0 8px',
             flex: 1,
             textAlign: 'center',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
           }}>
-            {routeLabel}
+            ✦ Here&apos;s your MEE time.
           </p>
 
           <button

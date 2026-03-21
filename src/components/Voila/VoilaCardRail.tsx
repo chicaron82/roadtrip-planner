@@ -94,7 +94,7 @@ export function VoilaCardRail({ summary, settings, onOpenDetail }: VoilaCardRail
 
   const itineraryPreview = `${summary.drivingDays} day${summary.drivingDays !== 1 ? 's' : ''} planned`;
   const gasStops = summary.gasStops ?? 0;
-  const cardCount = 3 + (gasStops > 0 ? 1 : 0);
+  const cardCount = 2 + (gasStops > 0 ? 1 : 0);
 
   const railRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -173,23 +173,15 @@ export function VoilaCardRail({ summary, settings, onOpenDetail }: VoilaCardRail
           onClick={() => onOpenDetail('itinerary')}
         />
 
-        {/* Stops & Discoveries — Tier A (shown when route has fuel stops) */}
+        {/* Stops & Discoveries — shown when route has fuel stops */}
         {gasStops > 0 && (
           <Card
             label="Stops & Discoveries"
             preview={`${gasStops} fuel stop${gasStops !== 1 ? 's' : ''}`}
             sub="Along the route"
-            onClick={() => onOpenDetail('snapshot')}
+            onClick={() => onOpenDetail('itinerary')}
           />
         )}
-
-        {/* Trip Snapshot — Tier B */}
-        <Card
-          label="Trip Snapshot"
-          preview="At a glance"
-          sub="Pace · fuel · rooms"
-          onClick={() => onOpenDetail('snapshot')}
-        />
       </div>
 
       {/* Dot indicators — clickable on desktop, update on swipe */}
