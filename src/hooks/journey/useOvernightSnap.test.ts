@@ -14,12 +14,12 @@ import { makeSettings as _makeSettings, makeBudget } from '../../test/fixtures';
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
-vi.mock('../lib/overnight-snapper', () => ({
+vi.mock('../../lib/overnight-snapper', () => ({
   snapOvernightsToTowns: vi.fn(),
   validateIntentOvernights: vi.fn(),
 }));
 
-vi.mock('../lib/trip-calculation-helpers', () => ({
+vi.mock('../../lib/trip-calculation-helpers', () => ({
   applySnappedOvernightsToCanonicalTimeline: vi.fn((ct) => ct),
   shouldPropagateSnappedOvernightToNextDay: vi.fn(() => false),
 }));

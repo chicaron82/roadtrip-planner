@@ -19,7 +19,7 @@ import type { Location, TripSettings } from '../../types';
 
 // ── Mock storage ──────────────────────────────────────────────────────────────
 
-vi.mock('../lib/storage', () => ({
+vi.mock('../../lib/storage', () => ({
   getEntryPreference: vi.fn(),
   saveEntryPreference: vi.fn(),
 }));

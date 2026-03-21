@@ -16,7 +16,7 @@ describe('VoilaCardRail', () => {
   // ── Dot indicators ────────────────────────────────────────────────────────
 
   describe('dot count', () => {
-    it('renders 3 dots when gasStops = 0 (no fuel-stop card)', () => {
+    it('renders 2 dots when gasStops = 0 (no fuel-stop card)', () => {
       render(
         <VoilaCardRail
           summary={makeSummary({ gasStops: 0 })}
@@ -24,10 +24,10 @@ describe('VoilaCardRail', () => {
           onOpenDetail={onOpenDetail}
         />,
       );
-      expect(screen.getAllByRole('button', { name: /Go to card/i })).toHaveLength(3);
+      expect(screen.getAllByRole('button', { name: /Go to card/i })).toHaveLength(2);
     });
 
-    it('renders 4 dots when gasStops > 0 (fuel-stop card present)', () => {
+    it('renders 3 dots when gasStops > 0 (fuel-stop card present)', () => {
       render(
         <VoilaCardRail
           summary={makeSummary({ gasStops: 2 })}
@@ -35,10 +35,10 @@ describe('VoilaCardRail', () => {
           onOpenDetail={onOpenDetail}
         />,
       );
-      expect(screen.getAllByRole('button', { name: /Go to card/i })).toHaveLength(4);
+      expect(screen.getAllByRole('button', { name: /Go to card/i })).toHaveLength(3);
     });
 
-    it('renders 4 dots when gasStops = 1', () => {
+    it('renders 3 dots when gasStops = 1', () => {
       render(
         <VoilaCardRail
           summary={makeSummary({ gasStops: 1 })}
@@ -46,7 +46,7 @@ describe('VoilaCardRail', () => {
           onOpenDetail={onOpenDetail}
         />,
       );
-      expect(screen.getAllByRole('button', { name: /Go to card/i })).toHaveLength(4);
+      expect(screen.getAllByRole('button', { name: /Go to card/i })).toHaveLength(3);
     });
   });
 

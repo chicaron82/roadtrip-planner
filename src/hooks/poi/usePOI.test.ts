@@ -14,7 +14,7 @@ import type { POI } from '../../types';
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
-vi.mock('../lib/poi', () => ({
+vi.mock('../../lib/poi', () => ({
   searchNearbyPOIs: vi.fn(),
   searchPOIsAlongRoute: vi.fn(),
 }));
