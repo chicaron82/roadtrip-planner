@@ -43,20 +43,19 @@ export function SketchCard({
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       pointerEvents: 'none',
     }}>
-      {/* Mobile: bottom sheet, Desktop: centered */}
+      {/* Full-screen dark wash — same treatment as wizard and icebreaker */}
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(14, 11, 7, 0.72)', pointerEvents: 'none' }} />
+
+      {/* Mobile: bottom sheet, Desktop: content floats on wash */}
       <div
         className="sketch-card"
         style={{
           pointerEvents: 'auto',
           width: '100%',
-          maxWidth: '420px',
+          maxWidth: '560px',
           padding: 'clamp(20px, 4vw, 32px)',
-          background: 'rgba(13, 13, 16, 0.82)',
-          backdropFilter: 'blur(24px)',
-          WebkitBackdropFilter: 'blur(24px)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: '20px',
           animation: 'sketchCardIn 400ms ease forwards',
+          position: 'relative',
         }}
       >
         <style>{`
@@ -72,6 +71,8 @@ export function SketchCard({
               right: 0 !important;
               max-width: 100% !important;
               border-radius: 20px 20px 0 0 !important;
+              background: rgba(13, 13, 16, 0.95) !important;
+              border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
             }
           }
         `}</style>

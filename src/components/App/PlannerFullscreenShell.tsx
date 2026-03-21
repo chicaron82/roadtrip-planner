@@ -68,7 +68,7 @@ export function PlannerFullscreenShell({
   return (
     <div className="absolute inset-0 z-20 pointer-events-none md:flex md:justify-center md:items-stretch md:py-6">
       <SwipeableWizard tripMode={tripMode} onRevealChange={onRevealChange}>
-        <div className="sidebar-dark mee-panel relative w-full h-full flex flex-col pointer-events-auto md:rounded-[20px] md:max-w-[620px]">
+        <div className="sidebar-dark mee-panel relative w-full h-full flex flex-col pointer-events-auto md:max-w-[620px]">
           <StepsBanner
             currentStep={planningStep}
             completedSteps={completedSteps}

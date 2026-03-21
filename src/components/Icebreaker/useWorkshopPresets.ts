@@ -143,7 +143,7 @@ export function useWorkshopPresets({
   }), [sketchDistanceKm, sketchDurationMinutes, selectedPace.hours]);
 
   const estimate = useMemo(
-    () => generateEstimate(sketchSummary, selectedVehicle.vehicle, mergedSettings),
+    () => generateEstimate(sketchSummary, selectedVehicle.vehicle, mergedSettings, { raw: true }),
     [sketchSummary, selectedVehicle.vehicle, mergedSettings],
   );
 

@@ -22,7 +22,6 @@ import type { TripSummary, TripSettings, Location } from '../../types';
 import { buildSeededTitle } from '../../lib/trip-title-seeds';
 import { VoilaHero } from './VoilaHero';
 import { VoilaDashboard } from './VoilaDashboard';
-import { VoilaRoutePreview } from './VoilaRoutePreview';
 import { VoilaCardRail } from './VoilaCardRail';
 import { VoilaLockIn } from './VoilaLockIn';
 import { ItineraryDetailPanel } from './ItineraryDetailPanel';
@@ -80,6 +79,9 @@ export function VoilaScreen({
       justifyContent: 'flex-start',
       pointerEvents: 'none',
     }}>
+      {/* Full-screen dark wash — same treatment as wizard and icebreaker */}
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(14, 11, 7, 0.72)', pointerEvents: 'none' }} />
+
       {/* Glass panel — centered, max 620px, same material as wizard */}
       <div
         className="sidebar-dark mee-panel"
@@ -165,14 +167,6 @@ export function VoilaScreen({
             transition={{ duration: 0.4, ease: 'easeOut', delay: 0.2 }}
           >
             <VoilaDashboard summary={summary} settings={settings} />
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: 'easeOut', delay: 0.35 }}
-          >
-            <VoilaRoutePreview geometry={summary.fullGeometry} />
           </motion.div>
 
           <motion.div

@@ -117,20 +117,19 @@ export function UnifiedWorkshopPanel({
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       pointerEvents: 'none',
     }}>
+      {/* Full-screen dark wash — same treatment as wizard and icebreaker */}
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(14, 11, 7, 0.72)', pointerEvents: 'none' }} />
+
       <div
         className="workshop-panel"
         style={{
           pointerEvents: 'auto',
           width: '100%',
-          maxWidth: '460px',
+          maxWidth: '560px',
           maxHeight: '90dvh',
           overflowY: 'auto',
-          background: 'rgba(13, 13, 16, 0.85)',
-          backdropFilter: 'blur(24px)',
-          WebkitBackdropFilter: 'blur(24px)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: '20px',
           animation: 'workshopIn 350ms ease forwards',
+          position: 'relative',
         }}
       >
         <style>{`
@@ -145,6 +144,8 @@ export function UnifiedWorkshopPanel({
               max-width: 100% !important;
               border-radius: 20px 20px 0 0 !important;
               max-height: 85dvh !important;
+              background: rgba(13, 13, 16, 0.95) !important;
+              border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
             }
           }
         `}</style>

@@ -342,7 +342,9 @@ function AppContent() {
 
       {tripMode && !showVoila && (
         <>
-          <div className="mee-vignette absolute inset-0 pointer-events-none z-[1]" />
+          {/* Full-screen dark wash — same treatment as icebreaker/landing.
+              Panel background is transparent on desktop; this provides the dim. */}
+          <div className="absolute inset-0 pointer-events-none z-[1]" style={{ background: 'rgba(14, 11, 7, 0.72)' }} />
 
           <PlannerFullscreenShell
             tripMode={tripMode}

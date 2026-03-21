@@ -105,7 +105,11 @@ export function generateEstimate(
   summary: TripSummary,
   vehicle: Vehicle,
   settings: TripSettings,
+  options?: { raw?: boolean },
 ): TripEstimate {
+  // raw: true → skip roundToBudget, use Math.round instead.
+  // Used by the workshop live bar so every vehicle/setting change registers visibly.
+  const round = options?.raw ? Math.round : roundToBudget;
   // totalDistanceKm is already the full round-trip total after buildRoundTripSegments
   // mutates it — do NOT double it again here.
   const distanceKm = summary.totalDistanceKm;
@@ -130,8 +134,8 @@ export function generateEstimate(
   const fuelPrecise = estimateFuelCost(distanceKm, vehicle, settings.units, settings.gasPrice || undefined);
   const fuel = {
     low: Math.round(fuelPrecise.low),
-    mid: roundToBudget(fuelPrecise.mid),
-    high: roundToBudget(fuelPrecise.high),
+    mid: round(fuelPrecise.mid),
+    high: round(fuelPrecise.high),
   };
 
   // ── Hotels ──
@@ -140,22 +144,22 @@ export function generateEstimate(
   const hotelMidRate = settings.hotelPricePerNight || ESTIMATES.hotel.mid;
   const hotel = {
     low: Math.round(nights * roomsNeeded * hotelMidRate * 0.85),
-    mid: roundToBudget(nights * roomsNeeded * hotelMidRate),
-    high: roundToBudget(nights * roomsNeeded * hotelMidRate * 1.25),
+    mid: round(nights * roomsNeeded * hotelMidRate),
+    high: round(nights * roomsNeeded * hotelMidRate * 1.25),
   };
 
   // ── Food ──
   const food = {
     low: Math.round(days * numTravelers * ESTIMATES.food.low),
-    mid: roundToBudget(days * numTravelers * ESTIMATES.food.mid),
-    high: roundToBudget(days * numTravelers * ESTIMATES.food.high),
+    mid: round(days * numTravelers * ESTIMATES.food.mid),
+    high: round(days * numTravelers * ESTIMATES.food.high),
   };
 
   // ── Misc ──
   const misc = {
     low: Math.round(days * numTravelers * ESTIMATES.misc.low),
-    mid: roundToBudget(days * numTravelers * ESTIMATES.misc.mid),
-    high: roundToBudget(days * numTravelers * ESTIMATES.misc.high),
+    mid: round(days * numTravelers * ESTIMATES.misc.mid),
+    high: round(days * numTravelers * ESTIMATES.misc.high),
   };
 
   // ── Totals — sum already-rounded line items (no double-rounding) ──
