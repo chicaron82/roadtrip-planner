@@ -99,6 +99,7 @@ export function UnifiedWorkshopPanel({
   const {
     travelers, setTravelers,
     numRooms, setNumRooms,
+    isDayTrip,
     vehicleType, setVehicleType,
     hotelTier, setHotelTier,
     pace, setPace,
@@ -174,11 +175,19 @@ export function UnifiedWorkshopPanel({
           </p>
           <Stepper value={travelers} min={1} max={8} label={label('person', 'people')} onChange={setTravelers} />
 
-          {/* PRIMARY: Rooms — affects estimate, changed frequently, fits on mobile */}
-          <p style={{ color: 'rgba(245,240,232,0.5)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
-            Rooms needed?
-          </p>
-          <Stepper value={numRooms} min={1} max={4} label={label('room', 'rooms')} onChange={setNumRooms} />
+          {/* PRIMARY: Rooms — hidden for day trips (0 nights → no hotel) */}
+          {isDayTrip ? (
+            <p style={{ color: 'rgba(245,240,232,0.3)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 18 }}>
+              Day trip — no overnight stops
+            </p>
+          ) : (
+            <>
+              <p style={{ color: 'rgba(245,240,232,0.5)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+                Rooms needed?
+              </p>
+              <Stepper value={numRooms} min={1} max={4} label={label('room', 'rooms')} onChange={setNumRooms} />
+            </>
+          )}
 
           {/* PRIMARY: Vehicle — affects estimate, changed frequently, fits on mobile */}
           <p style={{ color: 'rgba(245,240,232,0.5)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
@@ -192,17 +201,21 @@ export function UnifiedWorkshopPanel({
             ))}
           </div>
 
-          {/* PRIMARY: Hotel — affects estimate, changed frequently, fits on mobile */}
-          <p style={{ color: 'rgba(245,240,232,0.5)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
-            Hotel vibe
-          </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 18 }}>
-            {HOTEL_OPTIONS.map(h => (
-              <button key={h.tier} onClick={() => setHotelTier(h.tier)} style={chip(hotelTier === h.tier)}>
-                {h.emoji} {h.label} ~${h.price}
-              </button>
-            ))}
-          </div>
+          {/* PRIMARY: Hotel — hidden for day trips */}
+          {!isDayTrip && (
+            <>
+              <p style={{ color: 'rgba(245,240,232,0.5)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+                Hotel vibe
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 18 }}>
+                {HOTEL_OPTIONS.map(h => (
+                  <button key={h.tier} onClick={() => setHotelTier(h.tier)} style={chip(hotelTier === h.tier)}>
+                    {h.emoji} {h.label} ~${h.price}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
 
           {/* SECONDARY gate — Pace + Budget hidden until "More options ↓" */}
           {!showMore && (

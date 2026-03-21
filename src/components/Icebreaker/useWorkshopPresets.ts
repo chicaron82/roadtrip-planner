@@ -57,6 +57,7 @@ export interface WorkshopPresetsResult {
   setTravelers: (n: number) => void;
   numRooms: number;
   setNumRooms: (n: number) => void;
+  isDayTrip: boolean;
   vehicleType: VehicleType;
   setVehicleType: (t: VehicleType) => void;
   hotelTier: HotelTier;
@@ -117,10 +118,14 @@ export function useWorkshopPresets({
   const selectedHotel = HOTEL_OPTIONS.find(h => h.tier === hotelTier)!;
   const selectedPace = PACE_OPTIONS.find(p => p.pace === pace)!;
 
+  // Day trip: trip fits in a single day of driving → 0 overnight stops needed.
+  const sketchDays = Math.max(1, Math.ceil(sketchDurationMinutes / (selectedPace.hours * 60)));
+  const isDayTrip = sketchDays === 1;
+
   const mergedSettings: TripSettings = useMemo(() => ({
     ...initialSettings,
     numTravelers: travelers,
-    numRooms,
+    numRooms: isDayTrip ? 0 : numRooms,
     hotelTier,
     hotelPricePerNight: selectedHotel.price,
     maxDriveHours: selectedPace.hours,
@@ -128,7 +133,7 @@ export function useWorkshopPresets({
     budget: budgetEnabled
       ? { ...initialSettings.budget, total: budgetAmount }
       : initialSettings.budget,
-  }), [initialSettings, travelers, numRooms, hotelTier, selectedHotel.price, selectedPace.hours, budgetEnabled, budgetAmount]);
+  }), [initialSettings, travelers, numRooms, isDayTrip, hotelTier, selectedHotel.price, selectedPace.hours, budgetEnabled, budgetAmount]);
 
   const sketchSummary = useMemo(() => ({
     totalDistanceKm: sketchDistanceKm,
@@ -173,6 +178,7 @@ export function useWorkshopPresets({
   return {
     travelers, setTravelers,
     numRooms, setNumRooms,
+    isDayTrip,
     vehicleType, setVehicleType,
     hotelTier, setHotelTier,
     pace, setPace,
