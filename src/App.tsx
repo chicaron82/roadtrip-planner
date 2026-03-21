@@ -196,10 +196,11 @@ function AppContent() {
 
   const handleVoilaEdit = useCallback(() => {
     setShowVoila(false);
+    setTripConfirmed(false); // trip is no longer confirmed — prevents ghost car re-activating during edit
     if (icebreakerOrigin) setTripMode('plan');
     goToStep(2);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [icebreakerOrigin, setTripMode]);
+  }, [icebreakerOrigin, setTripMode, setTripConfirmed]);
 
   const handleGoHome = useCallback(() => {
     if (isCalculating) return;

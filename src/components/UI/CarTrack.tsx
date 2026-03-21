@@ -155,7 +155,7 @@ export function CarTrack(props: CarTrackProps) {
 
           return (
             <button
-              key={label}
+              key={i}
               disabled={!isClickable}
               onClick={() => isClickable && onStepClick?.((i + 1) as PlanningStep)}
               className={[
