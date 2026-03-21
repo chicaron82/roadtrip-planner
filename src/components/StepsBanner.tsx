@@ -6,13 +6,14 @@
  *   1. "My Experience Engine" (Cormorant Garamond) + rotating tagline
  *      + mode badge dropdown
  *   2. Pill dot step indicators (Route · Vehicle · Results)
+ *
+ * Consumes PlannerContext — no external props required.
  */
 
 import { useState, useEffect } from 'react';
 import type { TripMode } from '../types';
-import type { PlanningStep } from '../hooks';
-import type { GhostCarState } from '../hooks';
 import { CarTrack } from './UI/CarTrack';
+import { usePlanner } from '../contexts';
 
 // ── Taglines ────────────────────────────────────────────────────────────────
 
@@ -31,39 +32,21 @@ const MODE_CONFIG = {
   adventure: { icon: '🧭', label: 'Adventure', desc: 'Find My MEE Time',   color: '#FDE68A', bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.3)' },
 } as const;
 
-// ── Props ──────────────────────────────────────────────────────────────────
-
-interface StepsBannerProps {
-  currentStep: PlanningStep;
-  completedSteps: number[];
-  tripMode: TripMode;
-  isCalculating?: boolean;
-  onStepClick: (step: PlanningStep) => void;
-  showModeSwitcher: boolean;
-  setShowModeSwitcher: React.Dispatch<React.SetStateAction<boolean>>;
-  modeSwitcherRef: React.RefObject<HTMLDivElement | null>;
-  onSwitchMode: (mode: TripMode) => void;
-  /** When set, CarTrack switches to trip mode showing ghost car progress */
-  ghostCar?: GhostCarState | null;
-  /** Navigate back to landing without resetting the session */
-  onGoHome?: () => void;
-}
-
 // ── Component ──────────────────────────────────────────────────────────────
 
-export function StepsBanner({
-  currentStep,
-  completedSteps,
-  tripMode,
-  isCalculating,
-  onStepClick,
-  showModeSwitcher,
-  setShowModeSwitcher,
-  modeSwitcherRef,
-  onSwitchMode,
-  ghostCar,
-  onGoHome,
-}: StepsBannerProps) {
+export function StepsBanner() {
+  const {
+    planningStep: currentStep,
+    completedSteps,
+    tripMode,
+    isCalculating,
+    onStepClick,
+    showModeSwitcher, setShowModeSwitcher, modeSwitcherRef,
+    onSwitchMode,
+    ghostCar,
+    onGoHome,
+  } = usePlanner();
+
   const mode = MODE_CONFIG[tripMode];
 
   const [taglineIndex, setTaglineIndex] = useState(0);
@@ -119,7 +102,7 @@ export function StepsBanner({
       <div className="relative z-10 flex items-start justify-between gap-3">
         <div
           className="flex items-start gap-2.5 min-w-0"
-          onClick={onGoHome}
+          onClick={onGoHome ?? undefined}
           style={{ cursor: onGoHome ? 'pointer' : 'default' }}
           title={onGoHome ? 'Back to home' : undefined}
         >

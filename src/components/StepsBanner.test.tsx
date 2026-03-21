@@ -13,6 +13,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { createRef } from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { StepsBanner } from './StepsBanner';
+import { PlannerProvider, type PlannerContextType } from '../contexts/PlannerContext';
 import type { PlanningStep } from '../hooks';
 import type { TripMode } from '../types';
 
@@ -32,18 +33,34 @@ function setup(opts: SetupOptions = {}) {
   const onSwitchMode = vi.fn();
   const modeSwitcherRef = createRef<HTMLDivElement>();
 
+  const plannerValue: PlannerContextType = {
+    planningStep: opts.currentStep ?? 1,
+    completedSteps: opts.completedSteps ?? [],
+    tripMode: opts.tripMode ?? 'plan',
+    isCalculating: opts.isCalculating ?? false,
+    canProceed: true,
+    onStepClick,
+    onNext: vi.fn(),
+    onBack: vi.fn(),
+    onReset: vi.fn(),
+    showModeSwitcher: opts.showModeSwitcher ?? false,
+    setShowModeSwitcher,
+    modeSwitcherRef,
+    onSwitchMode,
+    onGoHome: vi.fn(),
+    ghostCar: null,
+    markerCategories: [],
+    loadingCategory: null,
+    onToggleCategory: vi.fn(),
+    error: null,
+    onClearError: vi.fn(),
+    calculationMessage: null,
+  };
+
   render(
-    <StepsBanner
-      currentStep={opts.currentStep ?? 1}
-      completedSteps={opts.completedSteps ?? []}
-      tripMode={opts.tripMode ?? 'plan'}
-      isCalculating={opts.isCalculating ?? false}
-      onStepClick={onStepClick}
-      showModeSwitcher={opts.showModeSwitcher ?? false}
-      setShowModeSwitcher={setShowModeSwitcher}
-      modeSwitcherRef={modeSwitcherRef}
-      onSwitchMode={onSwitchMode}
-    />,
+    <PlannerProvider value={plannerValue}>
+      <StepsBanner />
+    </PlannerProvider>,
   );
 
   const stepButton = (n: number) =>

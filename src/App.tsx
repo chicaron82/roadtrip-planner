@@ -9,7 +9,7 @@ import { useIcebreakerOrchestrator, IcebreakerOverlays } from './components/Iceb
 import { PlannerFullscreenShell } from './components/App/PlannerFullscreenShell';
 import { VoilaScreen } from './components/Voila/VoilaScreen';
 import './styles/sidebar.css';
-import { TripProvider, useTimeline, useTripCore } from './contexts';
+import { TripProvider, useTimeline, useTripCore, PlannerProvider } from './contexts';
 import {
   useWizard, useTripCalculation, useJournal, usePOI, useEagerRoute, useAddedStops,
   useStylePreset, useTripMode, useTripLoader, useMapInteractions, useURLHydration,
@@ -342,36 +342,31 @@ function AppContent() {
       )}
 
       {tripMode && !showVoila && (
-        <>
+        <PlannerProvider value={{
+          planningStep, completedSteps, canProceed,
+          isCalculating,
+          onStepClick: goToStep,
+          onNext: goToNextStep,
+          onBack: goToPrevStep,
+          onReset: resetTripSession,
+          tripMode,
+          showModeSwitcher, setShowModeSwitcher, modeSwitcherRef,
+          onSwitchMode: handleSwitchMode,
+          onGoHome: handleGoHome,
+          ghostCar: summary && planningStep === 3 && tripConfirmed ? ghostCar : null,
+          markerCategories, loadingCategory,
+          onToggleCategory: handleToggleCategory,
+          error, onClearError: clearError,
+          calculationMessage,
+        }}>
           {/* Full-screen dark wash — same treatment as icebreaker/landing.
               Panel background is transparent on desktop; this provides the dim. */}
           <div className="absolute inset-0 pointer-events-none z-[1]" style={{ background: 'rgba(14, 11, 7, 0.72)' }} />
 
           <PlannerFullscreenShell
-            tripMode={tripMode}
             onRevealChange={setMapRevealed}
-            planningStep={planningStep}
-            completedSteps={completedSteps}
-            isCalculating={isCalculating}
-            onStepClick={goToStep}
-            showModeSwitcher={showModeSwitcher}
-            setShowModeSwitcher={setShowModeSwitcher}
-            modeSwitcherRef={modeSwitcherRef}
-            onSwitchMode={handleSwitchMode}
-            ghostCar={summary && planningStep === 3 && tripConfirmed ? ghostCar : null}
-            canProceed={canProceed}
-            onNext={goToNextStep}
-            onBack={goToPrevStep}
-            onReset={resetTripSession}
-            onGoHome={handleGoHome}
-            markerCategories={markerCategories}
-            loadingCategory={loadingCategory}
-            onToggleCategory={handleToggleCategory}
-            error={error}
-            onClearError={clearError}
-            calculationMessage={calculationMessage}
-            stepProps={stepProps}
             liveReflection={liveReflection}
+            stepProps={stepProps}
           />
 
           {summary && planningStep === 3 && (
@@ -413,7 +408,7 @@ function AppContent() {
               fuelCostPerKm={(getWeightedFuelEconomyL100km(vehicle, settings.units) / 100) * settings.gasPrice}
             />
           )}
-        </>
+        </PlannerProvider>
       )}
     </div>
   );

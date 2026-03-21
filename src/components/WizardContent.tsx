@@ -6,13 +6,15 @@
  * - POI category bar (step 3 only)
  * - Scrollable content area
  * - Navigation footer (Back / Next / Plan New Trip)
+ *
+ * Consumes PlannerContext — no external props required.
  */
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Spinner } from './UI/Spinner';
-import type { TripMode, MarkerCategory, POICategory } from '../types';
-import type { PlanningStep } from '../hooks';
+import type { TripMode } from '../types';
+import { usePlanner } from '../contexts';
 
 const MODE_LABELS: Record<TripMode, string> = {
   estimate:  'Price My MEE Time',
@@ -21,49 +23,19 @@ const MODE_LABELS: Record<TripMode, string> = {
 };
 
 interface WizardContentProps {
-  // Navigation
-  planningStep: PlanningStep;
-  canProceed: boolean;
-  isCalculating: boolean;
-  onNext: () => void;
-  onBack: () => void;
-  onReset: () => void;
-
-  // Mode
-  tripMode: TripMode;
-
-  // POI bar (step 3 only)
-  markerCategories: MarkerCategory[];
-  loadingCategory: string | null;
-  onToggleCategory: (id: POICategory) => void;
-
-  // Error
-  error: string | null;
-  onClearError: () => void;
-
-  // Progressive calculation message
-  calculationMessage?: string | null;
-
-  // Content
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
-export function WizardContent({
-  planningStep,
-  canProceed,
-  isCalculating,
-  onNext,
-  onBack,
-  onReset,
-  tripMode,
-  markerCategories,
-  loadingCategory,
-  onToggleCategory,
-  error,
-  onClearError,
-  calculationMessage,
-  children,
-}: WizardContentProps) {
+export function WizardContent({ children }: WizardContentProps) {
+  const {
+    planningStep, canProceed, isCalculating,
+    onNext, onBack, onReset,
+    tripMode,
+    markerCategories, loadingCategory, onToggleCategory,
+    error, onClearError,
+    calculationMessage,
+  } = usePlanner();
+
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Scroll to top on step change
@@ -72,9 +44,7 @@ export function WizardContent({
   }, [planningStep]);
 
   return (
-    <div
-      className="flex flex-col flex-1 min-h-0 text-foreground"
-    >
+    <div className="flex flex-col flex-1 min-h-0 text-foreground">
       {/* POI Category Bar (Step 3 only) */}
       {planningStep === 3 && (
         <div className="px-3 py-2 flex gap-2 overflow-x-auto no-scrollbar items-center shrink-0 border-b border-white/5">
