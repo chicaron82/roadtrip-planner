@@ -14,10 +14,10 @@
 
 import { useEffect, useCallback } from 'react';
 import type { Vehicle, TripSettings, TripSummary, TripMode, Location } from '../../types';
-import type { AdventureInitialValues } from '../../hooks/useAdventureModeController';
+import type { AdventureInitialValues } from '../../hooks';
 import type { IcebreakerPrefill } from './IcebreakerGate';
-import { useFourBeatArc } from '../../hooks/useFourBeatArc';
-import { useIcebreakerGate } from '../../hooks/useIcebreakerGate';
+import { useFourBeatArc } from '../../hooks';
+import { useIcebreakerGate } from '../../hooks';
 import { IcebreakerGate } from './IcebreakerGate';
 import { EstimateWorkshop } from './EstimateWorkshop';
 import { SketchCard } from './SketchCard';

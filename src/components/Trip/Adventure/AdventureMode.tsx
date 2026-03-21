@@ -4,7 +4,7 @@ import { LocationSearchInput } from '../Location/LocationSearchInput';
 import { AdventureFormPanel } from './AdventureFormPanel';
 import { AdventureResultsPanel } from './AdventureResultsPanel';
 import { cn } from '../../../lib/utils';
-import { useAdventureModeController, type AdventureInitialValues } from '../../../hooks/useAdventureModeController';
+import { useAdventureModeController, type AdventureInitialValues } from '../../../hooks';
 
 // Settings to carry over when selecting a destination
 export interface AdventureSelection {

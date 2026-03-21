@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import type { PlanningStep } from '../../hooks/useWizard';
+import type { PlanningStep } from '../../hooks';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 

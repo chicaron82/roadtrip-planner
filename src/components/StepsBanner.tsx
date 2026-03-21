@@ -10,8 +10,8 @@
 
 import { useState, useEffect } from 'react';
 import type { TripMode } from '../types';
-import type { PlanningStep } from '../hooks/useWizard';
-import type { GhostCarState } from '../hooks/useGhostCar';
+import type { PlanningStep } from '../hooks';
+import type { GhostCarState } from '../hooks';
 import { CarTrack } from './UI/CarTrack';
 
 // ── Taglines ────────────────────────────────────────────────────────────────

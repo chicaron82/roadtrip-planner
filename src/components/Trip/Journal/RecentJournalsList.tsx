@@ -1,5 +1,5 @@
 import { BookOpen, CheckCircle2, MapPin } from 'lucide-react';
-import { useJournalHistory } from '../../../hooks/useJournalHistory';
+import { useJournalHistory } from '../../../hooks';
 
 /**
  * Read-only list of past journals, shown in place of RecentTrips when the

@@ -13,7 +13,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { createRef } from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { StepsBanner } from './StepsBanner';
-import type { PlanningStep } from '../hooks/useWizard';
+import type { PlanningStep } from '../hooks';
 import type { TripMode } from '../types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

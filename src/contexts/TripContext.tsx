@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useEffect, useRef, type ReactNode } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { useDebounce } from '../hooks/useDebounce';
+import { useDebounce } from '../hooks';
 import type { Location, Vehicle, TripSettings, TripSummary } from '../types';
 import type { CanonicalTripTimeline } from '../lib/canonical-trip';
 import { saveSettingsDefaults } from '../lib/storage';

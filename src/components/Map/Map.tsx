@@ -13,7 +13,7 @@ import { createCustomIcon, createAddedIcon, createDeclaredWaypointIcon, createPa
 import { MapUpdater, MapClickHandler } from './MapHelpers';
 import { FlyoverTrigger } from './FlyoverTrigger';
 import { findNearestSegment } from './map-utils';
-import { useMapPresentationModel } from '../../hooks/useMapPresentationModel';
+import { useMapPresentationModel } from '../../hooks';
 import { AdventureRadiusLayer } from './AdventureRadiusLayer';
 
 interface AlternateRouteGeometry {

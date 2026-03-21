@@ -15,7 +15,7 @@
  * 💚 My Experience Engine — Beat 2 of the Four-Beat Arc
  */
 
-import type { SketchData } from '../../hooks/useFourBeatArc';
+import type { SketchData } from '../../hooks';
 import { buildSketchFramingLine } from '../../lib/mode-voice';
 import type { TripMode } from '../../types';
 

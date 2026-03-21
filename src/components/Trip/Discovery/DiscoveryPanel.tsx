@@ -14,7 +14,7 @@ import type { POISuggestion } from '../../../types';
 import { Button } from '../../UI/Button';
 import { cn } from '../../../lib/utils';
 import { TierSection } from './TierSection';
-import { useDiscoveryController } from '../../../hooks/useDiscoveryController';
+import { useDiscoveryController } from '../../../hooks';
 
 interface DiscoveryPanelProps {
   title?: string;

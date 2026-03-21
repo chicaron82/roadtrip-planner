@@ -16,9 +16,9 @@ import {
   usePlanningStepProps, useAppReset, useCalculateAndDiscover, useMapProps, useGhostCar,
   useAppCallbacks, useTripRestore,
 } from './hooks';
-import { useArrivalSnap } from './hooks/useArrivalSnap';
-import { useCalculationMessages } from './hooks/useCalculationMessages';
-import { useBackButtonGuard } from './hooks/useBackButtonGuard';
+import { useArrivalSnap } from './hooks';
+import { useCalculationMessages } from './hooks';
+import { useBackButtonGuard } from './hooks';
 import { getHistory, saveActiveSession } from './lib/storage';
 import { getWeightedFuelEconomyL100km } from './lib/unit-conversions';
 import type { HistoryTripSnapshot } from './types';

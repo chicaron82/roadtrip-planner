@@ -7,7 +7,7 @@ import { QuickCaptureDialog } from './QuickCaptureDialog';
 import { TripRecapCard } from './TripRecapCard';
 import { useJournalTimeline } from './useJournalTimeline';
 import { cn } from '../../../lib/utils';
-import { dispatchStopArrived } from '../../../hooks/useArrivalSnap';
+import { dispatchStopArrived } from '../../../hooks';
 import type { JournalTimelineSummary } from '../../../lib/trip-summary-slices';
 
 interface JournalTimelineProps {

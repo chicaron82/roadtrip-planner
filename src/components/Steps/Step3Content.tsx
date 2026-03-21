@@ -2,7 +2,8 @@ import type { HistoryTripSnapshot, TripSettings } from '../../types';
 import { OvernightStopPrompt } from '../Trip/StepHelpers/OvernightStopPrompt';
 import { EstimateBreakdown } from '../Trip/StepHelpers/EstimateBreakdown';
 import type { PlanningStep } from '../../hooks';
-import type { UseStep3ControllerReturn } from '../../hooks/useStep3Derivations';
+import type { UseStep3ControllerReturn } from '../../hooks';
+
 import { TripViewer } from '../Trip/Viewer/TripViewer';
 import { TripSignatureCard } from '../Trip/TripSignatureCard';
 import { Step3Header } from './Step3Header';
@@ -11,7 +12,7 @@ import { Step3CommitSection } from './Step3CommitSection';
 import { Step3HistorySection } from './Step3HistorySection';
 import { RecentJournalsList } from '../Trip/Journal/RecentJournalsList';
 import { Step3EmptyState } from './Step3EmptyState';
-import { useRevealAnimation } from '../../hooks/useRevealAnimation';
+import { useRevealAnimation } from '../../hooks';
 import { TunePanel } from '../Icebreaker/TunePanel';
 import { useTripCore, useTimeline } from '../../contexts/TripContext';
 

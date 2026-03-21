@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import type { TripSettings, TripJournal, JournalEntry, JournalPhoto, QuickCapture } from '../../../types';
 import { showToast } from '../../../lib/toast';
-import { dispatchCaptureGps } from '../../../hooks/useArrivalSnap';
+import { dispatchCaptureGps } from '../../../hooks';
 import { formatDisplayDateInZone, formatTimeInZone, getTripStartTime, lngToIANA } from '../../../lib/trip-timezone';
 import { buildAcceptedItineraryProjection } from '../../../lib/accepted-itinerary-projection';
 import {

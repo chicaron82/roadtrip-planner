@@ -1,7 +1,8 @@
 import { Calendar, Upload } from 'lucide-react';
 import type { Location, TripMode, TripSettings } from '../../types';
 import type { TemplateImportResult } from '../../lib/url';
-import { useStep1Controller } from '../../hooks/useStep1Controller';
+import { useStep1Controller } from '../../hooks';
+
 import { useTripCore } from '../../contexts/TripContext';
 import { buildAutoTitle, GUIDANCE } from '../../lib/mee-tokens';
 import { LocationList } from '../Trip/Location/LocationList';

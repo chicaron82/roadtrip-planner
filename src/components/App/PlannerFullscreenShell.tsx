@@ -7,7 +7,7 @@ import { SwipeableWizard } from '../UI/SwipeableWizard';
 import { ErrorFallback } from '../UI/ErrorFallback';
 import { SettingsPanel } from '../Settings/SettingsPanel';
 import type { PlanningStep } from '../../hooks';
-import type { GhostCarState } from '../../hooks/useGhostCar';
+import type { GhostCarState } from '../../hooks';
 import type { MarkerCategory, POICategory, TripMode, TripSummary, Vehicle, TripSettings } from '../../types';
 import { LiveReflectionBar } from './LiveReflectionBar';
 

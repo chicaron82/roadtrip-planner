@@ -14,7 +14,7 @@ import type { JournalEntry, JournalPhoto, RouteSegment } from '../../../types';
 import { formatTimeInZone, normalizeToIANA } from '../../../lib/trip-timezone';
 import { Button } from '../../UI/Button';
 import { cn } from '../../../lib/utils';
-import { dispatchStopArrived } from '../../../hooks/useArrivalSnap';
+import { dispatchStopArrived } from '../../../hooks';
 import { JournalPhotoGrid } from './JournalPhotoGrid';
 import { JournalNotesEditor } from './JournalNotesEditor';
 

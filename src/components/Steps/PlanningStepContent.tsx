@@ -7,7 +7,7 @@ import type {
 } from '../../types';
 import type { StylePreset } from '../../lib/style-presets';
 import type { TemplateImportResult } from '../../lib/url';
-import type { PlanningStep } from '../../hooks/useWizard';
+import type { PlanningStep } from '../../hooks';
 
 interface PlanningStepContentProps {
   planningStep: PlanningStep;

@@ -6,7 +6,7 @@ import { cn } from '../../../lib/utils';
 import { SaveProfileDialog } from './BudgetProfilePicker';
 import { BudgetDistributionBar } from './BudgetDistributionBar';
 import { BudgetCategoryDetails } from './BudgetCategoryDetails';
-import { useBudgetController } from '../../../hooks/useBudgetController';
+import { useBudgetController } from '../../../hooks';
 
 interface BudgetInputProps {
   budget: TripBudget;

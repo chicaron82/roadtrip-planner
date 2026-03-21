@@ -12,7 +12,7 @@ import { useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Spinner } from './UI/Spinner';
 import type { TripMode, MarkerCategory, POICategory } from '../types';
-import type { PlanningStep } from '../hooks/useWizard';
+import type { PlanningStep } from '../hooks';
 
 const MODE_LABELS: Record<TripMode, string> = {
   estimate:  'Price My MEE Time',
