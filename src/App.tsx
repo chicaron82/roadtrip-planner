@@ -14,11 +14,8 @@ import {
   useWizard, useTripCalculation, useJournal, usePOI, useEagerRoute, useAddedStops,
   useStylePreset, useTripMode, useTripLoader, useMapInteractions, useURLHydration,
   usePlanningStepProps, useAppReset, useCalculateAndDiscover, useMapProps, useGhostCar,
-  useAppCallbacks, useTripRestore,
+  useAppCallbacks, useTripRestore, useArrivalSnap, useCalculationMessages, useBackButtonGuard,
 } from './hooks';
-import { useArrivalSnap } from './hooks';
-import { useCalculationMessages } from './hooks';
-import { useBackButtonGuard } from './hooks';
 import { getHistory, saveActiveSession } from './lib/storage';
 import { getWeightedFuelEconomyL100km } from './lib/unit-conversions';
 import type { HistoryTripSnapshot } from './types';
@@ -80,11 +77,11 @@ function AppContent() {
     dismissOvernightPrompt, calculateTrip,
     routeStrategies, activeStrategyIndex, selectStrategy,
     updateStopType,
-    rebuildCanonicalWithExternals,
     clearError: clearCalcError, clearTripCalculation,
   } = useTripCalculation({
     locations, vehicle, settings,
     onCalculationComplete: () => onCalcCompleteRef.current(),
+    externalStops: [...asSuggestedStops, ...mirroredReturnStops],
   });
 
   const { calculateAndDiscover } = useCalculateAndDiscover({
@@ -154,18 +151,6 @@ function AppContent() {
   const ghostCar = useGhostCar(canonicalTimeline, summary, settings, asSuggestedStops);
   useArrivalSnap(ghostCar.anchorAt, ghostCar.anchorAtKm, summary?.segments ?? [], !!summary && tripConfirmed);
 
-  // Keep canonical timeline in sync with user-added POI stops so print output
-  // matches the itinerary. Fires synchronously (no network) on each add/remove.
-  useEffect(() => {
-    if (!summary) return;
-    rebuildCanonicalWithExternals([...asSuggestedStops, ...mirroredReturnStops]);
-  // Intentional dep omission — this is load-bearing, not lazy:
-  //   • `summary` is excluded because including it would re-trigger the rebuild
-  //     on every route recalculation, creating a feedback loop.
-  //   • We only want to rebuild when the *external stops list* changes.
-  //   • `rebuildCanonicalWithExternals` is a stable useCallback ref — safe to omit.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [asSuggestedStops, mirroredReturnStops]);
 
   // ── Session / lifecycle ───────────────────────────────────────────────────
   const { resetTripSession, selectTripMode } = useAppReset({
@@ -175,13 +160,7 @@ function AppContent() {
   });
 
   const { restoreHistoryTripSession } = useTripRestore({
-    setLocations,
-    setSettings,
-    setTripConfirmed,
-    setTripMode,
-    calculateAndDiscover,
-    forceStep,
-    markStepComplete,
+    setLocations, setSettings, setTripConfirmed, setTripMode, calculateAndDiscover, forceStep, markStepComplete,
   });
 
   const calculationMessage = useCalculationMessages(isCalculating, locations, icebreakerOrigin);
@@ -222,8 +201,7 @@ function AppContent() {
     markStepComplete, forceStep,
     tripMode, setTripMode, selectTripMode, setShowAdventureMode,
     calculateAndDiscover, isCalculating, summary, calculationMessage,
-    setAdventurePreview, onShowVoila: handleShowVoila,
-    customTitle, setCustomTitle,
+    setAdventurePreview, onShowVoila: handleShowVoila, customTitle, setCustomTitle,
   });
 
   // ── Android back button guard ─────────────────────────────────────────────
@@ -265,12 +243,6 @@ function AppContent() {
 
   const canProceed = planningStep === 1 ? canProceedFromStep1 : canProceedFromStep2;
 
-  // TunePanel: apply settings patch and recalculate
-  const handleTune = useCallback((patch: Partial<typeof settings>) => {
-    setSettings(prev => ({ ...prev, ...patch }));
-    setTimeout(() => calculateAndDiscover(), 0);
-  }, [setSettings, calculateAndDiscover]);
-
   const stepProps = usePlanningStepProps({
     planningStep, goToStep,
     locations, setLocations, vehicle, setVehicle, settings, setSettings,
@@ -289,7 +261,7 @@ function AppContent() {
     onLoadHistoryTrip: restoreHistoryTripSession,
     precomputedEvents: canonicalTimeline?.events,
     isCalculating,
-    onTune: handleTune,
+    calculateAndDiscover,
   });
 
   // Stable object reference for LiveReflectionBar — avoids re-creating on every parent render.

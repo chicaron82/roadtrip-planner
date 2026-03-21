@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useLayoutEffect } from 'react';
+import { useState, useCallback, useRef, useLayoutEffect, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { Location, Vehicle, TripSettings, TripSummary, TripDay, RouteStrategy, StopType, DayType, OvernightStop } from '../../types';
 import type { StrategicFuelStop } from '../../lib/calculations';
@@ -19,6 +19,12 @@ interface UseTripCalculationOptions {
   vehicle: Vehicle;
   settings: TripSettings;
   onCalculationComplete?: () => void;
+  /**
+   * External stops (user-added POIs + mirrored return stops) to merge into the
+   * canonical timeline without an OSRM recalc. The effect fires synchronously
+   * (no network) on each add/remove so print output matches the itinerary.
+   */
+  externalStops?: SuggestedStop[];
 }
 
 interface UseTripCalculationReturn {
@@ -56,6 +62,7 @@ export function useTripCalculation({
   vehicle,
   settings,
   onCalculationComplete,
+  externalStops,
 }: UseTripCalculationOptions): UseTripCalculationReturn {
   const [isCalculating, setIsCalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -299,6 +306,13 @@ export function useTripCalculation({
     setShowOvernightPrompt(false);
     setSuggestedOvernightStop(null);
   }, [setCanonicalTimeline, commitSummary]);
+
+  // Keep canonical timeline in sync with user-added POI stops so print output
+  // matches the itinerary. Fires synchronously (no network) on each add/remove.
+  useEffect(() => {
+    if (!summaryRef.current || !externalStops) return;
+    rebuildCanonicalWithExternals(externalStops);
+  }, [externalStops, rebuildCanonicalWithExternals]);
 
   return {
     isCalculating,

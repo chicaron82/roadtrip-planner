@@ -81,8 +81,8 @@ interface UsePlanningStepPropsOptions {
   openInGoogleMaps: () => void;
   copyShareLink: () => void;
   onLoadHistoryTrip: (trip: HistoryTripSnapshot) => void;
-  /** Called when user taps a tune option — applies settings patch and recalculates. */
-  onTune?: (patch: Partial<TripSettings>) => void;
+  /** Recalculates the trip after applying a settings patch. */
+  calculateAndDiscover: () => Promise<void>;
 }
 
 /**
@@ -99,6 +99,12 @@ export function usePlanningStepProps(o: UsePlanningStepPropsOptions): PlanningSt
     setTripConfirmed(false);
     setViewMode('plan');
   }, [setTripConfirmed, setViewMode]);
+
+  // Apply settings patch and re-run calculation (used by TunePanel).
+  const handleTune = useCallback((patch: Partial<TripSettings>) => {
+    o.setSettings(prev => ({ ...prev, ...patch }));
+    setTimeout(() => o.calculateAndDiscover(), 0);
+  }, [o]);
 
   const handleAddPOI = useCallback((poiId: string, segmentIndex?: number) => {
     addPOI(poiId);
@@ -173,7 +179,7 @@ export function usePlanningStepProps(o: UsePlanningStepPropsOptions): PlanningSt
       history: o.history,
       onGoToStep: o.goToStep,
       onLoadHistoryTrip: o.onLoadHistoryTrip,
-      onTune: o.onTune,
+      onTune: handleTune,
     },
   };
 }
