@@ -18,7 +18,7 @@
 
 import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import type { TripSummary, TripSettings, Vehicle, Location } from '../../types';
+import type { TripSummary, TripSettings, Location } from '../../types';
 import { buildSeededTitle } from '../../lib/trip-title-seeds';
 import { VoilaHero } from './VoilaHero';
 import { VoilaDashboard } from './VoilaDashboard';
@@ -33,7 +33,6 @@ type DetailCard = 'itinerary' | 'snapshot';
 interface VoilaScreenProps {
   summary: TripSummary;
   settings: TripSettings;
-  vehicle: Vehicle;
   locations: Location[];
   customTitle?: string | null;
   onEditTrip: () => void;

@@ -9,8 +9,7 @@
  * 💚 My Experience Engine — Voilà card rail
  */
 
-import { useRef, useState, useEffect } from 'react';
-import type { TripSummary, TripSettings } from '../../types';
+import { useRef, useState, useEffect } from 'react';import type { TripSummary, TripSettings } from '../../types';
 
 type DetailCard = 'itinerary' | 'snapshot';
 
@@ -99,18 +98,25 @@ export function VoilaCardRail({ summary, settings, onOpenDetail }: VoilaCardRail
 
   const railRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     const el = railRef.current;
     if (!el) return;
     const onScroll = () => {
-      const { scrollLeft, scrollWidth, clientWidth } = el;
-      const maxScroll = scrollWidth - clientWidth;
-      if (maxScroll <= 0) return;
-      setActiveIndex(Math.round((scrollLeft / maxScroll) * (cardCount - 1)));
+      clearTimeout(scrollTimerRef.current);
+      scrollTimerRef.current = setTimeout(() => {
+        const { scrollLeft, scrollWidth, clientWidth } = el;
+        const maxScroll = scrollWidth - clientWidth;
+        if (maxScroll <= 0) return;
+        setActiveIndex(Math.round((scrollLeft / maxScroll) * (cardCount - 1)));
+      }, 50);
     };
     el.addEventListener('scroll', onScroll, { passive: true });
-    return () => el.removeEventListener('scroll', onScroll);
+    return () => {
+      el.removeEventListener('scroll', onScroll);
+      clearTimeout(scrollTimerRef.current);
+    };
   }, [cardCount]);
 
   const scrollToCard = (index: number) => {

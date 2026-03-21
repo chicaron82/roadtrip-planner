@@ -314,7 +314,22 @@ function AppContent() {
       {/* Icebreaker overlays — Four-Beat Arc, Estimate Workshop, Icebreaker Gate */}
       <IcebreakerOverlays {...icebreaker.overlayProps} />
 
-      {!tripMode && !icebreaker.arcActive && !showVoila && (
+      {/* Screen priority: voila > planning > landing.
+          Conditions are mutually exclusive — only one renders at a time. */}
+
+      {showVoila && summary && (
+        <VoilaScreen
+          summary={summary}
+          settings={settings}
+          locations={locations}
+          customTitle={customTitle}
+          onEditTrip={handleVoilaEdit}
+          onLockIn={handleVoilaLockIn}
+          onShare={copyShareLink}
+        />
+      )}
+
+      {!tripMode && !showVoila && !icebreaker.arcActive && (
         <LandingScreen
           onSelectMode={icebreaker.handleLandingSelect}
           hasSavedTrip={history.length > 0}
@@ -322,20 +337,6 @@ function AppContent() {
           hasActiveSession={hasActiveSession}
           onResumeSession={handleResumeSession}
           lastDestination={lastDestination}
-        />
-      )}
-
-      {/* VoilaScreen — universal results surface for both paths */}
-      {showVoila && summary && (
-        <VoilaScreen
-          summary={summary}
-          settings={settings}
-          vehicle={vehicle}
-          locations={locations}
-          customTitle={customTitle}
-          onEditTrip={handleVoilaEdit}
-          onLockIn={handleVoilaLockIn}
-          onShare={copyShareLink}
         />
       )}
 
