@@ -45,6 +45,8 @@ interface StepsBannerProps {
   onSwitchMode: (mode: TripMode) => void;
   /** When set, CarTrack switches to trip mode showing ghost car progress */
   ghostCar?: GhostCarState | null;
+  /** Navigate back to landing without resetting the session */
+  onGoHome?: () => void;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -60,6 +62,7 @@ export function StepsBanner({
   modeSwitcherRef,
   onSwitchMode,
   ghostCar,
+  onGoHome,
 }: StepsBannerProps) {
   const mode = MODE_CONFIG[tripMode];
 
@@ -114,7 +117,12 @@ export function StepsBanner({
 
       {/* ── Row 1: Brand + Mode Badge ── */}
       <div className="relative z-10 flex items-start justify-between gap-3">
-        <div className="flex items-start gap-2.5 min-w-0">
+        <div
+          className="flex items-start gap-2.5 min-w-0"
+          onClick={onGoHome}
+          style={{ cursor: onGoHome ? 'pointer' : 'default' }}
+          title={onGoHome ? 'Back to home' : undefined}
+        >
           {/* Heartbeat orb */}
           <div style={{ position: 'relative', width: 28, height: 28, flexShrink: 0, marginTop: 2 }}>
             {pulseActive && <div className="mee-pulse-ring" />}

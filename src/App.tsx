@@ -201,6 +201,12 @@ function AppContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [icebreakerOrigin, setTripMode]);
 
+  const handleGoHome = useCallback(() => {
+    if (isCalculating) return;
+    setTripMode(null);
+    setShowVoila(false);
+  }, [isCalculating, setTripMode]);
+
   const handleVoilaLockIn = useCallback(() => {
     setTripConfirmed(true);
     setShowVoila(false);
@@ -308,7 +314,7 @@ function AppContent() {
       {/* Icebreaker overlays — Four-Beat Arc, Estimate Workshop, Icebreaker Gate */}
       <IcebreakerOverlays {...icebreaker.overlayProps} />
 
-      {!tripMode && !icebreaker.arcActive && (
+      {!tripMode && !icebreaker.arcActive && !showVoila && (
         <LandingScreen
           onSelectMode={icebreaker.handleLandingSelect}
           hasSavedTrip={history.length > 0}
@@ -353,6 +359,7 @@ function AppContent() {
             onNext={goToNextStep}
             onBack={goToPrevStep}
             onReset={resetTripSession}
+            onGoHome={handleGoHome}
             markerCategories={markerCategories}
             loadingCategory={loadingCategory}
             onToggleCategory={handleToggleCategory}

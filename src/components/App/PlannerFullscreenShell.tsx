@@ -36,6 +36,7 @@ interface PlannerFullscreenShellProps {
   stepProps: React.ComponentProps<typeof PlanningStepContent>;
   // Live reflection bar (shown at Step 2+ once a calculation exists)
   liveReflection?: { summary: TripSummary; vehicle: Vehicle; settings: TripSettings } | null;
+  onGoHome?: () => void;
 }
 
 export function PlannerFullscreenShell({
@@ -62,6 +63,7 @@ export function PlannerFullscreenShell({
   calculationMessage,
   stepProps,
   liveReflection,
+  onGoHome,
 }: PlannerFullscreenShellProps) {
   return (
     <div className="absolute inset-0 z-20 pointer-events-none md:flex md:justify-center md:items-stretch md:py-6">
@@ -78,6 +80,7 @@ export function PlannerFullscreenShell({
             modeSwitcherRef={modeSwitcherRef}
             onSwitchMode={onSwitchMode}
             ghostCar={ghostCar}
+          onGoHome={onGoHome}
           />
           {planningStep >= 2 && liveReflection && (
             <LiveReflectionBar

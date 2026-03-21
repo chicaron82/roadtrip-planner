@@ -9,6 +9,7 @@
  * 💚 My Experience Engine — Voilà card rail
  */
 
+import { useRef, useState, useEffect } from 'react';
 import type { TripSummary, TripSettings } from '../../types';
 
 type DetailCard = 'itinerary' | 'snapshot';
@@ -94,6 +95,30 @@ export function VoilaCardRail({ summary, settings, onOpenDetail }: VoilaCardRail
 
   const itineraryPreview = `${summary.drivingDays} day${summary.drivingDays !== 1 ? 's' : ''} planned`;
   const gasStops = summary.gasStops ?? 0;
+  const cardCount = 3 + (gasStops > 0 ? 1 : 0);
+
+  const railRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    const el = railRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const { scrollLeft, scrollWidth, clientWidth } = el;
+      const maxScroll = scrollWidth - clientWidth;
+      if (maxScroll <= 0) return;
+      setActiveIndex(Math.round((scrollLeft / maxScroll) * (cardCount - 1)));
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [cardCount]);
+
+  const scrollToCard = (index: number) => {
+    const el = railRef.current;
+    if (!el) return;
+    const { scrollWidth, clientWidth } = el;
+    el.scrollTo({ left: (scrollWidth - clientWidth) * (index / (cardCount - 1)), behavior: 'smooth' });
+  };
 
   return (
     <div style={{ padding: '0 0 8px' }}>
@@ -109,19 +134,22 @@ export function VoilaCardRail({ summary, settings, onOpenDetail }: VoilaCardRail
         Explore your trip →
       </p>
 
-      <div style={{
-        display: 'flex',
-        gap: 10,
-        overflowX: 'auto',
-        scrollSnapType: 'x mandatory',
-        scrollPadding: '0 20px',
-        paddingLeft: 20,
-        paddingRight: 20,
-        paddingBottom: 4,
-        WebkitOverflowScrolling: 'touch',
-        msOverflowStyle: 'none',
-        scrollbarWidth: 'none',
-      }}>
+      <div
+        ref={railRef}
+        style={{
+          display: 'flex',
+          gap: 10,
+          overflowX: 'auto',
+          scrollSnapType: 'x mandatory',
+          scrollPadding: '0 20px',
+          paddingLeft: 20,
+          paddingRight: 20,
+          paddingBottom: 4,
+          WebkitOverflowScrolling: 'touch',
+          msOverflowStyle: 'none',
+          scrollbarWidth: 'none',
+        }}
+      >
         {/* Budget — Tier A */}
         <Card
           label="Budget"
@@ -156,6 +184,27 @@ export function VoilaCardRail({ summary, settings, onOpenDetail }: VoilaCardRail
           sub="Pace · fuel · rooms"
           onClick={() => onOpenDetail('snapshot')}
         />
+      </div>
+
+      {/* Dot indicators — clickable on desktop, update on swipe */}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 12 }}>
+        {Array.from({ length: cardCount }).map((_, i) => (
+          <button
+            key={i}
+            onClick={() => scrollToCard(i)}
+            style={{
+              width: i === activeIndex ? 16 : 6,
+              height: 6,
+              borderRadius: 3,
+              background: i === activeIndex ? 'rgba(234, 88, 12, 0.8)' : 'rgba(245, 240, 232, 0.2)',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0,
+              transition: 'all 200ms ease',
+            }}
+            aria-label={`Go to card ${i + 1}`}
+          />
+        ))}
       </div>
     </div>
   );
