@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useLayoutEffect, useEffect, useMemo, lazy, Suspense } from 'react';
+import { useRef, useState, useCallback, useLayoutEffect, useMemo, lazy, Suspense } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { TripSummaryCard } from './components/Trip/TripSummary';
 import { RouteStrategyPicker } from './components/Trip/RouteStrategyPicker';
@@ -13,12 +13,11 @@ import { TripProvider, useTimeline, useTripCore, PlannerProvider } from './conte
 import {
   useWizard, useTripCalculation, useJournal, usePOI, useEagerRoute, useAddedStops,
   useStylePreset, useTripMode, useTripLoader, useMapInteractions, useURLHydration,
-  usePlanningStepProps, useAppReset, useCalculateAndDiscover, useMapProps, useGhostCar,
-  useAppCallbacks, useTripRestore, useArrivalSnap, useCalculationMessages, useBackButtonGuard,
+  usePlanningStepProps, useCalculateAndDiscover, useMapProps, useGhostCar,
+  useAppCallbacks, useArrivalSnap, useCalculationMessages, useBackButtonGuard,
 } from './hooks';
-import { getHistory, saveActiveSession } from './lib/storage';
+import { useSessionLifecycle, useVoilaFlow } from './hooks/session';
 import { getWeightedFuelEconomyL100km } from './lib/unit-conversions';
-import type { HistoryTripSnapshot } from './types';
 
 const Map = lazy(() => import('./components/Map/Map').then(m => ({ default: m.Map })));
 
@@ -33,10 +32,7 @@ function AppContent() {
   const onCalcCompleteRef = useRef<() => void>(() => {});
   const [tripConfirmed, setTripConfirmed] = useState(false);
   const [mapRevealed, setMapRevealed] = useState(false);
-  const [history] = useState<HistoryTripSnapshot[]>(() => getHistory());
   const [adventurePreview, setAdventurePreview] = useState<{ lat: number; lng: number; radiusKm: number } | null>(null);
-  const [showVoila, setShowVoila] = useState(false);
-  const [flyoverActive, setFlyoverActive] = useState(false);
 
   const {
     tripMode, setTripMode,
@@ -70,6 +66,13 @@ function AppContent() {
   const { addedStops, addedPOIIds, addStop, clearStops, asSuggestedStops, mirroredReturnStops } =
     useAddedStops(summary, settings);
 
+  // Stable reference — spread syntax creates a new array every render, which would
+  // cause the rebuildCanonicalWithExternals effect to loop infinitely.
+  const externalStops = useMemo(
+    () => [...asSuggestedStops, ...mirroredReturnStops],
+    [asSuggestedStops, mirroredReturnStops],
+  );
+
   // ── L2: Calculation ───────────────────────────────────────────────────────
   const {
     isCalculating, error: calcError, shareUrl,
@@ -81,7 +84,7 @@ function AppContent() {
   } = useTripCalculation({
     locations, vehicle, settings,
     onCalculationComplete: () => onCalcCompleteRef.current(),
-    externalStops: [...asSuggestedStops, ...mirroredReturnStops],
+    externalStops,
   });
 
   const { calculateAndDiscover } = useCalculateAndDiscover({
@@ -95,14 +98,6 @@ function AppContent() {
     markStepComplete, resetWizard,
   } = useWizard({ locations, vehicle, onCalculate: calculateAndDiscover });
 
-  useLayoutEffect(() => {
-    onCalcCompleteRef.current = () => {
-      if (icebreaker.onCalcComplete()) return;
-      // Classic wizard path: trigger Flyover → VoilaScreen
-      markStepComplete(1); markStepComplete(2);
-      setFlyoverActive(true);
-    };
-  });
   // ── Trip loading & cross-cutting ─────────────────────────────────────────
   const {
     activeChallenge, tripOrigin,
@@ -153,47 +148,20 @@ function AppContent() {
 
 
   // ── Session / lifecycle ───────────────────────────────────────────────────
-  const { resetTripSession, selectTripMode } = useAppReset({
-    setLocations, resetPOIs, resetWizard, clearStops, clearTripCalculation,
-    setActiveChallenge, setTripOrigin, setTripConfirmed, setTripMode, setShowAdventureMode,
-    clearJournal,
-  });
-
-  const { restoreHistoryTripSession } = useTripRestore({
-    setLocations, setSettings, setTripConfirmed, setTripMode, calculateAndDiscover, forceStep, markStepComplete,
+  const { history, hasActiveSession, lastDestination, resetTripSession, selectTripMode, restoreHistoryTripSession } = useSessionLifecycle({
+    locations, settings, tripConfirmed,
+    setLocations, setSettings, setTripConfirmed, setTripMode, setShowAdventureMode,
+    setActiveChallenge, setTripOrigin, resetPOIs, resetWizard, clearStops, clearTripCalculation, clearJournal,
+    calculateAndDiscover, forceStep, markStepComplete,
   });
 
   const calculationMessage = useCalculationMessages(isCalculating, locations, icebreakerOrigin);
 
-  // ── VoilaScreen callbacks ─────────────────────────────────────────────────
-  const handleShowVoila = useCallback(() => setShowVoila(true), []);
-
-  const handleFlyoverComplete = useCallback(() => {
-    setFlyoverActive(false);
-    setShowVoila(true);
-  }, []);
-
-  const handleVoilaEdit = useCallback(() => {
-    setShowVoila(false);
-    setTripConfirmed(false); // trip is no longer confirmed — prevents ghost car re-activating during edit
-    if (icebreakerOrigin) setTripMode('plan');
-    goToStep(2);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [icebreakerOrigin, setTripMode, setTripConfirmed]);
-
-  const handleGoHome = useCallback(() => {
-    if (isCalculating) return;
-    setTripMode(null);
-    setShowVoila(false);
-  }, [isCalculating, setTripMode]);
-
-  const handleVoilaLockIn = useCallback(() => {
-    setTripConfirmed(true);
-    setShowVoila(false);
-    if (icebreakerOrigin) setTripMode('plan');
-    forceStep(3);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [icebreakerOrigin, setTripMode, forceStep, setTripConfirmed]);
+  // ── Voila Flow (CEO of post-calculation reveal) ───────────────────────────
+  const {
+    showVoila, flyoverActive, triggerFlyover,
+    handleShowVoila, handleFlyoverComplete, handleVoilaEdit, handleVoilaLockIn, handleGoHome,
+  } = useVoilaFlow({ icebreakerOrigin, isCalculating, setTripMode, goToStep, forceStep, setTripConfirmed });
 
   // ── Icebreaker orchestrator (Four-Beat Arc + icebreaker gate + estimate workshop) ──
   const icebreaker = useIcebreakerOrchestrator({
@@ -202,6 +170,15 @@ function AppContent() {
     tripMode, setTripMode, selectTripMode, setShowAdventureMode,
     calculateAndDiscover, isCalculating, summary, calculationMessage,
     setAdventurePreview, onShowVoila: handleShowVoila, customTitle, setCustomTitle,
+  });
+
+  useLayoutEffect(() => {
+    onCalcCompleteRef.current = () => {
+      if (icebreaker.onCalcComplete()) return;
+      // Classic wizard path: trigger Flyover → VoilaScreen
+      markStepComplete(1); markStepComplete(2);
+      triggerFlyover();
+    };
   });
 
   // ── Android back button guard ─────────────────────────────────────────────
@@ -219,18 +196,7 @@ function AppContent() {
   const backGuardActive = !!(tripMode || icebreaker.arcActive);
   useBackButtonGuard(backGuardActive, handleBackPress);
 
-  // Save active session to localStorage whenever the trip is confirmed and locations are valid.
-  // Cleared automatically by resetTripSession (Plan New Trip).
-  useEffect(() => {
-    if (!tripConfirmed || !locations.some(l => l.lat !== 0)) return;
-    saveActiveSession(locations, settings);
-  }, [tripConfirmed, locations, settings]);
 
-  const hasActiveSession = locations.some(loc => loc.name && loc.name.trim() !== '');
-  const lastDestination = (() => {
-    const locs = history[0]?.locations;
-    return locs && locs.length > 0 ? locs[locs.length - 1].name : undefined;
-  })();
 
   // ── Derived props ─────────────────────────────────────────────────────────
   const mapProps = useMapProps({
@@ -253,7 +219,7 @@ function AppContent() {
     viewMode, setViewMode, activeJournal, isJournalComplete, showCompleteOverlay, startJournal, updateActiveJournal, confirmJournalComplete: confirmComplete,
     tripConfirmed, setTripConfirmed, history,
     addedStopCount: addedStops.length,
-    externalStops: [...asSuggestedStops, ...mirroredReturnStops],
+    externalStops,
     shareUrl, showOvernightPrompt, suggestedOvernightStop, dismissOvernightPrompt,
     updateStopType,
     poiSuggestions, poiInference, isLoadingPOIs, poiPartialResults, poiFetchFailed, addPOI, addStop, dismissPOI,
