@@ -22,7 +22,7 @@ import { TripDNAStrand } from './TripDNAStrand';
 
 interface PlanIcebreakerProps {
   onComplete: (prefill: IcebreakerPrefill) => void;
-  onEscape: (saveAsClassic?: boolean) => void;
+  onEscape: (saveAsClassic?: boolean, prefillLocations?: Location[]) => void;
 }
 
 const MIN_TRAVELERS = 1;
@@ -93,6 +93,16 @@ export function PlanIcebreaker({ onComplete, onEscape }: PlanIcebreakerProps) {
     });
   };
 
+  // Snapshot any entered origin/destination and pass them through the escape path
+  // so the classic wizard can prefill them instead of opening blank.
+  const handleEscape = (saveAsClassic?: boolean) => {
+    const snapshot: Location[] = [
+      ...(origin?.lat && origin.lat !== 0 ? [{ ...origin, type: 'origin' as const } as Location] : []),
+      ...(stop?.lat ? [{ ...stop, type: 'waypoint' as const } as Location] : []),
+      ...(destination?.lat && destination.lat !== 0 ? [{ ...destination, type: 'destination' as const } as Location] : []),
+    ];
+    onEscape(saveAsClassic, snapshot.length > 0 ? snapshot : undefined);
+  };
 
   const stepperRow = (label: string, value: number, onDec: () => void, onInc: () => void) => (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -118,7 +128,7 @@ export function PlanIcebreaker({ onComplete, onEscape }: PlanIcebreakerProps) {
           key={1}
           question="Where is your MEE time?"
           isExiting={isExiting}
-          onEscape={() => onEscape()}
+          onEscape={handleEscape}
         >
           <LocationSearchInput
             value={origin?.name ?? ''}
@@ -164,7 +174,7 @@ export function PlanIcebreaker({ onComplete, onEscape }: PlanIcebreakerProps) {
           question="When is your MEE time?"
           isExiting={isExiting}
           onBack={goBack}
-          onEscape={() => onEscape()}
+          onEscape={handleEscape}
         >
           <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
             <DateRangePicker
@@ -197,7 +207,7 @@ export function PlanIcebreaker({ onComplete, onEscape }: PlanIcebreakerProps) {
           question="Who's coming?"
           isExiting={isExiting}
           onBack={goBack}
-          onEscape={() => onEscape()}
+          onEscape={handleEscape}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {stepperRow('Travellers', numTravelers,
@@ -216,7 +226,7 @@ export function PlanIcebreaker({ onComplete, onEscape }: PlanIcebreakerProps) {
             Let's build this →
           </button>
           <button
-            onClick={() => onEscape(true)}
+            onClick={() => handleEscape(true)}
             style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: 'rgba(245,240,232,0.35)', fontSize: '12px', cursor: 'pointer', padding: 0 }}
           >
             Always use classic planner →

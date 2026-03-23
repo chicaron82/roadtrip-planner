@@ -19,7 +19,12 @@
 import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import type { TripSummary, TripSettings, Location } from '../../types';
+import { type TimedEvent } from '../../lib/trip-timeline';
+import type { PrintInput } from '../../lib/canonical-trip';
+import type { FeasibilityResult } from '../../lib/feasibility';
 import { buildSeededTitle } from '../../lib/trip-title-seeds';
+import { FeasibilityBanner } from '../Trip/Health/FeasibilityBanner';
+import { printTrip } from '../Trip/StepHelpers/TripPrintView';
 import { VoilaHero } from './VoilaHero';
 import { VoilaDashboard } from './VoilaDashboard';
 import { VoilaCardRail } from './VoilaCardRail';
@@ -34,14 +39,19 @@ interface VoilaScreenProps {
   settings: TripSettings;
   locations: Location[];
   customTitle?: string | null;
+  printInput?: PrintInput;
+  precomputedEvents?: TimedEvent[];
+  feasibility?: FeasibilityResult;
   onEditTrip: () => void;
   onLockIn: () => void;
   onShare: () => void;
+  onViewFullDetails?: () => void;
 }
 
 export function VoilaScreen({
   summary, settings, locations, customTitle,
-  onEditTrip, onLockIn, onShare,
+  printInput, precomputedEvents, feasibility,
+  onEditTrip, onLockIn, onShare, onViewFullDetails,
 }: VoilaScreenProps) {
   const [activeDetail, setActiveDetail] = useState<DetailCard | null>(null);
   const [lockInActive, setLockInActive] = useState(false);
@@ -105,19 +115,24 @@ export function VoilaScreen({
           flexShrink: 0,
         }}>
           <button
-            onClick={onEditTrip}
+            onClick={() => {
+              if (printInput && precomputedEvents?.length) {
+                printTrip({ printInput, precomputedEvents });
+              }
+            }}
+            disabled={!printInput || !precomputedEvents?.length}
             style={{
               background: 'rgba(245, 240, 232, 0.06)',
               border: '1px solid rgba(245, 240, 232, 0.1)',
               borderRadius: 100,
               padding: '6px 14px',
-              color: 'rgba(245, 240, 232, 0.7)',
+              color: printInput && precomputedEvents?.length ? 'rgba(245, 240, 232, 0.7)' : 'rgba(245, 240, 232, 0.25)',
               fontFamily: '"DM Sans", system-ui, sans-serif',
               fontSize: 13,
-              cursor: 'pointer',
+              cursor: printInput && precomputedEvents?.length ? 'pointer' : 'default',
             }}
           >
-            Edit Trip
+            Print
           </button>
 
           <p style={{
@@ -169,6 +184,21 @@ export function VoilaScreen({
             <VoilaDashboard summary={summary} settings={settings} />
           </motion.div>
 
+          {feasibility && feasibility.warnings.some(w => w.severity === 'critical' || w.severity === 'warning') && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, ease: 'easeOut', delay: 0.35 }}
+              style={{ padding: '0 16px' }}
+            >
+              <FeasibilityBanner
+                result={feasibility}
+                numTravelers={settings.numTravelers}
+                defaultCollapsed={false}
+              />
+            </motion.div>
+          )}
+
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -180,6 +210,39 @@ export function VoilaScreen({
               onOpenDetail={setActiveDetail}
             />
           </motion.div>
+
+          {onViewFullDetails && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3, ease: 'easeOut', delay: 0.7 }}
+              style={{ textAlign: 'center', padding: '8px 16px 20px' }}
+            >
+              <p style={{
+                fontFamily: '"DM Sans", system-ui, sans-serif',
+                fontSize: 12,
+                color: 'rgba(245, 240, 232, 0.3)',
+                margin: '0 0 4px',
+              }}>
+                Want the full breakdown?
+              </p>
+              <button
+                onClick={onViewFullDetails}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'rgba(245, 240, 232, 0.45)',
+                  fontFamily: '"DM Sans", system-ui, sans-serif',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  padding: 0,
+                  textDecoration: 'underline',
+                }}
+              >
+                See complete trip details →
+              </button>
+            </motion.div>
+          )}
         </div>
 
         {/* Sticky bottom bar — always visible */}

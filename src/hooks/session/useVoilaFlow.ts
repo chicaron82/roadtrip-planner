@@ -52,9 +52,16 @@ export function useVoilaFlow({
   const handleVoilaLockIn = useCallback(() => {
     setTripConfirmed(true);
     setShowVoila(false);
+    // Stay on the map. The Voilà WAS the results screen.
+    // Icebreaker path: stay in map-native experience.
+    // Classic path: map activates with ghost car, trip confirmed state.
     if (icebreakerOrigin) setTripMode('plan');
+  }, [icebreakerOrigin, setTripMode, setTripConfirmed]);
+
+  const handleViewFullDetails = useCallback(() => {
+    setShowVoila(false);
     forceStep(3);
-  }, [icebreakerOrigin, setTripMode, forceStep, setTripConfirmed]);
+  }, [forceStep]);
 
   return {
     showVoila,
@@ -65,6 +72,7 @@ export function useVoilaFlow({
     handleFlyoverComplete,
     handleVoilaEdit,
     handleVoilaLockIn,
+    handleViewFullDetails,
     handleGoHome,
     handleOpenShareScreen,
     handleCloseShareScreen,

@@ -7,7 +7,8 @@
  *
  * IMPORTANT: On completion we use setTripMode directly (not selectTripMode).
  * selectTripMode resets everything first — that would wipe the icebreaker prefill.
- * selectTripMode is reserved for the escape path, where a clean slate is correct.
+ * selectTripMode is reserved for the escape path, where it resets the session.
+ * When prefillLocations are provided on escape, they are re-applied after the reset.
  *
  * 💚 My Experience Engine
  */
@@ -101,13 +102,18 @@ export function useIcebreakerGate({
     }
   }, [setTripMode, setShowAdventureMode, setLocations, setVehicle, setSettings, markStepComplete, forceStep, onFourBeatArc]);
 
-  /** Called when user hits escape hatch — optionally saves classic preference. */
-  const handleIcebreakerEscape = useCallback((mode: TripMode, saveAsClassic = false) => {
+  /** Called when user hits escape hatch — optionally saves classic preference.
+   *  Pass prefillLocations to carry entered origin/destination into the classic wizard. */
+  const handleIcebreakerEscape = useCallback((mode: TripMode, saveAsClassic = false, prefillLocations?: Location[]) => {
     if (saveAsClassic) saveEntryPreference('classic');
     setIcebreakerMode(null);
-    // Escape = full reset + mode select (same as classic flow)
+    // Escape = full reset + mode select (same as classic flow).
     selectTripMode(mode === 'estimate' ? 'plan' : mode);
-  }, [selectTripMode]);
+    // Re-apply any locations the user entered before the reset wiped them.
+    if (prefillLocations && prefillLocations.some(l => l.name?.trim())) {
+      setLocations(prefillLocations);
+    }
+  }, [selectTripMode, setLocations]);
 
   /** Estimate Workshop: user commits — apply any setting overrides then open wizard. */
   const handleEstimateWorkshopCommit = useCallback((settingsOverride: Partial<TripSettings>) => {

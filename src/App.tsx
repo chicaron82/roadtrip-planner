@@ -1,11 +1,12 @@
-import { useRef, useState, useCallback, useLayoutEffect, useMemo, lazy, Suspense } from 'react';
+import { useRef, useState, useLayoutEffect, lazy, Suspense } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { TripSummaryCard } from './components/Trip/TripSummary';
 import { RouteStrategyPicker } from './components/Trip/RouteStrategyPicker';
 import { ErrorFallback } from './components/UI/ErrorFallback';
 import { AdventureMode } from './components/Trip/Adventure/AdventureMode';
 import { LandingScreen } from './components/Landing/LandingScreen';
-import { useIcebreakerOrchestrator, IcebreakerOverlays } from './components/Icebreaker/IcebreakerOrchestrator';
+import { useIcebreakerOrchestrator } from './components/Icebreaker/IcebreakerOrchestrator';
+import { IcebreakerOverlays } from './components/Icebreaker/IcebreakerOverlays';
 import { PlannerFullscreenShell } from './components/App/PlannerFullscreenShell';
 import { VoilaScreen } from './components/Voila/VoilaScreen';
 import { MakeMEETimeScreen } from './components/Trip/Sharing/MakeMEETimeScreen';
@@ -16,9 +17,9 @@ import {
   useWizard, useTripCalculation, useJournal, usePOI, useEagerRoute, useAddedStops,
   useStylePreset, useTripMode, useTripLoader, useMapInteractions, useURLHydration,
   usePlanningStepProps, useCalculateAndDiscover, useMapProps, useGhostCar,
-  useAppCallbacks, useArrivalSnap, useCalculationMessages, useBackButtonGuard,
+  useAppCallbacks, useArrivalSnap, useCalculationMessages,
 } from './hooks';
-import { useSessionLifecycle, useVoilaFlow } from './hooks/session';
+import { useSessionLifecycle, useVoilaFlow, useAppTemplateHandlers, useAppBackPress } from './hooks/session';
 import { getWeightedFuelEconomyL100km } from './lib/unit-conversions';
 
 const Map = lazy(() => import('./components/Map/Map').then(m => ({ default: m.Map })));
@@ -65,15 +66,8 @@ function AppContent() {
     roundTripMidpoint: summary?.roundTripMidpoint,
   });
 
-  const { addedStops, addedPOIIds, addStop, clearStops, asSuggestedStops, mirroredReturnStops } =
+  const { addedStops, addedPOIIds, addStop, clearStops, asSuggestedStops, externalStops } =
     useAddedStops(summary, settings);
-
-  // Stable reference — spread syntax creates a new array every render, which would
-  // cause the rebuildCanonicalWithExternals effect to loop infinitely.
-  const externalStops = useMemo(
-    () => [...asSuggestedStops, ...mirroredReturnStops],
-    [asSuggestedStops, mirroredReturnStops],
-  );
 
   // ── L2: Calculation ───────────────────────────────────────────────────────
   const {
@@ -164,7 +158,7 @@ function AppContent() {
   // ── Voila Flow (CEO of post-calculation reveal) ───────────────────────────
   const {
     showVoila, flyoverActive, showShareScreen, triggerFlyover,
-    handleShowVoila, handleFlyoverComplete, handleVoilaEdit, handleVoilaLockIn, handleGoHome,
+    handleShowVoila, handleFlyoverComplete, handleVoilaEdit, handleVoilaLockIn, handleViewFullDetails, handleGoHome,
     handleOpenShareScreen, handleCloseShareScreen,
   } = useVoilaFlow({ icebreakerOrigin, isCalculating, setTripMode, goToStep, forceStep, setTripConfirmed });
 
@@ -187,19 +181,7 @@ function AppContent() {
   });
 
   // ── Android back button guard ─────────────────────────────────────────────
-  const handleBackPress = useCallback(() => {
-    // 1. Journal active — exit to plan view
-    if (activeJournal && viewMode === 'journal') { setViewMode('plan'); return; }
-    // 2. Arc / icebreaker — delegate to orchestrator (it knows beat state)
-    if (icebreaker.arcActive) { icebreaker.handleBack(); return; }
-    // 3. Wizard steps
-    if (tripMode && planningStep === 3) { goToStep(2); return; }
-    if (tripMode && planningStep === 2) { goToStep(1); return; }
-    // 4. Already at root — do nothing
-  }, [activeJournal, viewMode, setViewMode, icebreaker, tripMode, planningStep, goToStep]);
-
-  const backGuardActive = !!(tripMode || icebreaker.arcActive);
-  useBackButtonGuard(backGuardActive, handleBackPress);
+  useAppBackPress({ activeJournal, viewMode, setViewMode, icebreaker, tripMode, planningStep, goToStep });
 
 
 
@@ -214,18 +196,9 @@ function AppContent() {
 
   const canProceed = planningStep === 1 ? canProceedFromStep1 : canProceedFromStep2;
 
-  const handleBuildFromTemplate = useCallback((modified: Parameters<typeof handleImportTemplate>[0]) => {
-    handleImportTemplate(modified);
-    handleDismissPendingTemplate();
-    setTripMode('plan');
-    calculateAndDiscover();
-  }, [handleImportTemplate, handleDismissPendingTemplate, setTripMode, calculateAndDiscover]);
-
-  const handleOpenPlannerFromTemplate = useCallback((modified: Parameters<typeof handleImportTemplate>[0]) => {
-    handleImportTemplate(modified);
-    handleDismissPendingTemplate();
-    setTripMode('plan');
-  }, [handleImportTemplate, handleDismissPendingTemplate, setTripMode]);
+  const { handleBuildFromTemplate, handleOpenPlannerFromTemplate } = useAppTemplateHandlers({
+    handleImportTemplate, handleDismissPendingTemplate, setTripMode, calculateAndDiscover,
+  });
   const stepProps = usePlanningStepProps({
     planningStep, goToStep,
     locations, setLocations, vehicle, setVehicle, settings, setSettings,
@@ -246,12 +219,6 @@ function AppContent() {
     isCalculating,
     calculateAndDiscover,
   });
-
-  // Stable object reference for LiveReflectionBar — avoids re-creating on every parent render.
-  const liveReflection = useMemo(
-    () => summary ? { summary, vehicle, settings } : null,
-    [summary, vehicle, settings],
-  );
 
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden">
@@ -294,9 +261,13 @@ function AppContent() {
           settings={settings}
           locations={locations}
           customTitle={customTitle}
+          printInput={stepProps.step3Props.controller.commit?.printInput ?? undefined}
+          precomputedEvents={stepProps.step3Props.controller.commit?.precomputedEvents ?? undefined}
+          feasibility={stepProps.step3Props.controller.feasibility ?? undefined}
           onEditTrip={handleVoilaEdit}
           onLockIn={handleVoilaLockIn}
           onShare={handleOpenShareScreen}
+          onViewFullDetails={handleViewFullDetails}
         />
       )}
 
@@ -335,7 +306,7 @@ function AppContent() {
 
           <PlannerFullscreenShell
             onRevealChange={setMapRevealed}
-            liveReflection={liveReflection}
+            liveReflection={summary ? { summary, vehicle, settings } : null}
             stepProps={stepProps}
           />
 

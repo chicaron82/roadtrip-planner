@@ -6,7 +6,8 @@
  *
  * CRITICAL: On completion, setTripMode must be used — NOT selectTripMode.
  * selectTripMode calls resetTripSession which wipes locations (prefill destroyed).
- * selectTripMode is only correct for the escape path.
+ * selectTripMode is correct for the escape path — it resets to a clean slate.
+ * When prefillLocations are provided on escape, they are re-applied after the reset.
  *
  * 💚 My Experience Engine
  */
@@ -101,11 +102,31 @@ describe('batching trap regression', () => {
     expect(opts.setTripMode).not.toHaveBeenCalled();
   });
 
-  it('handleIcebreakerEscape does NOT apply location prefill', () => {
+  it('handleIcebreakerEscape does NOT apply locations when none provided', () => {
     const opts = makeOpts();
     const { result } = renderHook(() => useIcebreakerGate(opts));
 
     act(() => { result.current.handleIcebreakerEscape('plan'); });
+
+    expect(opts.setLocations).not.toHaveBeenCalled();
+  });
+
+  it('handleIcebreakerEscape re-applies prefillLocations after reset', () => {
+    const opts = makeOpts();
+    const { result } = renderHook(() => useIcebreakerGate(opts));
+    const prefill: Location[] = [ORIGIN, DEST];
+
+    act(() => { result.current.handleIcebreakerEscape('plan', false, prefill); });
+
+    expect(opts.selectTripMode).toHaveBeenCalledWith('plan');
+    expect(opts.setLocations).toHaveBeenCalledWith(prefill);
+  });
+
+  it('handleIcebreakerEscape does NOT call setLocations for empty prefill array', () => {
+    const opts = makeOpts();
+    const { result } = renderHook(() => useIcebreakerGate(opts));
+
+    act(() => { result.current.handleIcebreakerEscape('plan', false, []); });
 
     expect(opts.setLocations).not.toHaveBeenCalled();
   });

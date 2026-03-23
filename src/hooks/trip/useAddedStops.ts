@@ -149,6 +149,13 @@ export function useAddedStops(routeSummary?: AddedStopRouteSummary | null, setti
       });
   }, [addedStops, asSuggestedStops, routeSummary, settings, totalRouteDistanceKm]);
 
+  /** Stable merged array of user-added stops for upstream canonical pipeline consumers.
+   * Memoised here so callers don't need to merge and risk referential instability. */
+  const externalStops = useMemo(
+    () => [...asSuggestedStops, ...mirroredReturnStops],
+    [asSuggestedStops, mirroredReturnStops],
+  );
+
   return {
     addedStops,
     addedPOIIds,
@@ -157,5 +164,6 @@ export function useAddedStops(routeSummary?: AddedStopRouteSummary | null, setti
     clearStops,
     asSuggestedStops,
     mirroredReturnStops,
+    externalStops,
   };
 }

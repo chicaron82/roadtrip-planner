@@ -258,6 +258,7 @@ export function useStep3Controller({
     activeChallenge,
     tripMode,
     isJournalComplete,
+    showCompleteOverlay,
     onConfirmJournalComplete,
     onStartJournal,
     onUpdateJournal,

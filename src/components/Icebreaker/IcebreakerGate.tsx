@@ -32,7 +32,7 @@ export interface IcebreakerPrefill {
 interface IcebreakerGateProps {
   mode: TripMode;
   onComplete: (mode: TripMode, prefill: IcebreakerPrefill) => void;
-  onEscape: (mode: TripMode, saveAsClassic?: boolean) => void;
+  onEscape: (mode: TripMode, saveAsClassic?: boolean, prefillLocations?: Location[]) => void;
   /** Fires while the Adventure icebreaker is active — drives the radius circle on the map. */
   onAdventurePreviewChange?: (lat: number, lng: number, radiusKm: number) => void;
 }
@@ -57,7 +57,7 @@ export function IcebreakerGate({ mode, onComplete, onEscape, onAdventurePreviewC
         {mode === 'plan' && (
           <PlanIcebreaker
             onComplete={(prefill) => onComplete(mode, prefill)}
-            onEscape={(saveAsClassic) => onEscape(mode, saveAsClassic)}
+            onEscape={(saveAsClassic, prefillLocations) => onEscape(mode, saveAsClassic, prefillLocations)}
           />
         )}
         {mode === 'adventure' && (
