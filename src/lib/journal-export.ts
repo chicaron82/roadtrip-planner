@@ -233,7 +233,7 @@ export const DEFAULT_SHARE_OPTIONS: ShareOptions = {
   includeDates: true,
   includeTravelers: true,
   includeBudget: false,
-  includeOrigin: false,
+  includeOrigin: true,
   includeNotes: true,
 };
 
