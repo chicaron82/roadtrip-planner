@@ -12,7 +12,7 @@
  *   - onCalcComplete() (arc intercept for onCalcCompleteRef)
  */
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import type { Vehicle, TripSettings, TripSummary, TripMode, Location } from '../../types';
 import type { AdventureInitialValues } from '../../hooks';
 import type { IcebreakerPrefill } from './IcebreakerGate';
@@ -23,6 +23,8 @@ import { EstimateWorkshop } from './EstimateWorkshop';
 import { SketchCard } from './SketchCard';
 import { VoilaReveal } from './VoilaReveal';
 import { UnifiedWorkshopPanel } from '../Workshop/UnifiedWorkshopPanel';
+import { BeatProgressDots } from './BeatProgressDots';
+import { BeatTransitionCar } from './BeatTransitionCar';
 import { buildSeededTitle } from '../../lib/trip-title-seeds';
 
 // ── Props (what App.tsx passes in) ───────────────────────────────────────────
@@ -90,6 +92,22 @@ export function useIcebreakerOrchestrator(
 
   const arc = useFourBeatArc();
 
+  // Beat-transition car — tracks previous beat to detect forward advances.
+  const prevBeatRef = useRef<typeof arc.beat>(null);
+  const [transitionCar, setTransitionCar] = useState<{
+    from: 1 | 2 | 3;
+    to:   2 | 3 | 4;
+  } | null>(null);
+
+  useEffect(() => {
+    const prev = prevBeatRef.current;
+    const curr = arc.beat;
+    if (prev !== null && curr !== null && curr > prev) {
+      setTransitionCar({ from: prev as 1 | 2 | 3, to: curr as 2 | 3 | 4 });
+    }
+    prevBeatRef.current = curr;
+  }, [arc.beat]);
+
   const {
     icebreakerMode, estimateWorkshopActive, adventureInitialValues,
     handleLandingSelect, handleIcebreakerComplete, handleIcebreakerEscape,
@@ -156,6 +174,8 @@ export function useIcebreakerOrchestrator(
   const overlayProps: IcebreakerOverlayProps = {
     tripMode,
     arc,
+    transitionCar,
+    onTransitionCarComplete: useCallback(() => setTransitionCar(null), []),
     icebreakerMode,
     estimateWorkshopActive,
     vehicle,
@@ -194,6 +214,8 @@ export function useIcebreakerOrchestrator(
 interface IcebreakerOverlayProps {
   tripMode: TripMode | null;
   arc: ReturnType<typeof useFourBeatArc>;
+  transitionCar: { from: 1 | 2 | 3; to: 2 | 3 | 4 } | null;
+  onTransitionCarComplete: () => void;
   icebreakerMode: TripMode | null;
   estimateWorkshopActive: boolean;
   vehicle: Vehicle;
@@ -281,6 +303,20 @@ export function IcebreakerOverlays(p: IcebreakerOverlayProps) {
           isCalculating={p.isCalculating}
           onCommit={p.handleEstimateWorkshopCommit}
           onEscape={p.handleEstimateWorkshopEscape}
+        />
+      )}
+
+      {/* Beat progress dots — visible from Beat 2 onward */}
+      {!p.tripMode && p.arc.beat !== null && p.arc.beat > 1 && (
+        <BeatProgressDots currentBeat={p.arc.beat as 2 | 3 | 4} />
+      )}
+
+      {/* Transition car — briefly appears on each beat advance */}
+      {!p.tripMode && p.transitionCar && (
+        <BeatTransitionCar
+          fromBeat={p.transitionCar.from}
+          toBeat={p.transitionCar.to}
+          onComplete={p.onTransitionCarComplete}
         />
       )}
 
