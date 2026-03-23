@@ -206,6 +206,7 @@ describe('buildStep3CommitModel', () => {
     onSetJournalMode: vi.fn(),
     onOpenGoogleMaps: vi.fn(),
     onCopyShareLink: vi.fn(),
+    onOpenShareScreen: vi.fn(),
   };
 
   it('returns null when printInput is undefined', () => {

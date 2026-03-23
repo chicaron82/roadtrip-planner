@@ -217,6 +217,26 @@ export function exportJournalAsHTML(journal: TripJournal, summary: SegmentLookup
   });
 }
 
+// ── Share options ─────────────────────────────────────────────────────────────
+
+export interface ShareOptions {
+  includeRoute: boolean;      // required — share button disabled when false
+  includeDates: boolean;
+  includeTravelers: boolean;
+  includeBudget: boolean;
+  includeOrigin: boolean;
+  includeNotes: boolean;
+}
+
+export const DEFAULT_SHARE_OPTIONS: ShareOptions = {
+  includeRoute: true,
+  includeDates: true,
+  includeTravelers: true,
+  includeBudget: false,
+  includeOrigin: false,
+  includeNotes: true,
+};
+
 // ── Template export ───────────────────────────────────────────────────────────
 
 /**
@@ -334,16 +354,21 @@ export function exportJournalAsTemplate(journal: TripJournal, summary: JournalEx
  * prop added to this function and wired from TripBottomActions/Step3CommitSection
  * before fork lineage will work for plan-mode exports.
  */
-export function exportTripAsTemplate(printInput: PrintInput): void {
+export function exportTripAsTemplate(printInput: PrintInput, options: ShareOptions = DEFAULT_SHARE_OPTIONS): void {
   const { summary, inputs: { locations, settings, vehicle } } = printInput;
 
   const endpoints = getTripDisplayEndpoints(summary);
   const destination = endpoints.destination?.name || 'Destination';
   const tripTitle = printInput.customTitle ?? buildAutoTitle({ destination });
 
-  const origin = locations[0];
-  const dest   = locations[locations.length - 1];
+  const originLoc = locations[0];
+  const dest      = locations[locations.length - 1];
   const waypoints = locations.slice(1, -1);
+
+  // Strip origin coords if user chose not to share starting location
+  const origin = options.includeOrigin
+    ? originLoc
+    : { ...originLoc, name: '', lat: 0, lng: 0 };
 
   const template = {
     type: 'roadtrip-template' as const,
@@ -361,7 +386,7 @@ export function exportTripAsTemplate(printInput: PrintInput): void {
       totalDurationHours: (summary.totalDurationMinutes / 60).toFixed(1),
     },
 
-    ...(summary.costBreakdown ? {
+    ...(options.includeBudget && summary.costBreakdown ? {
       budget: {
         profile: settings.budget?.profile ?? 'balanced',
         totalSpent: summary.costBreakdown.total,
@@ -381,8 +406,8 @@ export function exportTripAsTemplate(printInput: PrintInput): void {
       units: settings.units,
       currency: settings.currency,
       maxDriveHours: settings.maxDriveHours,
-      numTravelers: settings.numTravelers,
-      numDrivers: settings.numDrivers,
+      ...(options.includeTravelers ? { numTravelers: settings.numTravelers, numDrivers: settings.numDrivers } : {}),
+      ...(options.includeDates ? { departureDate: settings.departureDate, returnDate: settings.returnDate } : {}),
       isRoundTrip: settings.isRoundTrip,
       avoidTolls: settings.avoidTolls,
       avoidBorders: settings.avoidBorders,

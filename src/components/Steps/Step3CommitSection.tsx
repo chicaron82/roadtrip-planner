@@ -21,6 +21,7 @@ interface Step3CommitSectionProps {
   onSetJournalMode: () => void;
   onOpenGoogleMaps: () => void;
   onCopyShareLink: () => void;
+  onOpenShareScreen: () => void;
 }
 
 export function Step3CommitSection({
@@ -39,6 +40,7 @@ export function Step3CommitSection({
   onSetJournalMode,
   onOpenGoogleMaps,
   onCopyShareLink,
+  onOpenShareScreen,
 }: Step3CommitSectionProps) {
   return (
     <>
@@ -62,6 +64,7 @@ export function Step3CommitSection({
         journal={journal}
         onOpenGoogleMaps={onOpenGoogleMaps}
         onCopyShareLink={onCopyShareLink}
+        onOpenShareScreen={onOpenShareScreen}
       />
     </>
   );

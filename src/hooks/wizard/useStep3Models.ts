@@ -103,6 +103,7 @@ export interface Step3CommitModel {
   onSetJournalMode: () => void;
   onOpenGoogleMaps: () => void;
   onCopyShareLink: () => void;
+  onOpenShareScreen: () => void;
 }
 
 interface BuildStep3HeaderModelOptions {
@@ -250,6 +251,7 @@ interface BuildStep3CommitModelOptions {
   onSetJournalMode: () => void;
   onOpenGoogleMaps: () => void;
   onCopyShareLink: () => void;
+  onOpenShareScreen: () => void;
 }
 
 export function buildStep3CommitModel({

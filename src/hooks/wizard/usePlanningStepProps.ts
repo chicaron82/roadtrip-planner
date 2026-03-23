@@ -80,6 +80,7 @@ interface UsePlanningStepPropsOptions {
   // Actions
   openInGoogleMaps: () => void;
   copyShareLink: () => void;
+  openShareScreen: () => void;
   onLoadHistoryTrip: (trip: HistoryTripSnapshot) => void;
   /** Recalculates the trip after applying a settings patch. */
   calculateAndDiscover: () => Promise<void>;
@@ -143,6 +144,7 @@ export function usePlanningStepProps(o: UsePlanningStepPropsOptions): PlanningSt
     externalStops: o.externalStops,
     onOpenGoogleMaps: o.openInGoogleMaps,
     onCopyShareLink: o.copyShareLink,
+    onOpenShareScreen: o.openShareScreen,
     isJournalComplete: o.isJournalComplete,
     showCompleteOverlay: o.showCompleteOverlay,
     onConfirmJournalComplete: o.confirmJournalComplete,

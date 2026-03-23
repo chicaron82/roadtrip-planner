@@ -56,6 +56,7 @@ export function useStep3Controller({
   externalStops,
   onOpenGoogleMaps,
   onCopyShareLink,
+  onOpenShareScreen,
   onStartJournal,
   onUpdateJournal,
   isJournalComplete,
@@ -303,6 +304,7 @@ export function useStep3Controller({
     onSetJournalMode: handleOpenJournal,
     onOpenGoogleMaps,
     onCopyShareLink,
+    onOpenShareScreen,
   }), [
     printInput,
     viewMode,
@@ -318,6 +320,7 @@ export function useStep3Controller({
     handleOpenJournal,
     onOpenGoogleMaps,
     onCopyShareLink,
+    onOpenShareScreen,
   ]);
 
   return {

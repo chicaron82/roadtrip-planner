@@ -21,6 +21,9 @@ export function useVoilaFlow({
 }: UseVoilaFlowOptions) {
   const [showVoila, setShowVoila] = useState(false);
   const [flyoverActive, setFlyoverActive] = useState(false);
+  const [showShareScreen, setShowShareScreen] = useState(false);
+  const handleOpenShareScreen  = useCallback(() => setShowShareScreen(true), []);
+  const handleCloseShareScreen = useCallback(() => setShowShareScreen(false), []);
 
   const triggerFlyover = useCallback(() => setFlyoverActive(true), []);
 
@@ -56,11 +59,14 @@ export function useVoilaFlow({
   return {
     showVoila,
     flyoverActive,
+    showShareScreen,
     triggerFlyover,
     handleShowVoila,
     handleFlyoverComplete,
     handleVoilaEdit,
     handleVoilaLockIn,
     handleGoHome,
+    handleOpenShareScreen,
+    handleCloseShareScreen,
   };
 }

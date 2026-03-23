@@ -8,6 +8,7 @@ import { LandingScreen } from './components/Landing/LandingScreen';
 import { useIcebreakerOrchestrator, IcebreakerOverlays } from './components/Icebreaker/IcebreakerOrchestrator';
 import { PlannerFullscreenShell } from './components/App/PlannerFullscreenShell';
 import { VoilaScreen } from './components/Voila/VoilaScreen';
+import { MakeMEETimeScreen } from './components/Trip/Sharing/MakeMEETimeScreen';
 import './styles/sidebar.css';
 import { TripProvider, useTimeline, useTripCore, PlannerProvider } from './contexts';
 import {
@@ -159,8 +160,9 @@ function AppContent() {
 
   // ── Voila Flow (CEO of post-calculation reveal) ───────────────────────────
   const {
-    showVoila, flyoverActive, triggerFlyover,
+    showVoila, flyoverActive, showShareScreen, triggerFlyover,
     handleShowVoila, handleFlyoverComplete, handleVoilaEdit, handleVoilaLockIn, handleGoHome,
+    handleOpenShareScreen, handleCloseShareScreen,
   } = useVoilaFlow({ icebreakerOrigin, isCalculating, setTripMode, goToStep, forceStep, setTripConfirmed });
 
   // ── Icebreaker orchestrator (Four-Beat Arc + icebreaker gate + estimate workshop) ──
@@ -223,7 +225,7 @@ function AppContent() {
     shareUrl, showOvernightPrompt, suggestedOvernightStop, dismissOvernightPrompt,
     updateStopType,
     poiSuggestions, poiInference, isLoadingPOIs, poiPartialResults, poiFetchFailed, addPOI, addStop, dismissPOI,
-    openInGoogleMaps, copyShareLink,
+    openInGoogleMaps, copyShareLink, openShareScreen: handleOpenShareScreen,
     onLoadHistoryTrip: restoreHistoryTripSession,
     precomputedEvents: canonicalTimeline?.events,
     isCalculating,
@@ -256,6 +258,14 @@ function AppContent() {
       {/* Screen priority: voila > planning > landing.
           Conditions are mutually exclusive — only one renders at a time. */}
 
+      {showShareScreen && stepProps.step3Props.controller.commit?.printInput && (
+        <MakeMEETimeScreen
+          printInput={stepProps.step3Props.controller.commit.printInput}
+          journal={activeJournal}
+          onClose={handleCloseShareScreen}
+        />
+      )}
+
       {showVoila && summary && (
         <VoilaScreen
           summary={summary}
@@ -264,7 +274,7 @@ function AppContent() {
           customTitle={customTitle}
           onEditTrip={handleVoilaEdit}
           onLockIn={handleVoilaLockIn}
-          onShare={copyShareLink}
+          onShare={handleOpenShareScreen}
         />
       )}
 
