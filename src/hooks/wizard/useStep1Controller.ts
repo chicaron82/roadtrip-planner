@@ -23,6 +23,8 @@ interface UseStep1ControllerOptions {
   locations: Location[];
   settings: TripSettings;
   onImportTemplate?: (result: TemplateImportResult) => void;
+  /** When provided, routes file loads through the preview screen instead of applying directly. */
+  onTemplateLoaded?: (result: TemplateImportResult) => void;
 }
 
 export interface SmartPreviewData {
@@ -66,6 +68,7 @@ export function useStep1Controller({
   locations,
   settings,
   onImportTemplate,
+  onTemplateLoaded,
 }: UseStep1ControllerOptions): UseStep1ControllerReturn {
   const [openEndedDismissed, setOpenEndedDismissed] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -134,7 +137,7 @@ export function useStep1Controller({
     reader.onload = () => {
       try {
         const result = parseSharedTemplate(reader.result as string);
-        onImportTemplate?.(result);
+        (onTemplateLoaded ?? onImportTemplate)?.(result);
         showToast({
           message: `MEE time loaded — "${result.meta.title}" by ${result.meta.author}!`,
           type: 'success',
@@ -151,7 +154,7 @@ export function useStep1Controller({
     reader.readAsText(file);
     // Reset so same file can be re-imported
     e.target.value = '';
-  }, [onImportTemplate]);
+  }, [onImportTemplate, onTemplateLoaded]);
 
   return {
     openEndedDismissed,

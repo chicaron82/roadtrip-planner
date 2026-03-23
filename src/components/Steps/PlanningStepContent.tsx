@@ -23,6 +23,7 @@ interface PlanningStepContentProps {
   // Step 1
   onShowAdventure: () => void;
   onImportTemplate: (r: TemplateImportResult) => void;
+  onTemplateLoaded?: (r: TemplateImportResult) => void;
   templateRecommendations?: TemplateImportResult['meta']['recommendations'];
   // Step 2
   activePreset: StylePreset;
@@ -42,6 +43,7 @@ export function PlanningStepContent(p: PlanningStepContentProps) {
         tripMode={p.tripMode}
         onShowAdventure={p.onShowAdventure}
         onImportTemplate={p.onImportTemplate}
+        onTemplateLoaded={p.onTemplateLoaded}
         templateRecommendations={p.templateRecommendations}
       />
     );

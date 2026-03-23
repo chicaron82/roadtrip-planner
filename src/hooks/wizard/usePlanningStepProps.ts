@@ -34,6 +34,7 @@ interface UsePlanningStepPropsOptions {
   setShowAdventureMode: (v: boolean) => void;
   // Trip loader
   handleImportTemplate: (r: TemplateImportResult) => void;
+  handleTemplateLoaded?: (r: TemplateImportResult) => void;
   handleSelectChallenge: (c: TripChallenge) => void;
   activeChallenge: TripChallenge | null;
   templateRecommendations?: TemplateImportResult['meta']['recommendations'];
@@ -170,6 +171,7 @@ export function usePlanningStepProps(o: UsePlanningStepPropsOptions): PlanningSt
     tripMode: o.tripMode,
     onShowAdventure,
     onImportTemplate: o.handleImportTemplate,
+    onTemplateLoaded: o.handleTemplateLoaded,
     templateRecommendations: o.templateRecommendations,
     activePreset: o.activePreset,
     presetOptions: o.presetOptions,

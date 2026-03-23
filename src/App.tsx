@@ -9,6 +9,7 @@ import { useIcebreakerOrchestrator, IcebreakerOverlays } from './components/Iceb
 import { PlannerFullscreenShell } from './components/App/PlannerFullscreenShell';
 import { VoilaScreen } from './components/Voila/VoilaScreen';
 import { MakeMEETimeScreen } from './components/Trip/Sharing/MakeMEETimeScreen';
+import { YourMEETimePreview } from './components/Trip/Sharing/YourMEETimePreview';
 import './styles/sidebar.css';
 import { TripProvider, useTimeline, useTripCore, PlannerProvider } from './contexts';
 import {
@@ -103,8 +104,10 @@ function AppContent() {
   const {
     activeChallenge, tripOrigin,
     templateRecommendations,
+    pendingTemplate,
     setActiveChallenge, setTripOrigin,
-    handleImportTemplate, handleSelectChallenge, handleAdventureSelect,
+    handleImportTemplate, handleTemplateLoaded, handleDismissPendingTemplate,
+    handleSelectChallenge, handleAdventureSelect,
   } = useTripLoader({
     setLocations, setVehicle, setSettings, setTripMode,
     markStepComplete, forceStep, goToStep,
@@ -211,12 +214,24 @@ function AppContent() {
 
   const canProceed = planningStep === 1 ? canProceedFromStep1 : canProceedFromStep2;
 
+  const handleBuildFromTemplate = useCallback((modified: Parameters<typeof handleImportTemplate>[0]) => {
+    handleImportTemplate(modified);
+    handleDismissPendingTemplate();
+    setTripMode('plan');
+    calculateAndDiscover();
+  }, [handleImportTemplate, handleDismissPendingTemplate, setTripMode, calculateAndDiscover]);
+
+  const handleOpenPlannerFromTemplate = useCallback((modified: Parameters<typeof handleImportTemplate>[0]) => {
+    handleImportTemplate(modified);
+    handleDismissPendingTemplate();
+    setTripMode('plan');
+  }, [handleImportTemplate, handleDismissPendingTemplate, setTripMode]);
   const stepProps = usePlanningStepProps({
     planningStep, goToStep,
     locations, setLocations, vehicle, setVehicle, settings, setSettings,
     summary, tripMode: tripMode ?? 'plan',
     setShowAdventureMode,
-    handleImportTemplate, handleSelectChallenge, activeChallenge, templateRecommendations,
+    handleImportTemplate, handleTemplateLoaded, handleSelectChallenge, activeChallenge, templateRecommendations,
     activePreset, presetOptions, handlePresetChange, handleSharePreset, shareJustCopied,
     viewMode, setViewMode, activeJournal, isJournalComplete, showCompleteOverlay, startJournal, updateActiveJournal, confirmJournalComplete: confirmComplete,
     tripConfirmed, setTripConfirmed, history,
@@ -255,8 +270,15 @@ function AppContent() {
       {/* Icebreaker overlays — Four-Beat Arc, Estimate Workshop, Icebreaker Gate */}
       <IcebreakerOverlays {...icebreaker.overlayProps} />
 
-      {/* Screen priority: voila > planning > landing.
-          Conditions are mutually exclusive — only one renders at a time. */}
+      {/* Screen priority: voila > yourMEETimePreview > planning > landing. */}
+      {pendingTemplate && !showVoila && (
+        <YourMEETimePreview
+          template={pendingTemplate}
+          onBuild={handleBuildFromTemplate}
+          onOpenInPlanner={handleOpenPlannerFromTemplate}
+          onDismiss={handleDismissPendingTemplate}
+        />
+      )}
 
       {showShareScreen && stepProps.step3Props.controller.commit?.printInput && (
         <MakeMEETimeScreen

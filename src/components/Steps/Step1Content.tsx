@@ -29,6 +29,7 @@ interface Step1ContentProps {
   tripMode: TripMode;
   onShowAdventure: () => void;
   onImportTemplate?: (result: TemplateImportResult) => void;
+  onTemplateLoaded?: (result: TemplateImportResult) => void;
   templateRecommendations?: TemplateImportResult['meta']['recommendations'];
 }
 
@@ -40,6 +41,7 @@ export function Step1Content({
   tripMode,
   onShowAdventure,
   onImportTemplate,
+  onTemplateLoaded,
   templateRecommendations,
 }: Step1ContentProps) {
   const { customTitle, setCustomTitle } = useTripCore();
@@ -49,7 +51,7 @@ export function Step1Content({
     origin, lastDest,
     targetArrivalLabel, smartPreview,
     fileInputRef, handleImportFile,
-  } = useStep1Controller({ locations, settings, onImportTemplate });
+  } = useStep1Controller({ locations, settings, onImportTemplate, onTemplateLoaded });
 
   const autoTitle = lastDest?.name
     ? buildAutoTitle({ destination: lastDest.name })

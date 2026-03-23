@@ -9,6 +9,8 @@ export interface SharedTemplate {
   version: string;
   /** Stable identifier for this template — used to build fork lineage. */
   id?: string;
+  /** ISO timestamp of when this template was created — used for freshness signal. */
+  createdAt?: string;
   /** Ordered list of ancestor template IDs, oldest first.
    *  e.g. ['original-id', 'fork1-id'] means this is a 2nd-generation fork. */
   lineage?: string[];
@@ -59,6 +61,8 @@ export interface TemplateImportResult {
     templateId?: string;
     /** Lineage of the loaded template (oldest ancestor first). */
     lineage?: string[];
+    /** ISO timestamp from the original export — used for freshness signal. */
+    createdAt?: string;
   };
 }
 
@@ -169,6 +173,7 @@ export function parseSharedTemplate(json: string): TemplateImportResult {
       recommendations: data.recommendations,
       templateId: data.id,
       lineage: data.lineage,
+      createdAt: data.createdAt,
     },
   };
 }

@@ -35,9 +35,15 @@ interface UseTripLoaderReturn {
   activeChallenge: TripChallenge | null;
   tripOrigin: TripOrigin | null;
   templateRecommendations: TemplateImportResult['meta']['recommendations'];
+  /** Template loaded from file but not yet applied — waiting for preview screen. */
+  pendingTemplate: TemplateImportResult | null;
   setActiveChallenge: (challenge: TripChallenge | null) => void;
   setTripOrigin: (origin: TripOrigin | null) => void;
   handleImportTemplate: (result: TemplateImportResult) => void;
+  /** Sets pendingTemplate — routes file loads through the preview screen. */
+  handleTemplateLoaded: (result: TemplateImportResult) => void;
+  /** Clears pendingTemplate without applying — user dismissed the preview. */
+  handleDismissPendingTemplate: () => void;
   handleSelectChallenge: (challenge: TripChallenge) => void;
   handleAdventureSelect: (selection: AdventureSelection) => void;
 }
@@ -55,6 +61,15 @@ export function useTripLoader({
   const [activeChallenge, setActiveChallenge] = useState<TripChallenge | null>(null);
   const [tripOrigin, setTripOrigin] = useState<TripOrigin | null>(null);
   const [templateRecommendations, setTemplateRecommendations] = useState<TemplateImportResult['meta']['recommendations']>(undefined);
+  const [pendingTemplate, setPendingTemplate] = useState<TemplateImportResult | null>(null);
+
+  const handleTemplateLoaded = useCallback((result: TemplateImportResult) => {
+    setPendingTemplate(result);
+  }, []);
+
+  const handleDismissPendingTemplate = useCallback(() => {
+    setPendingTemplate(null);
+  }, []);
 
   const handleImportTemplate = useCallback((result: TemplateImportResult) => {
     if (result.locations.length > 0) setLocations(result.locations);
@@ -160,9 +175,12 @@ export function useTripLoader({
     activeChallenge,
     tripOrigin,
     templateRecommendations,
+    pendingTemplate,
     setActiveChallenge,
     setTripOrigin,
     handleImportTemplate,
+    handleTemplateLoaded,
+    handleDismissPendingTemplate,
     handleSelectChallenge,
     handleAdventureSelect,
   };
