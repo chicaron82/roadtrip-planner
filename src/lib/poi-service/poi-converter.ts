@@ -74,6 +74,7 @@ export function determineCategoryFromTags(tags: Record<string, string>): POISugg
   if (tags.amenity === 'restaurant') return 'restaurant';
   if (tags.amenity === 'cafe') return 'cafe';
   if (tags.amenity === 'fuel') return 'gas';
+  if (tags.amenity === 'charging_station') return 'charge';
   if (tags.shop) return 'shopping';
   if (tags.leisure === 'amusement_arcade' || tags.amenity === 'cinema') return 'entertainment';
 

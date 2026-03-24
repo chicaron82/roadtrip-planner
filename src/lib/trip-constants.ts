@@ -153,4 +153,26 @@ export const TRIP_CONSTANTS = {
     full: 0.98,
   },
 
+  /**
+   * EV-specific constants for charging and range math.
+   */
+  ev: {
+    /** Default starting charge assumption (80% standard Tesla recommendation). */
+    defaultStartPercent: 0.80,
+    /** Maximum charge limit for en-route Supercharger stops. Above this, charging slows dramatically. */
+    chargeToLimit: 0.80,
+    /** Flat estimated cost per kWh at Canadian Superchargers (CAD). */
+    flatKwhCost: 0.45,
+    /** Charge levels used by the stop simulation engine. More conservative than ICE. */
+    chargeLevels: {
+      critical: 0.20, // 20% - Must stop immediately
+      low: 0.30,      // 30% - Comfort trigger
+      full: 0.80,     // 80% - Considered full for road trip pacing
+    },
+    /** Safe range margin subtracted from vehicle range (15% for EVs vs 10% for ICE default if any). */
+    safeRangeBuffer: 0.15,
+    /** Range multiplier applied during winter months in cold regions (north of 40 deg). */
+    winterRangeMultiplier: 0.70,
+  },
+
 } as const;

@@ -37,6 +37,7 @@ export const CATEGORY_TAG_QUERIES: Record<POISuggestionCategory, string[]> = {
   restaurant:    ['["amenity"="restaurant"]'],
   cafe:          ['["amenity"="cafe"]'],
   gas:           ['["amenity"="fuel"]'],
+  charge:        ['["amenity"="charging_station"]'],
   hotel:         ['["tourism"~"hotel|motel|guest_house"]'],
   shopping:      ['["shop"~"supermarket|mall|department_store"]'],
   entertainment: ['["leisure"~"amusement_arcade|bowling_alley|water_park"]'],

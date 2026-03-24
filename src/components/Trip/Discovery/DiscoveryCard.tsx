@@ -7,7 +7,7 @@ import { TIER_META, type DiscoveredPOI } from '../../../lib/discovery-engine';
 const CATEGORY_ICONS: Record<POISuggestionCategory, string> = {
   viewpoint: '🌿', attraction: '🎡', museum: '🏛️', park: '🌲',
   landmark: '🗿', waterfall: '💧', restaurant: '🍽️', cafe: '☕',
-  gas: '⛽', hotel: '🏨', shopping: '🛍️', entertainment: '🎭',
+  gas: '⛽', charge: '⚡', hotel: '🏨', shopping: '🛍️', entertainment: '🎭',
 };
 
 export function DiscoveryCard({

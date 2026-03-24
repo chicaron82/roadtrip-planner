@@ -235,6 +235,7 @@ export function calculateStrategicFuelStops(
 export const STOP_DURATIONS = {
   drive: 0,        // No stop - just driving
   fuel: 10,        // ⛽ Quick refuel
+  charge: 30,      // ⚡ EV Supercharging stop
   break: 15,       // ☕ Coffee/bathroom break
   quickMeal: 30,   // 🍔 Fast food stop
   meal: 60,        // 🍽️ Sit-down meal
@@ -244,6 +245,7 @@ export const STOP_DURATIONS = {
 export const STOP_LABELS = {
   drive: 'Driving',
   fuel: '⛽ Fuel Stop',
+  charge: '⚡ Charge Stop',
   break: '☕ Break',
   quickMeal: '🍔 Quick Meal',
   meal: '🍽️ Full Meal',

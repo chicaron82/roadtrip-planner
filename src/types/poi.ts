@@ -30,6 +30,7 @@ export type POISuggestionCategory =
   | 'restaurant'     // Full-service dining
   | 'cafe'           // Coffee shops, quick bites
   | 'gas'            // Gas stations (can overlap with fuel stops)
+  | 'charge'         // EV Charging Stations
   | 'hotel'          // Accommodation (can overlap with overnight)
   | 'shopping'       // Shops, markets, outlets
   | 'entertainment'; // Theaters, arcades, activities

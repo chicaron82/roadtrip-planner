@@ -1,8 +1,10 @@
 export interface VehicleStats {
   city: number; // L/100km
   hwy: number; // L/100km
-  tank: number; // Litres
+  tank: number; // Litres (or battery capacity in kWh for EVs)
   isEV?: boolean; // Electric vehicle flag
+  rangeKm?: number; // Rated range in km (used primarily for EVs)
+  chargerNetwork?: 'tesla' | 'ccs' | 'chademo'; // Primary charging network for EVs
 }
 
 // Data source: Natural Resources Canada 2024 Fuel Consumption Guide (averaged for generic models)
@@ -48,11 +50,11 @@ export const VEHICLE_DB: Record<string, Record<string, VehicleStats>> = {
   },
   "Tesla": {
     // Using kWh/100km for EVs (battery capacity in tank field)
-    "Model 3": { city: 1.6, hwy: 1.4, tank: 57.5, isEV: true },
-    "Model Y": { city: 1.7, hwy: 1.5, tank: 75, isEV: true },
-    "Model S": { city: 1.8, hwy: 1.6, tank: 100, isEV: true },
-    "Model X": { city: 2.0, hwy: 1.8, tank: 100, isEV: true },
-    "Cybertruck": { city: 2.5, hwy: 2.5, tank: 123, isEV: true },
+    "Model 3": { city: 1.6, hwy: 1.4, tank: 57.5, isEV: true, rangeKm: 438, chargerNetwork: 'tesla' },
+    "Model Y": { city: 1.7, hwy: 1.5, tank: 75, isEV: true, rangeKm: 497, chargerNetwork: 'tesla' },
+    "Model S": { city: 1.8, hwy: 1.6, tank: 100, isEV: true, rangeKm: 652, chargerNetwork: 'tesla' },
+    "Model X": { city: 2.0, hwy: 1.8, tank: 100, isEV: true, rangeKm: 560, chargerNetwork: 'tesla' },
+    "Cybertruck": { city: 2.5, hwy: 2.5, tank: 123, isEV: true, rangeKm: 547, chargerNetwork: 'tesla' },
   },
   "Nissan": {
     "Rogue": { city: 8.5, hwy: 6.8, tank: 55 },

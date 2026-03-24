@@ -8,6 +8,8 @@ import {
 } from './unit-conversions';
 import { getRegionalFuelPrice } from './regional-costs';
 import { STOP_DURATIONS } from './fuel-stops';
+import { TRIP_CONSTANTS } from './trip-constants';
+import { getEVWinterMultiplier } from './unit-conversions';
 
 // Re-export conversion functions for API compatibility
 export {
@@ -45,13 +47,27 @@ export function calculateTripCosts(
 
   const weightedFuelEconomy = getWeightedFuelEconomyL100km(vehicle, settings.units);
 
-  // Calculate per-segment costs using regional fuel prices
+  // Calculate per-segment costs using regional fuel prices (or flat kWh for EVs)
+  const tankSizeLitres = getTankSizeLitres(vehicle, settings.units);
   const segmentsWithCost = uniqueSegments.map((segment) => {
-    // Attempt to get the regional fuel price; fallback to the user's default gas price
-    const regionalPrice = getRegionalFuelPrice(segment.to.name, settings.currency) ?? settings.gasPrice;
-    
-    const fuelNeededLitres = (segment.distanceKm / 100) * weightedFuelEconomy;
-    const fuelCost = fuelNeededLitres * regionalPrice;
+    let fuelNeededLitres: number;
+    let fuelCost: number;
+
+    if (vehicle.isEV) {
+      const winterMultiplier = getEVWinterMultiplier(segment.from.lat, settings.departureDate);
+      if (vehicle.rangeKm) {
+        const effectiveRange = vehicle.rangeKm * winterMultiplier;
+        fuelNeededLitres = (segment.distanceKm / effectiveRange) * tankSizeLitres;
+      } else {
+        const baseLitres = (segment.distanceKm / 100) * weightedFuelEconomy * 8.9;
+        fuelNeededLitres = baseLitres / winterMultiplier;
+      }
+      fuelCost = fuelNeededLitres * TRIP_CONSTANTS.ev.flatKwhCost;
+    } else {
+      const regionalPrice = getRegionalFuelPrice(segment.to.name, settings.currency) ?? settings.gasPrice;
+      fuelNeededLitres = (segment.distanceKm / 100) * weightedFuelEconomy;
+      fuelCost = fuelNeededLitres * regionalPrice;
+    }
 
     return {
       ...segment,
@@ -63,7 +79,6 @@ export function calculateTripCosts(
   const totalFuelLitres = segmentsWithCost.reduce((acc, seg) => acc + seg.fuelNeededLitres, 0);
   const totalFuelCost = segmentsWithCost.reduce((acc, seg) => acc + seg.fuelCost, 0);
 
-  const tankSizeLitres = getTankSizeLitres(vehicle, settings.units);
   const gasStops = estimateGasStops(totalFuelLitres, tankSizeLitres);
 
   const costPerPerson =

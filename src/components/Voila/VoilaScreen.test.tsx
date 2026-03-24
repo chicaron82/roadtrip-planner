@@ -50,10 +50,10 @@ describe('VoilaScreen', () => {
   // ── Header ────────────────────────────────────────────────────────────────
 
   describe('header', () => {
-    it('shows the Edit Trip button', () => {
+    it('shows the Print button', () => {
       renderScreen();
-      // Two "Edit Trip" buttons exist (header + bottom bar) — confirm at least one
-      expect(screen.getAllByText('Edit Trip').length).toBeGreaterThanOrEqual(1);
+      // The Print button is in the header, may be disabled if no print input
+      expect(screen.getByText('Print')).toBeInTheDocument();
     });
 
     it('shows the Share button', () => {
@@ -85,9 +85,9 @@ describe('VoilaScreen', () => {
   // ── Callbacks ─────────────────────────────────────────────────────────────
 
   describe('callbacks', () => {
-    it('calls onEditTrip when the header Edit Trip button is clicked', () => {
+    it('calls onEditTrip when the "Let MEE make it better" button is clicked', () => {
       const { onEditTrip } = renderScreen();
-      fireEvent.click(screen.getAllByText('Edit Trip')[0]);
+      fireEvent.click(screen.getByText('Let MEE make it better'));
       expect(onEditTrip).toHaveBeenCalledTimes(1);
     });
 

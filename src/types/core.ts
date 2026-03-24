@@ -46,7 +46,10 @@ export interface Vehicle {
   model: string;
   fuelEconomyCity: number; // L/100km or MPG
   fuelEconomyHwy: number; // L/100km or MPG
-  tankSize: number; // Litres or Gallons
+  tankSize: number; // Litres or Gallons (or kWh for EVs)
+  isEV?: boolean;
+  rangeKm?: number;
+  chargerNetwork?: 'tesla' | 'ccs' | 'chademo';
 }
 
 export type UnitSystem = 'metric' | 'imperial';

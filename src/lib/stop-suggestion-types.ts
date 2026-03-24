@@ -53,6 +53,9 @@ export type StopFrequency = 'conservative' | 'balanced' | 'aggressive';
 export interface StopSuggestionConfig {
   tankSizeLitres: number;
   fuelEconomyL100km: number;
+  isEV?: boolean;
+  rangeKm?: number;
+  chargerNetwork?: 'tesla' | 'ccs' | 'chademo';
   maxDriveHoursPerDay: number;
   numDrivers: number;
   departureTime: Date;

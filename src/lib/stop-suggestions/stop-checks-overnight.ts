@@ -9,6 +9,7 @@ import type { RouteSegment, TripDay } from '../../types';
 import type { SuggestedStop, StopSuggestionConfig } from '../stop-suggestion-types';
 import type { SimState } from './types';
 import { getTimezoneShiftHours } from './timezone';
+import { TRIP_CONSTANTS } from '../trip-constants';
 
 const LATEST_ARRIVAL_HOUR = 21; // 9 PM local — stop before arriving past this
 
@@ -42,7 +43,9 @@ export function handleDayBoundaryReset(
   state.totalDrivingToday = 0;
   state.lastBreakTime = new Date(dayStart);
   state.hoursOnRoad = 0;
-  state.currentFuel = config.tankSizeLitres;
+  state.currentFuel = config.isEV 
+    ? config.tankSizeLitres * TRIP_CONSTANTS.ev.defaultStartPercent 
+    : config.tankSizeLitres;
   state.distanceSinceLastFill = 0;
   state.hoursSinceLastFill = 0;
   state.costSinceLastFill = 0;
@@ -104,7 +107,9 @@ export function checkArrivalWindow(
   nextDay.setHours(dh, dm, 0, 0);
   state.currentTime = nextDay;
   state.lastBreakTime = new Date(state.currentTime);
-  state.currentFuel = config.tankSizeLitres;
+  state.currentFuel = config.isEV 
+    ? config.tankSizeLitres * TRIP_CONSTANTS.ev.defaultStartPercent 
+    : config.tankSizeLitres;
   state.distanceSinceLastFill = 0;
   state.hoursSinceLastFill = 0;
   state.costSinceLastFill = 0;
@@ -174,7 +179,9 @@ export function checkOvernightStop(
 
   state.totalDrivingToday = 0;
   state.hoursOnRoad = 0;
-  state.currentFuel = config.tankSizeLitres;
+  state.currentFuel = config.isEV 
+    ? config.tankSizeLitres * TRIP_CONSTANTS.ev.defaultStartPercent 
+    : config.tankSizeLitres;
   state.distanceSinceLastFill = 0;
   state.hoursSinceLastFill = 0;
   state.costSinceLastFill = 0;

@@ -15,6 +15,7 @@ import {
   checkOvernightStop,
   applyTimezoneShift,
 } from './stop-checks';
+import { checkEVChargeStop, getEnRouteChargeStops } from './stop-checks-ev';
 import { findPreferredHubInWindow } from '../hub-cache';
 import { lngToIANA, ianaToAbbr } from '../trip-timezone';
 import { getTimezoneShiftHours } from './timezone';
@@ -23,7 +24,7 @@ import { createStopPlanningRouteContext, prewarmWaypointHubs } from './route-con
 function createInitialState(config: StopSuggestionConfig, segments: RouteSegment[]): SimState {
   const stopFrequency = config.stopFrequency || 'balanced';
   return {
-    currentFuel: config.tankSizeLitres,
+    currentFuel: config.isEV ? config.tankSizeLitres * TRIP_CONSTANTS.ev.defaultStartPercent : config.tankSizeLitres,
     distanceSinceLastFill: 0,
     hoursSinceLastFill: 0,
     costSinceLastFill: 0,
@@ -49,8 +50,11 @@ export function generateSmartStops(
   const { fullGeometry } = config;
   const stopFrequency = config.stopFrequency || 'balanced';
 
-  const actualBuffer = TRIP_CONSTANTS.stops.buffers[stopFrequency];
-  const vehicleRangeKm = (config.tankSizeLitres / config.fuelEconomyL100km) * 100;
+  // For EVs, buffer is safeRangeBuffer (15%), else use driving style actualBuffer
+  const actualBuffer = config.isEV ? TRIP_CONSTANTS.ev.safeRangeBuffer : TRIP_CONSTANTS.stops.buffers[stopFrequency];
+  const vehicleRangeKm = config.isEV && config.rangeKm 
+    ? config.rangeKm 
+    : (config.tankSizeLitres / config.fuelEconomyL100km) * 100;
   const safeRangeKm = vehicleRangeKm * (1 - actualBuffer);
   const routeContext = createStopPlanningRouteContext(segments, fullGeometry);
 
@@ -176,7 +180,7 @@ export function generateSmartStops(
     // does this when day-split data is perfect, but acts as a reliable fallback
     // when that path doesn't fire (transit sub-segments, missing day boundaries).
     if (isRoundTrip && !returnLegFuelResetDone && cumulativeDistanceKm >= totalRouteDistanceKm / 2) {
-      state.currentFuel = config.tankSizeLitres;
+      state.currentFuel = config.isEV ? config.tankSizeLitres * TRIP_CONSTANTS.ev.chargeToLimit : config.tankSizeLitres;
       state.distanceSinceLastFill = 0;
       state.hoursSinceLastFill = 0;
       state.costSinceLastFill = 0;
@@ -238,7 +242,9 @@ export function generateSmartStops(
     // Fuel stop check
     const { suggestion: fuelSug, stopTimeAddedMs } = endpointHub
       ? { suggestion: null, stopTimeAddedMs: 0 }
-      : checkFuelStop(state, segment, index, config, safeRangeKm, inDestinationGraceZone, hubName);
+      : config.isEV
+        ? checkEVChargeStop(state, segment, index, config, safeRangeKm, inDestinationGraceZone, hubName)
+        : checkFuelStop(state, segment, index, config, safeRangeKm, inDestinationGraceZone, hubName);
     if (fuelSug) {
       fuelSug.afterSegmentIndex += (segOrigIdx - index);
       // Attach geographic coordinates for map pin projection.
@@ -298,11 +304,19 @@ export function generateSmartStops(
           return routeContext.getGeometryPosition(segmentStartKm + kmIntoSegment);
         }
       : undefined;
-    const { stops: enRouteStops, lastFillKm } = getEnRouteFuelStops(
-      state, segment, index, config, safeRangeKm, segmentStartTime,
-      Math.max(0, distBeforeSegment), enRouteHubResolver,
-      state.comfortRefuelHours, enRoutePositionResolver, segmentStartKm
-    );
+    
+    const { stops: enRouteStops, lastFillKm } = config.isEV
+      ? getEnRouteChargeStops(
+          state, segment, index, config, safeRangeKm, segmentStartTime,
+          Math.max(0, distBeforeSegment), enRouteHubResolver,
+          state.comfortRefuelHours, enRoutePositionResolver, segmentStartKm
+        )
+      : getEnRouteFuelStops(
+          state, segment, index, config, safeRangeKm, segmentStartTime,
+          Math.max(0, distBeforeSegment), enRouteHubResolver,
+          state.comfortRefuelHours, enRoutePositionResolver, segmentStartKm
+        );
+    
     enRouteStops.forEach(s => { s.afterSegmentIndex += (segOrigIdx - index); });
     suggestions.push(...enRouteStops);
 
@@ -336,7 +350,7 @@ export function generateSmartStops(
     const waypointIntent = segment.to?.intent;
     if (waypointIntent && segment.to?.type === 'waypoint') {
       if (waypointIntent.fuel) {
-        state.currentFuel = config.tankSizeLitres;
+        state.currentFuel = config.isEV ? config.tankSizeLitres * TRIP_CONSTANTS.ev.chargeToLimit : config.tankSizeLitres;
         state.distanceSinceLastFill = 0;
         state.hoursSinceLastFill = 0;
         state.costSinceLastFill = 0;

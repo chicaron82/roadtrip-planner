@@ -10,6 +10,7 @@ import {
   CITY_FUEL_WEIGHT,
   USABLE_TANK_FRACTION,
 } from './constants';
+import { TRIP_CONSTANTS } from './trip-constants';
 import type { Vehicle, UnitSystem } from '../types';
 
 /** Convert vehicle tank size to litres regardless of unit system. */
@@ -53,4 +54,20 @@ export function convertLitresToGallons(litres: number): number {
 
 export function convertGallonsToLitres(gallons: number): number {
   return gallons * LITRES_PER_GALLON;
+}
+
+/**
+ * Returns a range multiplier for EVs driving in cold weather regions during winter.
+ * Applied when the trip is between Nov and March inclusive, north of 40 degrees latitude.
+ * Simulates ~30% range loss for Canadian/Northern US winter driving.
+ */
+export function getEVWinterMultiplier(lat: number, dateStrOrObj: string | Date): number {
+  const d = new Date(dateStrOrObj);
+  const month = d.getMonth();
+  const isWinter = month >= 10 || month <= 2; // Nov(10), Dec(11), Jan(0), Feb(1), Mar(2)
+  
+  if (isWinter && lat >= 40) {
+    return TRIP_CONSTANTS.ev.winterRangeMultiplier;
+  }
+  return 1.0;
 }
