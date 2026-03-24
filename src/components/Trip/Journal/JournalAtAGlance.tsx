@@ -1,0 +1,181 @@
+/**
+ * JournalAtAGlance — post-lock-in confirmed trip surface.
+ *
+ * The moment the car arrives. Shows the live trip track (or pending state),
+ * route + summary header, and the full JournalTimeline for notes and arrivals.
+ *
+ * Replaces Step 3 as the default post-lock-in landing screen.
+ * Step 3 remains accessible via "Full details →" for power users.
+ *
+ * Self-contained: receives ghostCar directly so it doesn't need PlannerProvider.
+ *
+ * 💚 My Experience Engine
+ */
+
+import { lazy, Suspense } from 'react';
+import { CarTrack } from '../../UI/CarTrack';
+import type { TripSummary, TripSettings, TripJournal } from '../../../types';
+import type { GhostCarState } from '../../../hooks/journey/useGhostCar';
+
+const JournalTimeline = lazy(() =>
+  import('./JournalTimeline').then(m => ({ default: m.JournalTimeline })),
+);
+
+// ── Props ──────────────────────────────────────────────────────────────────
+
+interface JournalAtAGlanceProps {
+  summary: TripSummary;
+  settings: TripSettings;
+  /** Always non-null when this component renders — auto-started on lock-in. */
+  activeJournal: TripJournal;
+  ghostCar: GhostCarState;
+  onUpdateJournal: (journal: TripJournal) => void;
+  onViewFullDetails: () => void;
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function formatArrivalTime(isoString: string): string {
+  try {
+    return new Date(isoString).toLocaleTimeString([], {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  } catch {
+    return '';
+  }
+}
+
+function buildSummaryChips(summary: TripSummary): string {
+  const nights = (summary.drivingDays ?? 1) - 1;
+  const parts: string[] = [
+    nights === 0 ? 'Day Trip' : `${summary.drivingDays}d · ${nights}n`,
+    `${Math.round(summary.totalDistanceKm)} km`,
+  ];
+  const arrival = summary.days?.[0]?.totals.arrivalTime;
+  if (arrival) parts.push(`~${formatArrivalTime(arrival)} arrival`);
+  return parts.join(' · ');
+}
+
+// ── Component ──────────────────────────────────────────────────────────────
+
+export function JournalAtAGlance({
+  summary,
+  settings,
+  activeJournal,
+  ghostCar,
+  onUpdateJournal,
+  onViewFullDetails,
+}: JournalAtAGlanceProps) {
+  const routeLabel =
+    summary.days?.[0]?.route ?? activeJournal.metadata.title ?? 'Your Trip';
+  const chips = buildSummaryChips(summary);
+
+  return (
+    <div
+      className="absolute inset-0 z-30 flex flex-col"
+      style={{ background: 'rgba(14, 11, 7, 0.94)' }}
+    >
+      {/* ── Live trip track ── */}
+      <div
+        className="shrink-0 px-4 pt-4 pb-3 border-b border-white/5"
+        style={{ background: 'rgba(14, 11, 7, 0.6)' }}
+      >
+        {ghostCar.windowStops ? (
+          <CarTrack
+            mode="trip"
+            windowStops={ghostCar.windowStops}
+            progressPct={ghostCar.progressPct}
+            pending={!ghostCar.tripStarted}
+          />
+        ) : (
+          <div
+            style={{
+              fontSize: '11px',
+              color: 'rgba(245, 240, 232, 0.4)',
+              fontFamily: "'DM Mono', monospace",
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              padding: '8px 0',
+            }}
+          >
+            🚗 Trip confirmed · {ghostCar.startsIn ?? 'departure pending'}
+          </div>
+        )}
+      </div>
+
+      {/* ── Route summary header ── */}
+      <div className="shrink-0 px-4 py-3 border-b border-white/5">
+        <p
+          style={{
+            fontSize: '15px',
+            fontFamily: "'Cormorant Garamond', serif",
+            color: 'rgba(245, 240, 232, 0.92)',
+            margin: 0,
+            lineHeight: 1.3,
+          }}
+        >
+          {routeLabel}
+        </p>
+        <p
+          style={{
+            fontSize: '11px',
+            color: 'rgba(245, 240, 232, 0.45)',
+            fontFamily: "'DM Mono', monospace",
+            margin: '3px 0 0',
+            letterSpacing: '0.04em',
+          }}
+        >
+          {chips}
+        </p>
+      </div>
+
+      {/* ── Journal timeline — scrollable body ── */}
+      <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+        <Suspense
+          fallback={
+            <div
+              style={{
+                padding: '32px 0',
+                textAlign: 'center',
+                fontSize: '13px',
+                color: 'rgba(245, 240, 232, 0.35)',
+              }}
+            >
+              Loading journal…
+            </div>
+          }
+        >
+          <JournalTimeline
+            summary={summary}
+            settings={settings}
+            journal={activeJournal}
+            onUpdateJournal={onUpdateJournal}
+          />
+        </Suspense>
+      </div>
+
+      {/* ── Sticky bottom bar ── */}
+      <div
+        className="shrink-0 flex items-center justify-end px-4 py-3 border-t border-white/5"
+        style={{ background: 'rgba(14, 11, 7, 0.85)' }}
+      >
+        <button
+          onClick={onViewFullDetails}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'rgba(245, 240, 232, 0.4)',
+            fontSize: '12px',
+            fontFamily: "'DM Mono', monospace",
+            letterSpacing: '0.04em',
+            cursor: 'pointer',
+            padding: '4px 0',
+          }}
+        >
+          Full details →
+        </button>
+      </div>
+    </div>
+  );
+}

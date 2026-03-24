@@ -12,6 +12,7 @@
  */
 import { useState, useEffect } from 'react';
 import type { TripMode } from '../../types';
+import { getEntryPreference, saveEntryPreference } from '../../lib/storage';
 import { ROUTE_DOTS } from './mode-config';
 import { LandingHeroSection } from './LandingHeroSection';
 import { LandingFooter } from './LandingFooter';
@@ -32,6 +33,7 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip,
   const [mounted, setMounted] = useState(false);
   const [activeDot, setActiveDot] = useState(0);
   const [pulseActive, setPulseActive] = useState(false);
+  const [entryPreference, setEntryPreference] = useState(getEntryPreference);
 
   // Staggered entrance
   useEffect(() => {
@@ -101,6 +103,26 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip,
           onContinueSavedTrip={onContinueSavedTrip}
           onExitStart={(fn) => { setIsExiting(true); setTimeout(fn, 600); }}
         />
+
+        {entryPreference === 'classic' && (
+          <button
+            onClick={() => {
+              saveEntryPreference('conversational');
+              setEntryPreference('conversational');
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'rgba(245, 240, 232, 0.35)',
+              fontSize: '12px',
+              cursor: 'pointer',
+              marginTop: '4px',
+              textDecoration: 'underline',
+            }}
+          >
+            ✦ Try the guided experience →
+          </button>
+        )}
 
         <LandingFooter activeDot={activeDot} />
 </div>

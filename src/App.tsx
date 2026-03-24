@@ -1,4 +1,4 @@
-import { useRef, useState, useLayoutEffect, lazy, Suspense } from 'react';
+import { useRef, useState, useLayoutEffect, useEffect, lazy, Suspense } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { TripSummaryCard } from './components/Trip/TripSummary';
 import { RouteStrategyPicker } from './components/Trip/RouteStrategyPicker';
@@ -9,6 +9,7 @@ import { useIcebreakerOrchestrator } from './components/Icebreaker/IcebreakerOrc
 import { IcebreakerOverlays } from './components/Icebreaker/IcebreakerOverlays';
 import { PlannerFullscreenShell } from './components/App/PlannerFullscreenShell';
 import { VoilaScreen } from './components/Voila/VoilaScreen';
+import { JournalAtAGlance } from './components/Trip/Journal/JournalAtAGlance';
 import { MakeMEETimeScreen } from './components/Trip/Sharing/MakeMEETimeScreen';
 import { YourMEETimePreview } from './components/Trip/Sharing/YourMEETimePreview';
 import './styles/sidebar.css';
@@ -183,6 +184,14 @@ function AppContent() {
   // ── Android back button guard ─────────────────────────────────────────────
   useAppBackPress({ activeJournal, viewMode, setViewMode, icebreaker, tripMode, planningStep, goToStep });
 
+  // Auto-start journal on lock-in if one doesn't exist yet.
+  // 700ms delay lets StepsBanner's wizard→trip morph play first.
+  useEffect(() => {
+    if (!tripConfirmed || !summary || !!activeJournal || showVoila) return;
+    const t = setTimeout(() => { void startJournal(customTitle ?? undefined); }, 700);
+    return () => clearTimeout(t);
+  }, [tripConfirmed, showVoila, activeJournal, summary, startJournal, customTitle]);
+
 
 
   // ── Derived props ─────────────────────────────────────────────────────────
@@ -195,6 +204,7 @@ function AppContent() {
   });
 
   const canProceed = planningStep === 1 ? canProceedFromStep1 : canProceedFromStep2;
+  const showJournalAtAGlance = tripConfirmed && viewMode === 'journal' && !showVoila && !!activeJournal;
 
   const { handleBuildFromTemplate, handleOpenPlannerFromTemplate } = useAppTemplateHandlers({
     handleImportTemplate, handleDismissPendingTemplate, setTripMode, calculateAndDiscover,
@@ -237,7 +247,7 @@ function AppContent() {
       {/* Icebreaker overlays — Four-Beat Arc, Estimate Workshop, Icebreaker Gate */}
       <IcebreakerOverlays {...icebreaker.overlayProps} />
 
-      {/* Screen priority: voila > yourMEETimePreview > planning > landing. */}
+      {/* Screen priority: voila > yourMEETimePreview > journalAtAGlance > planning > landing. */}
       {pendingTemplate && !showVoila && (
         <YourMEETimePreview
           template={pendingTemplate}
@@ -271,6 +281,17 @@ function AppContent() {
         />
       )}
 
+      {showJournalAtAGlance && summary && activeJournal && (
+        <JournalAtAGlance
+          summary={summary}
+          settings={settings}
+          activeJournal={activeJournal}
+          ghostCar={ghostCar}
+          onUpdateJournal={updateActiveJournal}
+          onViewFullDetails={handleViewFullDetails}
+        />
+      )}
+
       {!tripMode && !showVoila && !icebreaker.arcActive && (
         <LandingScreen
           onSelectMode={icebreaker.handleLandingSelect}
@@ -282,7 +303,7 @@ function AppContent() {
         />
       )}
 
-      {tripMode && !showVoila && (
+      {tripMode && !showVoila && !showJournalAtAGlance && (
         <PlannerProvider value={{
           planningStep, completedSteps, canProceed,
           isCalculating,

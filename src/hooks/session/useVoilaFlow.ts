@@ -52,11 +52,14 @@ export function useVoilaFlow({
   const handleVoilaLockIn = useCallback(() => {
     setTripConfirmed(true);
     setShowVoila(false);
-    // Stay on the map. The Voilà WAS the results screen.
-    // Icebreaker path: stay in map-native experience.
-    // Classic path: map activates with ghost car, trip confirmed state.
+    // Both paths: forceStep(3) ensures the confirmed trip state renders correctly.
+    // Classic path: markStepComplete advances completedSteps but NOT planningStep,
+    // so planningStep is still 2 (the last step the user was on). Without this,
+    // closing Voilà renders PlannerFullscreenShell at step 2.
+    // Icebreaker path: planningStep is still 1 (wizard was bypassed entirely).
+    forceStep(3);
     if (icebreakerOrigin) setTripMode('plan');
-  }, [icebreakerOrigin, setTripMode, setTripConfirmed]);
+  }, [icebreakerOrigin, forceStep, setTripMode, setTripConfirmed]);
 
   const handleViewFullDetails = useCallback(() => {
     setShowVoila(false);
