@@ -46,6 +46,25 @@ function formatArrivalTime(isoString: string): string {
   }
 }
 
+function buildRouteLabel(summary: TripSummary, fallback: string): string {
+  const dayRoute = summary.days?.[0]?.route;
+  if (dayRoute) {
+    // Round trip: days[0].route is computed as "Origin → Origin" (same city).
+    // Derive a better label from segments: origin → outbound destination.
+    const parts = dayRoute.split(' → ');
+    if (parts.length === 2 && parts[0].trim() === parts[1].trim()) {
+      const segs = summary.segments;
+      const midpoint = summary.roundTripMidpoint;
+      const outboundEnd = midpoint != null
+        ? segs[midpoint - 1]?.to.name
+        : segs[Math.floor(segs.length / 2) - 1]?.to.name;
+      if (outboundEnd) return `${parts[0].trim()} → ${outboundEnd}`;
+    }
+    return dayRoute;
+  }
+  return fallback;
+}
+
 function buildSummaryChips(summary: TripSummary): string {
   const nights = (summary.drivingDays ?? 1) - 1;
   const parts: string[] = [
@@ -67,8 +86,7 @@ export function JournalAtAGlance({
   onUpdateJournal,
   onViewFullDetails,
 }: JournalAtAGlanceProps) {
-  const routeLabel =
-    summary.days?.[0]?.route ?? activeJournal.metadata.title ?? 'Your Trip';
+  const routeLabel = buildRouteLabel(summary, activeJournal.metadata.title ?? 'Your Trip');
   const chips = buildSummaryChips(summary);
 
   return (

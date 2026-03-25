@@ -7,17 +7,19 @@
  * 💚 My Experience Engine — Voilà Tier A
  */
 
-import type { TripSummary, TripDay } from '../../types';
+import type { TripSummary, TripDay, TripSettings } from '../../types';
 import { formatHoursFromMinutes } from '../../lib/utils';
+import { BudgetSensitivity } from '../Trip/Budget/BudgetSensitivity';
 
 interface ItineraryDetailPanelProps {
   summary: TripSummary;
+  settings: TripSettings;
   onBack: () => void;
   onLockIn: () => void;
   onEditTrip: () => void;
 }
 
-export function ItineraryDetailPanel({ summary, onBack, onLockIn, onEditTrip }: ItineraryDetailPanelProps) {
+export function ItineraryDetailPanel({ summary, settings, onBack, onLockIn, onEditTrip }: ItineraryDetailPanelProps) {
   const days: TripDay[] = summary.days ?? [];
 
   return (
@@ -150,6 +152,17 @@ export function ItineraryDetailPanel({ summary, onBack, onLockIn, onEditTrip }: 
           </div>
         )}
       </div>
+
+      {/* What-If Scenarios */}
+      {summary.costBreakdown && (
+        <div style={{ padding: '0 20px 16px' }}>
+          <BudgetSensitivity
+            summary={summary}
+            settings={settings}
+            className="mt-4"
+          />
+        </div>
+      )}
 
       {/* Sticky bottom */}
       <div style={{

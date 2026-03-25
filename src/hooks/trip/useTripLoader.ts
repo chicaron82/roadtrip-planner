@@ -164,12 +164,12 @@ export function useTripLoader({
       };
     });
 
-    // Switch to Plan Mode — "the conversation continues"
+    // Switch to Plan Mode — land at Step 1 so user sees destination confirmed.
+    // markStepComplete(1) fires naturally when user taps NEXT from Step 1.
     setTripMode('plan');
-    markStepComplete(1);
-    goToStep(2);
+    goToStep(1);
     onAdventureComplete?.();
-  }, [setLocations, setSettings, setTripMode, markStepComplete, goToStep, onAdventureComplete]);
+  }, [setLocations, setSettings, setTripMode, goToStep, onAdventureComplete]);
 
   return {
     activeChallenge,

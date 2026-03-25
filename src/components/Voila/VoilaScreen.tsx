@@ -24,6 +24,7 @@ import type { PrintInput } from '../../lib/canonical-trip';
 import type { FeasibilityResult } from '../../lib/feasibility';
 import { buildSeededTitle } from '../../lib/trip-title-seeds';
 import { FeasibilityBanner } from '../Trip/Health/FeasibilityBanner';
+import { PlannerRationaleCard } from '../Trip/Health/PlannerRationaleCard';
 import { printTrip } from '../Trip/StepHelpers/TripPrintView';
 import { VoilaHero } from './VoilaHero';
 import { VoilaDashboard } from './VoilaDashboard';
@@ -167,7 +168,7 @@ export function VoilaScreen({
         </div>
 
         {/* Scrollable content — staggered reveal */}
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div className="voila-scroll" style={{ flex: 1, overflowY: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}>
           <motion.div
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
@@ -184,17 +185,32 @@ export function VoilaScreen({
             <VoilaDashboard summary={summary} settings={settings} />
           </motion.div>
 
-          {feasibility && feasibility.warnings.some(w => w.severity === 'critical' || w.severity === 'warning') && (
+          {feasibility && (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.35, ease: 'easeOut', delay: 0.35 }}
-              style={{ padding: '0 16px' }}
+              style={{ padding: '0 28px 16px' }}
             >
               <FeasibilityBanner
                 result={feasibility}
                 numTravelers={settings.numTravelers}
-                defaultCollapsed={false}
+                defaultCollapsed={true}
+              />
+            </motion.div>
+          )}
+
+          {feasibility && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, ease: 'easeOut', delay: 0.4 }}
+              style={{ padding: '0 28px 8px' }}
+            >
+              <PlannerRationaleCard
+                summary={summary}
+                settings={settings}
+                feasibility={feasibility}
               />
             </motion.div>
           )}
@@ -292,6 +308,7 @@ export function VoilaScreen({
         {activeDetail === 'itinerary' && (
           <ItineraryDetailPanel
             summary={summary}
+            settings={settings}
             onBack={() => setActiveDetail(null)}
             onLockIn={() => { setActiveDetail(null); handleLockIn(); }}
             onEditTrip={() => { setActiveDetail(null); onEditTrip(); }}

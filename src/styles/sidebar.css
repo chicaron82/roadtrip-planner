@@ -275,6 +275,11 @@
   background: hsl(225 18% 28%);
 }
 
+/* ── Voilà scroll — hide scrollbar ── */
+.voila-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 /* ── POI controls bar ── */
 .sidebar-dark .poi-bar {
   background: hsl(225 25% 10%);

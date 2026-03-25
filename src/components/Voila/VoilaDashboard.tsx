@@ -54,7 +54,7 @@ export function VoilaDashboard({ summary, settings }: VoilaDashboardProps) {
       padding: '0 28px 28px',
     }}>
       {/* Chip 1 — Days / Nights */}
-      <Chip>{days}d · {nights}n</Chip>
+      <Chip>{nights === 0 ? 'Day Trip' : `${days}d · ${nights}n`}</Chip>
 
       {/* Chip 2 — Hero Cost */}
       {totalCost && (
