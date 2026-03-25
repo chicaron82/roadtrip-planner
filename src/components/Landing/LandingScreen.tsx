@@ -19,7 +19,7 @@ import { LandingFooter } from './LandingFooter';
 import { LandingRouteScene } from './LandingRouteScene';
 import './landing.css';
 
-interface LandingScreenProps {
+export interface LandingScreenProps {
   onSelectMode: (mode: TripMode) => void;
   hasSavedTrip?: boolean;
   onContinueSavedTrip?: () => void;
