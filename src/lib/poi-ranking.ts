@@ -1,4 +1,5 @@
 import type { POISuggestion, RouteSegment, TripPreference, POISuggestionCategory } from '../types';
+import * as SunCalc from 'suncalc';
 
 // Ranking weights (sum to 1.0)
 const WEIGHTS = {
@@ -296,6 +297,23 @@ function rankPOI(
     }
   }
 
+  let isGoldenHour = false;
+  if (estimatedArrivalTime) {
+    const sunTimes = SunCalc.getTimes(estimatedArrivalTime, poi.lat, poi.lng);
+    const arrTimeMs = estimatedArrivalTime.getTime();
+    
+    // Golden hour logic: within 60 mins of sunrise or sunset
+    const sunsetDiff = Math.abs(arrTimeMs - sunTimes.sunset.getTime());
+    const sunriseDiff = Math.abs(arrTimeMs - sunTimes.sunrise.getTime());
+    const ONE_HOUR = 60 * 60 * 1000;
+    
+    if (sunsetDiff <= ONE_HOUR || sunriseDiff <= ONE_HOUR) {
+      isGoldenHour = true;
+      // Subtly boost the ranking score so amazing photospots bubble up!
+      rankingScore += 15;
+    }
+  }
+
   // Check if fits in break window (if detour is quick)
   const fitsInBreakWindow = detourMinutes <= 15;
 
@@ -306,6 +324,7 @@ function rankPOI(
     segmentIndex: nearestSegmentIndex,
     estimatedArrivalTime,
     fitsInBreakWindow,
+    isGoldenHour,
     rankingScore: Math.round(rankingScore),
     categoryMatchScore: Math.round(categoryMatchScore),
     timingFitScore: Math.round(timingFitScore),

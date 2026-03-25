@@ -30,6 +30,8 @@ export interface SuggestedStop {
     comboMealType?: 'lunch' | 'dinner';
     /** Tank fill level at the time of this stop (0–100). Used by the FuelGauge component. */
     tankPercent?: number;
+    /** For overnight stops: categorizes check-in timing context. */
+    checkInTiming?: 'early' | 'perfect' | 'late';
   };
   /** Hub city name resolved at generation time (e.g. "Fargo, ND").
    *  When set, buildTimedTimeline uses this as the locationHint instead of

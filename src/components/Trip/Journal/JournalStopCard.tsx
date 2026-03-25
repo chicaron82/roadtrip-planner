@@ -98,13 +98,19 @@ export function JournalStopCard({
 
   const plannedArrival = segment.arrivalTime ? new Date(segment.arrivalTime) : null;
 
+  const getWeatherBgClass = (tempMax?: number) => {
+    if (hasArrived) return 'bg-gradient-to-br from-green-50 to-white border-green-200';
+    if (tempMax === undefined) return 'bg-white border-gray-200';
+    if (tempMax < 5) return 'bg-blue-50/40 border-blue-100/60 shadow-[inset_0_1px_4px_rgba(255,255,255,0.4)]';
+    if (tempMax > 30) return 'bg-orange-50/30 border-orange-100/50 shadow-[inset_0_0_8px_rgba(255,237,213,0.2)]';
+    return 'bg-white border-gray-200';
+  };
+
   return (
     <div
       className={cn(
         'rounded-xl border-2 transition-all duration-300',
-        hasArrived
-          ? 'bg-gradient-to-br from-green-50 to-white border-green-200'
-          : 'bg-white border-gray-200',
+        getWeatherBgClass(segment.weather?.temperatureMax),
         className
       )}
     >

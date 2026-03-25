@@ -59,6 +59,7 @@ export interface POISuggestion {
   // Timing context
   estimatedArrivalTime?: Date; // When you'd reach this POI
   fitsInBreakWindow?: boolean; // True if it fits in existing break/meal stop
+  isGoldenHour?: boolean; // True if arrival is near sunset/sunrise
 
   // Ranking scores (0-100)
   rankingScore: number; // Overall composite score

@@ -109,24 +109,34 @@ export function SuggestedStopCard({ stop, onAccept, onDismiss, swapDriver }: Sug
           </div>
 
           <div className="mb-2">
-            <p className={cn("text-sm text-muted-foreground", !isExpanded && "line-clamp-2")}>
-              {stop.reason}
-            </p>
-            {isLongReason && (
-              <button
-                onClick={() => setIsExpanded(!isExpanded)}
-                className={cn(
-                  "mt-0.5 inline-flex items-center gap-0.5 text-xs font-medium transition-colors",
-                  colors.text,
-                  "opacity-70 hover:opacity-100"
+            {stop.type === 'overnight' && stop.details.checkInTiming ? (
+              <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-indigo-50/50 border border-indigo-100 text-indigo-700 font-medium text-xs">
+                {stop.details.checkInTiming === 'early' && <><span>🎒</span> Drop your bags — hotel check-in is at 3 PM</>}
+                {stop.details.checkInTiming === 'perfect' && <><span>🛎️</span> Perfect timing for standard 3 PM check-in</>}
+                {stop.details.checkInTiming === 'late' && <><span>🌙</span> Late arrival — Hotel has been notified</>}
+              </div>
+            ) : (
+              <>
+                <p className={cn("text-sm text-muted-foreground", !isExpanded && "line-clamp-2")}>
+                  {stop.reason}
+                </p>
+                {isLongReason && (
+                  <button
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    className={cn(
+                      "mt-0.5 inline-flex items-center gap-0.5 text-xs font-medium transition-colors",
+                      colors.text,
+                      "opacity-70 hover:opacity-100"
+                    )}
+                  >
+                    {isExpanded ? (
+                      <><ChevronUp className="h-3 w-3" /> Less</>
+                    ) : (
+                      <><ChevronDown className="h-3 w-3" /> More</>
+                    )}
+                  </button>
                 )}
-              >
-                {isExpanded ? (
-                  <><ChevronUp className="h-3 w-3" /> Less</>
-                ) : (
-                  <><ChevronDown className="h-3 w-3" /> More</>
-                )}
-              </button>
+              </>
             )}
           </div>
 

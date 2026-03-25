@@ -94,7 +94,10 @@ export function checkArrivalWindow(
       estimatedTime: new Date(state.currentTime),
       duration: 8 * 60,
       priority: 'required',
-      details: { hoursOnRoad: state.hoursOnRoad },
+      details: { 
+        hoursOnRoad: state.hoursOnRoad,
+        checkInTiming: 'late'
+      },
       dayNumber: state.currentDayNumber,
     };
   }
@@ -161,6 +164,8 @@ export function checkOvernightStop(
     ? ` Arriving around ${arrivalTimeStr} — standard hotel check-in is 3 PM, so call ahead for early check-in or explore the area until your room is ready.`
     : '';
 
+  const checkInTiming = arrivalHour < CHECK_IN_HOUR ? 'early' : arrivalHour >= 20 ? 'late' : 'perfect';
+
   let suggestion: SuggestedStop | null = null;
   if (!daysWithHotel.has(state.currentDayNumber)) {
     const maxHoursText = config.maxDriveHoursPerDay === 1 ? '1 hour' : `${config.maxDriveHoursPerDay} hours`;
@@ -172,7 +177,10 @@ export function checkOvernightStop(
       estimatedTime: new Date(arrivalTime),
       duration: 8 * 60,
       priority: 'required',
-      details: { hoursOnRoad: state.hoursOnRoad },
+      details: { 
+        hoursOnRoad: state.hoursOnRoad,
+        checkInTiming 
+      },
       dayNumber: state.currentDayNumber,
     };
   }

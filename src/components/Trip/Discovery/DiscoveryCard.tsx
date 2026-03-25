@@ -53,6 +53,12 @@ export function DiscoveryCard({
                         <span>{poi.distanceFromRoute.toFixed(1)}km from center</span>
                       </>
                     )}
+                    {poi.isGoldenHour && (
+                      <>
+                        <span>·</span>
+                        <span className="text-amber-600 font-medium flex items-center gap-0.5"><span className="text-[10px]">🌅</span> Golden hour</span>
+                      </>
+                    )}
                   </>
                 ) : (
                   <>
@@ -63,6 +69,12 @@ export function DiscoveryCard({
                       <>
                         <span>·</span>
                         <span className="text-green-600 font-medium">Quick stop</span>
+                      </>
+                    )}
+                    {poi.isGoldenHour && (
+                      <>
+                        <span>·</span>
+                        <span className="text-amber-600 font-medium flex items-center gap-0.5"><span className="text-[10px]">🌅</span> Golden hour</span>
                       </>
                     )}
                   </>

@@ -54,12 +54,21 @@ export function FlyoverTrigger({ active, locations, routeGeometry, onComplete }:
       timer = window.setTimeout(() => onCompleteRef.current(), 150);
     };
 
-    map.once('moveend', handleMoveEnd);
-    map.fitBounds(bounds, { animate: true, padding: [80, 80] });
+    const startLoc = validLocations[0];
+
+    // 1. Instantly focus tightly on the starting location to anchor the user
+    map.setView([startLoc.lat, startLoc.lng], 12, { animate: false });
+    
+    // 2. Wait 300ms, then execute a slow, cinematic zoom-out to show the full journey
+    const flyTimer = window.setTimeout(() => {
+      map.once('moveend', handleMoveEnd);
+      map.flyToBounds(bounds, { duration: 2.5, padding: [80, 80] });
+    }, 300);
 
     return () => {
       map.off('moveend', handleMoveEnd);
       clearTimeout(timer);
+      clearTimeout(flyTimer);
     };
   // Only re-run when active flips — onComplete is stable via ref
   // eslint-disable-next-line react-hooks/exhaustive-deps
