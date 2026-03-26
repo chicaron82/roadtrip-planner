@@ -13,6 +13,8 @@ interface QuickCaptureDialogProps {
   onSave: (capture: QuickCapture) => void;
   autoTaggedLocation?: string;
   autoTaggedSegment?: number;
+  /** When set, dialog opens in edit mode pre-populated from this capture. */
+  initialValues?: QuickCapture;
 }
 
 const CATEGORIES = [
@@ -31,7 +33,9 @@ export function QuickCaptureDialog({
   onSave,
   autoTaggedLocation,
   autoTaggedSegment,
+  initialValues,
 }: QuickCaptureDialogProps) {
+  const isEditMode = !!initialValues;
   const [locationName, setLocationName] = useState('');
   const [notes, setNotes] = useState('');
   const [category, setCategory] = useState('other');
@@ -42,7 +46,8 @@ export function QuickCaptureDialog({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-request GPS when dialog opens so it's ready by save time
+  // Auto-request GPS when dialog opens so it's ready by save time.
+  // In edit mode: pre-populate from initialValues instead of requesting GPS.
   useEffect(() => {
     if (!open) {
       // Reset all state on close (React 18+ batches these, no cascading renders)
@@ -54,6 +59,17 @@ export function QuickCaptureDialog({
       setGpsCoords(null);
       setGpsStatus('idle');
       setResolvedGpsName(null);
+      return;
+    }
+
+    if (initialValues) {
+      // Edit mode — pre-populate fields, skip GPS auto-request
+      setLocationName(initialValues.autoTaggedLocation ?? '');
+      setNotes(initialValues.photo?.caption ?? '');
+      setCategory(initialValues.category ?? 'other');
+      setPhotoPreview(initialValues.photo?.dataUrl ?? null);
+      setGpsCoords(initialValues.gpsCoords ?? null);
+      setGpsStatus(initialValues.gpsCoords ? 'captured' : 'idle');
       return;
     }
 
@@ -76,7 +92,7 @@ export function QuickCaptureDialog({
       },
       { timeout: 10000, maximumAge: 60000 }
     );
-  }, [open]);
+  }, [open, initialValues]);
 
   const handleRetryGps = () => {
     if (!navigator.geolocation) return;
@@ -116,28 +132,31 @@ export function QuickCaptureDialog({
     // Prefer: user-typed > GPS-resolved city name > segment destination (only if GPS was unavailable, not just slow)
     const resolvedName = locationName || resolvedGpsName || (gpsStatus !== 'captured' ? autoTaggedLocation : '') || '';
 
+    // In edit mode: reuse existing photo object if dataUrl unchanged (avoids new id churn)
     const photo: JournalPhoto | undefined = photoPreview
-      ? {
-          id: `photo-${Date.now()}`,
-          dataUrl: photoPreview,
-          caption: notes || resolvedName || 'Quick capture',
-          timestamp: new Date(),
-          location: (resolvedName || gpsCoords)
-            ? {
-                lat: gpsCoords?.lat ?? 0,
-                lng: gpsCoords?.lng ?? 0,
-                name: resolvedName,
-              }
-            : undefined,
-        }
+      ? photoPreview === initialValues?.photo?.dataUrl
+        ? { ...initialValues.photo, caption: notes || resolvedName || 'Quick capture' }
+        : {
+            id: `photo-${Date.now()}`,
+            dataUrl: photoPreview,
+            caption: notes || resolvedName || 'Quick capture',
+            timestamp: new Date(),
+            location: (resolvedName || gpsCoords)
+              ? {
+                  lat: gpsCoords?.lat ?? 0,
+                  lng: gpsCoords?.lng ?? 0,
+                  name: resolvedName,
+                }
+              : undefined,
+          }
       : undefined;
 
     const capture: QuickCapture = {
-      id: `capture-${Date.now()}`,
+      id: initialValues?.id ?? `capture-${Date.now()}`,
       photo,
-      autoTaggedSegment,
+      autoTaggedSegment: initialValues?.autoTaggedSegment ?? autoTaggedSegment,
       autoTaggedLocation: locationName || resolvedGpsName || (gpsStatus !== 'captured' ? autoTaggedLocation : '') || '',
-      timestamp: new Date(),
+      timestamp: initialValues?.timestamp ?? new Date(),
       category: category as QuickCapture['category'],
       gpsCoords: gpsCoords ?? undefined,
     };
@@ -152,7 +171,7 @@ export function QuickCaptureDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Camera className="h-5 w-5 text-purple-600" />
-            Add Memory
+            {isEditMode ? 'Edit Memory' : 'Add Memory'}
           </DialogTitle>
         </DialogHeader>
 
@@ -309,7 +328,7 @@ export function QuickCaptureDialog({
               onClick={handleSave}
               className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
             >
-              Save Memory
+              {isEditMode ? 'Update Memory' : 'Save Memory'}
             </button>
           </div>
         </div>

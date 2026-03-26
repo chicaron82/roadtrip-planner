@@ -12,7 +12,7 @@
  * 💚 My Experience Engine
  */
 
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useMemo } from 'react';
 import { CarTrack } from '../../UI/CarTrack';
 import type { TripSummary, TripSettings, TripJournal } from '../../../types';
 import type { GhostCarState } from '../../../hooks/journey/useGhostCar';
@@ -31,6 +31,8 @@ interface JournalAtAGlanceProps {
   ghostCar: GhostCarState;
   onUpdateJournal: (journal: TripJournal) => void;
   onViewFullDetails: () => void;
+  onComplete: () => void;
+  onShare: () => void;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -85,9 +87,25 @@ export function JournalAtAGlance({
   ghostCar,
   onUpdateJournal,
   onViewFullDetails,
+  onComplete,
+  onShare,
 }: JournalAtAGlanceProps) {
   const routeLabel = buildRouteLabel(summary, activeJournal.metadata.title ?? 'Your Trip');
   const chips = buildSummaryChips(summary);
+
+  const isComplete = useMemo(() => {
+    const realIndices = new Set(
+      summary.segments
+        .map((s, i) => ({ s, i }))
+        .filter(({ s }) => !s.to.id?.startsWith('guard-'))
+        .map(({ i }) => i),
+    );
+    if (realIndices.size === 0) return false;
+    const visited = activeJournal.entries.filter(
+      e => realIndices.has(e.segmentIndex) && e.status === 'visited',
+    ).length;
+    return visited >= realIndices.size;
+  }, [summary.segments, activeJournal.entries]);
 
   return (
     <div
@@ -169,13 +187,14 @@ export function JournalAtAGlance({
             settings={settings}
             journal={activeJournal}
             onUpdateJournal={onUpdateJournal}
+            hideFloatingAdd
           />
         </Suspense>
       </div>
 
       {/* ── Sticky bottom bar ── */}
       <div
-        className="shrink-0 flex items-center justify-end px-4 py-3 border-t border-white/5"
+        className="shrink-0 flex items-center justify-between px-4 py-3 border-t border-white/5"
         style={{ background: 'rgba(14, 11, 7, 0.85)' }}
       >
         <button
@@ -193,6 +212,45 @@ export function JournalAtAGlance({
         >
           Full details →
         </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button
+            onClick={onShare}
+            style={{
+              background: 'none',
+              border: '1px solid rgba(245, 240, 232, 0.15)',
+              borderRadius: '8px',
+              color: 'rgba(245, 240, 232, 0.6)',
+              fontSize: '12px',
+              fontFamily: "'DM Mono', monospace",
+              letterSpacing: '0.04em',
+              cursor: 'pointer',
+              padding: '6px 12px',
+            }}
+          >
+            Share
+          </button>
+
+          {isComplete && (
+            <button
+              onClick={onComplete}
+              style={{
+                background: 'rgba(234, 88, 12, 0.85)',
+                border: 'none',
+                borderRadius: '8px',
+                color: '#fff',
+                fontSize: '12px',
+                fontFamily: "'DM Mono', monospace",
+                letterSpacing: '0.04em',
+                fontWeight: 600,
+                cursor: 'pointer',
+                padding: '6px 14px',
+              }}
+            >
+              Complete trip →
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

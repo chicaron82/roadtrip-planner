@@ -29,6 +29,7 @@ export interface UIFlags {
   shouldDimBackground: boolean;
   shouldShowRouteStrategy: boolean;
   shouldShowTripSummaryCard: boolean;
+  shouldHidePlannerUI: boolean;
   ghostCarActive: boolean;
 }
 
@@ -87,6 +88,7 @@ export function getUIFlags(state: ScreenPolicyState): UIFlags {
     shouldDimBackground: surface === 'planning',
     shouldShowRouteStrategy: surface === 'planning' && state.planningStep === 3 && state.hasSummary,
     shouldShowTripSummaryCard: surface === 'planning' && state.planningStep === 3 && state.hasSummary,
+    shouldHidePlannerUI: surface === 'journalAtAGlance',
     ghostCarActive: state.tripConfirmed && state.planningStep === 3 && state.hasSummary,
   };
 }

@@ -25,6 +25,7 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
     segmentIndex?: number;
     locationName?: string;
   }>({});
+  const [editingCapture, setEditingCapture] = useState<import('../../../types').QuickCapture | null>(null);
 
   const startTime = useMemo(
     () => getTripStartTime(settings.departureDate, settings.departureTime, summary.segments[0]?.from.lng),
@@ -72,7 +73,7 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
       const entry = findJournalEntry(journal.entries, stop);
       if (!entry || entry.status !== 'visited') return stop;
     }
-    return journalStops[journalStops.length - 1];
+    return null; // all stops visited — no current stop
   }, [journalStops, journal.entries]);
 
   const currentStopIndex = currentStop?.originalIndex ?? journalStops[journalStops.length - 1]?.originalIndex ?? Math.max(summary.segments.length - 1, 0);
@@ -139,22 +140,54 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
   };
 
   const handleSaveQuickCapture = (capture: QuickCapture) => {
+    const isEdit = editingCapture !== null;
+    const updatedCaptures = isEdit
+      ? journal.quickCaptures.map(qc => qc.id === editingCapture.id ? capture : qc)
+      : [...journal.quickCaptures, capture];
+
     onUpdateJournal({
       ...journal,
-      quickCaptures: [...journal.quickCaptures, capture],
-      stats: { ...journal.stats, photosCount: journal.stats.photosCount + 1 },
+      quickCaptures: updatedCaptures,
+      stats: { ...journal.stats, photosCount: journal.stats.photosCount + (isEdit ? 0 : 1) },
       updatedAt: new Date(),
     });
     // Nudge the ghost car if we have real GPS coords
     if (capture.gpsCoords) {
       dispatchCaptureGps({ lat: capture.gpsCoords.lat, lng: capture.gpsCoords.lng });
     }
-    showToast({ message: '📸 Memory captured!', type: 'success' });
+    showToast({ message: isEdit ? '✏️ Memory updated!' : '📸 Memory captured!', type: 'success' });
+    setEditingCapture(null);
   };
 
   const handleOpenQuickCapture = (segmentIndex?: number, locationName?: string) => {
+    setEditingCapture(null);
     setQuickCaptureContext({ segmentIndex, locationName });
     setQuickCaptureOpen(true);
+  };
+
+  const handleEditCapture = (capture: QuickCapture) => {
+    setEditingCapture(capture);
+    setQuickCaptureContext({
+      segmentIndex: capture.autoTaggedSegment,
+      locationName: capture.autoTaggedLocation,
+    });
+    setQuickCaptureOpen(true);
+  };
+
+  const handleDeleteCapture = (captureId: string) => {
+    const updatedCaptures = journal.quickCaptures.filter(qc => qc.id !== captureId);
+    onUpdateJournal({
+      ...journal,
+      quickCaptures: updatedCaptures,
+      stats: { ...journal.stats, photosCount: Math.max(0, journal.stats.photosCount - 1) },
+      updatedAt: new Date(),
+    });
+    showToast({ message: '🗑️ Memory removed', type: 'success' });
+  };
+
+  const handleQuickCaptureOpenChange = (open: boolean) => {
+    setQuickCaptureOpen(open);
+    if (!open) setEditingCapture(null);
   };
 
   const formatTime = (date: Date, ianaTimezone: string | undefined = originTimezone) =>
@@ -189,12 +222,16 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
     quickCaptureOpen,
     setQuickCaptureOpen,
     quickCaptureContext,
+    editingCapture,
     getEntry,
     handleUpdateEntry,
     handleAddPhoto,
     handleRemovePhoto,
     handleSaveQuickCapture,
     handleOpenQuickCapture,
+    handleEditCapture,
+    handleDeleteCapture,
+    handleQuickCaptureOpenChange,
     formatTime,
     formatDate,
     resetAllStops,

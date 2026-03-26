@@ -1,4 +1,4 @@
-import { MapPin, Trophy, Clock, Camera, Star, BookOpen, Plus } from 'lucide-react';
+import { MapPin, Trophy, Clock, Camera, Star, BookOpen, Plus, Pencil, Trash2 } from 'lucide-react';
 import type { TripSettings, TripJournal } from '../../../types';
 import { JournalStopCard } from './JournalStopCard';
 import { QuickArriveButton } from './QuickArriveButton';
@@ -16,9 +16,11 @@ interface JournalTimelineProps {
   journal: TripJournal;
   onUpdateJournal: (journal: TripJournal) => void;
   className?: string;
+  /** When true, the floating purple + button is hidden (e.g. in JournalAtAGlance overlay). */
+  hideFloatingAdd?: boolean;
 }
 
-export function JournalTimeline({ summary, settings, journal, onUpdateJournal, className }: JournalTimelineProps) {
+export function JournalTimeline({ summary, settings, journal, onUpdateJournal, className, hideFloatingAdd }: JournalTimelineProps) {
   const {
     startTime,
     originTimezone,
@@ -31,14 +33,17 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
     visitedCount,
     progressPercent,
     quickCaptureOpen,
-    setQuickCaptureOpen,
     quickCaptureContext,
+    editingCapture,
     getEntry,
     handleUpdateEntry,
     handleAddPhoto,
     handleRemovePhoto,
     handleSaveQuickCapture,
     handleOpenQuickCapture,
+    handleEditCapture,
+    handleDeleteCapture,
+    handleQuickCaptureOpenChange,
     formatTime,
     formatDate,
     resetAllStops,
@@ -202,6 +207,22 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
                             {formatTime(new Date(capture.timestamp))}
                           </div>
                         </div>
+                        <div className="flex gap-1 shrink-0">
+                          <button
+                            onClick={() => handleEditCapture(capture)}
+                            title="Edit memory"
+                            className="p-1.5 rounded-md text-purple-400 hover:text-purple-700 hover:bg-purple-100 transition-colors"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCapture(capture.id)}
+                            title="Delete memory"
+                            className="p-1.5 rounded-md text-purple-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </div>
                       {capture.photo && (
                         <img
@@ -276,6 +297,60 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
         })}
       </div>
 
+      {/* Untagged memories — captured en route without a specific stop */}
+      {journal.quickCaptures.some(qc => qc.autoTaggedSegment === undefined) && (
+        <div className="space-y-3 pt-2">
+          <h4 className="text-xs font-semibold text-purple-500 uppercase tracking-wider flex items-center gap-2">
+            <Camera className="h-3.5 w-3.5" />
+            Memories along the way
+          </h4>
+          {journal.quickCaptures
+            .filter(qc => qc.autoTaggedSegment === undefined)
+            .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+            .map((capture) => (
+              <div key={capture.id} className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl p-4">
+                <div className="flex items-start gap-3 mb-2">
+                  <div className="text-2xl">📸</div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-purple-900 text-sm">
+                      {capture.autoTaggedLocation || 'Quick Memory'}
+                    </div>
+                    <div className="text-xs text-purple-600 mt-0.5">
+                      {formatTime(new Date(capture.timestamp))}
+                    </div>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <button
+                      onClick={() => handleEditCapture(capture)}
+                      title="Edit memory"
+                      className="p-1.5 rounded-md text-purple-400 hover:text-purple-700 hover:bg-purple-100 transition-colors"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCapture(capture.id)}
+                      title="Delete memory"
+                      className="p-1.5 rounded-md text-purple-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+                {capture.photo && (
+                  <img
+                    src={capture.photo.dataUrl}
+                    alt={capture.photo.caption || 'Memory'}
+                    className="w-full h-40 object-cover rounded-lg mb-2"
+                  />
+                )}
+                {capture.photo?.caption && (
+                  <p className="text-sm text-purple-700">{capture.photo.caption}</p>
+                )}
+              </div>
+            ))}
+        </div>
+      )}
+
       {/* Trip Complete — rich recap souvenir */}
       {visitedCount === totalStops && (
         <TripRecapCard
@@ -286,21 +361,24 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
         />
       )}
 
-      {/* Floating Add Memory Button */}
-      <button
-        onClick={() => handleOpenQuickCapture()}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-110 transition-all flex items-center justify-center group"
-        title="Add Memory"
-      >
-        <Plus className="h-6 w-6 group-hover:rotate-90 transition-transform" />
-      </button>
+      {/* Floating Add Memory Button — hidden when parent provides its own affordance */}
+      {!hideFloatingAdd && (
+        <button
+          onClick={() => handleOpenQuickCapture()}
+          className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-110 transition-all flex items-center justify-center group"
+          title="Add Memory"
+        >
+          <Plus className="h-6 w-6 group-hover:rotate-90 transition-transform" />
+        </button>
+      )}
 
       <QuickCaptureDialog
         open={quickCaptureOpen}
-        onOpenChange={setQuickCaptureOpen}
+        onOpenChange={handleQuickCaptureOpenChange}
         onSave={handleSaveQuickCapture}
         autoTaggedLocation={quickCaptureContext.locationName}
         autoTaggedSegment={quickCaptureContext.segmentIndex}
+        initialValues={editingCapture ?? undefined}
       />
     </div>
   );

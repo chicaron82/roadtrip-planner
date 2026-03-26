@@ -111,8 +111,18 @@ export function useJournal({
       return;
     }
 
+    // Set loading first — blocks the auto-start effect from firing a second time
+    // while this async operation is in flight.
     setIsLoading(true);
     setError(null);
+
+    // Clear any previously completed journal so this run starts fresh.
+    // The completed journal remains archived in IndexedDB; only the active
+    // pointer and React state are cleared here.
+    setActiveJournal(null);
+    setIsJournalComplete(false);
+    setCompletionAcknowledged(false);
+    setActiveJournalId(null);
 
     try {
       const resolvedTitle = title || defaultTitle || undefined;

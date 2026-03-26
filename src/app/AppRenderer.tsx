@@ -66,7 +66,7 @@ export function AppRenderer({
         />
       )}
 
-      {board.activeSurface === 'journalAtAGlance' && board.journalAtAGlanceProps.activeJournal && (
+      {board.activeSurface === 'journalAtAGlance' && board.journalAtAGlanceProps.activeJournal && board.journalAtAGlanceProps.summary && (
         <JournalAtAGlance
           summary={board.journalAtAGlanceProps.summary}
           settings={board.journalAtAGlanceProps.settings}
@@ -74,6 +74,8 @@ export function AppRenderer({
           ghostCar={board.journalAtAGlanceProps.ghostCar}
           onUpdateJournal={board.journalAtAGlanceProps.onUpdateJournal}
           onViewFullDetails={board.commands.viewFullDetails}
+          onComplete={board.commands.viewFullDetails}
+          onShare={board.commands.openShareScreen}
         />
       )}
 
@@ -91,7 +93,10 @@ export function AppRenderer({
             />
           )}
 
-          <PlannerFullscreenShell {...shellProps} />
+          {/* Hidden during journal — shell stays mounted for ghost car state */}
+          <div style={board.uiFlags.shouldHidePlannerUI ? { display: 'none' } : undefined}>
+            <PlannerFullscreenShell {...shellProps} />
+          </div>
 
           {board.uiFlags.shouldShowRouteStrategy && (
             <div className="hidden md:flex absolute top-4 left-0 right-0 z-20 justify-center pointer-events-none px-4">

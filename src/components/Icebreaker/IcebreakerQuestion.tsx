@@ -25,10 +25,9 @@ export function IcebreakerQuestion({
   return (
     <div
       style={{
-        opacity: isExiting ? 0 : 1,
-        transform: isExiting ? 'translateY(-6px)' : 'translateY(0)',
-        transition: 'opacity 200ms ease, transform 200ms ease',
-        animation: isExiting ? 'none' : 'icebreakerFadeIn 280ms ease forwards',
+        opacity: isExiting ? 0 : undefined,
+        transform: isExiting ? 'translateY(-6px)' : undefined,
+        transition: isExiting ? 'opacity 200ms ease, transform 200ms ease' : undefined,
         display: 'flex',
         flexDirection: 'column',
         gap: '28px',
@@ -42,26 +41,59 @@ export function IcebreakerQuestion({
         }
       `}</style>
 
-      {/* Question */}
-      <h2 style={{
-        fontFamily: '"Cormorant Garamond", Georgia, serif',
-        fontSize: 'clamp(24px, 4vw, 36px)',
-        fontWeight: 600,
-        color: '#f5f0e8',
-        lineHeight: 1.2,
-        letterSpacing: '-0.01em',
-        margin: 0,
-      }}>
-        {question}
-      </h2>
+      {/* Eyebrow + Question — tightly grouped so they read as one thought */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+
+        {/* Conversational primer — shown only on the first question (no back nav) */}
+        {!onBack && (
+          <p style={{
+            fontFamily: "'DM Mono', monospace",
+            fontSize: 'clamp(11px, 1.2vw, 13px)',
+            fontWeight: 500,
+            color: 'rgba(255, 255, 255, 0.4)',
+            letterSpacing: '0.1em',
+            textAlign: 'center',
+            margin: 0,
+            animation: 'icebreakerFadeIn 280ms ease both',
+          }}>
+            Talk to MEE
+          </p>
+        )}
+
+        {/* Question */}
+        <h2 style={{
+          fontFamily: '"Cormorant Garamond", Georgia, serif',
+          fontSize: 'clamp(24px, 4vw, 36px)',
+          fontWeight: 600,
+          color: '#f5f0e8',
+          lineHeight: 1.2,
+          letterSpacing: '-0.01em',
+          margin: 0,
+          animation: `icebreakerFadeIn 280ms ease ${!onBack ? '100ms' : '0ms'} both`,
+        }}>
+          {question}
+        </h2>
+
+      </div>
 
       {/* Input area */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+        animation: 'icebreakerFadeIn 280ms ease 60ms both',
+      }}>
         {children}
       </div>
 
       {/* Nav row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: '4px',
+        animation: 'icebreakerFadeIn 280ms ease 80ms both',
+      }}>
         {onBack ? (
           <button
             onClick={onBack}

@@ -4,6 +4,14 @@ import type { SegmentLookupSummary } from '../trip-summary-slices';
 export function generateDefaultTitle(summary: SegmentLookupSummary): string {
   const origin = summary.segments[0]?.from.name.split(',')[0] || 'Start';
   const dest = summary.segments[summary.segments.length - 1]?.to.name.split(',')[0] || 'Destination';
+
+  // Round trip: first city === last city. Use the outbound destination instead.
+  if (origin === dest && summary.segments.length > 1) {
+    const mid = Math.floor(summary.segments.length / 2);
+    const outbound = summary.segments[mid - 1]?.to.name.split(',')[0];
+    if (outbound) return `${origin} to ${outbound}`;
+  }
+
   return `${origin} to ${dest}`;
 }
 

@@ -50,16 +50,29 @@ export function MakeMEETimeScreen({ printInput, journal, onClose }: MakeMEETimeS
 
   const origin      = locations.find(l => l.type === 'origin');
   const destination = locations.find(l => l.type === 'destination');
-  const routeLabel  = origin && destination ? `${origin.name} → ${destination.name}` : '';
+  const fullRouteLabel = origin && destination ? `${origin.name} → ${destination.name}` : '';
   const days        = summary.drivingDays ?? 1;
   const travelers   = settings.numTravelers ?? 1;
 
-  const hasDiscoveries = !!(journal?.entries.some(e => e.rating || e.isHighlight));
+  // Route preview shown in the checklist row — reacts to includeOrigin toggle
+  const routePreview = options.includeOrigin
+    ? (fullRouteLabel || 'Your route')
+    : (destination?.name ?? 'Your route');
+
+  const hasDiscoveries = !!(
+    journal?.entries.some(e => e.rating || e.isHighlight) ||
+    journal?.quickCaptures.some(qc => qc.autoTaggedLocation || qc.photo)
+  );
+
+  const discoveriesCount =
+    (journal?.entries.filter(e => e.rating || e.isHighlight).length ?? 0) +
+    (journal?.quickCaptures.filter(qc => qc.autoTaggedLocation || qc.photo).length ?? 0);
+
   const canShare = options.includeRoute;
 
   const handleCreate = useCallback(() => {
-    exportTripAsTemplate(printInput, options);
-  }, [printInput, options]);
+    exportTripAsTemplate(printInput, options, journal ?? undefined);
+  }, [printInput, options, journal]);
 
   return (
     <>
@@ -121,14 +134,14 @@ export function MakeMEETimeScreen({ printInput, journal, onClose }: MakeMEETimeS
             }}>
               Make My MEE Time → Your MEE Time
             </h2>
-            {routeLabel && (
+            {fullRouteLabel && (
               <p style={{
                 fontFamily: '"DM Sans", system-ui, sans-serif',
                 fontSize: 13,
                 color: 'rgba(245, 240, 232, 0.5)',
                 margin: '0 0 2px',
               }}>
-                {routeLabel}
+                {fullRouteLabel}
               </p>
             )}
             <p style={{
@@ -159,7 +172,7 @@ export function MakeMEETimeScreen({ printInput, journal, onClose }: MakeMEETimeS
               checked={options.includeRoute}
               onChange={v => setOption('includeRoute', v)}
               label="Route & stops"
-              preview={routeLabel || 'Your route'}
+              preview={routePreview}
               required
             />
             <ShareOptionsRow
@@ -193,7 +206,7 @@ export function MakeMEETimeScreen({ printInput, journal, onClose }: MakeMEETimeS
                 checked={options.includeNotes}
                 onChange={v => setOption('includeNotes', v)}
                 label="Your notes & discoveries"
-                preview={`${journal!.entries.filter(e => e.rating || e.isHighlight).length} highlight${journal!.entries.filter(e => e.rating || e.isHighlight).length !== 1 ? 's' : ''}`}
+                preview={`${discoveriesCount} highlight${discoveriesCount !== 1 ? 's' : ''}`}
               />
             )}
           </div>

@@ -101,7 +101,7 @@ function AppContent() {
     onAdventureComplete: () => setShowAdventureMode(false),
   });
 
-  const { activeJournal, viewMode, startJournal, updateActiveJournal, setViewMode, clearJournal, isJournalComplete, showCompleteOverlay, confirmComplete, error: journalError, clearError: clearJournalError } =
+  const { activeJournal, viewMode, startJournal, updateActiveJournal, setViewMode, clearJournal, isJournalComplete, isLoading: isJournalLoading, showCompleteOverlay, confirmComplete, error: journalError, clearError: clearJournalError } =
     useJournal({ summary, settings, vehicle, origin: tripOrigin, defaultTitle: activeChallenge?.title });
 
   const {
@@ -176,13 +176,17 @@ function AppContent() {
   // ── Android back button guard ─────────────────────────────────────────────
   useAppBackPress({ activeJournal, viewMode, setViewMode, icebreaker, tripMode, planningStep, goToStep });
 
-  // Auto-start journal on lock-in if one doesn't exist yet.
+  // Auto-start journal on lock-in. Creates a fresh journal each time —
+  // if a completed journal exists it is archived in IndexedDB and replaced.
+  // In-progress journals are preserved (mid-trip page reload recovery).
   // 700ms delay lets StepsBanner's wizard→trip morph play first.
   useEffect(() => {
-    if (!tripConfirmed || !summary || !!activeJournal || showVoila) return;
+    if (!tripConfirmed || !summary || showVoila) return;
+    if (activeJournal && !isJournalComplete) return; // in-progress — don't override
+    if (isJournalLoading) return;                    // creation already in flight
     const t = setTimeout(() => { void startJournal(customTitle ?? undefined); }, 700);
     return () => clearTimeout(t);
-  }, [tripConfirmed, showVoila, activeJournal, summary, startJournal, customTitle]);
+  }, [tripConfirmed, showVoila, activeJournal, isJournalComplete, isJournalLoading, summary, startJournal, customTitle]);
 
 
 

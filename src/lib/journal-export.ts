@@ -348,13 +348,15 @@ export function exportJournalAsTemplate(journal: TripJournal, summary: JournalEx
  * Step 1 "Load a MEE Time Template" importer can load it directly.
  *
  * All data comes from PrintInput — no extra props needed.
+ * Pass an optional `journal` to include stop notes and memories when
+ * `options.includeNotes` is enabled.
  *
  * TODO: Refactor — lineage not yet written here. PrintInput doesn't carry templateMeta
  * (tripOrigin isn't threaded through to this call site). Needs optional templateMeta
  * prop added to this function and wired from TripBottomActions/Step3CommitSection
  * before fork lineage will work for plan-mode exports.
  */
-export function exportTripAsTemplate(printInput: PrintInput, options: ShareOptions = DEFAULT_SHARE_OPTIONS): void {
+export function exportTripAsTemplate(printInput: PrintInput, options: ShareOptions = DEFAULT_SHARE_OPTIONS, journal?: TripJournal): void {
   const { summary, inputs: { locations, settings, vehicle } } = printInput;
 
   const endpoints = getTripDisplayEndpoints(summary);
@@ -401,6 +403,31 @@ export function exportTripAsTemplate(printInput: PrintInput, options: ShareOptio
     } : {}),
 
     route: { origin, destination: dest, waypoints },
+
+    ...(options.includeNotes && journal ? {
+      recommendations: journal.entries
+        .filter(e => e.notes || e.rating || e.isHighlight)
+        .map(e => {
+          const seg = summary.segments[e.segmentIndex];
+          return {
+            location: seg?.to.name,
+            lat: seg?.to.lat,
+            lng: seg?.to.lng,
+            rating: e.rating,
+            notes: e.notes,
+            isHighlight: e.isHighlight,
+            highlightReason: e.highlightReason,
+          };
+        }),
+      memories: journal.quickCaptures
+        .filter(qc => qc.autoTaggedLocation || qc.photo)
+        .map(qc => ({
+          location: qc.autoTaggedLocation,
+          category: qc.category,
+          notes: qc.photo?.caption,
+          gpsCoords: qc.gpsCoords,
+        })),
+    } : {}),
 
     settings: {
       units: settings.units,
