@@ -235,7 +235,9 @@ export async function fetchOSRMRoute(
   locations: Location[],
   excludeParam: string
 ): Promise<{ segments: RouteSegment[], fullGeometry: [number, number][] } | null> {
-  const waypoints = locations.map((loc) => `${loc.lng},${loc.lat}`).join(';');
+  const validLocations = locations.filter(l => l.lat && l.lng && l.lat !== 0 && l.lng !== 0);
+  if (validLocations.length < 2) return null;
+  const waypoints = validLocations.map((loc) => `${loc.lng},${loc.lat}`).join(';');
 
   try {
     const response = await fetch(
@@ -259,8 +261,8 @@ export async function fetchOSRMRoute(
     for (let i = 0; i < route.legs.length; i++) {
         const leg = route.legs[i];
         segments.push({
-            from: locations[i],
-            to: locations[i+1],
+            from: validLocations[i],
+            to: validLocations[i+1],
             distanceKm: leg.distance / 1000,
             // OSRM defaults to very conservative speeds. Apply a correction factor
             // to align closer with real-world Google Maps estimates.
