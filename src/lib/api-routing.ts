@@ -23,7 +23,7 @@ import { TRIP_CONSTANTS } from './trip-constants';
  * to avoid CORS blocks from the browser. In production, we call the server directly.
  * Switch OSRM_PROD_BASE here when moving to a self-hosted instance.
  */
-const OSRM_PROD_BASE = 'https://routing.openstreetmap.de';
+const OSRM_PROD_BASE = 'https://routing.openstreetmap.de/routed-car';
 const OSRM_BASE = import.meta.env.DEV ? '/osrm' : OSRM_PROD_BASE;
 
 // ==================== GEOMETRY PREVIEW ====================

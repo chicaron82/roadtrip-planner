@@ -12,7 +12,7 @@ export default defineConfig({
       '/osrm': {
         target: 'https://routing.openstreetmap.de',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/osrm/, ''),
+        rewrite: (path) => path.replace(/^\/osrm/, '/routed-car'),
       },
     },
   },
