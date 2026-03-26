@@ -5,6 +5,17 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: '/', // Custom domain (myexperienceengine.com) serves from root
+  server: {
+    proxy: {
+      // Proxy OSRM requests in dev to avoid CORS blocks.
+      // Production calls routing.openstreetmap.de directly (see api-routing.ts).
+      '/osrm': {
+        target: 'https://routing.openstreetmap.de',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/osrm/, ''),
+      },
+    },
+  },
   build: {
     rollupOptions: {
       output: {

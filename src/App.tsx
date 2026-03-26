@@ -160,7 +160,7 @@ function AppContent() {
     locations, setLocations, vehicle, setVehicle, settings, setSettings, setIcebreakerOrigin,
     markStepComplete, forceStep,
     tripMode, setTripMode, selectTripMode, setShowAdventureMode,
-    calculateAndDiscover, isCalculating, summary, calculationMessage,
+    calculateAndDiscover, isCalculating, summary, calculationMessage, calcError,
     setAdventurePreview, onShowVoila: handleShowVoila, customTitle, setCustomTitle,
   });
 

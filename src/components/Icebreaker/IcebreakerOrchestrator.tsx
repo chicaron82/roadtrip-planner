@@ -47,6 +47,7 @@ interface IcebreakerOrchestratorProps {
   isCalculating: boolean;
   summary: TripSummary | null;
   calculationMessage: string | null;
+  calcError: string | null;
 
   // Adventure preview (map circle)
   setAdventurePreview: (v: { lat: number; lng: number; radiusKm: number } | null) => void;
@@ -78,7 +79,7 @@ export function useIcebreakerOrchestrator(
     locations, setLocations, vehicle, setVehicle, settings, setSettings, setIcebreakerOrigin,
     markStepComplete, forceStep,
     tripMode, setTripMode, selectTripMode, setShowAdventureMode,
-    calculateAndDiscover, isCalculating, summary, calculationMessage,
+    calculateAndDiscover, isCalculating, summary, calculationMessage, calcError,
     setAdventurePreview, onShowVoila,
     customTitle, setCustomTitle,
   } = props;
@@ -138,6 +139,14 @@ export function useIcebreakerOrchestrator(
     }
     return false;
   }, [arc]);
+
+  // When calculation fails at beat 4, exit the arc so the user isn't left
+  // stuck on a blank map. The calcError toast fires independently via useAppCallbacks.
+  useEffect(() => {
+    if (arc.beat === 4 && arc.isBuilding && calcError) {
+      arc.exitArc();
+    }
+  }, [arc, calcError]);
 
   /**
    * Android back button handler — navigates within the arc/icebreaker.

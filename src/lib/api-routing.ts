@@ -16,6 +16,16 @@ import {
 } from './border-avoidance';
 import { TRIP_CONSTANTS } from './trip-constants';
 
+// ==================== ROUTING BASE URL ====================
+
+/**
+ * In dev, requests are proxied through Vite (/osrm → routing.openstreetmap.de)
+ * to avoid CORS blocks from the browser. In production, we call the server directly.
+ * Switch OSRM_PROD_BASE here when moving to a self-hosted instance.
+ */
+const OSRM_PROD_BASE = 'https://routing.openstreetmap.de';
+const OSRM_BASE = import.meta.env.DEV ? '/osrm' : OSRM_PROD_BASE;
+
 // ==================== GEOMETRY PREVIEW ====================
 
 /**
@@ -28,7 +38,7 @@ export async function fetchRouteGeometry(locations: Location[]): Promise<[number
   const waypoints = valid.map(l => `${l.lng},${l.lat}`).join(';');
   try {
     const response = await fetch(
-      `https://router.project-osrm.org/route/v1/driving/${waypoints}?overview=simplified&geometries=geojson&steps=false`
+      `${OSRM_BASE}/route/v1/driving/${waypoints}?overview=simplified&geometries=geojson&steps=false`
     );
     const data = await response.json();
     if (data.code !== 'Ok' || !data.routes?.length) return null;
@@ -241,7 +251,7 @@ export async function fetchOSRMRoute(
 
   try {
     const response = await fetch(
-      `https://router.project-osrm.org/route/v1/driving/${waypoints}?overview=full&geometries=geojson&steps=false${excludeParam}`,
+      `${OSRM_BASE}/route/v1/driving/${waypoints}?overview=full&geometries=geojson&steps=false${excludeParam}`,
       { signal: AbortSignal.timeout(15_000) }
     );
     if (!response.ok) return null;
