@@ -40,11 +40,14 @@ export function createMockState(overrides: Partial<SimState> = {}): SimState {
 
 export function createMockSegment(overrides: Partial<RouteSegment> = {}): RouteSegment {
   return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     from: { id: 'orig', type: 'destination' as any, name: 'Origin', lat: 43.6, lng: -79.3 } as Location,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     to: { id: 'dest', type: 'destination' as any, name: 'Destination', lat: 45.4, lng: -75.7 } as Location,
     distanceKm: 200,
     durationMinutes: 120,
     fuelNeededLitres: 0,
+    fuelCost: 0,
     ...overrides,
   };
 }

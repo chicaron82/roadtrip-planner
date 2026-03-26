@@ -171,66 +171,72 @@ npm run build
 
 ```text
 src/
+├── app/                  # Authority layer — screen policy & board pattern
+│   ├── app-screen-policy.ts    # Pure rules: what surface is active, what overlays show
+│   ├── useAppBoard.ts          # Composes policy into a single typed board for the renderer
+│   └── AppRenderer.tsx         # Reads the board, renders the active surface
 ├── components/
-│   ├── Landing/          # Landing screen & mode selection
+│   ├── App/              # Top-level shell (PlannerFullscreenShell, etc.)
+│   ├── Icebreaker/       # Four-beat onboarding arc (estimate → shop → workshop → results)
+│   ├── Landing/          # Landing screen & saved trip browser
 │   ├── Map/              # Leaflet map, animated polyline, POI popups, route pill
 │   ├── Settings/         # Route preferences, vehicle forms
 │   ├── Steps/            # Step 1/2/3 content panels
-│   ├── Trip/             # Core trip UI:
-│   │   ├── SmartTimeline        # Chronological trip timeline (weather-reactive)
-│   │   ├── StopCard             # Individual timeline stop node (extracted from SmartTimeline)
-│   │   ├── ItineraryTimeline    # Day-by-day itinerary
-│   │   ├── JournalTimeline      # Journal mode view
-│   │   ├── JournalStopCard      # Per-stop journal entry editor
-│   │   ├── CarTrack             # Animated car — wizard preview + live trip modes
-│   │   ├── TripRecapCard        # End-of-trip parked car narrative recap
-│   │   ├── SmartSuggestions     # Mid-trip stop suggestions
-│   │   ├── DiscoveryPanel       # POI discovery UI
-│   │   ├── ChallengeCards       # Chicharon's Challenges
-│   │   ├── FeasibilityBanner    # Route health warnings (dismissible per-warning)
-│   │   ├── MobileBottomSheet    # Google Maps-style mobile sheet
-│   │   ├── BudgetInput          # Per-day budget breakdown
-│   │   └── ...
-│   ├── UI/               # Reusable primitives
-│   └── Vehicle/          # Vehicle garage & presets
-├── contexts/             # TripContext — shared state
-├── hooks/
-│   ├── useTripCalculation.ts   # Main calculation hook
-│   ├── useJournal.ts           # Journal session management (lifecycle, restoration)
-│   ├── useGhostCar.ts          # Live car position (binary search + lerp + time anchor)
-│   ├── useArrivalSnap.ts       # GPS one-shot arrival recording
-│   ├── usePOI.ts               # POI discovery & ranking
-│   ├── useAddedStops.ts        # User-added waypoints
-│   └── ...
-└── lib/                  # Business logic
-    ├── hub-cache.ts            # Self-learning highway hub cache (cross-tab sync)
-    ├── hub-seed-data.ts        # 70+ pre-seeded highway corridor cities
-    ├── route-geocoder.ts       # Route geometry interpolation + geocoding
-    ├── trip-timeline.ts        # Smart Timeline event builder
-    ├── trip-timeline-helpers.ts # Pure utilities: formatTime, formatDuration, classifyStops
-    ├── stop-suggestions/       # Stop simulation engine
-    │   ├── generate.ts         # Main simulation loop
-    │   ├── stop-checks.ts      # Fuel / rest / meal / overnight logic
-    │   └── consolidate.ts      # Stop deduplication & combo merging
-    ├── budget/                 # Budget calculation pipeline
-    │   └── split-by-days.ts    # Day-splitting with timezone tracking
-    ├── feasibility/            # Route feasibility analysis
-    ├── poi-service/            # Overpass POI fetching & ranking
-    ├── poi-ranking.ts          # Composite POI score calculator
-    ├── segment-analyzer.ts     # Per-segment warnings (timezone, border, pacing)
-    ├── challenges.ts           # Chicharon's Challenges data
-    ├── template-validator.ts   # Trip template schema validation
-    ├── regional-costs.ts       # Province/state gas & hotel price data
-    ├── driver-rotation.ts      # Multi-driver segment assignment
-    └── calculations.ts         # Core math (fuel, cost, haversine, etc.)
-└── types/                # Domain-split TypeScript types
-    ├── index.ts                # Re-export barrel (163 consumers unchanged)
-    ├── core.ts                 # Location, Vehicle, TripSettings, budget primitives
-    ├── route.ts                # RouteSegment, TripDay, TripSummary, WeatherData
-    ├── poi.ts                  # POI, POISuggestion, ranking metadata
-    ├── journal.ts              # TripJournal, TripTemplate, JournalEntry
-    ├── adventure.ts            # AdventureConfig, AdventureDestination
-    └── challenge.ts            # TripChallenge, ChallengeDifficulty
+│   ├── Trip/             # Core trip UI, organized by feature:
+│   │   ├── Adventure/           # Adventure mode UI
+│   │   ├── Budget/              # Budget picker, sensitivity, distribution bar
+│   │   ├── Discovery/           # POI discovery panels
+│   │   ├── Health/              # Feasibility banners, tradeoffs, arrival hero
+│   │   ├── Itinerary/           # Day-by-day itinerary view
+│   │   ├── Journal/             # Journal entry capture UI
+│   │   ├── Location/            # Location entry & management
+│   │   ├── POI/                 # POI suggestion & add UI
+│   │   ├── Sharing/             # Share URL, MEE sharing, lineage display
+│   │   ├── StepHelpers/         # Utility components for planning steps
+│   │   ├── Timeline/            # Smart timeline visualization (weather-reactive)
+│   │   └── Viewer/              # Result viewing modes
+│   ├── UI/               # Reusable primitives (buttons, cards, collapsible sections)
+│   ├── Vehicle/          # Vehicle garage & presets
+│   ├── Voila/            # Trip reveal animation & share screen
+│   └── Workshop/         # Template builder UI
+├── contexts/             # React context providers
+│   ├── PlannerContext.tsx       # Planner-wide state
+│   └── TripContext.tsx          # Trip data state
+├── hooks/                # Domain-grouped business logic hooks
+│   ├── icebreaker/             # Onboarding arc orchestration
+│   ├── journey/                # Journal, ghost car, arrival snap
+│   ├── map/                    # Route geometry, marker rendering
+│   ├── poi/                    # POI discovery & ranking
+│   ├── session/                # Session lifecycle, voila flow, back-press
+│   ├── trip/                   # Trip calculation, mode, loader, added stops
+│   ├── ui/                     # Style presets, debounce, calculation messages
+│   └── wizard/                 # Planning steps, step props, Step 3 pipeline
+├── lib/                  # Pure business logic (~100 files, nearly 1:1 test coverage)
+│   ├── adventure/              # Adventure mode logic
+│   ├── budget/                 # Budget pipeline (dual-source fuel, day splits)
+│   ├── canonical-updates/      # Canonical trip mutations (title seeds, scenario packs)
+│   ├── feasibility/            # Route feasibility analysis & warnings
+│   ├── journal-storage/        # IndexedDB persistence + export/import
+│   ├── poi-service/            # Overpass POI fetching & ranking
+│   ├── stop-suggestions/       # Stop simulation engine (fuel, rest, meals, overnight)
+│   ├── trip-orchestrator/      # Trip-wide state mutation coordination
+│   ├── hub-cache.ts            # Self-learning highway hub cache (cross-tab sync)
+│   ├── trip-timeline.ts        # Smart Timeline event builder
+│   ├── canonical-trip.ts       # Authoritative event timeline (single source of truth)
+│   ├── regional-costs.ts       # Province/state gas & hotel price data
+│   ├── driver-rotation.ts      # Multi-driver segment assignment
+│   ├── calculations.ts         # Core math (fuel, cost, haversine, etc.)
+│   └── ...                     # ~80 more modules (each with *.test.ts)
+├── stores/               # Zustand stores
+│   └── tripStore.ts
+├── types/                # Domain-split TypeScript types
+│   ├── core.ts                 # Location, Vehicle, TripSettings, budget primitives
+│   ├── route.ts                # RouteSegment, TripDay, TripSummary, WeatherData
+│   ├── poi.ts                  # POI, POISuggestion, ranking metadata
+│   ├── journal.ts              # TripJournal, TripTemplate, JournalEntry
+│   ├── adventure.ts            # AdventureConfig, AdventureDestination
+│   └── challenge.ts            # TripChallenge, ChallengeDifficulty
+└── test/                 # Test setup & fixtures
 ```
 
 ---
