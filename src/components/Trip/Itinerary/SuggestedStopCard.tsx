@@ -199,7 +199,7 @@ export function SuggestedStopCard({ stop, onAccept, onDismiss, swapDriver }: Sug
                     <>
                       <div className="fixed inset-0 z-10" onClick={() => setShowDurationPicker(false)} />
                       <div className="absolute top-full left-0 mt-1 z-20 bg-white rounded-lg shadow-xl border-2 border-gray-100 overflow-hidden min-w-[100px]">
-                        {DURATION_OPTIONS[stop.type].map((minutes) => (
+                        {(DURATION_OPTIONS[stop.type] ?? []).map((minutes) => (
                           <button
                             key={minutes}
                             onClick={() => {

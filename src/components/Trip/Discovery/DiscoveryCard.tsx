@@ -25,6 +25,13 @@ export function DiscoveryCard({
   const isAdded = poi.actionState === 'added';
   const icon = CATEGORY_ICONS[poi.category] || '📍';
 
+  const goldenHourBadge = poi.isGoldenHour && (
+    <>
+      <span>·</span>
+      <span className="text-amber-600 font-medium flex items-center gap-0.5"><span className="text-[10px]">🌅</span> Golden hour</span>
+    </>
+  );
+
   return (
     <div
       className={cn(
@@ -53,12 +60,7 @@ export function DiscoveryCard({
                         <span>{poi.distanceFromRoute.toFixed(1)}km from center</span>
                       </>
                     )}
-                    {poi.isGoldenHour && (
-                      <>
-                        <span>·</span>
-                        <span className="text-amber-600 font-medium flex items-center gap-0.5"><span className="text-[10px]">🌅</span> Golden hour</span>
-                      </>
-                    )}
+                    {goldenHourBadge}
                   </>
                 ) : (
                   <>
@@ -71,12 +73,7 @@ export function DiscoveryCard({
                         <span className="text-green-600 font-medium">Quick stop</span>
                       </>
                     )}
-                    {poi.isGoldenHour && (
-                      <>
-                        <span>·</span>
-                        <span className="text-amber-600 font-medium flex items-center gap-0.5"><span className="text-[10px]">🌅</span> Golden hour</span>
-                      </>
-                    )}
+                    {goldenHourBadge}
                   </>
                 )}
               </div>
