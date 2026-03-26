@@ -19,12 +19,10 @@ import { TRIP_CONSTANTS } from './trip-constants';
 // ==================== ROUTING BASE URL ====================
 
 /**
- * In dev, requests are proxied through Vite (/osrm → routing.openstreetmap.de)
- * to avoid CORS blocks from the browser. In production, we call the server directly.
- * Switch OSRM_PROD_BASE here when moving to a self-hosted instance.
+ * routing.openstreetmap.de serves Access-Control-Allow-Origin: * so no proxy needed.
+ * Switch OSRM_BASE here when moving to a self-hosted instance (planned summer 2026).
  */
-const OSRM_PROD_BASE = 'https://routing.openstreetmap.de/routed-car';
-const OSRM_BASE = import.meta.env.DEV ? '/osrm' : OSRM_PROD_BASE;
+const OSRM_BASE = 'https://routing.openstreetmap.de/routed-car';
 
 // ==================== GEOMETRY PREVIEW ====================
 
