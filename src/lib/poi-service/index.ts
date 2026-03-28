@@ -1,10 +1,12 @@
-import type { POISuggestion, POISuggestionGroup, Location, TripPreference } from '../../types';
+import type { POISuggestion, POISuggestionGroup, Location, TripPreference, TripSummary } from '../../types';
 import type { OverpassElement } from './types';
 import { getRelevantCategories, overpassElementToPOI, deduplicatePOIs } from './poi-converter';
 import { estimateRouteDistanceKm, sampleRouteByKm, haversineDistanceSimple } from './geo';
 import { buildBucketAroundQuery, buildParkRelationQuery, buildDestinationQuery } from './query-builder';
 import { executeOverpassQuery, delay } from './overpass';
 import { INTER_QUERY_DELAY, INTRA_FETCH_DELAY, DESTINATION_RADIUS, INFERENCE_CATEGORIES } from './config';
+import { fetchWeather } from '../weather';
+import type { WeatherData } from '../../types';
 
 /**
  * Main function: Fetch POI suggestions for a route
@@ -24,7 +26,8 @@ export async function fetchPOISuggestions(
   routeGeometry: [number, number][],
   origin: Location,
   destination: Location,
-  tripPreferences: TripPreference[]
+  tripPreferences: TripPreference[],
+  segments: TripSummary['segments'],
 ): Promise<POISuggestionGroup> {
   const startTime = performance.now();
 
@@ -112,11 +115,54 @@ export async function fetchPOISuggestions(
     .filter((poi): poi is POISuggestion => poi !== null)
     .map(poi => ({ ...poi, bucket: 'destination' as const }));
 
+  // ── Query 4: Weather (batch fetch for sample points + destination) ──
+  // We fetch weather for the corridor sample points and the destination center.
+  // This allows the ranking engine to be contextual without per-POI async calls.
+  const weatherMap = new Map<string, WeatherData>();
+  const weatherTasks = [
+    // Destination weather
+    (async () => {
+      const w = await fetchWeather(destination.lat!, destination.lng!, segments[segments.length - 1]?.arrivalTime?.split('T')[0]);
+      if (w) weatherMap.set('destination', w);
+    })(),
+    // Sample point weather (corridor)
+    ...samplePoints.map(async (pt, idx) => {
+      // Estimate which segment this point belongs to for time-accurate weather
+      const progress = idx / samplePoints.length;
+      const segIdx = Math.floor(progress * segments.length);
+      const date = segments[Math.min(segIdx, segments.length - 1)]?.arrivalTime?.split('T')[0];
+      const w = await fetchWeather(pt[0], pt[1], date);
+      if (w) weatherMap.set(`sample-${idx}`, w);
+    }),
+  ];
+
+  await Promise.allSettled(weatherTasks);
+
+  // Attach weather to along-way POIs (nearest sample point)
+  const alongWayWithWeather = alongWayPOIs.map(poi => {
+    let bestIdx = 0;
+    let minDist = Infinity;
+    samplePoints.forEach((pt, idx) => {
+      const d = haversineDistanceSimple(poi.lat, poi.lng, pt[0], pt[1]);
+      if (d < minDist) {
+        minDist = d;
+        bestIdx = idx;
+      }
+    });
+    return { ...poi, weather: weatherMap.get(`sample-${bestIdx}`) };
+  });
+
+  // Attach weather to destination POIs
+  const destinationWithWeather = destinationPOIs.map(poi => ({
+    ...poi,
+    weather: weatherMap.get('destination'),
+  }));
+
   const endTime = performance.now();
 
   const result: POISuggestionGroup = {
-    alongWay: alongWayPOIs,
-    atDestination: destinationPOIs,
+    alongWay: alongWayWithWeather,
+    atDestination: destinationWithWeather,
     totalFound: alongWayPOIs.length + destinationPOIs.length,
     queryDurationMs: endTime - startTime,
     partialResults: partialResults || undefined,

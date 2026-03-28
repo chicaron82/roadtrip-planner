@@ -86,11 +86,11 @@ export function usePOISuggestions({
   }
 
   const queryKey = useMemo(() => ['poiSuggestions', currentRouteHash], [currentRouteHash]);
-  const enabled = !!routeGeometry && routeGeometry.length > 0 && !!origin && !!destination;
+  const enabled = !!routeGeometry && routeGeometry.length > 0 && !!origin && !!destination && !!segments && segments.length > 0;
 
   const { data, isFetching: isLoadingPOIs, isError: poiFetchFailed } = useQuery({
     queryKey,
-    queryFn: () => fetchPOISuggestions(routeGeometry!, origin!, destination!, tripPreferences),
+    queryFn: () => fetchPOISuggestions(routeGeometry!, origin!, destination!, tripPreferences, segments!),
     enabled,
     staleTime: 30 * 60 * 1000, // 30 minutes cache life
     refetchOnWindowFocus: false,

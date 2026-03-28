@@ -193,3 +193,132 @@ describe('rankDestinationPOIs', () => {
     expect(rankDestinationPOIs([], ['scenic'], destination, 5)).toHaveLength(0);
   });
 });
+
+// ─── Weather-Aware Ranking ────────────────────────────────────────────────────
+
+describe('Weather-Aware Ranking', () => {
+  const ROUTE_STRAIGHT: [number, number][] = [[40, -70], [41, -70]];
+  const segments = [makeSegment()];
+
+  it('penalizes outdoor POIs during rain', () => {
+    const rainyViewpoint = makePOI({
+      category: 'viewpoint',
+      lat: 40.5,
+      lng: -70.0,
+      weather: {
+        weatherCode: 61, // Slight rain
+        temperatureMax: 20,
+        temperatureMin: 10,
+        precipitationProb: 80,
+        timezone: 'UTC',
+        timezoneAbbr: 'UTC',
+      }
+    });
+
+    const results = rankAndFilterPOIs([rainyViewpoint], ROUTE_STRAIGHT, segments, []);
+    expect(results[0].weatherFitScore).toBe(10);
+    expect(results[0].rankingRationale).toContain('rain');
+  });
+
+  it('boosts indoor POIs during rain', () => {
+    const rainyMuseum = makePOI({
+      category: 'museum',
+      lat: 40.5,
+      lng: -70.0,
+      weather: {
+        weatherCode: 61,
+        temperatureMax: 20,
+        temperatureMin: 10,
+        precipitationProb: 80,
+        timezone: 'UTC',
+        timezoneAbbr: 'UTC',
+      }
+    });
+
+    const results = rankAndFilterPOIs([rainyMuseum], ROUTE_STRAIGHT, segments, []);
+    expect(results[0].weatherFitScore).toBe(80);
+    expect(results[0].rankingRationale).toContain('indoor');
+  });
+
+  it('penalizes outdoor POIs during extreme heat', () => {
+    const hotPark = makePOI({
+      category: 'park',
+      lat: 40.5,
+      lng: -70.0,
+      weather: {
+        weatherCode: 0, // Clear
+        temperatureMax: 40, // Extreme heat
+        temperatureMin: 25,
+        precipitationProb: 0,
+        timezone: 'UTC',
+        timezoneAbbr: 'UTC',
+      }
+    });
+
+    const results = rankAndFilterPOIs([hotPark], ROUTE_STRAIGHT, segments, []);
+    expect(results[0].weatherFitScore).toBeLessThanOrEqual(30);
+    expect(results[0].rankingRationale).toContain('heat');
+  });
+
+  it('boosts viewpoints and waterfalls during clear weather', () => {
+    const clearViewpoint = makePOI({
+      category: 'viewpoint',
+      lat: 40.5,
+      lng: -70.0,
+      weather: {
+        weatherCode: 0, // Clear
+        temperatureMax: 22,
+        temperatureMin: 12,
+        precipitationProb: 0,
+        timezone: 'UTC',
+        timezoneAbbr: 'UTC',
+      }
+    });
+
+    const results = rankAndFilterPOIs([clearViewpoint], ROUTE_STRAIGHT, segments, []);
+    expect(results[0].weatherFitScore).toBe(90);
+    expect(results[0].rankingRationale).toContain('Perfect conditions');
+  });
+
+  it('affects the final ranking order based on weather', () => {
+    // In clear weather, viewpoint (scenic) should win over museum.
+    // In rain, museum should win over viewpoint.
+    const viewpoint = makePOI({ id: 'v', category: 'viewpoint', lat: 40.5, lng: -70.0, popularityScore: 50 });
+    const museum = makePOI({ id: 'm', category: 'museum', lat: 40.5, lng: -70.0, popularityScore: 50 });
+
+    const clearWeather = {
+      weatherCode: 0,
+      temperatureMax: 20,
+      temperatureMin: 10,
+      precipitationProb: 0,
+      timezone: 'America/Winnipeg',
+      timezoneAbbr: 'CST'
+    };
+    const rainyWeather = {
+      weatherCode: 61,
+      temperatureMax: 15,
+      temperatureMin: 5,
+      precipitationProb: 90,
+      timezone: 'America/Winnipeg',
+      timezoneAbbr: 'CST'
+    };
+
+    const clearResults = rankAndFilterPOIs(
+      [
+        { ...viewpoint, weather: clearWeather },
+        { ...museum, weather: clearWeather }
+      ],
+      ROUTE_STRAIGHT, segments, []
+    );
+    expect(clearResults[0].id).toBe('v');
+
+    const rainyResults = rankAndFilterPOIs(
+      [
+        { ...viewpoint, weather: rainyWeather },
+        { ...museum, weather: rainyWeather }
+      ],
+      ROUTE_STRAIGHT, segments, []
+    );
+    expect(rainyResults[0].id).toBe('m');
+  });
+});

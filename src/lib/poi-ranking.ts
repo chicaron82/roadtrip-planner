@@ -3,11 +3,19 @@ import * as SunCalc from 'suncalc';
 
 // Ranking weights (sum to 1.0)
 const WEIGHTS = {
-  categoryMatch: 0.35,  // 35% - How well it matches user preferences
-  popularity: 0.25,     // 25% - Based on OSM metadata richness
-  detourCost: 0.25,     // 25% - Minimize extra time/distance
-  timingFit: 0.15,      // 15% - Fits into natural break windows
+  categoryMatch: 0.30,  // 30% - How well it matches user preferences
+  popularity:    0.20,  // 20% - Based on OSM metadata richness
+  detourCost:    0.25,  // 25% - Minimize extra time/distance
+  timingFit:     0.15,  // 15% - Fits into natural break windows
+  weatherFit:    0.10,  // 10% - Fits current forecast / conditions
 };
+
+const OUTDOOR_CATEGORIES: POISuggestionCategory[] = [
+  'viewpoint', 'park', 'waterfall', 'attraction', 'landmark',
+];
+const INDOOR_CATEGORIES: POISuggestionCategory[] = [
+  'museum', 'restaurant', 'cafe', 'shopping', 'entertainment', 'hotel',
+];
 
 // Maximum acceptable detour (minutes)
 const MAX_DETOUR_MINUTES = 30;
@@ -251,6 +259,58 @@ function calculateTimingFitScore(
 }
 
 /**
+ * Calculate weather fit score (0-100)
+ * Penalizes outdoor activities in bad weather, boosts them in perfect weather.
+ */
+function calculateWeatherFitScore(
+  poi: POISuggestion
+): { score: number; rationale?: string } {
+  if (!poi.weather) return { score: 50 }; // Neutral if no weather data
+
+  const { weatherCode, temperatureMax, precipitationProb } = poi.weather;
+  const isOutdoor = OUTDOOR_CATEGORIES.includes(poi.category);
+  const isIndoor = INDOOR_CATEGORIES.includes(poi.category);
+
+  let score = 50; // Base score
+  let rationale: string | undefined;
+
+  // ── Bad Weather (Rain / Snow / Thunder) ──────────────────────────────
+  // WMO codes >= 51 are drizzle, rain, snow, or thunderstorms.
+  if (weatherCode >= 51 || precipitationProb > 40) {
+    if (isOutdoor) {
+      score = 10;
+      rationale = 'Penalized for rain/snow forecast';
+    } else if (isIndoor) {
+      score = 80; // Boost indoor spots as a good rainy-day alternative
+      rationale = 'Boosted for indoor protection';
+    }
+  }
+
+  // ── Extreme Heat / Cold ──────────────────────────────────────────────
+  if (temperatureMax > 32) {
+    if (isOutdoor) {
+      score = Math.min(score, 30);
+      rationale = rationale || 'High heat advisory for outdoors';
+    }
+  } else if (temperatureMax < 0 && isOutdoor) {
+    score = Math.min(score, 30);
+    rationale = rationale || 'Extreme cold — potentially inaccessible';
+  }
+
+  // ── Perfect Weather (Clear skies, temperate) ───────────────────────
+  if ((weatherCode === 0 || weatherCode === 1) && temperatureMax <= 32 && temperatureMax >= 0) {
+    if (poi.category === 'viewpoint' || poi.category === 'waterfall') {
+      score = 90;
+      rationale = 'Perfect conditions for viewing';
+    } else if (isOutdoor) {
+      score = 75;
+    }
+  }
+
+  return { score, rationale };
+}
+
+/**
  * Calculate overall ranking score for a POI
  * Returns updated POI with all scores populated
  */
@@ -273,11 +333,14 @@ function rankPOI(
   const popularityScore = poi.popularityScore; // Already calculated from OSM tags
 
   // Weighted composite score
+  const { score: weatherFitScore, rationale: rankingRationale } = calculateWeatherFitScore(poi);
+
   let rankingScore =
     categoryMatchScore * WEIGHTS.categoryMatch +
     popularityScore * WEIGHTS.popularity +
     detourCostScore * WEIGHTS.detourCost +
-    timingFitScore * WEIGHTS.timingFit;
+    timingFitScore * WEIGHTS.timingFit +
+    weatherFitScore * WEIGHTS.weatherFit;
 
   // Estimate arrival time based on segment
   let estimatedArrivalTime: Date | undefined;
@@ -328,6 +391,8 @@ function rankPOI(
     rankingScore: Math.round(rankingScore),
     categoryMatchScore: Math.round(categoryMatchScore),
     timingFitScore: Math.round(timingFitScore),
+    weatherFitScore,
+    rankingRationale,
   };
 }
 
@@ -386,8 +451,11 @@ export function rankDestinationPOIs(
     // Distance from the destination point (for informational display)
     const distanceFromDest = haversineDistance(poi.lat, poi.lng, destination.lat, destination.lng);
 
-    // For destination POIs, only use category match + popularity (50/50 weight)
-    const rankingScore = categoryMatchScore * 0.5 + popularityScore * 0.5;
+    // Contextual weather score
+    const { score: weatherFitScore, rationale: rankingRationale } = calculateWeatherFitScore(poi);
+
+    // For destination POIs, use category match + popularity + weather (40/40/20)
+    const rankingScore = categoryMatchScore * 0.4 + popularityScore * 0.4 + weatherFitScore * 0.2;
 
     return {
       ...poi,
@@ -396,6 +464,8 @@ export function rankDestinationPOIs(
       fitsInBreakWindow: true,
       rankingScore: Math.round(rankingScore),
       categoryMatchScore: Math.round(categoryMatchScore),
+      weatherFitScore,
+      rankingRationale,
     };
   });
 

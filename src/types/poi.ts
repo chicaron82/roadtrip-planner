@@ -41,6 +41,8 @@ export type POIBucket = 'along-way' | 'destination';
 // User action state for POI suggestions
 export type POIActionState = 'suggested' | 'dismissed' | 'added' | 'noted';
 
+import type { WeatherData } from './route';
+
 // Smart POI suggestion with ranking metadata
 export interface POISuggestion {
   id: string;
@@ -66,6 +68,10 @@ export interface POISuggestion {
   categoryMatchScore: number; // How well it matches user preferences
   popularityScore: number; // Based on OSM tags (tourism=yes, etc.)
   timingFitScore: number; // How well it fits into natural break windows
+  weatherFitScore?: number; // How well it fits the current forecast
+
+  // The "Why": Feedback for the user
+  rankingRationale?: string; // Human-readable explanation (e.g., "Penalized for rain")
 
   // User interaction state
   actionState: POIActionState;
@@ -81,6 +87,9 @@ export interface POISuggestion {
   osmType?: 'node' | 'way' | 'relation';
   osmId?: string;
   tags?: Record<string, string>; // Raw OSM tags for rich data
+
+  // Contextual data
+  weather?: WeatherData; // Forecast for the POI's location/arrival
 }
 
 // Consolidated POI suggestion panel data
