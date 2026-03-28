@@ -80,8 +80,8 @@ export function AppRenderer({
           activeJournal={board.journalAtAGlanceProps.activeJournal}
           ghostCar={board.journalAtAGlanceProps.ghostCar}
           onUpdateJournal={board.journalAtAGlanceProps.onUpdateJournal}
-          onViewFullDetails={board.commands.viewFullDetails}
-          onComplete={board.commands.viewFullDetails}
+          onViewFullDetails={board.commands.exitToTripDetails}
+          onComplete={board.commands.finalizeJournal}
           onShare={board.commands.openShareScreen}
           onFinalize={board.commands.finalizeJournal}
           onMinimize={board.commands.minimizeToVoila}

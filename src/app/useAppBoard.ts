@@ -81,6 +81,7 @@ export interface AppBoardInputs {
   handleStartFresh: () => void;
   handleMinimizeToVoila: () => void;
   handleReturnToJournal: () => void;
+  handleExitToTripDetails: () => void;
 
   // ── Template / Trip Loader CEO
   pendingTemplate: TemplateImportResult | null;
@@ -143,6 +144,7 @@ export interface AppBoardCommands {
   startFresh: () => void;
   minimizeToVoila: () => void;
   returnToJournal: () => void;
+  exitToTripDetails: () => void;
 }
 
 // ── Hook ──────────────────────────────────────────────────────────────────
@@ -180,6 +182,7 @@ export function useAppBoard(inputs: AppBoardInputs): AppBoard {
       startFresh: inputs.handleStartFresh,
       minimizeToVoila: inputs.handleMinimizeToVoila,
       returnToJournal: inputs.handleReturnToJournal,
+      exitToTripDetails: inputs.handleExitToTripDetails,
     },
     voilaProps: inputs.voilaProps,
     plannerProps: inputs.plannerProps,

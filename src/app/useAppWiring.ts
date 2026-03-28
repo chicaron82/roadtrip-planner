@@ -277,6 +277,7 @@ export function useAppWiring(i: AppWiringInputs): AppWiringOutput {
     handleStartFresh: () => { i.resetTripSession(); i.handleGoHome(); },
     handleMinimizeToVoila: i.handleMinimizeToVoila,
     handleReturnToJournal: i.handleReturnToJournal,
+    handleExitToTripDetails: () => i.setViewMode('plan'),
     pendingTemplate: i.pendingTemplate, handleBuildFromTemplate, handleOpenPlannerFromTemplate,
     handleDismissPendingTemplate: i.handleDismissPendingTemplate,
     tripMode: i.tripMode, planningStep: i.planningStep,
