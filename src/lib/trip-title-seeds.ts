@@ -11,6 +11,8 @@
  * 💚 My Experience Engine — Voilà title seeds
  */
 
+import { getCityMoniker } from './city-monikers';
+
 export interface SeededTitleInput {
   destination: string;
   days: number;
@@ -64,14 +66,16 @@ const DYNAMIC_SEEDS: Array<(dest: string) => string> = [
   (d) => `${d}: The Long Way`,
   (d) => `Chasing ${d}`,
   (d) => `${d} Was Calling`,
-  (d) => `The ${d} Run`,
+  // Strip leading "The" to avoid "The The Peg Run" when city moniker starts with "The"
+  (d) => `The ${d.replace(/^The\s+/i, '')} Run`,
   (d) => `See You in ${d}`,
   (d) => `The Road to ${d}`,
   (d) => `Getting to ${d}`,
   (d) => `${d} by Nightfall`,
   (d) => `Your MEE Time in ${d}`,
   (d) => `Orchestrating ${d}`,
-  (d) => `The Scenic Arc to ${d}`,
+  // Strip leading "The" to avoid "The Scenic Arc to The Peg" doubling
+  (d) => `The Scenic Arc to ${d.replace(/^The\s+/i, '')}`,
   (d) => `Savoring the Road to ${d}`,
   (d) => `Finding the Groove in ${d}`,
 ];
@@ -97,10 +101,15 @@ function djb2(str: string): number {
 export function buildSeededTitle({ destination, days, travelerCount }: SeededTitleInput): string {
   if (!destination) return 'The Open Road';
 
+  // Hash uses the canonical city name for determinism — same trip always picks
+  // the same seed slot. Only the display name gets the moniker treatment.
   const slug = destination.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const key = `${slug}-${days}-${travelerCount}`;
   const hash = djb2(key);
   const seed = ALL_SEEDS[hash % ALL_SEEDS.length];
 
-  return typeof seed === 'function' ? seed(destination) : seed;
+  // Apply moniker flavor — 70% chance, graceful fallback to city name
+  const displayName = getCityMoniker(destination);
+
+  return typeof seed === 'function' ? seed(displayName) : seed;
 }

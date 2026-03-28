@@ -16,6 +16,7 @@ import type { TripSummary, TripSettings } from '../types';
 import type { FeasibilityResult } from './feasibility';
 import type { TripMode } from '../types/core';
 import { formatDistance, formatDuration } from './trip-formatters';
+import { getCityMoniker } from './city-monikers';
 
 // ==================== TYPES ====================
 
@@ -85,7 +86,9 @@ export interface SignatureCardInput {
  */
 export function buildAutoTitle(destinationName: string): string {
   const city = destinationName.split(',')[0].trim();
-  return `Your MEE time in ${city}`;
+  // forceMoniker: true — journal titles and signature cards are permanent display
+  // surfaces. The moniker should be stable once chosen, not re-rolled per render.
+  return `Your MEE time in ${getCityMoniker(city, { forceMoniker: true })}`;
 }
 
 /**
