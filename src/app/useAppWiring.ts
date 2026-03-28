@@ -274,7 +274,7 @@ export function useAppWiring(i: AppWiringInputs): AppWiringOutput {
     handleVoilaEdit: i.handleVoilaEdit, handleVoilaLockIn: i.handleVoilaLockIn,
     handleGoHome: i.handleGoHome, handleViewFullDetails: i.handleViewFullDetails,
     handleFinalizeJournal: i.finalizeJournal,
-    handleStartFresh: () => { i.clearJournal(); i.handleGoHome(); },
+    handleStartFresh: () => { i.resetTripSession(); i.handleGoHome(); },
     handleMinimizeToVoila: i.handleMinimizeToVoila,
     handleReturnToJournal: i.handleReturnToJournal,
     pendingTemplate: i.pendingTemplate, handleBuildFromTemplate, handleOpenPlannerFromTemplate,

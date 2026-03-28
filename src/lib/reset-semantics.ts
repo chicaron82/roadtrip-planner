@@ -1,7 +1,7 @@
 import type React from 'react';
 import { DEFAULT_LOCATIONS } from '../contexts';
 import type { Location, TripChallenge, TripMode, TripOrigin } from '../types';
-import { clearActiveSession } from './storage';
+import { clearActiveSession, clearSessionPhase } from './storage';
 
 type SetLocations = React.Dispatch<React.SetStateAction<Location[]>>;
 
@@ -51,6 +51,7 @@ export function resetTripSession({
   setTripConfirmed(false);
   clearJournal?.();
   clearActiveSession();
+  clearSessionPhase();
 }
 
 export function resetAppAndSelectTripMode({

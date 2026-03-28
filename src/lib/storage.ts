@@ -7,6 +7,7 @@ const KEYS = {
   LAST_ORIGIN: 'roadtrip_last_origin',
   DEFAULT_SETTINGS: 'roadtrip_default_settings',
   ACTIVE_SESSION: 'roadtrip_active_session',
+  SESSION_PHASE: 'roadtrip_session_phase',
   ENTRY_PREFERENCE: 'mee_entry_preference',
 };
 
@@ -202,6 +203,29 @@ export const loadActiveSession = (): { locations: Location[]; settings: TripSett
 
 export const clearActiveSession = (): void => {
   localStorage.removeItem(KEYS.ACTIVE_SESSION);
+};
+
+// --- Session Phase (voila / default) ---
+// Lightweight key so HMR and page reloads restore the correct screen.
+
+export const saveSessionPhase = (phase: string): void => {
+  try {
+    localStorage.setItem(KEYS.SESSION_PHASE, phase);
+  } catch {
+    // localStorage unavailable — silently ignore
+  }
+};
+
+export const loadSessionPhase = (): string | null => {
+  try {
+    return localStorage.getItem(KEYS.SESSION_PHASE);
+  } catch {
+    return null;
+  }
+};
+
+export const clearSessionPhase = (): void => {
+  localStorage.removeItem(KEYS.SESSION_PHASE);
 };
 
 // --- Entry Experience Preference ---

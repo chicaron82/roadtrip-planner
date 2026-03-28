@@ -1,6 +1,7 @@
 import type React from 'react';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { TripMode } from '../../types';
+import { loadActiveSession, loadSessionPhase, saveSessionPhase } from '../../lib/storage';
 
 interface UseVoilaFlowOptions {
   icebreakerOrigin?: boolean | null;
@@ -19,8 +20,15 @@ export function useVoilaFlow({
   forceStep,
   setTripConfirmed,
 }: UseVoilaFlowOptions) {
-  const [showVoila, setShowVoila] = useState(false);
+  const [showVoila, setShowVoila] = useState(
+    () => loadSessionPhase() === 'voila' && loadActiveSession() !== null,
+  );
   const [flyoverActive, setFlyoverActive] = useState(false);
+
+  // Persist phase so HMR / page reload restores the correct screen.
+  useEffect(() => {
+    saveSessionPhase(showVoila ? 'voila' : 'default');
+  }, [showVoila]);
   const [showShareScreen, setShowShareScreen] = useState(false);
   const handleOpenShareScreen  = useCallback(() => setShowShareScreen(true), []);
   const handleCloseShareScreen = useCallback(() => setShowShareScreen(false), []);

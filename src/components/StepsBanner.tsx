@@ -47,7 +47,7 @@ export function StepsBanner() {
     onGoHome,
   } = usePlanner();
 
-  const mode = MODE_CONFIG[tripMode];
+  const mode = tripMode ? MODE_CONFIG[tripMode] : MODE_CONFIG.plan;
 
   const [taglineIndex, setTaglineIndex] = useState(0);
   const [pulseActive, setPulseActive] = useState(false);

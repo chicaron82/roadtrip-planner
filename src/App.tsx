@@ -182,7 +182,8 @@ function AppContent() {
   // 700ms delay lets StepsBanner's wizard→trip morph play first.
   useEffect(() => {
     if (!tripConfirmed || !summary || showVoila) return;
-    if (activeJournal && !isJournalComplete) return; // in-progress — don't override
+    if (isJournalComplete) return;                   // trip finished — never restart
+    if (activeJournal) return;                       // in-progress — don't override
     if (isJournalLoading) return;                    // creation already in flight
     // Seeded title: deterministic from destination + days + travelers.
     // Falls through to generateDefaultTitle() only if both customTitle and seed fail.
