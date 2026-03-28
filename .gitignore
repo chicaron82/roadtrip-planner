@@ -24,6 +24,7 @@ coverage
 *.sln
 *.sw?
 .claude/
+.github/workflows
 
 # Dev working notes
 task.md
