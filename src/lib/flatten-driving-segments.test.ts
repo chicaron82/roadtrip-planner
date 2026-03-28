@@ -31,7 +31,6 @@ function makeDay(dayNumber: number, segs: TripDay['segments']): TripDay {
   } as TripDay;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function makeOriginalSeg(_idx: number): RouteSegment {
   return { from: LOC_A, to: LOC_B, distanceKm: 100, durationMinutes: 60 } as RouteSegment;
 }

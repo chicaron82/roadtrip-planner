@@ -75,6 +75,7 @@ export function useCalculationMessages(
 
   useEffect(() => {
     if (!isCalculating) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIndex(0);
       return;
     }

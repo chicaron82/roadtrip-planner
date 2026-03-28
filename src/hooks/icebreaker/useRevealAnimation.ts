@@ -42,6 +42,7 @@ export function useRevealAnimation(hasTrip: boolean): {
 
       if (isFirstBuild) {
         // Full luxury reveal — phase in layers sequentially.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setPhase(1);
         const t2 = setTimeout(() => setPhase(2), 150);
         const t3 = setTimeout(() => setPhase(3), 280);

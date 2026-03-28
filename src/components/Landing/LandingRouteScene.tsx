@@ -105,7 +105,7 @@ export function LandingRouteScene({
     const halfPanel = 130;
     left = Math.max(halfPanel, Math.min(cw - halfPanel, left));
     setPopoverLeft(left);
-  }, [selectedNode]);
+  }, [selectedNode, WAYPOINTS]);
 
   useEffect(() => {
     const el = containerRef.current;

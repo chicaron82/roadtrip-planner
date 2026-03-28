@@ -242,5 +242,5 @@ export const getEntryPreference = (): EntryPreference | null => {
 };
 
 export const saveEntryPreference = (pref: EntryPreference): void => {
-  try { localStorage.setItem(KEYS.ENTRY_PREFERENCE, pref); } catch {}
+  try { localStorage.setItem(KEYS.ENTRY_PREFERENCE, pref); } catch { /* localStorage unavailable — silently ignore */ }
 };

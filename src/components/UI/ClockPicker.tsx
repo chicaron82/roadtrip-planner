@@ -64,7 +64,7 @@ export function ClockPicker({ value, onChange, disabled, alwaysOpen = false }: C
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [isOpen]);
+  }, [isOpen, alwaysOpen]);
 
   const handleOpen = () => {
     setStep('hour');

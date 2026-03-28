@@ -54,7 +54,6 @@ function makeParams(overrides: Partial<Parameters<typeof useAppCallbacks>[0]> = 
 describe('handleToggleCategory location picking', () => {
   // mockToggle is the raw vi.fn() for .mock.calls assertions.
   // toggleFn is the same reference cast to satisfy the hook's param type.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockToggle: ReturnType<typeof vi.fn>;
   let toggleFn: ToggleFn;
 
