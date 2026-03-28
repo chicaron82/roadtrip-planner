@@ -51,6 +51,8 @@ interface UseJournalReturn {
   clearJournal: () => void;
   confirmComplete: () => void;
   clearError: () => void;
+  /** Seal the journal as a read-only souvenir. Sets finalized + finalizedAt + actualEnd. */
+  finalizeJournal: () => Promise<void>;
 }
 
 export function useJournal({
@@ -162,6 +164,38 @@ export function useJournal({
     }
   }, [activeJournal, isJournalComplete]);
 
+  const finalizeJournal = useCallback(async () => {
+    if (!activeJournal) return;
+    // Derive actualEnd from the last visited entry's arrival timestamp
+    const visitedEntries = activeJournal.entries
+      .filter(e => e.status === 'visited' && e.actualArrival)
+      .sort((a, b) => new Date(b.actualArrival!).getTime() - new Date(a.actualArrival!).getTime());
+    const lastArrival = visitedEntries[0]?.actualArrival;
+    const now = new Date();
+    const actualEnd = lastArrival
+      ? new Date(lastArrival).toISOString().slice(0, 10)
+      : now.toISOString().slice(0, 10);
+
+    const finalized: TripJournal = {
+      ...activeJournal,
+      finalized: true,
+      finalizedAt: now,
+      metadata: {
+        ...activeJournal.metadata,
+        dates: { ...activeJournal.metadata.dates, actualEnd },
+      },
+      updatedAt: now,
+    };
+    try {
+      const saved = await updateJournal(finalized);
+      setActiveJournal(saved);
+      setIsJournalComplete(true);
+    } catch (err) {
+      console.error('Failed to finalize journal:', err);
+      setError('Failed to save journal. Please try again.');
+    }
+  }, [activeJournal]);
+
   const clearJournal = useCallback(() => {
     setActiveJournal(null);
     setViewMode('plan');
@@ -191,5 +225,6 @@ export function useJournal({
     clearJournal,
     confirmComplete,
     clearError,
+    finalizeJournal,
   };
 }

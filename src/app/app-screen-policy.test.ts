@@ -12,6 +12,7 @@ const base: ScreenPolicyState = {
   showVoila: false,
   pendingTemplate: false,
   showJournalAtAGlance: false,
+  showPostTrip: false,
   tripMode: null,
   arcActive: false,
   showShareScreen: false,

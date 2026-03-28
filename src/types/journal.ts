@@ -171,6 +171,10 @@ export interface TripJournal {
     budgetVariance: number; // Actual - Planned
   };
 
+  // Finalization — sealed as read-only souvenir once trip is complete
+  finalized?: boolean;
+  finalizedAt?: Date;
+
   // Timestamps
   createdAt: Date;
   updatedAt: Date;

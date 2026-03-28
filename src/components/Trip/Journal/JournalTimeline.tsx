@@ -1,4 +1,4 @@
-import { MapPin, Trophy, Clock, Camera, Star, BookOpen, Plus, Pencil, Trash2 } from 'lucide-react';
+import { MapPin, Trophy, Clock, Camera, Star, BookOpen, Plus, Pencil, Trash2, Lock } from 'lucide-react';
 import type { TripSettings, TripJournal } from '../../../types';
 import { JournalStopCard } from './JournalStopCard';
 import { QuickArriveButton } from './QuickArriveButton';
@@ -18,9 +18,11 @@ interface JournalTimelineProps {
   className?: string;
   /** When true, the floating purple + button is hidden (e.g. in JournalAtAGlance overlay). */
   hideFloatingAdd?: boolean;
+  /** Seal the journal as a read-only souvenir. */
+  onFinalize?: () => void;
 }
 
-export function JournalTimeline({ summary, settings, journal, onUpdateJournal, className, hideFloatingAdd }: JournalTimelineProps) {
+export function JournalTimeline({ summary, settings, journal, onUpdateJournal, className, hideFloatingAdd, onFinalize }: JournalTimelineProps) {
   const {
     startTime,
     originTimezone,
@@ -49,20 +51,33 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
     resetAllStops,
   } = useJournalTimeline({ summary, settings, journal, onUpdateJournal });
 
+  const isFinalized = !!journal.finalized;
+  const allVisited = visitedCount === totalStops && totalStops > 0;
+
   return (
     <div className={cn('space-y-6', className)}>
       {/* Progress Header */}
-      <div className="rounded-xl border-2 border-purple-200 bg-gradient-to-r from-purple-50 to-white p-4">
+      <div className={cn(
+        'rounded-xl border-2 p-4',
+        isFinalized
+          ? 'border-green-200 bg-gradient-to-r from-green-50 to-white'
+          : 'border-purple-200 bg-gradient-to-r from-purple-50 to-white',
+      )}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-purple-600" />
-            <h3 className="font-bold text-purple-900">{journal.metadata.title}</h3>
+            {isFinalized
+              ? <Lock className="h-5 w-5 text-green-600" />
+              : <BookOpen className="h-5 w-5 text-purple-600" />
+            }
+            <h3 className={cn('font-bold', isFinalized ? 'text-green-900' : 'text-purple-900')}>
+              {journal.metadata.title}
+            </h3>
           </div>
           <div className="flex items-center gap-2">
-            <div className="text-sm font-medium text-purple-700">
+            <div className={cn('text-sm font-medium', isFinalized ? 'text-green-700' : 'text-purple-700')}>
               {visitedCount}/{totalStops} stops
             </div>
-            {visitedCount > 0 && (
+            {visitedCount > 0 && !isFinalized && (
               <button
                 onClick={resetAllStops}
                 title="Reset all stops to re-drive the journey"
@@ -97,14 +112,19 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
           </div>
         )}
 
-        <div className="h-2 bg-purple-100 rounded-full overflow-hidden">
+        <div className={cn('h-2 rounded-full overflow-hidden', isFinalized ? 'bg-green-100' : 'bg-purple-100')}>
           <div
-            className="h-full bg-gradient-to-r from-purple-500 to-purple-600 transition-all duration-500"
+            className={cn(
+              'h-full transition-all duration-500',
+              isFinalized
+                ? 'bg-gradient-to-r from-green-500 to-green-600'
+                : 'bg-gradient-to-r from-purple-500 to-purple-600',
+            )}
             style={{ width: `${progressPercent}%` }}
           />
         </div>
 
-        <div className="flex items-center gap-4 mt-3 text-xs text-purple-600">
+        <div className={cn('flex items-center gap-4 mt-3 text-xs', isFinalized ? 'text-green-600' : 'text-purple-600')}>
           <span className="flex items-center gap-1">
             <Camera className="h-3 w-3" />
             {journal.stats.photosCount} photos
@@ -113,11 +133,14 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
             <Star className="h-3 w-3" />
             {journal.stats.highlightsCount} highlights
           </span>
+          {isFinalized && (
+            <span className="ml-auto text-green-500 font-medium">Completed</span>
+          )}
         </div>
       </div>
 
       {/* Current Stop - Quick Arrive */}
-      {currentStop && (
+      {currentStop && !isFinalized && (
         <QuickArriveButton
           stopName={currentStop.segment.to.name.split(',')[0]}
           onArrive={() => {
@@ -130,6 +153,26 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
             });
           }}
         />
+      )}
+
+      {/* Tap to save — shown when all stops visited but journal not yet finalized */}
+      {allVisited && !isFinalized && onFinalize && (
+        <button
+          onClick={onFinalize}
+          className={cn(
+            'w-full p-4 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white',
+            'flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transition-all',
+            'active:scale-[0.98]',
+          )}
+        >
+          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+            <Lock className="h-5 w-5" />
+          </div>
+          <div className="text-left">
+            <div className="text-sm font-medium opacity-90">All stops visited</div>
+            <div className="text-lg font-bold">Tap to save this journal</div>
+          </div>
+        </button>
       )}
 
       {/* Timeline */}
@@ -171,21 +214,23 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
                 <DayHeader key={`day-${day.dayNumber}`} day={day} isFirst={isFirst} className="mb-6" />
               ))}
 
-              {/* Inline Add Memory Button */}
-              <div className="flex gap-4 mb-3">
-                <div className="w-10 flex justify-center">
-                  <div className="w-0.5 h-6 bg-border" />
-                </div>
-                <button
-                  onClick={() => handleOpenQuickCapture(originalIndex, segment.to.name)}
-                  className="flex-1 border-2 border-dashed border-purple-200 bg-purple-50/30 hover:bg-purple-50 hover:border-purple-300 rounded-lg px-3 py-2 transition-all group"
-                >
-                  <div className="flex items-center justify-center gap-2 text-xs text-purple-600 font-medium">
-                    <Plus className="h-3 w-3 group-hover:scale-110 transition-transform" />
-                    <span>Add Memory</span>
+              {/* Inline Add Memory Button — hidden when finalized */}
+              {!isFinalized && (
+                <div className="flex gap-4 mb-3">
+                  <div className="w-10 flex justify-center">
+                    <div className="w-0.5 h-6 bg-border" />
                   </div>
-                </button>
-              </div>
+                  <button
+                    onClick={() => handleOpenQuickCapture(originalIndex, segment.to.name)}
+                    className="flex-1 border-2 border-dashed border-purple-200 bg-purple-50/30 hover:bg-purple-50 hover:border-purple-300 rounded-lg px-3 py-2 transition-all group"
+                  >
+                    <div className="flex items-center justify-center gap-2 text-xs text-purple-600 font-medium">
+                      <Plus className="h-3 w-3 group-hover:scale-110 transition-transform" />
+                      <span>Add Memory</span>
+                    </div>
+                  </button>
+                </div>
+              )}
 
               {/* Quick Captures for this segment */}
               {segmentCaptures.map((capture) => (
@@ -207,22 +252,24 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
                             {formatTime(new Date(capture.timestamp))}
                           </div>
                         </div>
-                        <div className="flex gap-1 shrink-0">
-                          <button
-                            onClick={() => handleEditCapture(capture)}
-                            title="Edit memory"
-                            className="p-1.5 rounded-md text-purple-400 hover:text-purple-700 hover:bg-purple-100 transition-colors"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteCapture(capture.id)}
-                            title="Delete memory"
-                            className="p-1.5 rounded-md text-purple-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
+                        {!isFinalized && (
+                          <div className="flex gap-1 shrink-0">
+                            <button
+                              onClick={() => handleEditCapture(capture)}
+                              title="Edit memory"
+                              className="p-1.5 rounded-md text-purple-400 hover:text-purple-700 hover:bg-purple-100 transition-colors"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCapture(capture.id)}
+                              title="Delete memory"
+                              className="p-1.5 rounded-md text-purple-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        )}
                       </div>
                       {capture.photo && (
                         <img
@@ -280,6 +327,7 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
                     onUpdateEntry={(updates) => handleUpdateEntry(originalIndex, updates)}
                     onAddPhoto={(photo) => handleAddPhoto(originalIndex, photo)}
                     onRemovePhoto={(photoId) => handleRemovePhoto(originalIndex, photoId)}
+                    readOnly={isFinalized}
                   />
                 </div>
               </div>
@@ -319,22 +367,24 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
                       {formatTime(new Date(capture.timestamp))}
                     </div>
                   </div>
-                  <div className="flex gap-1 shrink-0">
-                    <button
-                      onClick={() => handleEditCapture(capture)}
-                      title="Edit memory"
-                      className="p-1.5 rounded-md text-purple-400 hover:text-purple-700 hover:bg-purple-100 transition-colors"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteCapture(capture.id)}
-                      title="Delete memory"
-                      className="p-1.5 rounded-md text-purple-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
+                  {!isFinalized && (
+                    <div className="flex gap-1 shrink-0">
+                      <button
+                        onClick={() => handleEditCapture(capture)}
+                        title="Edit memory"
+                        className="p-1.5 rounded-md text-purple-400 hover:text-purple-700 hover:bg-purple-100 transition-colors"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCapture(capture.id)}
+                        title="Delete memory"
+                        className="p-1.5 rounded-md text-purple-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
                 {capture.photo && (
                   <img
@@ -361,8 +411,8 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
         />
       )}
 
-      {/* Floating Add Memory Button — hidden when parent provides its own affordance */}
-      {!hideFloatingAdd && (
+      {/* Floating Add Memory Button — hidden when parent provides its own affordance or finalized */}
+      {!hideFloatingAdd && !isFinalized && (
         <button
           onClick={() => handleOpenQuickCapture()}
           className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-110 transition-all flex items-center justify-center group"

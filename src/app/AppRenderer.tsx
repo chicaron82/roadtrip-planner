@@ -18,6 +18,7 @@ import { YourMEETimePreview } from '../components/Trip/Sharing/YourMEETimePrevie
 import { MakeMEETimeScreen } from '../components/Trip/Sharing/MakeMEETimeScreen';
 import { IcebreakerOverlays } from '../components/Icebreaker/IcebreakerOverlays';
 import { JournalAtAGlance } from '../components/Trip/Journal/JournalAtAGlance';
+import { PostTripScreen } from '../components/Trip/Journal/PostTripScreen';
 import { AdventureMode } from '../components/Trip/Adventure/AdventureMode';
 import { RouteStrategyPicker } from '../components/Trip/RouteStrategyPicker';
 import { TripSummaryCard } from '../components/Trip/TripSummary';
@@ -54,6 +55,12 @@ export function AppRenderer({
           onLockIn={board.commands.lockInVoila}
           onShare={board.commands.openShareScreen}
           onViewFullDetails={board.commands.viewFullDetails}
+          activeJournalSummary={board.journalAtAGlanceProps.activeJournal ? {
+            title: board.journalAtAGlanceProps.activeJournal.metadata.title,
+            visitedCount: board.journalAtAGlanceProps.activeJournal.entries.filter(e => e.status === 'visited').length,
+            totalStops: board.journalAtAGlanceProps.activeJournal.tripSummary.segments.filter(s => !s.to.id?.startsWith('guard-')).length,
+          } : null}
+          onReturnToJournal={board.commands.returnToJournal}
         />
       )}
 
@@ -75,6 +82,18 @@ export function AppRenderer({
           onUpdateJournal={board.journalAtAGlanceProps.onUpdateJournal}
           onViewFullDetails={board.commands.viewFullDetails}
           onComplete={board.commands.viewFullDetails}
+          onShare={board.commands.openShareScreen}
+          onFinalize={board.commands.finalizeJournal}
+          onMinimize={board.commands.minimizeToVoila}
+        />
+      )}
+
+      {board.activeSurface === 'postTrip' && board.postTripProps && (
+        <PostTripScreen
+          journal={board.postTripProps.journal}
+          summary={board.postTripProps.summary}
+          settings={board.postTripProps.settings}
+          onStartFresh={board.commands.startFresh}
           onShare={board.commands.openShareScreen}
         />
       )}

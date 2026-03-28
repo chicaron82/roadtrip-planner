@@ -27,6 +27,7 @@ interface JournalStopCardProps {
   onUpdateEntry: (entry: Partial<JournalEntry>) => void;
   onAddPhoto: (photo: JournalPhoto) => void;
   onRemovePhoto: (photoId: string) => void;
+  readOnly?: boolean;
   className?: string;
 }
 
@@ -39,6 +40,7 @@ export function JournalStopCard({
   onUpdateEntry,
   onAddPhoto,
   onRemovePhoto,
+  readOnly,
   className,
 }: JournalStopCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -145,20 +147,25 @@ export function JournalStopCard({
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className={cn(
-              'h-8 w-8 p-0',
-              isHighlight ? 'text-yellow-500 hover:text-yellow-600' : 'text-gray-400 hover:text-yellow-500'
-            )}
-            onClick={handleToggleHighlight}
-            title={isHighlight ? 'Remove highlight' : 'Mark as highlight'}
-          >
-            <Star className={cn('h-4 w-4', isHighlight && 'fill-current')} />
-          </Button>
+          {!readOnly && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cn(
+                'h-8 w-8 p-0',
+                isHighlight ? 'text-yellow-500 hover:text-yellow-600' : 'text-gray-400 hover:text-yellow-500'
+              )}
+              onClick={handleToggleHighlight}
+              title={isHighlight ? 'Remove highlight' : 'Mark as highlight'}
+            >
+              <Star className={cn('h-4 w-4', isHighlight && 'fill-current')} />
+            </Button>
+          )}
+          {isHighlight && readOnly && (
+            <Star className="h-4 w-4 text-yellow-500 fill-current" />
+          )}
 
-          {!hasArrived && (
+          {!hasArrived && !readOnly && (
             <Button
               size="sm"
               className="bg-green-500 hover:bg-green-600 text-white gap-1"
@@ -183,64 +190,76 @@ export function JournalStopCard({
       {/* Expanded Content */}
       {isExpanded && (
         <div className="px-4 pb-4 space-y-4 border-t border-gray-100 pt-4">
-          {/* Quick Actions */}
-          <div className="flex gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={handlePhotoUpload}
+          {/* Quick Actions — hidden in read-only mode */}
+          {!readOnly && (
+            <div className="flex gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handlePhotoUpload}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 gap-2"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Camera className="h-4 w-4" />
+                Add Photo
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  'flex-1 gap-2 transition-colors',
+                  shareStatus === 'copied' && 'border-green-500 text-green-600'
+                )}
+                onClick={handleShare}
+                disabled={shareStatus === 'sharing'}
+              >
+                <Share2 className="h-4 w-4" />
+                {shareStatus === 'sharing'
+                  ? 'Building…'
+                  : shareStatus === 'copied'
+                    ? 'Copied!'
+                    : entry?.photos?.length
+                      ? 'Share Story'
+                      : 'Share'}
+              </Button>
+            </div>
+          )}
+
+          <JournalPhotoGrid photos={entry?.photos ?? []} onRemovePhoto={onRemovePhoto} readOnly={readOnly} />
+
+          {readOnly ? (
+            entry?.notes ? (
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{entry.notes}</p>
+            ) : null
+          ) : (
+            <JournalNotesEditor
+              notes={entry?.notes}
+              onSave={(notes) => onUpdateEntry({ notes })}
             />
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1 gap-2"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Camera className="h-4 w-4" />
-              Add Photo
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className={cn(
-                'flex-1 gap-2 transition-colors',
-                shareStatus === 'copied' && 'border-green-500 text-green-600'
-              )}
-              onClick={handleShare}
-              disabled={shareStatus === 'sharing'}
-            >
-              <Share2 className="h-4 w-4" />
-              {shareStatus === 'sharing'
-                ? 'Building…'
-                : shareStatus === 'copied'
-                  ? 'Copied!'
-                  : entry?.photos?.length
-                    ? 'Share Story'
-                    : 'Share'}
-            </Button>
-          </div>
-
-          <JournalPhotoGrid photos={entry?.photos ?? []} onRemovePhoto={onRemovePhoto} />
-
-          <JournalNotesEditor
-            notes={entry?.notes}
-            onSave={(notes) => onUpdateEntry({ notes })}
-          />
+          )}
 
           {/* Highlight Reason */}
           {isHighlight && (
             <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <Star className="h-4 w-4 text-yellow-500 fill-current flex-shrink-0 mt-0.5" />
-              <input
-                type="text"
-                value={entry?.highlightReason || ''}
-                onChange={(e) => onUpdateEntry({ highlightReason: e.target.value })}
-                placeholder="Why was this stop special?"
-                className="flex-1 bg-transparent text-sm text-yellow-800 placeholder-yellow-600 focus:outline-none"
-              />
+              {readOnly ? (
+                <span className="text-sm text-yellow-800">{entry?.highlightReason || 'Highlighted'}</span>
+              ) : (
+                <input
+                  type="text"
+                  value={entry?.highlightReason || ''}
+                  onChange={(e) => onUpdateEntry({ highlightReason: e.target.value })}
+                  placeholder="Why was this stop special?"
+                  className="flex-1 bg-transparent text-sm text-yellow-800 placeholder-yellow-600 focus:outline-none"
+                />
+              )}
             </div>
           )}
         </div>

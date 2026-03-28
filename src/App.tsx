@@ -14,6 +14,7 @@ import {
 } from './hooks';
 import { useSessionLifecycle, useVoilaFlow, useAppTemplateHandlers, useAppBackPress } from './hooks/session';
 import { getWeightedFuelEconomyL100km } from './lib/unit-conversions';
+import { buildSeededTitle } from './lib/trip-title-seeds';
 
 const Map = lazy(() => import('./components/Map/Map').then(m => ({ default: m.Map })));
 
@@ -101,7 +102,7 @@ function AppContent() {
     onAdventureComplete: () => setShowAdventureMode(false),
   });
 
-  const { activeJournal, viewMode, startJournal, updateActiveJournal, setViewMode, clearJournal, isJournalComplete, isLoading: isJournalLoading, showCompleteOverlay, confirmComplete, error: journalError, clearError: clearJournalError } =
+  const { activeJournal, viewMode, startJournal, updateActiveJournal, setViewMode, clearJournal, isJournalComplete, isLoading: isJournalLoading, showCompleteOverlay, confirmComplete, finalizeJournal, error: journalError, clearError: clearJournalError } =
     useJournal({ summary, settings, vehicle, origin: tripOrigin, defaultTitle: activeChallenge?.title });
 
   const {
@@ -152,6 +153,7 @@ function AppContent() {
   const {
     showVoila, flyoverActive, showShareScreen, triggerFlyover,
     handleShowVoila, handleFlyoverComplete, handleVoilaEdit, handleVoilaLockIn, handleViewFullDetails, handleGoHome,
+    handleMinimizeToVoila, handleReturnToJournal,
     handleOpenShareScreen, handleCloseShareScreen,
   } = useVoilaFlow({ icebreakerOrigin, isCalculating, setTripMode, goToStep, forceStep, setTripConfirmed });
 
@@ -184,9 +186,17 @@ function AppContent() {
     if (!tripConfirmed || !summary || showVoila) return;
     if (activeJournal && !isJournalComplete) return; // in-progress — don't override
     if (isJournalLoading) return;                    // creation already in flight
-    const t = setTimeout(() => { void startJournal(customTitle ?? undefined); }, 700);
+    // Seeded title: deterministic from destination + days + travelers.
+    // Falls through to generateDefaultTitle() only if both customTitle and seed fail.
+    const dest = locations.find(l => l.type === 'destination')?.name?.split(',')[0].trim() ?? '';
+    const title = customTitle || (dest ? buildSeededTitle({
+      destination: dest,
+      days: summary.drivingDays,
+      travelerCount: settings.numTravelers ?? 1,
+    }) : undefined);
+    const t = setTimeout(() => { void startJournal(title ?? undefined); }, 700);
     return () => clearTimeout(t);
-  }, [tripConfirmed, showVoila, activeJournal, isJournalComplete, isJournalLoading, summary, startJournal, customTitle]);
+  }, [tripConfirmed, showVoila, activeJournal, isJournalComplete, isJournalLoading, summary, startJournal, customTitle, locations, settings.numTravelers]);
 
 
 
@@ -200,7 +210,8 @@ function AppContent() {
   });
 
   const canProceed = planningStep === 1 ? canProceedFromStep1 : canProceedFromStep2;
-  const showJournalAtAGlance = tripConfirmed && viewMode === 'journal' && !showVoila && !!activeJournal;
+  const showPostTrip = !!activeJournal?.finalized && tripConfirmed && !showVoila;
+  const showJournalAtAGlance = tripConfirmed && viewMode === 'journal' && !showVoila && !!activeJournal && !showPostTrip;
 
   const { handleBuildFromTemplate, handleOpenPlannerFromTemplate } = useAppTemplateHandlers({
     handleImportTemplate, handleDismissPendingTemplate, setTripMode, calculateAndDiscover,
@@ -231,11 +242,15 @@ function AppContent() {
     showVoila, showShareScreen,
     handleOpenShareScreen, handleCloseShareScreen,
     handleVoilaEdit, handleVoilaLockIn, handleGoHome, handleViewFullDetails,
+    handleFinalizeJournal: finalizeJournal,
+    handleStartFresh: () => { clearJournal(); handleGoHome(); },
+    handleMinimizeToVoila,
+    handleReturnToJournal,
     pendingTemplate, handleBuildFromTemplate, handleOpenPlannerFromTemplate, handleDismissPendingTemplate,
     tripMode, planningStep, tripConfirmed, hasSummary: !!summary,
     arcActive: icebreaker.arcActive,
     icebreakerOverlayProps: icebreaker.overlayProps,
-    showAdventureMode, showJournalAtAGlance,
+    showAdventureMode, showJournalAtAGlance, showPostTrip,
     voilaProps: {
       summary: summary!,
       settings,
@@ -272,6 +287,11 @@ function AppContent() {
       ghostCar,
       onUpdateJournal: updateActiveJournal,
     },
+    postTripProps: activeJournal?.finalized && summary ? {
+      journal: activeJournal,
+      summary,
+      settings,
+    } : null,
     landingProps: {
       onSelectMode: icebreaker.handleLandingSelect,
       hasSavedTrip: history.length > 0,

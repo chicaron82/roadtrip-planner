@@ -33,6 +33,10 @@ interface JournalAtAGlanceProps {
   onViewFullDetails: () => void;
   onComplete: () => void;
   onShare: () => void;
+  /** Seal the journal as a read-only souvenir. */
+  onFinalize?: () => void;
+  /** Minimize journal back to voila screen. */
+  onMinimize?: () => void;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -89,6 +93,8 @@ export function JournalAtAGlance({
   onViewFullDetails,
   onComplete,
   onShare,
+  onFinalize,
+  onMinimize,
 }: JournalAtAGlanceProps) {
   const routeLabel = buildRouteLabel(summary, activeJournal.metadata.title ?? 'Your Trip');
   const chips = buildSummaryChips(summary);
@@ -112,12 +118,56 @@ export function JournalAtAGlance({
       className="absolute inset-0 z-30 flex flex-col"
       style={{ background: 'rgba(14, 11, 7, 0.94)' }}
     >
-      {/* ── Live trip track ── */}
+      {/* ── Live trip track / Parked car ── */}
       <div
         className="shrink-0 px-4 pt-4 pb-3 border-b border-white/5"
         style={{ background: 'rgba(14, 11, 7, 0.6)' }}
       >
-        {ghostCar.windowStops ? (
+        {activeJournal.finalized ? (
+          /* Parked car — trip complete */
+          <div className="relative" style={{ height: 28 }}>
+            <div
+              className="absolute rounded-full"
+              style={{
+                top: '50%', left: 0, right: 0, height: 2,
+                transform: 'translateY(-50%)',
+                background: 'linear-gradient(90deg, rgba(74,222,128,0.4), rgba(74,222,128,0.8))',
+              }}
+            />
+            <div
+              className="absolute rounded-full"
+              style={{
+                top: '50%', left: 0,
+                width: 8, height: 8,
+                transform: 'translate(-50%, -50%)',
+                background: '#4ade80',
+                boxShadow: '0 0 6px rgba(74,222,128,0.7)',
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                top: '50%',
+                right: 0,
+                transform: 'translate(50%, -60%)',
+                fontSize: 18,
+                filter: 'drop-shadow(0 2px 6px rgba(74,222,128,0.4))',
+              }}
+            >
+              🚗
+            </div>
+            <div
+              className="absolute rounded-full"
+              style={{
+                top: '50%', right: 0,
+                width: 10, height: 10,
+                transform: 'translate(50%, -50%)',
+                background: '#22c55e',
+                boxShadow: '0 0 10px rgba(74,222,128,0.9)',
+              }}
+            />
+          </div>
+        ) : ghostCar.windowStops ? (
           <CarTrack
             mode="trip"
             windowStops={ghostCar.windowStops}
@@ -142,12 +192,24 @@ export function JournalAtAGlance({
 
       {/* ── Route summary header ── */}
       <div className="shrink-0 px-4 py-3 border-b border-white/5">
+        <h1
+          style={{
+            fontSize: 'clamp(22px, 5vw, 32px)',
+            fontFamily: "'Cormorant Garamond', serif",
+            fontWeight: 600,
+            color: '#f5f0e8',
+            margin: 0,
+            lineHeight: 1.2,
+          }}
+        >
+          {activeJournal.metadata.title}
+        </h1>
         <p
           style={{
-            fontSize: '15px',
+            fontSize: '12px',
             fontFamily: "'Cormorant Garamond', serif",
-            color: 'rgba(245, 240, 232, 0.92)',
-            margin: 0,
+            color: 'rgba(245, 240, 232, 0.55)',
+            margin: '4px 0 0',
             lineHeight: 1.3,
           }}
         >
@@ -156,9 +218,9 @@ export function JournalAtAGlance({
         <p
           style={{
             fontSize: '11px',
-            color: 'rgba(245, 240, 232, 0.45)',
+            color: 'rgba(245, 240, 232, 0.4)',
             fontFamily: "'DM Mono', monospace",
-            margin: '3px 0 0',
+            margin: '2px 0 0',
             letterSpacing: '0.04em',
           }}
         >
@@ -188,6 +250,7 @@ export function JournalAtAGlance({
             journal={activeJournal}
             onUpdateJournal={onUpdateJournal}
             hideFloatingAdd
+            onFinalize={onFinalize}
           />
         </Suspense>
       </div>
@@ -197,21 +260,40 @@ export function JournalAtAGlance({
         className="shrink-0 flex items-center justify-between px-4 py-3 border-t border-white/5"
         style={{ background: 'rgba(14, 11, 7, 0.85)' }}
       >
-        <button
-          onClick={onViewFullDetails}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'rgba(245, 240, 232, 0.4)',
-            fontSize: '12px',
-            fontFamily: "'DM Mono', monospace",
-            letterSpacing: '0.04em',
-            cursor: 'pointer',
-            padding: '4px 0',
-          }}
-        >
-          Full details →
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {onMinimize && (
+            <button
+              onClick={onMinimize}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'rgba(245, 240, 232, 0.4)',
+                fontSize: '16px',
+                cursor: 'pointer',
+                padding: '4px 0',
+                lineHeight: 1,
+              }}
+              title="Minimize to trip overview"
+            >
+              ▾
+            </button>
+          )}
+          <button
+            onClick={onViewFullDetails}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'rgba(245, 240, 232, 0.4)',
+              fontSize: '12px',
+              fontFamily: "'DM Mono', monospace",
+              letterSpacing: '0.04em',
+              cursor: 'pointer',
+              padding: '4px 0',
+            }}
+          >
+            Full details →
+          </button>
+        </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <button

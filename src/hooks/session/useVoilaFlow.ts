@@ -66,6 +66,16 @@ export function useVoilaFlow({
     forceStep(3);
   }, [forceStep]);
 
+  /** Minimize journal back to voila screen. */
+  const handleMinimizeToVoila = useCallback(() => {
+    setShowVoila(true);
+  }, []);
+
+  /** Return from voila to journal. */
+  const handleReturnToJournal = useCallback(() => {
+    setShowVoila(false);
+  }, []);
+
   return {
     showVoila,
     flyoverActive,
@@ -77,6 +87,8 @@ export function useVoilaFlow({
     handleVoilaLockIn,
     handleViewFullDetails,
     handleGoHome,
+    handleMinimizeToVoila,
+    handleReturnToJournal,
     handleOpenShareScreen,
     handleCloseShareScreen,
   };

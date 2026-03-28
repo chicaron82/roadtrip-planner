@@ -54,6 +54,12 @@ export interface JournalAtAGlancePropsBundle {
   onUpdateJournal: (journal: TripJournal) => void;
 }
 
+export interface PostTripPropsBundle {
+  journal: TripJournal;
+  summary: TripSummary;
+  settings: TripSettings;
+}
+
 export interface PlannerPropsBundle extends PlannerFullscreenShellProps {
   routeStrategyProps: ComponentProps<typeof RouteStrategyPicker>;
   tripSummaryProps: ComponentProps<typeof TripSummaryCard>;
@@ -71,6 +77,10 @@ export interface AppBoardInputs {
   handleVoilaLockIn: () => void;
   handleGoHome: () => void;
   handleViewFullDetails: () => void;
+  handleFinalizeJournal: () => void;
+  handleStartFresh: () => void;
+  handleMinimizeToVoila: () => void;
+  handleReturnToJournal: () => void;
 
   // ── Template / Trip Loader CEO
   pendingTemplate: TemplateImportResult | null;
@@ -91,12 +101,14 @@ export interface AppBoardInputs {
   // ── Session CEO
   showAdventureMode: boolean;
   showJournalAtAGlance: boolean;
+  showPostTrip: boolean;
 
   // ── Props bundles (Z1: explicitly typed)
   voilaProps: VoilaPropsBundle;
   plannerProps: PlannerPropsBundle;
   templatePreviewProps: { pendingTemplate: TemplateImportResult | null };
   journalAtAGlanceProps: JournalAtAGlancePropsBundle;
+  postTripProps: PostTripPropsBundle | null;
   landingProps: LandingScreenProps;
 }
 
@@ -111,6 +123,7 @@ export interface AppBoard {
   plannerProps: PlannerPropsBundle;
   templatePreviewProps: { pendingTemplate: TemplateImportResult | null };
   journalAtAGlanceProps: JournalAtAGlancePropsBundle;
+  postTripProps: PostTripPropsBundle | null;
   landingProps: LandingScreenProps;
   icebreakerOverlayProps: IcebreakerOverlayProps;
   pendingTemplate: TemplateImportResult | null;
@@ -126,6 +139,10 @@ export interface AppBoardCommands {
   lockInVoila: () => void;
   viewFullDetails: () => void;
   goHome: () => void;
+  finalizeJournal: () => void;
+  startFresh: () => void;
+  minimizeToVoila: () => void;
+  returnToJournal: () => void;
 }
 
 // ── Hook ──────────────────────────────────────────────────────────────────
@@ -135,6 +152,7 @@ export function useAppBoard(inputs: AppBoardInputs): AppBoard {
     showVoila: inputs.showVoila,
     pendingTemplate: inputs.pendingTemplate !== null,
     showJournalAtAGlance: inputs.showJournalAtAGlance,
+    showPostTrip: inputs.showPostTrip,
     tripMode: inputs.tripMode,
     arcActive: inputs.arcActive,
     showShareScreen: inputs.showShareScreen,
@@ -158,11 +176,16 @@ export function useAppBoard(inputs: AppBoardInputs): AppBoard {
       lockInVoila: inputs.handleVoilaLockIn,
       viewFullDetails: inputs.handleViewFullDetails,
       goHome: inputs.handleGoHome,
+      finalizeJournal: inputs.handleFinalizeJournal,
+      startFresh: inputs.handleStartFresh,
+      minimizeToVoila: inputs.handleMinimizeToVoila,
+      returnToJournal: inputs.handleReturnToJournal,
     },
     voilaProps: inputs.voilaProps,
     plannerProps: inputs.plannerProps,
     templatePreviewProps: inputs.templatePreviewProps,
     journalAtAGlanceProps: inputs.journalAtAGlanceProps,
+    postTripProps: inputs.postTripProps,
     landingProps: inputs.landingProps,
     icebreakerOverlayProps: inputs.icebreakerOverlayProps,
     pendingTemplate: inputs.pendingTemplate,

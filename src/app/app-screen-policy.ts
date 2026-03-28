@@ -15,6 +15,7 @@ export type ActiveSurface =
   | 'templatePreview'
   | 'voila'
   | 'journalAtAGlance'
+  | 'postTrip'
   | 'icebreaker';
 
 export interface OverlayState {
@@ -39,6 +40,7 @@ export interface ScreenPolicyState {
   showVoila: boolean;
   pendingTemplate: boolean;
   showJournalAtAGlance: boolean;
+  showPostTrip: boolean;
   tripMode: string | null;
   arcActive: boolean;
   showShareScreen: boolean;
@@ -55,6 +57,7 @@ export interface ScreenPolicyState {
  * Priority: voila > templatePreview > journalAtAGlance > planning > icebreaker > landing
  */
 export function getActiveSurface(state: ScreenPolicyState): ActiveSurface {
+  if (state.showPostTrip) return 'postTrip';
   if (state.showVoila) return 'voila';
   if (state.pendingTemplate) return 'templatePreview';
   if (state.showJournalAtAGlance) return 'journalAtAGlance';
