@@ -44,6 +44,13 @@ const STATIC_SEEDS: string[] = [
   'Somewhere the Signal Drops',
   'A Proper Canadian Haul',
   'The Kind of Trip You Don\'t Plan Twice',
+  'Savoring the In-Between',
+  'Chasing the Sunset Guardian',
+  'The Way the Light Fades',
+  'Trading Concrete for Shield',
+  'A Legendary Piece of Pavement',
+  'The Distance Is the Medicine',
+  'Wide Open & Nowhere to Be',
 ];
 
 // Dynamic trip-aware pool — destination-specific templates
@@ -63,6 +70,10 @@ const DYNAMIC_SEEDS: Array<(dest: string) => string> = [
   (d) => `Getting to ${d}`,
   (d) => `${d} by Nightfall`,
   (d) => `Your MEE Time in ${d}`,
+  (d) => `Orchestrating ${d}`,
+  (d) => `The Scenic Arc to ${d}`,
+  (d) => `Savoring the Road to ${d}`,
+  (d) => `Finding the Groove in ${d}`,
 ];
 
 // Combined pool — static entries are strings, dynamic are functions
