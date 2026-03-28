@@ -4,16 +4,15 @@ import { ErrorFallback } from './components/UI/ErrorFallback';
 import { useIcebreakerOrchestrator } from './components/Icebreaker/IcebreakerOrchestrator';
 import './styles/sidebar.css';
 import { TripProvider, useTimeline, useTripCore } from './contexts';
-import { useAppBoard } from './app/useAppBoard';
 import { AppRenderer } from './app/AppRenderer';
+import { useAppWiring } from './app/useAppWiring';
 import {
   useWizard, useTripCalculation, useJournal, usePOI, useEagerRoute, useAddedStops,
   useStylePreset, useTripMode, useTripLoader, useMapInteractions, useURLHydration,
-  usePlanningStepProps, useCalculateAndDiscover, useMapProps, useGhostCar,
+  useCalculateAndDiscover, useGhostCar,
   useAppCallbacks, useArrivalSnap, useCalculationMessages,
 } from './hooks';
-import { useSessionLifecycle, useVoilaFlow, useAppTemplateHandlers, useAppBackPress } from './hooks/session';
-import { getWeightedFuelEconomyL100km } from './lib/unit-conversions';
+import { useSessionLifecycle, useVoilaFlow, useAppBackPress } from './hooks/session';
 import { buildSeededTitle } from './lib/trip-title-seeds';
 
 const Map = lazy(() => import('./components/Map/Map').then(m => ({ default: m.Map })));
@@ -28,7 +27,6 @@ function AppContent() {
   const previewGeometry = useEagerRoute(locations);
   const onCalcCompleteRef = useRef<() => void>(() => {});
   const [tripConfirmed, setTripConfirmed] = useState(false);
-  const [mapRevealed, setMapRevealed] = useState(false);
   const [adventurePreview, setAdventurePreview] = useState<{ lat: number; lng: number; radiusKm: number } | null>(null);
 
   const {
@@ -200,106 +198,40 @@ function AppContent() {
 
 
 
-  // ── Derived props ─────────────────────────────────────────────────────────
-  const mapProps = useMapProps({
-    locations, validRouteGeometry, routeFeasibilityStatus,
-    pois, markerCategories, tripActive, strategicFuelStops, addedPOIIds,
-    mapDayOptions, handleMapClick, routeDetails: summary, handleAddPOIFromMap,
-    previewGeometry, tripMode, routeStrategies, activeStrategyIndex, selectStrategy,
-    units: settings.units, adventurePreview,
-  });
-
-  const canProceed = planningStep === 1 ? canProceedFromStep1 : canProceedFromStep2;
-  const showPostTrip = !!activeJournal?.finalized && tripConfirmed && !showVoila;
-  const showJournalAtAGlance = tripConfirmed && viewMode === 'journal' && !showVoila && !!activeJournal && !showPostTrip;
-
-  const { handleBuildFromTemplate, handleOpenPlannerFromTemplate } = useAppTemplateHandlers({
-    handleImportTemplate, handleDismissPendingTemplate, setTripMode, calculateAndDiscover,
-  });
-  const stepProps = usePlanningStepProps({
-    planningStep, goToStep,
-    locations, setLocations, vehicle, setVehicle, settings, setSettings,
-    summary, tripMode: tripMode ?? 'plan',
-    setShowAdventureMode,
-    handleImportTemplate, handleTemplateLoaded, handleSelectChallenge, activeChallenge, templateRecommendations,
+  // ── Wiring (assemble what the renderer needs) ──────────────────────────
+  const [mapRevealed, setMapRevealed] = useState(false);
+  const { board, mapProps, adventureModeProps, plannerContextValue, shareScreenProps } = useAppWiring({
+    locations, setLocations, vehicle, setVehicle, settings, setSettings, customTitle,
+    summary, canonicalTimeline,
+    tripMode, showAdventureMode, setShowAdventureMode,
+    showModeSwitcher, setShowModeSwitcher, modeSwitcherRef, handleSwitchMode,
+    tripActive, setTripActive,
+    previewGeometry, validRouteGeometry, routeFeasibilityStatus, mapDayOptions,
+    handleMapClick, handleAddPOIFromMap, adventurePreview,
+    planningStep, completedSteps, canProceedFromStep1, canProceedFromStep2,
+    goToStep, goToNextStep, goToPrevStep,
+    isCalculating, routeStrategies, activeStrategyIndex, selectStrategy,
+    strategicFuelStops, shareUrl, showOvernightPrompt, suggestedOvernightStop,
+    dismissOvernightPrompt, updateStopType, calculateAndDiscover,
+    pois, markerCategories, loadingCategory, handleToggleCategory, addedPOIIds,
+    poiSuggestions, poiInference, isLoadingPOIs, poiPartialResults, poiFetchFailed,
+    addPOI, addStop, dismissPOI,
     activePreset, presetOptions, handlePresetChange, handleSharePreset, shareJustCopied,
-    viewMode, setViewMode, activeJournal, isJournalComplete, showCompleteOverlay, startJournal, updateActiveJournal, confirmJournalComplete: confirmComplete,
-    tripConfirmed, setTripConfirmed, history,
-    addedStopCount: addedStops.length,
-    externalStops,
-    shareUrl, showOvernightPrompt, suggestedOvernightStop, dismissOvernightPrompt,
-    updateStopType,
-    poiSuggestions, poiInference, isLoadingPOIs, poiPartialResults, poiFetchFailed, addPOI, addStop, dismissPOI,
-    openInGoogleMaps, copyShareLink, openShareScreen: handleOpenShareScreen,
-    onLoadHistoryTrip: restoreHistoryTripSession,
-    precomputedEvents: canonicalTimeline?.events,
-    isCalculating,
-    calculateAndDiscover,
-  });
-
-  // ── Board (headquarters — authority + props bundles) ──────────────────────
-  const board = useAppBoard({
-    showVoila, showShareScreen,
-    handleOpenShareScreen, handleCloseShareScreen,
-    handleVoilaEdit, handleVoilaLockIn, handleGoHome, handleViewFullDetails,
-    handleFinalizeJournal: finalizeJournal,
-    handleStartFresh: () => { clearJournal(); handleGoHome(); },
-    handleMinimizeToVoila,
-    handleReturnToJournal,
-    pendingTemplate, handleBuildFromTemplate, handleOpenPlannerFromTemplate, handleDismissPendingTemplate,
-    tripMode, planningStep, tripConfirmed, hasSummary: !!summary,
-    arcActive: icebreaker.arcActive,
-    icebreakerOverlayProps: icebreaker.overlayProps,
-    showAdventureMode, showJournalAtAGlance, showPostTrip,
-    voilaProps: {
-      summary: summary!,
-      settings,
-      locations,
-      customTitle,
-      printInput: stepProps.step3Props.controller.commit?.printInput ?? undefined,
-      precomputedEvents: stepProps.step3Props.controller.commit?.precomputedEvents ?? undefined,
-      feasibility: stepProps.step3Props.controller.feasibility ?? undefined,
-    },
-    plannerProps: {
-      onRevealChange: setMapRevealed,
-      stepProps,
-      liveReflection: summary ? { summary, vehicle, settings } : null,
-      routeStrategyProps: {
-        strategies: routeStrategies,
-        activeIndex: activeStrategyIndex,
-        onSelect: selectStrategy,
-        units: settings.units,
-        isRoundTrip: settings.isRoundTrip,
-      },
-      tripSummaryProps: {
-        summary: summary!,
-        settings,
-        tripActive,
-        onStop: () => setTripActive(false),
-        onOpenVehicleTab: () => goToStep(2),
-      },
-    },
-    templatePreviewProps: { pendingTemplate },
-    journalAtAGlanceProps: {
-      summary: summary!,
-      settings,
-      activeJournal,
-      ghostCar,
-      onUpdateJournal: updateActiveJournal,
-    },
-    postTripProps: activeJournal?.finalized && summary ? {
-      journal: activeJournal,
-      summary,
-      settings,
-    } : null,
-    landingProps: {
-      onSelectMode: icebreaker.handleLandingSelect,
-      hasSavedTrip: history.length > 0,
-      onContinueSavedTrip: () => setTripMode('plan'),
-      hasActiveSession,
-      onResumeSession: handleResumeSession,
-      lastDestination,
-    },
+    activeChallenge, tripOrigin, templateRecommendations, pendingTemplate,
+    handleImportTemplate, handleTemplateLoaded, handleDismissPendingTemplate,
+    handleSelectChallenge, handleAdventureSelect, setTripMode,
+    activeJournal, viewMode, setViewMode, isJournalComplete, showCompleteOverlay,
+    startJournal, updateActiveJournal, confirmComplete, finalizeJournal, clearJournal,
+    tripConfirmed, setTripConfirmed, history, hasActiveSession, lastDestination,
+    resetTripSession, handleResumeSession, restoreHistoryTripSession,
+    addedStopCount: addedStops.length, externalStops,
+    showVoila, flyoverActive, showShareScreen,
+    handleShowVoila, handleFlyoverComplete,
+    handleVoilaEdit, handleVoilaLockIn, handleViewFullDetails, handleGoHome,
+    handleMinimizeToVoila, handleReturnToJournal, handleOpenShareScreen, handleCloseShareScreen,
+    ghostCar, icebreaker,
+    error, clearError, copyShareLink, openInGoogleMaps, calculationMessage,
+    setMapRevealed,
   });
 
   return (
@@ -319,38 +251,9 @@ function AppContent() {
       <AppRenderer
         board={board}
         mapRevealed={mapRevealed}
-        adventureModeProps={{
-          origin: locations.find(l => l.type === 'origin') || null,
-          initialValues: icebreaker.adventureInitialValues ?? undefined,
-          onOriginChange: (newOrigin) => {
-            setLocations(prev => prev.map(loc => loc.type === 'origin' ? { ...loc, ...newOrigin } : loc));
-          },
-          onSelectDestination: handleAdventureSelect,
-          onSelectChallenge: (challenge) => { handleSelectChallenge(challenge); setShowAdventureMode(false); },
-          onClose: () => setShowAdventureMode(false),
-          fuelCostPerKm: (getWeightedFuelEconomyL100km(vehicle, settings.units) / 100) * settings.gasPrice,
-        }}
-        plannerContextValue={{
-          planningStep, completedSteps, canProceed,
-          isCalculating,
-          onStepClick: goToStep,
-          onNext: goToNextStep,
-          onBack: goToPrevStep,
-          onReset: resetTripSession,
-          tripMode: tripMode!,
-          showModeSwitcher, setShowModeSwitcher, modeSwitcherRef,
-          onSwitchMode: handleSwitchMode,
-          onGoHome: handleGoHome,
-          ghostCar: board.uiFlags.ghostCarActive ? ghostCar : null,
-          markerCategories, loadingCategory,
-          onToggleCategory: handleToggleCategory,
-          error, onClearError: clearError,
-          calculationMessage,
-        }}
-        shareScreenProps={stepProps.step3Props.controller.commit?.printInput ? {
-          printInput: stepProps.step3Props.controller.commit.printInput,
-          journal: activeJournal,
-        } : null}
+        adventureModeProps={adventureModeProps}
+        plannerContextValue={plannerContextValue}
+        shareScreenProps={shareScreenProps}
       />
     </div>
   );

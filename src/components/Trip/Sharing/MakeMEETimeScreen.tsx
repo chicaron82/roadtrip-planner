@@ -11,7 +11,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import type { PrintInput } from '../../../lib/canonical-trip';
-import type { TripJournal } from '../../../types';
+import type { TripJournal, TripOrigin } from '../../../types';
 import { exportTripAsTemplate, DEFAULT_SHARE_OPTIONS } from '../../../lib/journal-export';
 import type { ShareOptions } from '../../../lib/journal-export';
 import { ShareOptionsRow } from './ShareOptionsRow';
@@ -22,10 +22,11 @@ const ORIGIN_PREF_KEY = 'mee-share-include-origin';
 interface MakeMEETimeScreenProps {
   printInput: PrintInput;
   journal?: TripJournal | null;
+  tripOrigin?: TripOrigin | null;
   onClose: () => void;
 }
 
-export function MakeMEETimeScreen({ printInput, journal, onClose }: MakeMEETimeScreenProps) {
+export function MakeMEETimeScreen({ printInput, journal, tripOrigin, onClose }: MakeMEETimeScreenProps) {
   const { summary, inputs: { locations, settings } } = printInput;
 
   // Persist origin preference; all others reset each session.
@@ -71,8 +72,8 @@ export function MakeMEETimeScreen({ printInput, journal, onClose }: MakeMEETimeS
   const canShare = options.includeRoute;
 
   const handleCreate = useCallback(() => {
-    exportTripAsTemplate(printInput, options, journal ?? undefined);
-  }, [printInput, options, journal]);
+    exportTripAsTemplate(printInput, options, journal ?? undefined, tripOrigin ?? undefined);
+  }, [printInput, options, journal, tripOrigin]);
 
   return (
     <>

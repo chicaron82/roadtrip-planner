@@ -1,4 +1,4 @@
-import type { TripJournal, TripSettings } from '../types';
+import type { TripJournal, TripOrigin, TripSettings } from '../types';
 import { showToast } from './toast';
 import { escapeHtml } from './utils';
 import { getExportBudgetBreakdown, getTripDisplayEndpoints } from './trip-summary-view';
@@ -351,12 +351,8 @@ export function exportJournalAsTemplate(journal: TripJournal, summary: JournalEx
  * Pass an optional `journal` to include stop notes and memories when
  * `options.includeNotes` is enabled.
  *
- * TODO: Refactor — lineage not yet written here. PrintInput doesn't carry templateMeta
- * (tripOrigin isn't threaded through to this call site). Needs optional templateMeta
- * prop added to this function and wired from TripBottomActions/Step3CommitSection
- * before fork lineage will work for plan-mode exports.
  */
-export function exportTripAsTemplate(printInput: PrintInput, options: ShareOptions = DEFAULT_SHARE_OPTIONS, journal?: TripJournal): void {
+export function exportTripAsTemplate(printInput: PrintInput, options: ShareOptions = DEFAULT_SHARE_OPTIONS, journal?: TripJournal, tripOrigin?: TripOrigin): void {
   const { summary, inputs: { locations, settings, vehicle } } = printInput;
 
   const endpoints = getTripDisplayEndpoints(summary);
@@ -372,11 +368,16 @@ export function exportTripAsTemplate(printInput: PrintInput, options: ShareOptio
     ? originLoc
     : { ...originLoc, name: '', lat: 0, lng: 0 };
 
+  const forkLineage = tripOrigin?.type === 'template' && tripOrigin.id
+    ? buildTemplateLineage({ templateId: tripOrigin.id, lineage: undefined, title: '', author: '', description: '', recommendations: undefined })
+    : undefined;
+
   const template = {
     type: 'roadtrip-template' as const,
     version: '1.0',
     id: `template-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
     createdAt: new Date().toISOString(),
+    ...(forkLineage ? { lineage: forkLineage } : {}),
     author: 'MEE',
 
     trip: {

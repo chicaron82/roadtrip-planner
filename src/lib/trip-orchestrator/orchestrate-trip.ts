@@ -110,8 +110,6 @@ export async function orchestrateTrip(
 
   // Inject user-declared stop intent (fuel, meal) as required stops.
   // These honour the user's explicit waypoint checkboxes in Step 1.
-  // TODO: overnight intent requires modifying splitTripByDays to pin day boundaries —
-  //       tracked for a future session (needs deeper split-by-days integration).
   const intentStops: SuggestedStop[] = [];
   // Track which segment indices have user-declared intent stops and what types.
   // Used to suppress engine-generated duplicates at the same waypoint.
