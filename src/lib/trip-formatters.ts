@@ -57,3 +57,27 @@ export function getDayNumber(departureDate: string, currentDate: string): number
   const diffDays = Math.floor((current.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
   return diffDays + 1;
 }
+
+const MONTH_ABBRS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * Format an inclusive date range into a compact human-readable string.
+ * Expects ISO date strings (YYYY-MM-DD). Collapses month/year when shared.
+ *
+ * Examples:
+ *   Mar 5–8, 2026
+ *   Mar 28 – Apr 3, 2026
+ *   Dec 30, 2025 – Jan 2, 2026
+ */
+export function formatDateRange(start: string, end: string): string {
+  const s = new Date(start + 'T00:00:00');
+  const e = new Date(end + 'T00:00:00');
+  if (s.getFullYear() === e.getFullYear()) {
+    if (s.getMonth() === e.getMonth()) {
+      return `${MONTH_ABBRS[s.getMonth()]} ${s.getDate()}–${e.getDate()}, ${s.getFullYear()}`;
+    }
+    return `${MONTH_ABBRS[s.getMonth()]} ${s.getDate()} – ${MONTH_ABBRS[e.getMonth()]} ${e.getDate()}, ${s.getFullYear()}`;
+  }
+  return `${MONTH_ABBRS[s.getMonth()]} ${s.getDate()}, ${s.getFullYear()} – ${MONTH_ABBRS[e.getMonth()]} ${e.getDate()}, ${e.getFullYear()}`;
+}

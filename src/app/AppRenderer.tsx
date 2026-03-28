@@ -44,8 +44,10 @@ export function AppRenderer({
 
   return (
     <>
-      {/* Icebreaker overlays — always mounted (current App.tsx behavior) */}
-      <IcebreakerOverlays {...board.icebreakerOverlayProps} />
+      {/* Icebreaker overlays */}
+      {board.overlayState.icebreakerOverlays && (
+        <IcebreakerOverlays {...board.icebreakerOverlayProps} />
+      )}
 
       {/* Main surface — one at a time */}
       {board.activeSurface === 'voila' && (

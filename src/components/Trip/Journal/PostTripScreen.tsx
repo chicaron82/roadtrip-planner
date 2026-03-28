@@ -16,6 +16,7 @@ import type { TripJournal, TripSettings } from '../../../types';
 import { exportJournalAsHTML, exportJournalAsTemplate } from '../../../lib/journal-export';
 import { getTripDisplayEndpoints } from '../../../lib/trip-summary-view';
 import type { TripRecapSummary } from '../../../lib/trip-summary-slices';
+import { formatDateRange } from '../../../lib/trip-formatters';
 
 interface PostTripScreenProps {
   journal: TripJournal;
@@ -26,19 +27,6 @@ interface PostTripScreenProps {
   onPrint?: () => void;
 }
 
-function formatDateRange(start: string, end: string): string {
-  const s = new Date(start + 'T00:00:00');
-  const e = new Date(end + 'T00:00:00');
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  if (s.getFullYear() === e.getFullYear()) {
-    if (s.getMonth() === e.getMonth()) {
-      return `${months[s.getMonth()]} ${s.getDate()}–${e.getDate()}, ${s.getFullYear()}`;
-    }
-    return `${months[s.getMonth()]} ${s.getDate()} – ${months[e.getMonth()]} ${e.getDate()}, ${s.getFullYear()}`;
-  }
-  return `${months[s.getMonth()]} ${s.getDate()}, ${s.getFullYear()} – ${months[e.getMonth()]} ${e.getDate()}, ${e.getFullYear()}`;
-}
 
 export function PostTripScreen({
   journal, summary, settings, onStartFresh, onShare, onPrint,
