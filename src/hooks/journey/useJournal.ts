@@ -6,6 +6,7 @@ import {
   getActiveJournal,
   setActiveJournalId,
 } from '../../lib/journal-storage';
+import { clearActiveSession } from '../../lib/storage';
 
 export type ViewMode = 'plan' | 'journal';
 
@@ -190,6 +191,7 @@ export function useJournal({
       const saved = await updateJournal(finalized);
       setActiveJournal(saved);
       setIsJournalComplete(true);
+      clearActiveSession(); // trip is done — don't restore this session on next page load
     } catch (err) {
       console.error('Failed to finalize journal:', err);
       setError('Failed to save journal. Please try again.');
