@@ -395,3 +395,50 @@ describe('Predictive Empathy', () => {
     expect(results[0].rankingScore).toBeLessThan(50);
   });
 });
+
+// ─── The Legendary Engine ────────────────────────────────────────────────────
+
+describe('The Legendary Engine — Timeline Protection', () => {
+  it('skips heavy detours when the cumulative budget is near its limit', () => {
+    // MAX_TOTAL_DETOUR = 50. 
+    // Alpha (-97.25 lng) -> ~18km off -97.0 -> ~37m detour.
+    // Beta (-97.15 lng) -> ~11km off -97.0 -> ~22m detour.
+    // Gamma (-97.10 lng) -> ~7km off -97.0 -> ~14m detour.
+    
+    const stopAlpha = makePOI({ id: 'alpha', name: 'Alpha', lat: 40.5, lng: -70.23, popularityScore: 1000 });
+    const stopBeta = makePOI({ id: 'beta', name: 'Beta', lat: 40.5, lng: -70.235, popularityScore: 80 });
+    const stopGamma = makePOI({ id: 'gamma', name: 'Gamma', lat: 40.5, lng: -70.08, popularityScore: 50 });
+
+    const LOCAL_ROUTE: [number, number][] = [[40, -70], [41, -70]];
+    const localSegments = [makeSegment({ 
+      from: { id: 'o', type: 'origin' as const, name: 'O', lat: 40.0, lng: -70.0 },
+      to:   { id: 'd', type: 'destination' as const, name: 'D', lat: 41.0, lng: -70.0 }
+    })];
+
+    const results = rankAndFilterPOIs([stopAlpha, stopBeta, stopGamma], LOCAL_ROUTE, localSegments, [], 5);
+    
+    expect(results.map(r => r.id)).toContain('alpha');
+    expect(results.map(r => r.id)).not.toContain('beta'); // Pruned because it's heavy and over budget
+    expect(results.map(r => r.id)).toContain('gamma'); // Included because it's "Quick" enough (<15)
+    
+    const gammaResult = results.find(r => r.id === 'gamma');
+    expect(gammaResult?.rankingRationale).toContain('Timeline Protected');
+  });
+
+  it('never prunes a Golden Hour Guardian', () => {
+    // Even if over budget, a Golden Hour viewpoint should stay.
+    const stop1 = makePOI({ id: 's1', lat: 49.25, lng: -97.25, popularityScore: 80 }); // 37 mins
+    const guardian = makePOI({ 
+      id: 'guardian', 
+      name: 'Guardian',
+      category: 'viewpoint', 
+      lat: 49.25, 
+      lng: -97.20, // 30 mins
+      isGoldenHour: true,
+      popularityScore: 10 // Normally wouldn't make the cut
+    });
+
+    const results = rankAndFilterPOIs([stop1, guardian], ROUTE, [makeSegment()], [], 5);
+    expect(results.map(r => r.id)).toContain('guardian');
+  });
+});

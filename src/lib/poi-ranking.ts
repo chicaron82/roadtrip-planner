@@ -308,6 +308,12 @@ function calculateWeatherFitScore(
     }
   }
 
+  // ── Golden Hour (Sunset Guardian) ──────────────────────────────────
+  // If the POI is specifically tagged as Golden Hour by the ranking context,
+  // ensure it has a persistent boost that keeps it prioritized for orchestration.
+  // Note: isGoldenHour is calculated in rankPOI, but score is base-evaluated here.
+  // We'll apply the final boost in rankPOI to maintain consistency.
+
   return { score, rationale };
 }
 
@@ -441,8 +447,8 @@ function rankPOI(
     }
   }
 
-  let isGoldenHour = false;
-  if (estimatedArrivalTime) {
+  let isGoldenHour = poi.isGoldenHour || false;
+  if (!isGoldenHour && estimatedArrivalTime) {
     const sunTimes = SunCalc.getTimes(estimatedArrivalTime, poi.lat, poi.lng);
     const arrTimeMs = estimatedArrivalTime.getTime();
     
@@ -456,6 +462,11 @@ function rankPOI(
       // Subtly boost the ranking score so amazing photospots bubble up!
       rankingScore += 15;
     }
+  }
+
+  // Final "Guardianship" boost for Golden Hour viewpoints
+  if (isGoldenHour && (poi.category === 'viewpoint' || poi.category === 'waterfall')) {
+    rankingScore += 20; // Ensure they stay at the top of the 'Legendary' list
   }
 
   // Check if fits in break window (if detour is quick)
@@ -499,16 +510,41 @@ export function rankAndFilterPOIs(
   const sorted = filtered.sort((a, b) => b.rankingScore - a.rankingScore);
 
   // Category-diverse selection: max 3 per category
+  // Plus: Timeline Protection (Phase 3)
   const MAX_PER_CATEGORY = 3;
+  const MAX_TOTAL_DETOUR = 50; // Total allowed extra detour minutes per selection set
+  
   const categoryCounts = new Map<string, number>();
-  const diverse: POISuggestion[] = [];
+  const diverse: (POISuggestion & { isTimelineProtected?: boolean })[] = [];
+  let currentTotalDetour = 0;
 
   for (const poi of sorted) {
     const count = categoryCounts.get(poi.category) || 0;
-    if (count < MAX_PER_CATEGORY) {
-      diverse.push(poi);
-      categoryCounts.set(poi.category, count + 1);
+    
+    // Pruning logic: If we already have 1+ stop and the next one is a "heavy" detour (>20m) 
+    // that would put us over the total budget, we skip it unless it's a 'viewpoint' in Golden Hour.
+    const isHeavy = poi.detourTimeMinutes > 15;
+    const isExhausted = currentTotalDetour + poi.detourTimeMinutes > MAX_TOTAL_DETOUR;
+    const isGoldenGuardian = poi.isGoldenHour && (poi.category === 'viewpoint' || poi.category === 'waterfall');
+
+    if (isExhausted && isHeavy && !isGoldenGuardian && diverse.length >= 1) {
+      // Skip this heavy detour to protect the timeline
+      continue;
     }
+
+    if (count < MAX_PER_CATEGORY) {
+      const finalPoi = { ...poi };
+      if (isExhausted && diverse.length >= 1) {
+        finalPoi.rankingRationale = (finalPoi.rankingRationale || '') + 
+          " [Timeline Protected: Pruned longer alternatives to ensure arrival]";
+        finalPoi.isTimelineProtected = true;
+      }
+      
+      diverse.push(finalPoi);
+      categoryCounts.set(poi.category, count + 1);
+      currentTotalDetour += poi.detourTimeMinutes;
+    }
+    
     if (diverse.length >= topN) break;
   }
 
