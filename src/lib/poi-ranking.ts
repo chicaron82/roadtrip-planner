@@ -1,5 +1,6 @@
 import type { POISuggestion, RouteSegment, TripPreference, POISuggestionCategory } from '../types';
 import * as SunCalc from 'suncalc';
+import { formatDriveTime } from './driver-rotation';
 
 // Ranking weights (sum to 1.0)
 const WEIGHTS = {
@@ -311,6 +312,73 @@ function calculateWeatherFitScore(
 }
 
 /**
+ * Calculate fatigue score (0-40 boost)
+ * Sums the driving minutes since the last major stop (break/meal/overnight).
+ */
+function calculateFatigueScore(
+  segmentIndex: number,
+  segments: RouteSegment[]
+): { score: number; rationale?: string } {
+  if (segmentIndex <= 0) return { score: 0 };
+
+  let accumulatedMinutes = 0;
+  // Walk backwards starting from the PREVIOUS segment to see how much 
+  // driving was done to reach this point without a major rest stop.
+  for (let i = segmentIndex - 1; i >= 0; i--) {
+    const s = segments[i];
+    accumulatedMinutes += s.durationMinutes || 0;
+    
+    // If we find a rest stop (excluding 'drive' or 'fuel' which are short pauses), stop counting
+    if (s.stopType === 'break' || s.stopType === 'meal' || s.stopType === 'overnight') {
+      break;
+    }
+  }
+
+  if (accumulatedMinutes > 240) { // 4 hours
+    return {
+      score: 40,
+      rationale: `You've been driving for ${formatDriveTime(accumulatedMinutes)}. Critical time for a safety break.`,
+    };
+  }
+  if (accumulatedMinutes > 150) { // 2.5 hours
+    return {
+      score: 20,
+      rationale: `Driving for ${formatDriveTime(accumulatedMinutes)}. Perfect time for a quick legs-stretch?`,
+    };
+  }
+
+  return { score: 0 };
+}
+
+/**
+ * Check if the detour pushes the arrival at the final destination too late.
+ * Proposal: Keep visible but attach a heavy warning for late arrivals.
+ */
+function checkLateArrivalRisk(
+  poi: POISuggestion,
+  segments: RouteSegment[]
+): { penalty: number; rationale?: string } {
+  const lastSegment = segments[segments.length - 1];
+  if (!lastSegment?.arrivalTime) return { penalty: 0 };
+
+  // Calculate arrival offset (estimated arrival + detour)
+  const baseArrival = new Date(lastSegment.arrivalTime);
+  const lateArrival = new Date(baseArrival.getTime() + poi.detourTimeMinutes * 60 * 1000);
+  
+  const tod = lateArrival.getHours() + lateArrival.getMinutes() / 60;
+  
+  if (tod > 22.5) { // After 10:30 PM
+    const isLegendary = poi.popularityScore > 75;
+    return {
+      penalty: isLegendary ? 5 : 25, // Only slightly penalize 'Legendary' spots, but warn heavily
+      rationale: `Legit spot, but it puts your hotel arrival at ${lateArrival.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}. Worth the late check-in?`,
+    };
+  }
+
+  return { penalty: 0 };
+}
+
+/**
  * Calculate overall ranking score for a POI
  * Returns updated POI with all scores populated
  */
@@ -333,14 +401,27 @@ function rankPOI(
   const popularityScore = poi.popularityScore; // Already calculated from OSM tags
 
   // Weighted composite score
-  const { score: weatherFitScore, rationale: rankingRationale } = calculateWeatherFitScore(poi);
+  const { score: weatherFitScore, rationale: weatherRationale } = calculateWeatherFitScore(poi);
+  const { score: fatigueScore, rationale: fatigueRationale } = calculateFatigueScore(nearestSegmentIndex, segments);
+  const { penalty: arrivalPenalty, rationale: arrivalRationale } = checkLateArrivalRisk(poi, segments);
 
   let rankingScore =
     categoryMatchScore * WEIGHTS.categoryMatch +
     popularityScore * WEIGHTS.popularity +
     detourCostScore * WEIGHTS.detourCost +
     timingFitScore * WEIGHTS.timingFit +
-    weatherFitScore * WEIGHTS.weatherFit;
+    weatherFitScore * WEIGHTS.weatherFit +
+    fatigueScore; // Fatigue is a direct additive boost for break spots
+
+  rankingScore -= arrivalPenalty; // Subtract arrival penalty
+
+  // Combine rationales (Empathy-driven microcopy)
+  const rationales: string[] = [];
+  if (fatigueRationale) rationales.push(fatigueRationale);
+  if (arrivalRationale) rationales.push(arrivalRationale);
+  if (weatherRationale) rationales.push(weatherRationale);
+  
+  const rankingRationale = rationales.join(' ');
 
   // Estimate arrival time based on segment
   let estimatedArrivalTime: Date | undefined;

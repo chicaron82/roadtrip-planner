@@ -23,15 +23,16 @@ function makePOI(overrides: Partial<POISuggestion> = {}): POISuggestion {
   };
 }
 
-function makeSegment(stopType: RouteSegment['stopType'] = 'break'): RouteSegment {
+function makeSegment(overrides: Partial<RouteSegment> = {}): RouteSegment {
   return {
     from: { id: 'a', type: 'origin' as const, name: 'A', lat: 49.0, lng: -97.0 },
     to:   { id: 'b', type: 'destination' as const, name: 'B', lat: 49.5, lng: -97.0 },
     distanceKm: 55,
     durationMinutes: 45,
-    stopType,
+    stopType: 'break',
     fuelNeededLitres: 0,
     fuelCost: 0,
+    ...overrides,
   };
 }
 
@@ -79,8 +80,8 @@ describe('rankAndFilterPOIs — segmentIndex 0 timing fit', () => {
   it('does not treat segmentIndex 0 as "no timing context"', () => {
     // A gas POI right on segment 0 (a 'fuel' stop) should get a timing boost.
     // The bug would have returned 50 (neutral); the fix must score > 50.
-    const seg0: RouteSegment = makeSegment('fuel');
-    const seg1: RouteSegment = makeSegment('break');
+    const seg0: RouteSegment = makeSegment({ stopType: 'fuel' });
+    const seg1: RouteSegment = makeSegment({ stopType: 'break' });
     const segments = [seg0, seg1];
 
     const gasPOI = makePOI({ category: 'gas', lat: 49.0, lng: -97.0 });
@@ -94,8 +95,8 @@ describe('rankAndFilterPOIs — segmentIndex 0 timing fit', () => {
   it('gives the same timing boost for segmentIndex 0 as for segmentIndex 1', () => {
     // Two identical viewpoint POIs — one near segment 0, one near segment 1.
     // Both segments are 'break' stops. Their timing scores must match.
-    const seg0: RouteSegment = makeSegment('break');
-    const seg1: RouteSegment = makeSegment('break');
+    const seg0: RouteSegment = makeSegment({ stopType: 'break' });
+    const seg1: RouteSegment = makeSegment({ stopType: 'break' });
     const segments = [seg0, seg1];
 
     // Near start of route (closest to segment 0)
@@ -112,7 +113,7 @@ describe('rankAndFilterPOIs — segmentIndex 0 timing fit', () => {
   });
 
   it('completes without throwing when segmentIndex is undefined', () => {
-    const segments = [makeSegment('fuel')];
+    const segments = [makeSegment({ stopType: 'fuel' })];
     const poi = makePOI({ category: 'gas', segmentIndex: undefined, lat: 49.0, lng: -97.001 });
     expect(() => rankAndFilterPOIs([poi], ROUTE, segments, [])).not.toThrow();
   });
@@ -122,7 +123,7 @@ describe('rankAndFilterPOIs — segmentIndex 0 timing fit', () => {
 
 describe('findNearestSegmentIndex', () => {
   const segments = [
-    makeSegment('break'),
+    makeSegment({ stopType: 'break' }),
     {
       from: { id: 'b', type: 'waypoint' as const, name: 'B', lat: 49.5, lng: -97.0 },
       to:   { id: 'c', type: 'destination' as const, name: 'C', lat: 50.0, lng: -97.0 },
@@ -320,5 +321,77 @@ describe('Weather-Aware Ranking', () => {
       ROUTE_STRAIGHT, segments, []
     );
     expect(rainyResults[0].id).toBe('m');
+  });
+});
+
+// ─── Predictive Empathy ───────────────────────────────────────────────────────
+
+describe('Predictive Empathy', () => {
+
+  it('boosts POIs when the driver is fatigued (> 2.5h)', () => {
+    // 3 hours of continuous driving
+    const segments = [
+      makeSegment({ durationMinutes: 180, stopType: 'drive' }),
+      makeSegment({ durationMinutes: 60, stopType: 'break' }), // This is the segment the POI is near
+    ];
+    
+    // A regular cafe should usually have a negative category boost, 
+    // but fatigue should give it a net boost.
+    const cafe = makePOI({ 
+      id: 'c', 
+      category: 'cafe', 
+      lat: 41.5, 
+      lng: -70.0,
+      popularityScore: 10 // Low popularity
+    });
+
+    const results = rankAndFilterPOIs([cafe], [[40,-70], [41,-70], [42,-70]], segments, []);
+    expect(results[0].rankingRationale).toContain('time for a quick legs-stretch');
+    // base cafe category score is ~20 (30 - 10). Fatigue adds +20.
+    // popularity 10 * 0.2 = 2. timingFit 50 * 0.15 = 7.5. detour 100 * 0.25 = 25.
+    // Total should be around 40-60 range.
+    expect(results[0].rankingScore).toBeGreaterThan(40);
+  });
+
+  it('applies a heavy warning and small penalty for late arrival at destination', () => {
+    const destinationArrival = '2026-03-29T03:30:00Z'; // Pushes to late night regardless of US timezone
+    const segments = [
+      makeSegment({ arrivalTime: destinationArrival, stopType: 'overnight' })
+    ];
+
+    const legendarySpot = makePOI({
+      id: 'legend',
+      category: 'viewpoint',
+      lat: 40.5,
+      lng: -70.0,
+      popularityScore: 90, // Legendary
+      detourTimeMinutes: 20, // Pushes arrival to 10:50 PM
+    });
+
+    const results = rankAndFilterPOIs([legendarySpot], [[40,-70], [40.5,-70]], segments, []);
+    expect(results[0].rankingRationale).toContain('Worth the late check-in?');
+    // Penalty for legendary should be small (5), so it still ranks high.
+    expect(results[0].rankingScore).toBeGreaterThan(40);
+  });
+
+  it('penalizes regular spots more heavily for late arrivals', () => {
+    const destinationArrival = '2026-03-29T03:30:00Z';
+    const segments = [
+      makeSegment({ arrivalTime: destinationArrival, stopType: 'overnight' })
+    ];
+
+    const regularSpot = makePOI({
+      id: 'regular',
+      category: 'shopping',
+      lat: 40.5,
+      lng: -70.0,
+      popularityScore: 30, // Regular
+      detourTimeMinutes: 20, // Pushes arrival to 10:50 PM
+    });
+
+    const results = rankAndFilterPOIs([regularSpot], [[40,-70], [40.5,-70]], segments, []);
+    expect(results[0].rankingRationale).toContain('Worth the late check-in?');
+    // Penalty for regular should be higher (25).
+    expect(results[0].rankingScore).toBeLessThan(50);
   });
 });

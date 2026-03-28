@@ -1,0 +1,91 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/silve/Downloads/GitHub/roadtrip-planner[39m
+
+ [31m❯[39m src/lib/poi-ranking.test.ts [2m([22m[2m24 tests[22m[2m | [22m[31m3 failed[39m[2m)[22m[32m 12[2mms[22m[39m
+     [32m✓[39m returns ~0 for identical points[32m 1[2mms[22m[39m
+     [32m✓[39m returns a positive value for distinct points[32m 0[2mms[22m[39m
+     [32m✓[39m returns 0 for 0 km distance[32m 0[2mms[22m[39m
+     [32m✓[39m returns ~4 minutes for a 2 km deviation (round-trip 4 km at 60 km/h)[32m 0[2mms[22m[39m
+     [32m✓[39m does not treat segmentIndex 0 as "no timing context"[32m 1[2mms[22m[39m
+     [32m✓[39m gives the same timing boost for segmentIndex 0 as for segmentIndex 1[32m 0[2mms[22m[39m
+     [32m✓[39m completes without throwing when segmentIndex is undefined[32m 1[2mms[22m[39m
+     [32m✓[39m returns 0 for a point nearest the first segment destination[32m 0[2mms[22m[39m
+     [32m✓[39m returns 1 for a point nearest the second segment destination[32m 0[2mms[22m[39m
+     [32m✓[39m returns 0 for a single-segment route[32m 0[2mms[22m[39m
+     [32m✓[39m returns at most topN results[32m 0[2mms[22m[39m
+     [32m✓[39m results are sorted by rankingScore descending[32m 0[2mms[22m[39m
+     [32m✓[39m sets detourTimeMinutes to 0 (no detour — already at destination)[32m 0[2mms[22m[39m
+     [32m✓[39m sets fitsInBreakWindow to true for all[32m 0[2mms[22m[39m
+     [32m✓[39m distanceFromRoute reflects distance from destination, not route polyline[32m 0[2mms[22m[39m
+     [32m✓[39m returns empty array for empty input[32m 0[2mms[22m[39m
+     [32m✓[39m penalizes outdoor POIs during rain[32m 0[2mms[22m[39m
+     [32m✓[39m boosts indoor POIs during rain[32m 0[2mms[22m[39m
+     [32m✓[39m penalizes outdoor POIs during extreme heat[32m 0[2mms[22m[39m
+     [32m✓[39m boosts viewpoints and waterfalls during clear weather[32m 0[2mms[22m[39m
+     [32m✓[39m affects the final ranking order based on weather[32m 0[2mms[22m[39m
+[31m     [31m×[31m boosts POIs when the driver is fatigued (> 2.5h)[39m[32m 4[2mms[22m[39m
+[31m     [31m×[31m applies a heavy warning and small penalty for late arrival at destination[39m[32m 1[2mms[22m[39m
+[31m     [31m×[31m penalizes regular spots more heavily for late arrivals[39m[32m 0[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 3 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/lib/poi-ranking.test.ts[2m > [22mPredictive Empathy[2m > [22mboosts POIs when the driver is fatigued (> 2.5h)
+[31m[1mAssertionError[22m: expected '' to contain 'time for a quick legs-stretch'[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- time for a quick legs-stretch[39m
+
+[36m [2m❯[22m src/lib/poi-ranking.test.ts:[2m349:41[22m[39m
+    [90m347| [39m
+    [90m348| [39m    const results = rankAndFilterPOIs([cafe], [[40,-70], [41,-70], [42…
+    [90m349| [39m    expect(results[0].rankingRationale).toContain('time for a quick le…
+    [90m   | [39m                                        [31m^[39m
+    [90m350| [39m    [90m// base cafe category score is ~20 (30 - 10). Fatigue adds +20.[39m
+    [90m351| [39m    // popularity 10 * 0.2 = 2. timingFit 50 * 0.15 = 7.5. detour 100 …
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/poi-ranking.test.ts[2m > [22mPredictive Empathy[2m > [22mapplies a heavy warning and small penalty for late arrival at destination
+[31m[1mAssertionError[22m: expected '' to contain 'Worth the late check-in?'[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- Worth the late check-in?[39m
+
+[36m [2m❯[22m src/lib/poi-ranking.test.ts:[2m372:41[22m[39m
+    [90m370| [39m
+    [90m371| [39m    const results = rankAndFilterPOIs([legendarySpot], [[40,-70], [40.…
+    [90m372| [39m    expect(results[0].rankingRationale).toContain('Worth the late chec…
+    [90m   | [39m                                        [31m^[39m
+    [90m373| [39m    // Penalty for legendary should be small (5), so it still ranks hi…
+    [90m374| [39m    [34mexpect[39m(results[[34m0[39m][33m.[39mrankingScore)[33m.[39m[34mtoBeGreaterThan[39m([34m60[39m)[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/lib/poi-ranking.test.ts[2m > [22mPredictive Empathy[2m > [22mpenalizes regular spots more heavily for late arrivals
+[31m[1mAssertionError[22m: expected '' to contain 'Worth the late check-in?'[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- Worth the late check-in?[39m
+
+[36m [2m❯[22m src/lib/poi-ranking.test.ts:[2m393:41[22m[39m
+    [90m391| [39m
+    [90m392| [39m    const results = rankAndFilterPOIs([regularSpot], [[40,-70], [40.5,…
+    [90m393| [39m    expect(results[0].rankingRationale).toContain('Worth the late chec…
+    [90m   | [39m                                        [31m^[39m
+    [90m394| [39m    [90m// Penalty for regular should be higher (25).[39m
+    [90m395| [39m    [34mexpect[39m(results[[34m0[39m][33m.[39mrankingScore)[33m.[39m[34mtoBeLessThan[39m([34m50[39m)[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m3 failed[39m[22m[2m | [22m[1m[32m21 passed[39m[22m[90m (24)[39m
+[2m   Start at [22m 12:22:35
+[2m   Duration [22m 878ms[2m (transform 69ms, setup 88ms, import 59ms, tests 12ms, environment 579ms)[22m
+
