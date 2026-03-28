@@ -88,7 +88,8 @@ export function useFourBeatArc(): FourBeatArcState {
 
     // Haversine × road factor for approximate driving distance
     const straightLine = haversineDistance(origin.lat, origin.lng, destination.lat, destination.lng);
-    const distanceKm = Math.round(straightLine * ROAD_FACTOR);
+    const oneWayKm = Math.round(straightLine * ROAD_FACTOR);
+    const distanceKm = settings.isRoundTrip ? oneWayKm * 2 : oneWayKm;
     const durationMinutes = Math.round((distanceKm / AVG_HIGHWAY_SPEED_KMH) * 60);
 
     const sketchSummary = buildSketchSummary(distanceKm, durationMinutes);
