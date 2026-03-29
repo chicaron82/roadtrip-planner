@@ -33,13 +33,18 @@ describe('getActiveSurface', () => {
     expect(getActiveSurface(base)).toBe('landing');
   });
 
-  it('returns voila when showVoila is true', () => {
-    expect(getActiveSurface(state({ showVoila: true }))).toBe('voila');
+  it('returns voila when showVoila is true and hasSummary', () => {
+    expect(getActiveSurface(state({ showVoila: true, hasSummary: true }))).toBe('voila');
   });
 
-  it('voila wins over everything', () => {
+  it('showVoila without hasSummary falls through to landing', () => {
+    expect(getActiveSurface(state({ showVoila: true }))).toBe('landing');
+  });
+
+  it('voila wins over everything (when hasSummary)', () => {
     expect(getActiveSurface(state({
       showVoila: true,
+      hasSummary: true,
       pendingTemplate: true,
       showJournalAtAGlance: true,
       tripMode: 'plan',

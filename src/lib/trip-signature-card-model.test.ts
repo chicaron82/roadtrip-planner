@@ -100,11 +100,11 @@ function makeInput(overrides: Partial<SignatureCardInput> = {}): SignatureCardIn
 
 describe('buildAutoTitle', () => {
   it('formats "Your MEE time in {city}"', () => {
-    expect(buildAutoTitle('Thunder Bay, ON')).toBe('Your MEE time in Thunder Bay');
+    expect(buildAutoTitle('Thunder Bay, ON')).toBe('Your MEE time in T-Bay');
   });
 
-  it('strips province/state from destination', () => {
-    expect(buildAutoTitle('Banff, AB')).toBe('Your MEE time in Banff');
+  it('applies city moniker when available', () => {
+    expect(buildAutoTitle('Banff, AB')).toBe('Your MEE time in The Rockies');
   });
 
   it('works with city-only (no comma)', () => {
@@ -294,7 +294,7 @@ describe('buildHealthPhrase', () => {
 describe('buildSignatureCardModel', () => {
   it('auto title derives from destination', () => {
     const model = buildSignatureCardModel(makeInput());
-    expect(model.title).toBe('Your MEE time in Thunder Bay');
+    expect(model.title).toBe('Your MEE time in T-Bay');
     expect(model.titleMode).toBe('auto');
   });
 
