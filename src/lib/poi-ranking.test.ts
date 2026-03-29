@@ -1,6 +1,21 @@
 import { describe, it, expect } from 'vitest';
 import { rankAndFilterPOIs, rankDestinationPOIs, haversineDistance, estimateDetourTime, findNearestSegmentIndex } from './poi-ranking';
-import type { POISuggestion, RouteSegment } from '../types';
+import type { POISuggestion, RouteSegment, TripPreference } from '../types';
+import { buildJourneyContext } from './trip-orchestrator/journey-context';
+
+function rankAndFilterPOIsWithContext(
+  pois: POISuggestion[],
+  routeGeometry: [number, number][],
+  segments: RouteSegment[],
+  tripPreferences: TripPreference[] = [],
+  topN: number = 5
+) {
+  const mockTripSummary = {
+    segments,
+    days: [{ dayNumber: 1, segmentIndices: segments.map((_, i) => i) }]
+  } as any;
+  return rankAndFilterPOIs(pois, routeGeometry, segments, tripPreferences, topN, buildJourneyContext(mockTripSummary));
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -86,7 +101,7 @@ describe('rankAndFilterPOIs — segmentIndex 0 timing fit', () => {
 
     const gasPOI = makePOI({ category: 'gas', lat: 49.0, lng: -97.0 });
 
-    const results = rankAndFilterPOIs([gasPOI], ROUTE, segments, []);
+    const results = rankAndFilterPOIsWithContext([gasPOI], ROUTE, segments, []);
     expect(results).toHaveLength(1);
     // timingFitScore for a 'gas' POI on a 'fuel' segment should be > 50 (base)
     expect(results[0].timingFitScore).toBeGreaterThan(50);
@@ -104,8 +119,8 @@ describe('rankAndFilterPOIs — segmentIndex 0 timing fit', () => {
     // Near midpoint (closest to segment 1)
     const poi1 = makePOI({ id: 'p1', category: 'viewpoint', lat: 49.5, lng: -97.0 });
 
-    const results0 = rankAndFilterPOIs([poi0], ROUTE, segments, []);
-    const results1 = rankAndFilterPOIs([poi1], ROUTE, segments, []);
+    const results0 = rankAndFilterPOIsWithContext([poi0], ROUTE, segments, []);
+    const results1 = rankAndFilterPOIsWithContext([poi1], ROUTE, segments, []);
 
     expect(results0).toHaveLength(1);
     expect(results1).toHaveLength(1);
@@ -115,7 +130,7 @@ describe('rankAndFilterPOIs — segmentIndex 0 timing fit', () => {
   it('completes without throwing when segmentIndex is undefined', () => {
     const segments = [makeSegment({ stopType: 'fuel' })];
     const poi = makePOI({ category: 'gas', segmentIndex: undefined, lat: 49.0, lng: -97.001 });
-    expect(() => rankAndFilterPOIs([poi], ROUTE, segments, [])).not.toThrow();
+    expect(() => rankAndFilterPOIsWithContext([poi], ROUTE, segments, [])).not.toThrow();
   });
 });
 
@@ -216,7 +231,7 @@ describe('Weather-Aware Ranking', () => {
       }
     });
 
-    const results = rankAndFilterPOIs([rainyViewpoint], ROUTE_STRAIGHT, segments, []);
+    const results = rankAndFilterPOIsWithContext([rainyViewpoint], ROUTE_STRAIGHT, segments, []);
     expect(results[0].weatherFitScore).toBe(10);
     expect(results[0].rankingRationale).toContain('rain');
   });
@@ -236,7 +251,7 @@ describe('Weather-Aware Ranking', () => {
       }
     });
 
-    const results = rankAndFilterPOIs([rainyMuseum], ROUTE_STRAIGHT, segments, []);
+    const results = rankAndFilterPOIsWithContext([rainyMuseum], ROUTE_STRAIGHT, segments, []);
     expect(results[0].weatherFitScore).toBe(80);
     expect(results[0].rankingRationale).toContain('indoor');
   });
@@ -256,7 +271,7 @@ describe('Weather-Aware Ranking', () => {
       }
     });
 
-    const results = rankAndFilterPOIs([hotPark], ROUTE_STRAIGHT, segments, []);
+    const results = rankAndFilterPOIsWithContext([hotPark], ROUTE_STRAIGHT, segments, []);
     expect(results[0].weatherFitScore).toBeLessThanOrEqual(30);
     expect(results[0].rankingRationale).toContain('heat');
   });
@@ -276,7 +291,7 @@ describe('Weather-Aware Ranking', () => {
       }
     });
 
-    const results = rankAndFilterPOIs([clearViewpoint], ROUTE_STRAIGHT, segments, []);
+    const results = rankAndFilterPOIsWithContext([clearViewpoint], ROUTE_STRAIGHT, segments, []);
     expect(results[0].weatherFitScore).toBe(90);
     expect(results[0].rankingRationale).toContain('Perfect conditions');
   });
@@ -304,7 +319,7 @@ describe('Weather-Aware Ranking', () => {
       timezoneAbbr: 'CST'
     };
 
-    const clearResults = rankAndFilterPOIs(
+    const clearResults = rankAndFilterPOIsWithContext(
       [
         { ...viewpoint, weather: clearWeather },
         { ...museum, weather: clearWeather }
@@ -313,7 +328,7 @@ describe('Weather-Aware Ranking', () => {
     );
     expect(clearResults[0].id).toBe('v');
 
-    const rainyResults = rankAndFilterPOIs(
+    const rainyResults = rankAndFilterPOIsWithContext(
       [
         { ...viewpoint, weather: rainyWeather },
         { ...museum, weather: rainyWeather }
@@ -345,7 +360,7 @@ describe('Predictive Empathy', () => {
       popularityScore: 10 // Low popularity
     });
 
-    const results = rankAndFilterPOIs([cafe], [[40,-70], [41,-70], [42,-70]], segments, []);
+    const results = rankAndFilterPOIsWithContext([cafe], [[40,-70], [41,-70], [42,-70]], segments, []);
     expect(results[0].rankingRationale).toContain('time for a quick legs-stretch');
     // base cafe category score is ~20 (30 - 10). Fatigue adds +20.
     // popularity 10 * 0.2 = 2. timingFit 50 * 0.15 = 7.5. detour 100 * 0.25 = 25.
@@ -368,7 +383,7 @@ describe('Predictive Empathy', () => {
       detourTimeMinutes: 20, // Pushes arrival to 10:50 PM
     });
 
-    const results = rankAndFilterPOIs([legendarySpot], [[40,-70], [40.5,-70]], segments, []);
+    const results = rankAndFilterPOIsWithContext([legendarySpot], [[40,-70], [40.5,-70]], segments, []);
     expect(results[0].rankingRationale).toContain('Worth the late check-in?');
     // Penalty for legendary should be small (5), so it still ranks high.
     expect(results[0].rankingScore).toBeGreaterThan(40);
@@ -389,7 +404,7 @@ describe('Predictive Empathy', () => {
       detourTimeMinutes: 20, // Pushes arrival to 10:50 PM
     });
 
-    const results = rankAndFilterPOIs([regularSpot], [[40,-70], [40.5,-70]], segments, []);
+    const results = rankAndFilterPOIsWithContext([regularSpot], [[40,-70], [40.5,-70]], segments, []);
     expect(results[0].rankingRationale).toContain('Worth the late check-in?');
     // Penalty for regular should be higher (25).
     expect(results[0].rankingScore).toBeLessThan(50);
@@ -410,12 +425,16 @@ describe('The Legendary Engine — Timeline Protection', () => {
     const stopGamma = makePOI({ id: 'gamma', name: 'Gamma', lat: 40.5, lng: -70.08, popularityScore: 50 });
 
     const LOCAL_ROUTE: [number, number][] = [[40, -70], [41, -70]];
-    const localSegments = [makeSegment({ 
+    // distanceKm/durationMinutes set to give exactly 60 km/h so detour estimates
+    // land at the expected budget boundaries (Alpha ~39m, Beta ~40m, Gamma ~14m).
+    const localSegments = [makeSegment({
       from: { id: 'o', type: 'origin' as const, name: 'O', lat: 40.0, lng: -70.0 },
-      to:   { id: 'd', type: 'destination' as const, name: 'D', lat: 41.0, lng: -70.0 }
+      to:   { id: 'd', type: 'destination' as const, name: 'D', lat: 41.0, lng: -70.0 },
+      distanceKm: 60,
+      durationMinutes: 60,
     })];
 
-    const results = rankAndFilterPOIs([stopAlpha, stopBeta, stopGamma], LOCAL_ROUTE, localSegments, [], 5);
+    const results = rankAndFilterPOIsWithContext([stopAlpha, stopBeta, stopGamma], LOCAL_ROUTE, localSegments, [], 5);
     
     expect(results.map(r => r.id)).toContain('alpha');
     expect(results.map(r => r.id)).not.toContain('beta'); // Pruned because it's heavy and over budget
@@ -438,7 +457,7 @@ describe('The Legendary Engine — Timeline Protection', () => {
       popularityScore: 10 // Normally wouldn't make the cut
     });
 
-    const results = rankAndFilterPOIs([stop1, guardian], ROUTE, [makeSegment()], [], 5);
+    const results = rankAndFilterPOIsWithContext([stop1, guardian], ROUTE, [makeSegment()], [], 5);
     expect(results.map(r => r.id)).toContain('guardian');
   });
 });

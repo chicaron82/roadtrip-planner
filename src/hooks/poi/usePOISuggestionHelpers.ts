@@ -1,5 +1,6 @@
 import type { Location, POISuggestion, TripPreference, TripSummary } from '../../types';
 import { rankAndFilterPOIs, rankDestinationPOIs } from '../../lib/poi-ranking';
+import type { JourneyContext } from '../../lib/trip-orchestrator/journey-context';
 
 const UTILITY_CATEGORIES = new Set(['gas', 'restaurant', 'cafe', 'hotel']);
 
@@ -61,6 +62,7 @@ interface BuildPOISuggestionResultsParams {
   tripPreferences: TripPreference[];
   destination: Location;
   roundTripMidpoint?: number;
+  journeyContext?: JourneyContext;
 }
 
 export function buildPOISuggestionResults({
@@ -71,13 +73,17 @@ export function buildPOISuggestionResults({
   tripPreferences,
   destination,
   roundTripMidpoint,
+  journeyContext,
 }: BuildPOISuggestionResultsParams): { suggestions: POISuggestion[]; inference: POISuggestion[] } {
-  const rankedAlongWay = rankAndFilterPOIs(alongWay, routeGeometry, segments, tripPreferences, 15);
+  const rankedAlongWay = rankAndFilterPOIs(alongWay, routeGeometry, segments, tripPreferences, 15, journeyContext);
+  const lastSeg = segments[segments.length - 1];
   const rankedDestination = rankDestinationPOIs(
     atDestination,
     tripPreferences,
     { lat: destination.lat!, lng: destination.lng! },
     8,
+    lastSeg?.arrivalTime ? new Date(lastSeg.arrivalTime) : undefined,
+    lastSeg?.timezone,
   );
 
   const combined = [...rankedAlongWay, ...rankedDestination];

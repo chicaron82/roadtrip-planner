@@ -116,13 +116,14 @@ function distanceToRoute(
 }
 
 /**
- * Estimate detour time based on distance from route
- * Assumes ~60 km/h average speed for detours
+ * Estimate detour time based on distance from route.
+ * Uses the actual driving speed of the nearest segment rather than a flat 60 km/h,
+ * so highway drivers don't get over-penalised for the same detour distance.
+ * Speed is clamped to 40–120 km/h to guard against degenerate segment data.
  */
-export function estimateDetourTime(distanceFromRouteKm: number): number {
-  // Round trip detour at 60 km/h
+export function estimateDetourTime(distanceFromRouteKm: number, drivingSpeedKmh = 60): number {
   const roundTripKm = distanceFromRouteKm * 2;
-  const detourHours = roundTripKm / 60;
+  const detourHours = roundTripKm / drivingSpeedKmh;
   return Math.round(detourHours * 60); // Convert to minutes
 }
 
@@ -166,10 +167,10 @@ function calculateCategoryMatchScore(
 
   // Check if POI category matches any preference
   const preferenceMap: Record<TripPreference, POISuggestionCategory[]> = {
-    scenic: ['viewpoint', 'park', 'waterfall', 'landmark'],
-    family: ['attraction', 'park', 'entertainment', 'landmark'],
-    budget: ['viewpoint', 'park', 'cafe', 'waterfall'],
-    foodie: ['restaurant', 'cafe'],
+    scenic:  ['viewpoint', 'park', 'waterfall', 'landmark'],
+    family:  ['attraction', 'park', 'entertainment', 'landmark', 'museum', 'cafe'],
+    budget:  ['viewpoint', 'park', 'cafe', 'waterfall', 'landmark', 'museum'],
+    foodie:  ['restaurant', 'cafe', 'attraction'],
   };
 
   tripPreferences.forEach(pref => {
@@ -224,12 +225,15 @@ function calculateDetourCostScore(distanceKm: number, detourMinutes: number): nu
 }
 
 /**
- * Calculate timing fit score (0-100)
- * Checks if POI fits into natural break windows
+ * Calculate timing fit score (0-100).
+ * Checks if POI fits into natural break windows (stop-type matching) and
+ * whether the POI type is appropriate for the actual time of day at arrival.
  */
 function calculateTimingFitScore(
   poi: POISuggestion,
-  segments: RouteSegment[]
+  segments: RouteSegment[],
+  estimatedArrivalTime?: Date,
+  segTz?: string,
 ): number {
   if (poi.segmentIndex == null || poi.segmentIndex >= segments.length) {
     return 50; // Neutral score if no timing context
@@ -254,6 +258,25 @@ function calculateTimingFitScore(
   // Boost for POIs that can be visited during any stop
   if (poi.category === 'viewpoint' || poi.category === 'park') {
     score += 10; // Quick stops work for any break
+  }
+
+  // Time-of-day modifiers: use actual arrival time when available
+  if (estimatedArrivalTime) {
+    const tod = getLocalTod(estimatedArrivalTime, segTz);
+    // Museums, attractions, entertainment score best during business hours (10am–5pm)
+    if (
+      (poi.category === 'museum' || poi.category === 'attraction' || poi.category === 'entertainment') &&
+      tod >= 10 && tod <= 17
+    ) {
+      score += 15;
+    }
+    // Outdoor categories less appealing outside comfortable daylight (before 8am or after 6pm)
+    if (
+      (poi.category === 'viewpoint' || poi.category === 'park' || poi.category === 'waterfall') &&
+      (tod < 8 || tod > 18)
+    ) {
+      score -= 10;
+    }
   }
 
   return Math.min(score, 100);
@@ -317,43 +340,55 @@ function calculateWeatherFitScore(
   return { score, rationale };
 }
 
+import type { JourneyContext, JourneyContextSegment } from './trip-orchestrator/journey-context';
+
 /**
  * Calculate fatigue score (0-40 boost)
  * Sums the driving minutes since the last major stop (break/meal/overnight).
  */
 function calculateFatigueScore(
-  segmentIndex: number,
-  segments: RouteSegment[]
+  journeySegment: JourneyContextSegment | undefined
 ): { score: number; rationale?: string } {
-  if (segmentIndex <= 0 || !segments.length) return { score: 0 };
+  if (!journeySegment) return { score: 0 };
 
-  // nearestSegmentIndex derives from the raw geometry polyline via distanceToRoute,
-  // which can have thousands of interpolated points — far more than segments[].
-  // Clamp so we never walk off the end of the segments array.
-  const startIdx = Math.min(segmentIndex - 1, segments.length - 1);
-
-  let accumulatedMinutes = 0;
-  for (let i = startIdx; i >= 0; i--) {
-    const s = segments[i];
-    if (!s) continue; // belt-and-suspenders guard
-    accumulatedMinutes += s.durationMinutes || 0;
-
-    // If we find a rest stop (excluding 'drive' or 'fuel' which are short pauses), stop counting
-    if (s.stopType === 'break' || s.stopType === 'meal' || s.stopType === 'overnight') {
-      break;
-    }
-  }
-
-  if (accumulatedMinutes > 240) { // 4 hours
+  if (journeySegment.fatigueBucket === 'exhausted') {
     return {
       score: 40,
-      rationale: `You've been driving for ${formatDriveTime(accumulatedMinutes)}. Critical time for a safety break.`,
+      rationale: `You've been driving for ${formatDriveTime(journeySegment.cumulativeDriveMinutesBefore)}. Critical time for a safety break.`,
     };
   }
-  if (accumulatedMinutes > 150) { // 2.5 hours
+  if (journeySegment.fatigueBucket === 'fatigued') {
     return {
       score: 20,
-      rationale: `Driving for ${formatDriveTime(accumulatedMinutes)}. Perfect time for a quick legs-stretch?`,
+      rationale: `Driving for ${formatDriveTime(journeySegment.cumulativeDriveMinutesBefore)}. Perfect time for a quick legs-stretch?`,
+    };
+  }
+
+  return { score: 0 };
+}
+
+/**
+ * Calculate hunger score (0-30 boost).
+ * Engages MEE's "Hunger Awareness" to naturally boost food during prime mealtimes.
+ */
+function calculateHungerScore(
+  category: POISuggestionCategory,
+  journeySegment: JourneyContextSegment | undefined
+): { score: number; rationale?: string } {
+  if (!journeySegment) return { score: 0 };
+  if (category !== 'restaurant' && category !== 'cafe') return { score: 0 };
+
+  if (journeySegment.isMealWindowLunch) {
+    return {
+      score: 30,
+      rationale: "Right around lunchtime. Perfect moment for a bite.",
+    };
+  }
+  
+  if (journeySegment.isMealWindowDinner) {
+    return {
+      score: 30,
+      rationale: "Dinner time approaching. Good spot to refuel.",
     };
   }
 
@@ -396,24 +431,46 @@ function rankPOI(
   poi: POISuggestion,
   routeGeometry: [number, number][],
   segments: RouteSegment[],
-  tripPreferences: TripPreference[]
+  tripPreferences: TripPreference[],
+  journeyContext?: JourneyContext,
+  sunCalcCache?: Map<string, { sunrise: Date, sunset: Date }>
 ): POISuggestion {
   // Calculate distance from route
   const { distanceKm, nearestSegmentIndex } = distanceToRoute(poi, routeGeometry);
+  const journeySegment = journeyContext?.segments[nearestSegmentIndex];
 
-  // Estimate detour time
-  const detourMinutes = estimateDetourTime(distanceKm);
+  // Derive driving speed from the nearest segment's actual data.
+  // Clamped to 40–120 km/h to guard against degenerate (zero-duration) segments.
+  const nearSeg = segments[nearestSegmentIndex];
+  const rawSpeedKmh = nearSeg && nearSeg.durationMinutes > 0
+    ? nearSeg.distanceKm / (nearSeg.durationMinutes / 60)
+    : 60;
+  const detourSpeedKmh = Math.min(Math.max(rawSpeedKmh, 40), 120);
+  const detourMinutes = estimateDetourTime(distanceKm, detourSpeedKmh);
+
+  // Estimate arrival time based on segment early, for late limits
+  let estimatedArrivalTime: Date | undefined;
+  if (nearestSegmentIndex < segments.length && segments[nearestSegmentIndex].arrivalTime) {
+    estimatedArrivalTime = new Date(segments[nearestSegmentIndex].arrivalTime!);
+  }
+  const segTz = segments[nearestSegmentIndex]?.timezone;
 
   // Calculate individual scores
   const categoryMatchScore = calculateCategoryMatchScore(poi.category, tripPreferences);
   const detourCostScore = calculateDetourCostScore(distanceKm, detourMinutes);
-  const timingFitScore = calculateTimingFitScore({ ...poi, segmentIndex: nearestSegmentIndex }, segments);
+  const timingFitScore = calculateTimingFitScore(
+    { ...poi, segmentIndex: nearestSegmentIndex },
+    segments,
+    estimatedArrivalTime,
+    segTz,
+  );
   const popularityScore = poi.popularityScore; // Already calculated from OSM tags
 
   // Weighted composite score
   const { score: weatherFitScore, rationale: weatherRationale } = calculateWeatherFitScore(poi);
-  const { score: fatigueScore, rationale: fatigueRationale } = calculateFatigueScore(nearestSegmentIndex, segments);
+  const { score: fatigueScore, rationale: fatigueRationale } = calculateFatigueScore(journeySegment);
   const { penalty: arrivalPenalty, rationale: arrivalRationale } = checkLateArrivalRisk(poi, segments);
+  const { score: hungerScore, rationale: hungerRationale } = calculateHungerScore(poi.category, journeySegment);
 
   let rankingScore =
     categoryMatchScore * WEIGHTS.categoryMatch +
@@ -421,30 +478,23 @@ function rankPOI(
     detourCostScore * WEIGHTS.detourCost +
     timingFitScore * WEIGHTS.timingFit +
     weatherFitScore * WEIGHTS.weatherFit +
-    fatigueScore; // Fatigue is a direct additive boost for break spots
+    fatigueScore + 
+    hungerScore; // Fatigue and Hunger are direct additive boosts
 
   rankingScore -= arrivalPenalty; // Subtract arrival penalty
 
   // Combine rationales (Empathy-driven microcopy)
   const rationales: string[] = [];
   if (fatigueRationale) rationales.push(fatigueRationale);
+  if (hungerRationale) rationales.push(hungerRationale);
   if (arrivalRationale) rationales.push(arrivalRationale);
   if (weatherRationale) rationales.push(weatherRationale);
   
   const rankingRationale = rationales.join(' ');
 
-  // Estimate arrival time based on segment
-  let estimatedArrivalTime: Date | undefined;
-  if (nearestSegmentIndex < segments.length && segments[nearestSegmentIndex].arrivalTime) {
-    estimatedArrivalTime = new Date(segments[nearestSegmentIndex].arrivalTime!);
-  }
-
   // Time-of-day demotion: places visited before 07:00 or after 19:30 are less
   // useful (closed or after dark). Apply a -25pt penalty to discourage them.
-  // Use the segment's IANA timezone so cross-timezone routes (e.g. EST user
-  // planning a PST itinerary) score against destination local time, not browser time.
   if (estimatedArrivalTime) {
-    const segTz = segments[nearestSegmentIndex]?.timezone;
     const tod = getLocalTod(estimatedArrivalTime, segTz);
     if (tod < 7 || tod > 19.5) {
       rankingScore = Math.max(0, rankingScore - 25);
@@ -453,8 +503,18 @@ function rankPOI(
 
   let isGoldenHour = poi.isGoldenHour || false;
   if (!isGoldenHour && estimatedArrivalTime) {
-    const sunTimes = SunCalc.getTimes(estimatedArrivalTime, poi.lat, poi.lng);
     const arrTimeMs = estimatedArrivalTime.getTime();
+    const dateStr = estimatedArrivalTime.toISOString().split('T')[0];
+    const latRounded = Math.round(poi.lat * 10) / 10;
+    const lngRounded = Math.round(poi.lng * 10) / 10;
+    const cacheKey = `${dateStr}_${latRounded}_${lngRounded}`;
+    
+    let sunTimes = sunCalcCache?.get(cacheKey);
+    if (!sunTimes) {
+      const fullTimes = SunCalc.getTimes(estimatedArrivalTime, poi.lat, poi.lng);
+      sunTimes = { sunrise: fullTimes.sunrise, sunset: fullTimes.sunset };
+      sunCalcCache?.set(cacheKey, sunTimes);
+    }
     
     // Golden hour logic: within 60 mins of sunrise or sunset
     const sunsetDiff = Math.abs(arrTimeMs - sunTimes.sunset.getTime());
@@ -502,10 +562,13 @@ export function rankAndFilterPOIs(
   routeGeometry: [number, number][],
   segments: RouteSegment[],
   tripPreferences: TripPreference[],
-  topN: number = 5
+  topN: number = 5,
+  journeyContext?: JourneyContext
 ): POISuggestion[] {
+  const sunCalcCache = new Map<string, { sunrise: Date, sunset: Date }>();
+
   // Rank all POIs
-  const rankedPOIs = pois.map(poi => rankPOI(poi, routeGeometry, segments, tripPreferences));
+  const rankedPOIs = pois.map(poi => rankPOI(poi, routeGeometry, segments, tripPreferences, journeyContext, sunCalcCache));
 
   // Filter out POIs that are too far (>20km from route)
   const filtered = rankedPOIs.filter(poi => poi.distanceFromRoute <= CORRIDOR_THRESHOLDS.farther);
@@ -518,36 +581,45 @@ export function rankAndFilterPOIs(
   const MAX_PER_CATEGORY = 3;
   const MAX_TOTAL_DETOUR = 50; // Total allowed extra detour minutes per selection set
   
+  // PHASE 1: Category Diverse Filter
+  const categoryDiverse: POISuggestion[] = [];
   const categoryCounts = new Map<string, number>();
-  const diverse: (POISuggestion & { isTimelineProtected?: boolean })[] = [];
-  let currentTotalDetour = 0;
 
   for (const poi of sorted) {
     const count = categoryCounts.get(poi.category) || 0;
-    
-    // Pruning logic: If we already have 1+ stop and the next one is a "heavy" detour (>20m) 
-    // that would put us over the total budget, we skip it unless it's a 'viewpoint' in Golden Hour.
+    if (count < MAX_PER_CATEGORY) {
+      categoryDiverse.push(poi);
+      categoryCounts.set(poi.category, count + 1);
+    }
+  }
+
+  // PHASE 2: Budget Enforcement Pruning
+  const diverse: (POISuggestion & { isTimelineProtected?: boolean })[] = [];
+  let currentTotalDetour = 0;
+
+  for (const poi of categoryDiverse) {
     const isHeavy = poi.detourTimeMinutes > 15;
     const isExhausted = currentTotalDetour + poi.detourTimeMinutes > MAX_TOTAL_DETOUR;
     const isGoldenGuardian = poi.isGoldenHour && (poi.category === 'viewpoint' || poi.category === 'waterfall');
 
+    // Pruning logic: If we already have 1+ stop and this one blows the budget 
+    // and is a "heavy" detour (>15m) skip it unless it's a 'viewpoint' in Golden Hour.
     if (isExhausted && isHeavy && !isGoldenGuardian && diverse.length >= 1) {
       // Skip this heavy detour to protect the timeline
       continue;
     }
 
-    if (count < MAX_PER_CATEGORY) {
-      const finalPoi = { ...poi };
-      if (isExhausted && diverse.length >= 1) {
-        finalPoi.rankingRationale = (finalPoi.rankingRationale || '') + 
-          " [Timeline Protected: Pruned longer alternatives to ensure arrival]";
-        finalPoi.isTimelineProtected = true;
-      }
-      
-      diverse.push(finalPoi);
-      categoryCounts.set(poi.category, count + 1);
-      currentTotalDetour += poi.detourTimeMinutes;
+    const finalPoi = { ...poi };
+    // If it breached the budget but we allowed it (because it was quick or golden),
+    // mark it as timeline protected.
+    if (isExhausted && diverse.length >= 1) {
+      finalPoi.rankingRationale = (finalPoi.rankingRationale ? finalPoi.rankingRationale + ' ' : '') + 
+        "[Timeline Protected: Pruned longer alternatives to ensure arrival]";
+      finalPoi.isTimelineProtected = true;
     }
+    
+    diverse.push(finalPoi);
+    currentTotalDetour += poi.detourTimeMinutes;
     
     if (diverse.length >= topN) break;
   }
@@ -556,14 +628,18 @@ export function rankAndFilterPOIs(
 }
 
 /**
- * Rank destination-area POIs (different logic - no detour cost, focus on quality)
+ * Rank destination-area POIs (different logic - no detour cost, focus on quality).
  * Calculates distance from destination point so the UI can display meaningful info.
+ * Accepts optional arrivalTime so time-of-day demotion and hunger awareness
+ * stay consistent with the route POI ranking pipeline.
  */
 export function rankDestinationPOIs(
   pois: POISuggestion[],
   tripPreferences: TripPreference[],
   destination: { lat: number; lng: number },
-  topN: number = 5
+  topN: number = 5,
+  arrivalTime?: Date,
+  arrivalTimezone?: string,
 ): POISuggestion[] {
   const rankedPOIs = pois.map(poi => {
     const categoryMatchScore = calculateCategoryMatchScore(poi.category, tripPreferences);
@@ -573,10 +649,31 @@ export function rankDestinationPOIs(
     const distanceFromDest = haversineDistance(poi.lat, poi.lng, destination.lat, destination.lng);
 
     // Contextual weather score
-    const { score: weatherFitScore, rationale: rankingRationale } = calculateWeatherFitScore(poi);
+    const { score: weatherFitScore, rationale: weatherRationale } = calculateWeatherFitScore(poi);
 
     // For destination POIs, use category match + popularity + weather (40/40/20)
-    const rankingScore = categoryMatchScore * 0.4 + popularityScore * 0.4 + weatherFitScore * 0.2;
+    let rankingScore = categoryMatchScore * 0.4 + popularityScore * 0.4 + weatherFitScore * 0.2;
+    const rationales: string[] = [];
+    if (weatherRationale) rationales.push(weatherRationale);
+
+    // Empathy parity: apply the same time-of-day and hunger signals as route POIs
+    if (arrivalTime) {
+      const tod = getLocalTod(arrivalTime, arrivalTimezone);
+      // Time-of-day demotion: same -25pt window as route ranking
+      if (tod < 7 || tod > 19.5) {
+        rankingScore = Math.max(0, rankingScore - 25);
+      }
+      // Hunger awareness — derived inline from tod (no JourneyContextSegment needed)
+      if (poi.category === 'restaurant' || poi.category === 'cafe') {
+        if (tod >= 11.5 && tod < 13.5) {
+          rankingScore += 30;
+          rationales.push('Right around lunchtime. Perfect moment for a bite.');
+        } else if (tod >= 17.5 && tod < 20) {
+          rankingScore += 30;
+          rationales.push('Dinner time approaching. Good spot to refuel.');
+        }
+      }
+    }
 
     return {
       ...poi,
@@ -586,7 +683,7 @@ export function rankDestinationPOIs(
       rankingScore: Math.round(rankingScore),
       categoryMatchScore: Math.round(categoryMatchScore),
       weatherFitScore,
-      rankingRationale,
+      rankingRationale: rationales.join(' '),
     };
   });
 

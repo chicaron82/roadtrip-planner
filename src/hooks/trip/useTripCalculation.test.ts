@@ -130,6 +130,12 @@ const ORCHESTRATE_RESULT = {
   projectedFuelStops: [],
   smartStops: [],
   roundTripMidpoint: undefined,
+  journeyContext: {
+    segments: [],
+    totalDrivingDays: 1,
+    totalDetourBudgetMinutes: 50,
+    generatedAt: new Date().toISOString(),
+  },
 };
 
 // ─── Setup ────────────────────────────────────────────────────────────────────
