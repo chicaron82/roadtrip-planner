@@ -11,8 +11,10 @@
  * 💚 My Experience Engine
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { TemplateImportResult } from '../../../lib/url';
+import type { Location } from '../../../types';
+import { searchLocations } from '../../../lib/api-geocoding';
 import { LineageDisplay } from './LineageDisplay';
 import { WorkshopTitleInput } from '../../Workshop/WorkshopTitleInput';
 
@@ -90,16 +92,61 @@ export function YourMEETimePreview({ template, onBuild, onOpenInPlanner, onDismi
   const [customTitle, setCustomTitle] = useState<string | null>(null);
   const [discoveriesOpen, setDiscoveriesOpen] = useState(false);
 
+  // Origin search state — only active when template has no starting location
+  const [originText, setOriginText] = useState('');
+  const [originSuggestions, setOriginSuggestions] = useState<Partial<Location>[]>([]);
+  const [selectedOrigin, setSelectedOrigin] = useState<Partial<Location> | null>(null);
+  const [originSearching, setOriginSearching] = useState(false);
+  const originDebounce = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, []);
 
-  const buildModified = useCallback((): TemplateImportResult => ({
-    ...template,
-    settings: { ...template.settings, numTravelers, numDrivers: numTravelers, numRooms },
-    meta: { ...meta, title: customTitle ?? meta.title },
-  }), [template, meta, numTravelers, numRooms, customTitle]);
+  const handleOriginTextChange = useCallback((text: string) => {
+    setOriginText(text);
+    setSelectedOrigin(null);
+    clearTimeout(originDebounce.current);
+    if (!text.trim()) { setOriginSuggestions([]); return; }
+    originDebounce.current = setTimeout(async () => {
+      setOriginSearching(true);
+      try {
+        const results = await searchLocations(text);
+        setOriginSuggestions(results.slice(0, 5));
+      } finally {
+        setOriginSearching(false);
+      }
+    }, 300);
+  }, []);
+
+  const handleOriginSelect = useCallback((loc: Partial<Location>) => {
+    setSelectedOrigin(loc);
+    setOriginText(loc.name?.split(',')[0] ?? '');
+    setOriginSuggestions([]);
+  }, []);
+
+  const buildModified = useCallback((): TemplateImportResult => {
+    const locs = [...template.locations];
+    if (originExcluded && selectedOrigin) {
+      const origin: Location = {
+        id: selectedOrigin.id ?? `origin-${Date.now()}`,
+        lat: selectedOrigin.lat ?? 0,
+        lng: selectedOrigin.lng ?? 0,
+        name: selectedOrigin.name ?? '',
+        type: 'origin',
+      };
+      // Replace the empty origin slot if present, otherwise prepend
+      if (locs[0]?.type === 'origin') locs[0] = origin;
+      else locs.unshift(origin);
+    }
+    return {
+      ...template,
+      locations: locs,
+      settings: { ...template.settings, numTravelers, numDrivers: numTravelers, numRooms },
+      meta: { ...meta, title: customTitle ?? meta.title },
+    };
+  }, [template, meta, originExcluded, selectedOrigin, numTravelers, numRooms, customTitle]);
 
   const freshness = getFreshnessLabel(meta.createdAt);
   const recs = meta.recommendations ?? [];
@@ -151,7 +198,7 @@ export function YourMEETimePreview({ template, onBuild, onOpenInPlanner, onDismi
           <div style={{ margin: '18px 0', borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '14px 0 10px' }}>
             <RoutePreviewSVG locations={locations} />
             <p style={{ fontFamily: 'DM Mono, monospace', fontSize: 11, color: 'rgba(245,240,232,0.38)', margin: '6px 0 0', textAlign: 'center' }}>
-              {origin?.name ?? '?'} → {dest?.name ?? '?'}{wps > 0 ? ` · ${wps} stop${wps !== 1 ? 's' : ''}` : ''}
+              {selectedOrigin?.name?.split(',')[0] ?? origin?.name ?? '?'} → {dest?.name ?? '?'}{wps > 0 ? ` · ${wps} stop${wps !== 1 ? 's' : ''}` : ''}
             </p>
           </div>
 
@@ -161,9 +208,58 @@ export function YourMEETimePreview({ template, onBuild, onOpenInPlanner, onDismi
           </p>
 
           {originExcluded && (
-            <div style={{ marginBottom: 14, padding: '10px 14px', background: 'rgba(249,115,22,0.07)', borderRadius: 10, border: '1px solid rgba(249,115,22,0.14)' }}>
-              <p style={{ fontFamily: 'DM Mono, monospace', fontSize: 11, color: 'rgba(249,115,22,0.75)', margin: '0 0 2px' }}>📍 Starting location not included</p>
-              <p style={{ fontFamily: 'DM Mono, monospace', fontSize: 10, color: 'rgba(245,240,232,0.38)', margin: 0 }}>Use "Open in full planner" to add your starting point.</p>
+            <div style={{ marginBottom: 14 }}>
+              <p style={{ fontFamily: 'DM Mono, monospace', fontSize: 13, color: 'rgba(245,240,232,0.7)', margin: '0 0 8px' }}>
+                📍 Where are you departing from?
+              </p>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="text"
+                  value={originText}
+                  onChange={e => handleOriginTextChange(e.target.value)}
+                  placeholder="Search city or town…"
+                  style={{
+                    width: '100%', boxSizing: 'border-box',
+                    padding: '10px 12px',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: `1px solid ${selectedOrigin ? 'rgba(249,115,22,0.5)' : 'rgba(255,255,255,0.12)'}`,
+                    borderRadius: 10, color: '#f5f0e8',
+                    fontFamily: 'DM Mono, monospace', fontSize: 13,
+                    outline: 'none',
+                  }}
+                />
+                {originSearching && (
+                  <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontFamily: 'DM Mono, monospace', fontSize: 11, color: 'rgba(245,240,232,0.3)' }}>
+                    …
+                  </span>
+                )}
+                {selectedOrigin && (
+                  <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: '#f97316', fontSize: 14 }}>✓</span>
+                )}
+                {originSuggestions.length > 0 && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10,
+                    background: 'rgba(20,16,10,0.98)', border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: 10, marginTop: 4, overflow: 'hidden',
+                  }}>
+                    {originSuggestions.map((loc, i) => (
+                      <button
+                        key={i}
+                        onClick={() => handleOriginSelect(loc)}
+                        style={{
+                          display: 'block', width: '100%', textAlign: 'left',
+                          padding: '9px 12px', background: 'none', border: 'none',
+                          borderBottom: i < originSuggestions.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                          color: 'rgba(245,240,232,0.8)', fontFamily: 'DM Mono, monospace',
+                          fontSize: 12, cursor: 'pointer',
+                        }}
+                      >
+                        {loc.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -230,7 +326,8 @@ export function YourMEETimePreview({ template, onBuild, onOpenInPlanner, onDismi
           </button>
           <button
             onClick={() => onBuild(buildModified())}
-            style={{ flex: 2, padding: '13px 16px', borderRadius: 12, border: 'none', background: '#f97316', color: '#fff', fontFamily: 'DM Mono, monospace', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+            disabled={originExcluded && !selectedOrigin}
+            style={{ flex: 2, padding: '13px 16px', borderRadius: 12, border: 'none', background: originExcluded && !selectedOrigin ? 'rgba(249,115,22,0.3)' : '#f97316', color: '#fff', fontFamily: 'DM Mono, monospace', fontSize: 13, fontWeight: 600, cursor: originExcluded && !selectedOrigin ? 'not-allowed' : 'pointer', transition: 'background 0.2s' }}>
             Build my MEE time →
           </button>
         </div>

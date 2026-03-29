@@ -100,6 +100,7 @@ function AppContent() {
     setLocations, setVehicle, setSettings, setTripMode,
     markStepComplete, forceStep, goToStep,
     onAdventureComplete: () => setShowAdventureMode(false),
+    clearJournal: () => clearJournalRef.current(),
   });
 
   const { activeJournal, viewMode, startJournal, updateActiveJournal, setViewMode, clearJournal, isJournalComplete, isLoading: isJournalLoading, showCompleteOverlay, confirmComplete, finalizeJournal, error: journalError, clearError: clearJournalError } =

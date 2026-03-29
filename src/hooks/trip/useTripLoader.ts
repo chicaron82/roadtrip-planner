@@ -20,6 +20,34 @@ const ACCOMMODATION_TO_HOTEL: Record<'budget' | 'moderate' | 'comfort', { tier: 
   comfort:  { tier: 'premium', pricePerNight: 220 },
 };
 
+/**
+ * Normalises a potentially stale template departure date to today or tomorrow.
+ * - Future dates are kept as-is (user may have planned ahead).
+ * - Past/today dates: if we're still within 2h of the original departure time,
+ *   use today; otherwise shift to tomorrow. No departure time → use today unless
+ *   it's past 20:00, in which case shift to tomorrow.
+ */
+function normalizeDepartureDate(templateDate: string | undefined, departureTime: string | undefined): string {
+  const today = new Date();
+  const todayStr = formatLocalYMD(today);
+  if (!templateDate || templateDate > todayStr) return templateDate ?? todayStr;
+
+  if (departureTime) {
+    const [h, m] = departureTime.split(':').map(Number);
+    const departureToday = new Date(today);
+    departureToday.setHours(h, m, 0, 0);
+    // Within 2h after the scheduled departure — still plausible to leave today
+    const cutoff = new Date(departureToday.getTime() + 2 * 60 * 60 * 1000);
+    if (today <= cutoff) return todayStr;
+  } else {
+    if (today.getHours() < 20) return todayStr;
+  }
+
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return formatLocalYMD(tomorrow);
+}
+
 interface UseTripLoaderOptions {
   setLocations: React.Dispatch<React.SetStateAction<Location[]>>;
   setVehicle: (vehicle: Vehicle) => void;
@@ -29,6 +57,9 @@ interface UseTripLoaderOptions {
   forceStep: (step: PlanningStep) => void;
   goToStep: (step: PlanningStep) => void;
   onAdventureComplete?: () => void;
+  /** Wipe the active journal when a template or challenge is loaded, so the
+   *  fresh route gets a fresh journal (not the previous trip's). */
+  clearJournal?: () => void;
 }
 
 interface UseTripLoaderReturn {
@@ -57,6 +88,7 @@ export function useTripLoader({
   forceStep,
   goToStep,
   onAdventureComplete,
+  clearJournal,
 }: UseTripLoaderOptions): UseTripLoaderReturn {
   const [activeChallenge, setActiveChallenge] = useState<TripChallenge | null>(null);
   const [tripOrigin, setTripOrigin] = useState<TripOrigin | null>(null);
@@ -72,9 +104,13 @@ export function useTripLoader({
   }, []);
 
   const handleImportTemplate = useCallback((result: TemplateImportResult) => {
+    clearJournal?.();
     if (result.locations.length > 0) setLocations(result.locations);
     if (result.vehicle) setVehicle(result.vehicle);
-    if (result.settings) setSettings(prev => ({ ...prev, ...result.settings }));
+    if (result.settings) {
+      const normalizedDate = normalizeDepartureDate(result.settings.departureDate, result.settings.departureTime);
+      setSettings(prev => ({ ...prev, ...result.settings, departureDate: normalizedDate }));
+    }
     setActiveChallenge(null);
     setTemplateRecommendations(result.meta.recommendations);
     setTripOrigin({
@@ -88,12 +124,16 @@ export function useTripLoader({
       markStepComplete(2);
       forceStep(2);
     }
-  }, [setLocations, setVehicle, setSettings, markStepComplete, forceStep]);
+  }, [clearJournal, setLocations, setVehicle, setSettings, markStepComplete, forceStep]);
 
   const handleSelectChallenge = useCallback((challenge: TripChallenge) => {
+    clearJournal?.();
     if (challenge.locations.length > 0) setLocations(challenge.locations);
     if (challenge.vehicle) setVehicle(challenge.vehicle);
-    if (challenge.settings) setSettings(prev => ({ ...prev, ...challenge.settings }));
+    if (challenge.settings) {
+      const normalizedDate = normalizeDepartureDate(challenge.settings.departureDate, challenge.settings.departureTime);
+      setSettings(prev => ({ ...prev, ...challenge.settings, departureDate: normalizedDate }));
+    }
     setActiveChallenge(challenge);
     setTripOrigin({ type: 'challenge', id: challenge.id, title: challenge.title });
     markStepComplete(1);
@@ -101,7 +141,7 @@ export function useTripLoader({
       markStepComplete(2);
       forceStep(2);
     }
-  }, [setLocations, setVehicle, setSettings, markStepComplete, forceStep]);
+  }, [clearJournal, setLocations, setVehicle, setSettings, markStepComplete, forceStep]);
 
   const handleAdventureSelect = useCallback((selection: AdventureSelection) => {
     setLocations(prev => prev.map(loc =>
