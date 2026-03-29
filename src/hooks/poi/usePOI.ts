@@ -12,7 +12,7 @@ const DEFAULT_MARKER_CATEGORIES: MarkerCategory[] = [
 
 interface UsePOIOptions {
   routeGeometry?: [number, number][];
-  segments?: TripSummary['segments'];
+  summary?: TripSummary | null;
   origin?: Location;
   destination?: Location;
   tripPreferences?: TripPreference[];
@@ -47,7 +47,7 @@ interface UsePOIReturn {
 
 export function usePOI({
   routeGeometry,
-  segments,
+  summary,
   origin,
   destination,
   tripPreferences = [],
@@ -74,7 +74,7 @@ export function usePOI({
     resetPOISuggestions,
   } = usePOISuggestions({
     routeGeometry,
-    segments,
+    summary,
     origin,
     destination,
     tripPreferences,

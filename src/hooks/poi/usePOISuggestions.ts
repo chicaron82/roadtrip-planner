@@ -6,10 +6,11 @@ import type { Location, POISuggestion, TripPreference, TripSummary } from '../..
 import { fetchPOISuggestions } from '../../lib/poi-service';
 import { hashRouteKey } from '../../lib/poi-service/cache';
 import { buildPOISuggestionResults } from './usePOISuggestionHelpers';
+import { buildJourneyContext } from '../../lib/trip-orchestrator/journey-context';
 
 interface UsePOISuggestionsOptions {
   routeGeometry?: [number, number][];
-  segments?: TripSummary['segments'];
+  summary?: TripSummary | null;
   origin?: Location;
   destination?: Location;
   tripPreferences?: TripPreference[];
@@ -29,7 +30,7 @@ interface UsePOISuggestionsReturn {
 
 export function usePOISuggestions({
   routeGeometry,
-  segments,
+  summary,
   origin,
   destination,
   tripPreferences = [],
@@ -86,6 +87,7 @@ export function usePOISuggestions({
   }
 
   const queryKey = useMemo(() => ['poiSuggestions', currentRouteHash], [currentRouteHash]);
+  const segments = summary?.segments;
   const enabled = !!routeGeometry && routeGeometry.length > 0 && !!origin && !!destination && !!segments && segments.length > 0;
 
   const { data, isFetching: isLoadingPOIs, isError: poiFetchFailed } = useQuery({
@@ -104,6 +106,8 @@ export function usePOISuggestions({
       return { poiSuggestions: [], poiInference: [] };
     }
 
+    const journeyContext = summary ? buildJourneyContext(summary) : undefined;
+
     const { suggestions: baseSuggestions, inference } = buildPOISuggestionResults({
       alongWay: data.alongWay,
       atDestination: data.atDestination,
@@ -112,6 +116,7 @@ export function usePOISuggestions({
       tripPreferences,
       destination,
       roundTripMidpoint,
+      journeyContext,
     });
 
     const poiSuggestions = baseSuggestions.map(poi => {
@@ -121,7 +126,7 @@ export function usePOISuggestions({
     });
 
     return { poiSuggestions, poiInference: inference };
-  }, [data, routeGeometry, segments, tripPreferences, destination, roundTripMidpoint, poiActions]);
+  }, [data, routeGeometry, segments, tripPreferences, destination, roundTripMidpoint, poiActions, summary]);
 
   return {
     poiSuggestions,

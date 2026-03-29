@@ -19,6 +19,7 @@ import {
   assembleCanonicalTimeline,
   patchDaysFromCanonicalEvents
 } from './orchestrator-helpers';
+import { buildJourneyContext } from './journey-context';
 
 /**
  * Execute the full trip calculation pipeline. Pure async — no React state.
@@ -228,11 +229,14 @@ export async function orchestrateTrip(
     { locations: [...locations], vehicle, settings },
   );
 
+  const journeyContext = buildJourneyContext(tripSummary);
+
   return {
     tripSummary,
     canonicalTimeline,
     projectedFuelStops: projectFuelStopsFromSimulation(allSmartStops),
     smartStops: allSmartStops,
     roundTripMidpoint,
+    journeyContext,
   };
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { rankAndFilterPOIs, rankDestinationPOIs, haversineDistance, estimateDetourTime, findNearestSegmentIndex } from './poi-ranking';
-import type { POISuggestion, RouteSegment, TripPreference } from '../types';
+import type { POISuggestion, RouteSegment, TripPreference, TripSummary } from '../types';
 import { buildJourneyContext } from './trip-orchestrator/journey-context';
 
 function rankAndFilterPOIsWithContext(
@@ -13,7 +13,7 @@ function rankAndFilterPOIsWithContext(
   const mockTripSummary = {
     segments,
     days: [{ dayNumber: 1, segmentIndices: segments.map((_, i) => i) }]
-  } as any;
+  } as unknown as TripSummary;
   return rankAndFilterPOIs(pois, routeGeometry, segments, tripPreferences, topN, buildJourneyContext(mockTripSummary));
 }
 

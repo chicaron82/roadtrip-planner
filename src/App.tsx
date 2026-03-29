@@ -51,7 +51,7 @@ function AppContent() {
     clearError: clearPOIError, resetPOIs,
   } = usePOI({
     routeGeometry: summary?.fullGeometry,
-    segments: summary?.segments,
+    summary: summary,
     origin: locations.find(l => l.type === 'origin'),
     destination: locations.find(l => l.type === 'destination'),
     tripPreferences: settings.tripPreferences,
