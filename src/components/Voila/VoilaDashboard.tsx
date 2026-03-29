@@ -10,6 +10,7 @@
  */
 
 import type { TripSummary, TripSettings } from '../../types';
+import { getTripDayCounts } from '../../lib/trip-summary-view';
 
 interface VoilaDashboardProps {
   summary: TripSummary;
@@ -36,7 +37,8 @@ function Chip({ children }: { children: React.ReactNode }) {
 }
 
 export function VoilaDashboard({ summary, settings }: VoilaDashboardProps) {
-  const days = summary.drivingDays;
+  const { totalDays } = getTripDayCounts(summary);
+  const days = totalDays;
   const nights = Math.max(0, days - 1);
   const currency = settings.currency === 'USD' ? '$' : 'C$';
   const numTravelers = settings.numTravelers ?? 1;

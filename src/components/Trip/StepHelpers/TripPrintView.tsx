@@ -15,7 +15,7 @@ import { type TimedEvent } from '../../../lib/trip-timeline';
 import type { PrintInput } from '../../../lib/canonical-trip';
 import { buildPrintHTML } from '../../../lib/trip-print-builders';
 import { getTripDisplayEndpoints } from '../../../lib/trip-summary-view';
-import { buildAutoTitle } from '../../../lib/mee-tokens';
+import { buildSeededTitle } from '../../../lib/trip-title-seeds';
 import type { TripJournal } from '../../../types';
 
 // ==================== TYPES ====================
@@ -101,7 +101,7 @@ export function printTrip(props: TripPrintViewProps): void {
   const endpoints = getTripDisplayEndpoints(summary);
   const destination = endpoints.destination?.name || 'Destination';
   const tripTitle = printInput.customTitle
-    ?? buildAutoTitle({ destination });
+    ?? buildSeededTitle({ destination, days: summary.drivingDays, travelerCount: settings.numTravelers ?? 1 });
 
   const html = buildPrintHTML(
     tripTitle,
