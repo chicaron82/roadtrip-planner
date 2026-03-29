@@ -41,15 +41,22 @@ describe('getActiveSurface', () => {
     expect(getActiveSurface(state({ showVoila: true }))).toBe('landing');
   });
 
-  it('voila wins over everything (when hasSummary)', () => {
+  it('voila wins over non-arc surfaces (when hasSummary)', () => {
     expect(getActiveSurface(state({
       showVoila: true,
       hasSummary: true,
       pendingTemplate: true,
       showJournalAtAGlance: true,
       tripMode: 'plan',
-      arcActive: true,
     }))).toBe('voila');
+  });
+
+  it('voila defers to icebreaker when arcActive (prevents spoiling reveal)', () => {
+    expect(getActiveSurface(state({
+      showVoila: true,
+      hasSummary: true,
+      arcActive: true,
+    }))).toBe('icebreaker');
   });
 
   it('returns templatePreview when pendingTemplate and not showVoila', () => {

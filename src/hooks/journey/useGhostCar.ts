@@ -143,14 +143,21 @@ export function useGhostCar(
           startTime,
         );
 
-    // Waypoint names from segments (origin + each segment's destination)
-    const segs = summary.segments;
-    const names = [segs[0].from.name, ...segs.map(s => s.to.name)];
-    const kms: number[] = [0];
-    let cum = 0;
-    for (const s of segs) { cum += s.distanceKm; kms.push(cum); }
+    // Total distance from raw segments (used for clamping, independent of display waypoints)
+    let totalKm = 0;
+    for (const s of summary.segments) totalKm += s.distanceKm;
 
-    return { events, waypointNames: names, waypointKms: kms, totalKm: cum };
+    // Build waypoints from timed events — same source the journal uses.
+    // Includes overnight-stamped guard cities, not just user-declared stops.
+    const stopEvents = events.filter(e =>
+      (e.type === 'waypoint' || e.type === 'arrival') &&
+      e.segment &&
+      !(e.segment.to.id?.startsWith('guard-') && e.segment.stopType !== 'overnight')
+    );
+    const names = [summary.segments[0].from.name, ...stopEvents.map(e => e.segment!.to.name)];
+    const kms = [0, ...stopEvents.map(e => e.distanceFromOriginKm)];
+
+    return { events, waypointNames: names, waypointKms: kms, totalKm };
   }, [ghostCarInput, summary, settings, suggestions]);
 
   // ── Compute state from current clock ──

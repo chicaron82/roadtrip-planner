@@ -136,6 +136,8 @@ export function useTripCalculation({
 
     try {
       const result = await orchestrateTrip(locations, vehicle, currentSettings);
+      // Discard stale results — a newer calculation was started while this was in flight.
+      if (calcRunIdRef.current !== runId) return null;
       const { tripSummary, canonicalTimeline, projectedFuelStops } = result;
       roundTripMidpointRef.current = result.roundTripMidpoint;
 
@@ -182,7 +184,10 @@ export function useTripCalculation({
       }
       return null;
     } finally {
-      setIsCalculating(false);
+      // Only clear the loading flag for the most recent calculation.
+      // A stale calculation returning after a newer one started must not
+      // flip isCalculating to false while the newer one is still in flight.
+      if (calcRunIdRef.current === runId) setIsCalculating(false);
     }
   }, [locations, vehicle, onCalculationComplete, setCanonicalTimeline, commitSummary]);
 

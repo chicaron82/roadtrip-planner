@@ -58,7 +58,7 @@ export interface ScreenPolicyState {
  */
 export function getActiveSurface(state: ScreenPolicyState): ActiveSurface {
   if (state.showPostTrip) return 'postTrip';
-  if (state.showVoila && state.hasSummary) return 'voila';
+  if (state.showVoila && state.hasSummary && !state.arcActive) return 'voila';
   if (state.pendingTemplate) return 'templatePreview';
   if (state.showJournalAtAGlance) return 'journalAtAGlance';
   if (state.tripMode) return 'planning';

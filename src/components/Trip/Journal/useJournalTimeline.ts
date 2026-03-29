@@ -9,6 +9,7 @@ import {
   buildJournalTimelineStops,
   findJournalEntry,
   resolveJournalTimelineStop,
+  type JournalTimelineStop,
 } from '../../../lib/journal-trip-view';
 import type { JournalTimelineSummary } from '../../../lib/trip-summary-slices';
 
@@ -196,6 +197,36 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
   const formatDate = (date: Date, ianaTimezone: string | undefined = originTimezone) =>
     formatDisplayDateInZone(date, ianaTimezone);
 
+  // Arrive at a specific stop — uses the stop's segment directly to bypass the
+  // originalIndex ambiguity that arises when multiple sub-segments share originalIndex: 0
+  // (single long OSRM segment split into sub-segments by splitLongSegments).
+  const handleArriveAtStop = (stop: JournalTimelineStop, updates: Partial<JournalEntry> = {}) => {
+    const segment = stop.segment;
+    const existingEntry = findJournalEntry(journal.entries, stop);
+    let newEntry: JournalEntry;
+    if (existingEntry) {
+      newEntry = { ...existingEntry, ...updates, updatedAt: new Date() };
+    } else {
+      newEntry = {
+        id: `entry-${segment.to.id ?? stop.flatIndex}`,
+        stopId: segment.to.id,
+        segmentIndex: stop.originalIndex,
+        photos: [],
+        notes: '',
+        status: 'planned',
+        isHighlight: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        plannedArrival: segment.arrivalTime ? new Date(segment.arrivalTime) : undefined,
+        ...updates,
+      };
+    }
+    const updatedEntries = existingEntry
+      ? journal.entries.map(e => (e.id === existingEntry.id ? newEntry : e))
+      : [...journal.entries, newEntry];
+    onUpdateJournal({ ...journal, entries: updatedEntries, updatedAt: new Date() });
+  };
+
   // Reset all entries back to 'planned' so the journey can be re-driven.
   // Notes and photos are preserved — only arrival status is cleared.
   const resetAllStops = () => {
@@ -225,6 +256,7 @@ export function useJournalTimeline({ summary, settings, journal, onUpdateJournal
     editingCapture,
     getEntry,
     handleUpdateEntry,
+    handleArriveAtStop,
     handleAddPhoto,
     handleRemovePhoto,
     handleSaveQuickCapture,

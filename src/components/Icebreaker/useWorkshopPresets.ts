@@ -7,7 +7,7 @@
  * 💚 My Experience Engine — Beat 3 of the Four-Beat Arc
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import type { Vehicle, TripSettings } from '../../types';
 import { generateEstimate } from '../../lib/estimate-service';
 import { formatHoursFromMinutes } from '../../lib/utils';
@@ -47,9 +47,13 @@ export const CATEGORY_COLORS = ['#ea580c', '#7c3aed', '#16a34a', '#0891b2'] as c
 interface UseWorkshopPresetsOptions {
   sketchDistanceKm: number;
   sketchDurationMinutes: number;
+  /** Real driving-day count from the last completed calculation. Overrides the sketch estimate. */
+  sketchDrivingDays?: number;
   vehicle: Vehicle;
   settings: TripSettings;
   onCommit: (overrides: { settings: Partial<TripSettings>; vehicle?: Vehicle }) => void;
+  /** Called immediately when a route-affecting setting changes so the map rerenders live. */
+  onSettingsLiveChange?: (overrides: Partial<TripSettings>) => void;
 }
 
 export interface WorkshopPresetsResult {
@@ -64,6 +68,8 @@ export interface WorkshopPresetsResult {
   setHotelTier: (h: HotelTier) => void;
   pace: Pace;
   setPace: (p: Pace) => void;
+  avoidBorders: boolean;
+  setAvoidBorders: (v: boolean) => void;
   showMore: boolean;
   setShowMore: (v: boolean) => void;
   budgetEnabled: boolean;
@@ -79,9 +85,11 @@ export interface WorkshopPresetsResult {
 export function useWorkshopPresets({
   sketchDistanceKm,
   sketchDurationMinutes,
+  sketchDrivingDays,
   vehicle: initialVehicle,
   settings: initialSettings,
   onCommit,
+  onSettingsLiveChange,
 }: UseWorkshopPresetsOptions): WorkshopPresetsResult {
   const initialType = VEHICLE_TYPES.find(v =>
     v.vehicle.fuelEconomyHwy === initialVehicle.fuelEconomyHwy
@@ -100,7 +108,6 @@ export function useWorkshopPresets({
 
   // Auto-sync rooms when travelers changes, unless the user has overridden.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!userSetRooms) setNumRoomsState(defaultRooms(travelers));
   }, [travelers, userSetRooms]);
 
@@ -109,7 +116,25 @@ export function useWorkshopPresets({
     (initialSettings.hotelTier as HotelTier) || 'regular'
   );
   const [pace, setPace] = useState<Pace>('balanced');
+  const [avoidBorders, setAvoidBorders] = useState(initialSettings.avoidBorders ?? false);
   const [showMore, setShowMore] = useState(false);
+
+  // Live-reroute when user toggles avoidBorders or changes pace — fires once per change.
+  // Skip on mount (initial values don't need a recalc).
+  const isFirstAvoidBordersRender = useRef(true);
+  useEffect(() => {
+    if (isFirstAvoidBordersRender.current) { isFirstAvoidBordersRender.current = false; return; }
+    onSettingsLiveChange?.({ avoidBorders });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [avoidBorders]);
+
+  const isFirstPaceRender = useRef(true);
+  useEffect(() => {
+    if (isFirstPaceRender.current) { isFirstPaceRender.current = false; return; }
+    const selectedPaceForEffect = PACE_OPTIONS.find(p => p.pace === pace)!;
+    onSettingsLiveChange?.({ maxDriveHours: selectedPaceForEffect.hours });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pace]);
   const [budgetEnabled, setBudgetEnabled] = useState(initialSettings.budgetMode === 'plan-to-budget');
   const [budgetAmount, setBudgetAmount] = useState(
     initialSettings.budget?.total ?? 2000
@@ -120,7 +145,9 @@ export function useWorkshopPresets({
   const selectedPace = PACE_OPTIONS.find(p => p.pace === pace)!;
 
   // Day trip: trip fits in a single day of driving → 0 overnight stops needed.
-  const sketchDays = Math.max(1, Math.ceil(sketchDurationMinutes / (selectedPace.hours * 60)));
+  // Prefer the real drivingDays from a completed calculation (sketchDrivingDays) — it accounts
+  // for actual segment boundaries that simple division misses. Fall back to math estimate.
+  const sketchDays = sketchDrivingDays ?? Math.max(1, Math.ceil(sketchDurationMinutes / (selectedPace.hours * 60)));
   const isDayTrip = sketchDays === 1;
 
   const mergedSettings: TripSettings = useMemo(() => ({
@@ -134,7 +161,8 @@ export function useWorkshopPresets({
     budget: budgetEnabled
       ? { ...initialSettings.budget, total: budgetAmount }
       : initialSettings.budget,
-  }), [initialSettings, travelers, numRooms, isDayTrip, hotelTier, selectedHotel.price, selectedPace.hours, budgetEnabled, budgetAmount]);
+    avoidBorders,
+  }), [initialSettings, travelers, numRooms, isDayTrip, hotelTier, selectedHotel.price, selectedPace.hours, budgetEnabled, budgetAmount, avoidBorders]);
 
   const sketchSummary = useMemo(() => ({
     totalDistanceKm: sketchDistanceKm,
@@ -143,10 +171,10 @@ export function useWorkshopPresets({
     totalFuelCost: 0,
     gasStops: 0,
     costPerPerson: 0,
-    drivingDays: Math.max(1, Math.ceil(sketchDurationMinutes / (selectedPace.hours * 60))),
+    drivingDays: sketchDays,
     segments: [],
     fullGeometry: [],
-  }), [sketchDistanceKm, sketchDurationMinutes, selectedPace.hours]);
+  }), [sketchDistanceKm, sketchDurationMinutes, sketchDays]);
 
   const estimate = useMemo(
     () => generateEstimate(sketchSummary, selectedVehicle.vehicle, mergedSettings, { raw: true }),
@@ -171,6 +199,7 @@ export function useWorkshopPresets({
         maxDriveHours: selectedPace.hours,
         budgetMode: budgetEnabled ? 'plan-to-budget' : 'open',
         budget: budgetEnabled ? { ...initialSettings.budget, total: budgetAmount } : initialSettings.budget,
+        avoidBorders,
       },
       vehicle: selectedVehicle.vehicle,
     });
@@ -183,6 +212,7 @@ export function useWorkshopPresets({
     vehicleType, setVehicleType,
     hotelTier, setHotelTier,
     pace, setPace,
+    avoidBorders, setAvoidBorders,
     showMore, setShowMore,
     budgetEnabled, setBudgetEnabled,
     budgetAmount, setBudgetAmount,

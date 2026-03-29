@@ -30,12 +30,16 @@ import { WorkshopTitleInput } from './WorkshopTitleInput';
 interface UnifiedWorkshopPanelProps {
   sketchDistanceKm: number;
   sketchDurationMinutes: number;
+  /** Real driving-day count from the last completed calculation. Overrides the sketch estimate. */
+  sketchDrivingDays?: number;
   vehicle: Vehicle;
   settings: TripSettings;
   customTitle: string | null;
   seededTitle: string;
   onCommit: (overrides: { settings: Partial<TripSettings>; vehicle?: Vehicle }) => void;
   onTitleChange: (title: string | null) => void;
+  /** Called immediately when a setting that affects the live route changes (e.g. avoidBorders). */
+  onSettingsLiveChange?: (overrides: Partial<TripSettings>) => void;
   onEscape: () => void;
 }
 
@@ -92,9 +96,9 @@ const label = (singular: string, plural: string) => (n: number) => n === 1 ? sin
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function UnifiedWorkshopPanel({
-  sketchDistanceKm, sketchDurationMinutes,
+  sketchDistanceKm, sketchDurationMinutes, sketchDrivingDays,
   vehicle, settings,
-  customTitle, seededTitle, onCommit, onTitleChange, onEscape,
+  customTitle, seededTitle, onCommit, onTitleChange, onSettingsLiveChange, onEscape,
 }: UnifiedWorkshopPanelProps) {
   const {
     travelers, setTravelers,
@@ -103,12 +107,13 @@ export function UnifiedWorkshopPanel({
     vehicleType, setVehicleType,
     hotelTier, setHotelTier,
     pace, setPace,
+    avoidBorders, setAvoidBorders,
     showMore, setShowMore,
     budgetEnabled, setBudgetEnabled,
     budgetAmount, setBudgetAmount,
     estimate, driveLabel, percents,
     handleCommit,
-  } = useWorkshopPresets({ sketchDistanceKm, sketchDurationMinutes, vehicle, settings, onCommit });
+  } = useWorkshopPresets({ sketchDistanceKm, sketchDurationMinutes, sketchDrivingDays, vehicle, settings, onCommit, onSettingsLiveChange });
 
   const multiPerson = travelers > 1;
 
@@ -168,6 +173,19 @@ export function UnifiedWorkshopPanel({
           }}>
             Let MEE make this personal
           </p>
+
+          {/* PRIMARY: Route Preferences — affects estimate heavily */}
+          <p style={{ color: 'rgba(245,240,232,0.5)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+            Route Preferences
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 18 }}>
+            <button
+              onClick={() => setAvoidBorders(!avoidBorders)}
+              style={chip(avoidBorders)}
+            >
+              🍁 Stay in Canada
+            </button>
+          </div>
 
           {/* PRIMARY: Travelers — affects estimate, changed frequently, fits on mobile */}
           <p style={{ color: 'rgba(245,240,232,0.5)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>

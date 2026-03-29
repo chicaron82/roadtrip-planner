@@ -25,8 +25,12 @@ export function findJournalEntry(
   if (!stop) return undefined;
 
   const stopId = stop.segment.to.id;
-  return (stopId ? entries.find(entry => entry.stopId === stopId) : undefined)
-    ?? entries.find(entry => entry.segmentIndex === stop.originalIndex);
+  // When a stop has an ID, match exclusively by stopId. The segmentIndex
+  // fallback is unsafe here because splitLongSegments creates sub-segments
+  // that share the same _originalIndex — a single check-in entry would
+  // falsely match every sub-segment of that original leg.
+  if (stopId) return entries.find(entry => entry.stopId === stopId);
+  return entries.find(entry => entry.segmentIndex === stop.originalIndex);
 }
 
 export function resolveJournalEntryLocation(routeSummary: SegmentLookupSummary, entry: Pick<JournalEntry, 'stopId' | 'segmentIndex'>): Location | undefined {
@@ -68,7 +72,11 @@ export function buildJournalActiveSuggestions(
 export function buildJournalTimelineStops(simulationItems: SimulationItem[]): JournalTimelineStop[] {
   return simulationItems.flatMap(item => {
     if (item.type !== 'stop' || !item.segment || item.index === undefined) return [];
-    if (item.segment.to.id?.startsWith('guard-')) return [];
+    // Guard waypoints from border-avoidance routing are normally invisible (they're
+    // routing artifacts). Exception: if the guard city is the terminal stop of a
+    // driving day (stamped stopType='overnight' by orchestrate-trip.ts), it's a real
+    // overnight rest city and must appear as a journal stop.
+    if (item.segment.to.id?.startsWith('guard-') && item.segment.stopType !== 'overnight') return [];
 
     return [{
       flatIndex: item.index,

@@ -325,15 +325,19 @@ function calculateFatigueScore(
   segmentIndex: number,
   segments: RouteSegment[]
 ): { score: number; rationale?: string } {
-  if (segmentIndex <= 0) return { score: 0 };
+  if (segmentIndex <= 0 || !segments.length) return { score: 0 };
+
+  // nearestSegmentIndex derives from the raw geometry polyline via distanceToRoute,
+  // which can have thousands of interpolated points — far more than segments[].
+  // Clamp so we never walk off the end of the segments array.
+  const startIdx = Math.min(segmentIndex - 1, segments.length - 1);
 
   let accumulatedMinutes = 0;
-  // Walk backwards starting from the PREVIOUS segment to see how much 
-  // driving was done to reach this point without a major rest stop.
-  for (let i = segmentIndex - 1; i >= 0; i--) {
+  for (let i = startIdx; i >= 0; i--) {
     const s = segments[i];
+    if (!s) continue; // belt-and-suspenders guard
     accumulatedMinutes += s.durationMinutes || 0;
-    
+
     // If we find a rest stop (excluding 'drive' or 'fuel' which are short pauses), stop counting
     if (s.stopType === 'break' || s.stopType === 'meal' || s.stopType === 'overnight') {
       break;

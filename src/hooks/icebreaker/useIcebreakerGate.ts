@@ -30,6 +30,8 @@ interface UseIcebreakerGateOptions {
   forceStep: (step: 1 | 2 | 3) => void;
   /** When set, plan-mode icebreaker flows through the Four-Beat Arc instead of opening the wizard directly. */
   onFourBeatArc?: (prefill: IcebreakerPrefill) => void;
+  /** When set, routes the estimate workshop commit to the Arc instead of opening the wizard directly. */
+  onEstimateWorkshopCommit?: () => void;
 }
 
 export function useIcebreakerGate({
@@ -42,6 +44,7 @@ export function useIcebreakerGate({
   markStepComplete,
   forceStep,
   onFourBeatArc,
+  onEstimateWorkshopCommit,
 }: UseIcebreakerGateOptions) {
   const [icebreakerMode, setIcebreakerMode] = useState<TripMode | null>(null);
   const [adventureInitialValues, setAdventureInitialValues] = useState<AdventureInitialValues | null>(null);
@@ -115,15 +118,21 @@ export function useIcebreakerGate({
     }
   }, [selectTripMode, setLocations]);
 
-  /** Estimate Workshop: user commits — apply any setting overrides then open wizard. */
+  /** Estimate Workshop: user commits — apply any setting overrides then open wizard or arc. */
   const handleEstimateWorkshopCommit = useCallback((settingsOverride: Partial<TripSettings>) => {
     setSettings(prev => ({ ...prev, ...settingsOverride }));
     setEstimateWorkshopActive(false);
+
+    if (onEstimateWorkshopCommit) {
+      onEstimateWorkshopCommit();
+      return;
+    }
+
     markStepComplete(1);
     markStepComplete(2); // vehicle was set during icebreaker
     forceStep(2);
     setTripMode('plan');
-  }, [setSettings, setTripMode, markStepComplete, forceStep]);
+  }, [setSettings, setTripMode, markStepComplete, forceStep, onEstimateWorkshopCommit]);
 
   /** Estimate Workshop: user skips — open wizard directly with what's already set. */
   const handleEstimateWorkshopEscape = useCallback(() => {

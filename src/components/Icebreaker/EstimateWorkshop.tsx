@@ -21,6 +21,7 @@ interface EstimateWorkshopProps {
   isCalculating: boolean;
   onCommit: (settingsOverride: Partial<TripSettings>) => void;
   onEscape: () => void;
+  onSettingsChange?: (override: Partial<TripSettings>) => void;
 }
 
 type HotelTier = 'budget' | 'regular' | 'premium';
@@ -48,6 +49,7 @@ export function EstimateWorkshop({
   isCalculating,
   onCommit,
   onEscape,
+  onSettingsChange,
 }: EstimateWorkshopProps) {
   const [hotelTier, setHotelTier] = useState<HotelTier>('regular');
   const [travelers, setTravelers] = useState(settings.numTravelers || 2);
@@ -180,6 +182,25 @@ export function EstimateWorkshop({
 
             {/* Tuning controls */}
             <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* Stay in Canada */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ color: 'rgba(245,240,232,0.7)', fontSize: '14px' }}>Stay in Canada</span>
+                <button
+                  onClick={() => onSettingsChange?.({ avoidBorders: !settings.avoidBorders })}
+                  style={{
+                    width: 44, height: 24, borderRadius: 12, position: 'relative', cursor: 'pointer',
+                    background: settings.avoidBorders ? 'rgba(234,88,12,0.85)' : 'rgba(255,255,255,0.08)',
+                    border: `1px solid ${settings.avoidBorders ? 'rgba(234,88,12,0.5)' : 'rgba(255,255,255,0.12)'}`,
+                    transition: 'background 0.2s',
+                  }}
+                >
+                  <div style={{
+                    position: 'absolute', top: 2, left: settings.avoidBorders ? 21 : 3, width: 18, height: 18,
+                    borderRadius: '50%', background: '#fff', transition: 'left 0.2s',
+                  }} />
+                </button>
+              </div>
+
               {/* Hotel tier */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ color: 'rgba(245,240,232,0.7)', fontSize: '14px' }}>Hotel tier</span>

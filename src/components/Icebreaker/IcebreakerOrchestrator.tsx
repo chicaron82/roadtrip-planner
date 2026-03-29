@@ -116,6 +116,11 @@ export function useIcebreakerOrchestrator(
         : settings;
       arc.enterSketch(prefillLocations, vehicle, mergedSettings);
     },
+    onEstimateWorkshopCommit: () => {
+      // Transition from Workshop overlay to Four-Beat Arc (Beat 4: Building/Voilà)
+      arc.startCalculation();
+      calculateAndDiscover();
+    },
   });
 
   // Trigger background calculation when Estimate Workshop opens.
@@ -137,8 +142,13 @@ export function useIcebreakerOrchestrator(
       arc.onBuildComplete();
       return true;
     }
+    // If the estimate workshop is open, the calculation was triggered just to
+    // price the route. Consume the completion event so the app doesn't trigger a flyover.
+    if (estimateWorkshopActive) {
+      return true;
+    }
     return false;
-  }, [arc]);
+  }, [arc, estimateWorkshopActive]);
 
   // When calculation fails at beat 4, exit the arc so the user isn't left
   // stuck on a blank map. The calcError toast fires independently via useAppCallbacks.

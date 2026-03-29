@@ -107,7 +107,10 @@ export function LocationSearchInput({ value, onSelect, placeholder, className }:
                 <button
                     key={index}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors border-b border-border/40 last:border-0"
-                    onClick={() => handleSelect(result)}
+                    // onMouseDown + preventDefault keeps the input focused long enough
+                    // for handleSelect to fire before the document mousedown listener
+                    // collapses the dropdown (classic blur-before-click race condition).
+                    onMouseDown={(e) => { e.preventDefault(); handleSelect(result); }}
                 >
                     <div className="font-medium truncate">{result.name}</div>
                     <div className="text-xs text-muted-foreground truncate opacity-80">{result.address}</div>

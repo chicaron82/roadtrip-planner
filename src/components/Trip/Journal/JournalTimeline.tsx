@@ -38,6 +38,7 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
     editingCapture,
     getEntry,
     handleUpdateEntry,
+    handleArriveAtStop,
     handleAddPhoto,
     handleRemovePhoto,
     handleSaveQuickCapture,
@@ -143,7 +144,7 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
         <QuickArriveButton
           stopName={currentStop.segment.to.name.split(',')[0]}
           onArrive={() => {
-            handleUpdateEntry(currentStopIndex, { status: 'visited', actualArrival: new Date() });
+            handleArriveAtStop(currentStop, { status: 'visited', actualArrival: new Date() });
             dispatchStopArrived({
               segmentIndex: currentStopIndex,
               toName: currentStop.segment.to.name.split(',')[0],

@@ -75,9 +75,11 @@ function AppContent() {
     externalStops,
   });
 
+  const clearJournalRef = useRef<() => void>(() => {});
   const { calculateAndDiscover } = useCalculateAndDiscover({
     calculateTrip, settings, setTripConfirmed,
     refreshAdaptiveDefaults, setAdaptiveDefaults,
+    clearJournal: () => clearJournalRef.current(),
   });
 
   const {
@@ -102,6 +104,8 @@ function AppContent() {
 
   const { activeJournal, viewMode, startJournal, updateActiveJournal, setViewMode, clearJournal, isJournalComplete, isLoading: isJournalLoading, showCompleteOverlay, confirmComplete, finalizeJournal, error: journalError, clearError: clearJournalError } =
     useJournal({ summary, settings, vehicle, origin: tripOrigin, defaultTitle: activeChallenge?.title });
+  // Wire clearJournal into the ref so calculateAndDiscover (declared above useJournal) can call it.
+  useLayoutEffect(() => { clearJournalRef.current = clearJournal; });
 
   const {
     validRouteGeometry, routeFeasibilityStatus, mapDayOptions,
@@ -153,7 +157,7 @@ function AppContent() {
     handleShowVoila, handleFlyoverComplete, handleVoilaEdit, handleVoilaLockIn, handleViewFullDetails, handleGoHome,
     handleMinimizeToVoila, handleReturnToJournal,
     handleOpenShareScreen, handleCloseShareScreen,
-  } = useVoilaFlow({ icebreakerOrigin, isCalculating, setTripMode, goToStep, forceStep, setTripConfirmed });
+  } = useVoilaFlow({ icebreakerOrigin, isCalculating, setTripMode, setViewMode, goToStep, forceStep, setTripConfirmed });
 
   // ── Icebreaker orchestrator (Four-Beat Arc + icebreaker gate + estimate workshop) ──
   const icebreaker = useIcebreakerOrchestrator({

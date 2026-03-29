@@ -76,8 +76,9 @@ export function IcebreakerOverlays(p: IcebreakerOverlayProps) {
       {/* Beat 3 — Unified Workshop Panel */}
       {!p.tripMode && p.arc.beat === 3 && p.arc.sketchData && (
         <UnifiedWorkshopPanel
-          sketchDistanceKm={p.arc.sketchData.distanceKm}
-          sketchDurationMinutes={Math.round((p.arc.sketchData.distanceKm / 90) * 60)}
+          sketchDistanceKm={p.summary?.totalDistanceKm ?? p.arc.sketchData.distanceKm}
+          sketchDurationMinutes={p.summary?.totalDurationMinutes ?? Math.round((p.arc.sketchData.distanceKm / 90) * 60)}
+          sketchDrivingDays={p.summary?.drivingDays}
           vehicle={p.vehicle}
           settings={p.settings}
           customTitle={p.customTitle}
@@ -85,10 +86,17 @@ export function IcebreakerOverlays(p: IcebreakerOverlayProps) {
           onCommit={(overrides) => {
             if (overrides.vehicle) p.setVehicle(overrides.vehicle);
             if (overrides.settings) p.setSettings(prev => ({ ...prev, ...overrides.settings }));
+            // Freeze the seeded title now so Voilà and print see the same title.
+            // Only freeze when user hasn't already typed a custom title.
+            if (!p.customTitle) p.setCustomTitle(p.seededTitle);
             p.arc.startCalculation();
             setTimeout(() => p.calculateAndDiscover(), 0);
           }}
           onTitleChange={p.setCustomTitle}
+          onSettingsLiveChange={(overrides) => {
+            p.setSettings(prev => ({ ...prev, ...overrides }));
+            setTimeout(() => p.calculateAndDiscover(), 0);
+          }}
           onEscape={() => { p.arc.exitArc(); p.selectTripMode('plan'); }}
         />
       )}
@@ -123,6 +131,10 @@ export function IcebreakerOverlays(p: IcebreakerOverlayProps) {
           isCalculating={p.isCalculating}
           onCommit={p.handleEstimateWorkshopCommit}
           onEscape={p.handleEstimateWorkshopEscape}
+          onSettingsChange={(overrides) => {
+            p.setSettings(prev => ({ ...prev, ...overrides }));
+            setTimeout(() => p.calculateAndDiscover(), 0);
+          }}
         />
       )}
 

@@ -7,6 +7,7 @@ interface UseVoilaFlowOptions {
   icebreakerOrigin?: boolean | null;
   isCalculating: boolean;
   setTripMode: (mode: TripMode | null) => void;
+  setViewMode: (mode: 'plan' | 'journal') => void;
   goToStep: (step: 1 | 2 | 3) => void;
   forceStep: (step: 1 | 2 | 3) => void;
   setTripConfirmed: React.Dispatch<React.SetStateAction<boolean>>;
@@ -16,6 +17,7 @@ export function useVoilaFlow({
   icebreakerOrigin,
   isCalculating,
   setTripMode,
+  setViewMode,
   goToStep,
   forceStep,
   setTripConfirmed,
@@ -47,9 +49,12 @@ export function useVoilaFlow({
   const handleVoilaEdit = useCallback(() => {
     setShowVoila(false);
     setTripConfirmed(false);
+    // Reset viewMode to 'plan' so a stale activeJournal from a prior run doesn't
+    // immediately trigger showJournalAtAGlance when the user locks in again.
+    setViewMode('plan');
     if (icebreakerOrigin) setTripMode('plan');
     goToStep(2);
-  }, [icebreakerOrigin, setTripMode, setTripConfirmed, goToStep]);
+  }, [icebreakerOrigin, setTripMode, setTripConfirmed, setViewMode, goToStep]);
 
   const handleGoHome = useCallback(() => {
     if (isCalculating) return;
@@ -72,7 +77,10 @@ export function useVoilaFlow({
   const handleViewFullDetails = useCallback(() => {
     setShowVoila(false);
     forceStep(3);
-  }, [forceStep]);
+    // Icebreaker path: tripMode is still null until lock-in. Set it so the
+    // planning surface renders instead of falling through to landing.
+    if (icebreakerOrigin) setTripMode('plan');
+  }, [forceStep, icebreakerOrigin, setTripMode]);
 
   /** Minimize journal back to voila screen. */
   const handleMinimizeToVoila = useCallback(() => {
@@ -81,8 +89,12 @@ export function useVoilaFlow({
 
   /** Return from voila to journal. */
   const handleReturnToJournal = useCallback(() => {
+    // Explicitly restore journal viewMode — it may have been changed to 'plan'
+    // if the user navigated away (e.g. Full details → back to voila). Without
+    // this, showJournalAtAGlance stays false and the surface falls to planning.
+    setViewMode('journal');
     setShowVoila(false);
-  }, []);
+  }, [setViewMode]);
 
   return {
     showVoila,
