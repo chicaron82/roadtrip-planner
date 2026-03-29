@@ -70,6 +70,7 @@ const POPULAR_DESTINATIONS: Array<{
   { name: 'Cape Breton', lat: 46.2382, lng: -60.8785, category: 'nature', description: 'Cabot Trail scenic drive and Celtic culture', tags: ['scenic', 'nature', 'culture', 'coastal'], imageUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400' },
 
   // Central Canada / Prairie Provinces
+  { name: 'Winnipeg', lat: 49.8951, lng: -97.1384, category: 'city', description: 'The Forks, human rights museum, poutine, and gateway to polar bear country', tags: ['city', 'culture', 'foodie', 'family', 'friendly'], imageUrl: 'https://images.unsplash.com/photo-1530789253388-582c481c54b0?w=400' },
   { name: 'Calgary', lat: 51.0447, lng: -114.0719, category: 'city', description: 'Gateway to the Rockies, Stampede, and urban energy', tags: ['city', 'adventure', 'culture', 'skiing'], imageUrl: 'https://images.unsplash.com/photo-1517935706615-2717063c2225?w=400' },
   { name: 'Edmonton', lat: 53.5461, lng: -113.4938, category: 'city', description: 'River valley trails, festivals, and West Edmonton Mall', tags: ['city', 'shopping', 'culture', 'family'], imageUrl: 'https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?w=400' },
   { name: 'Regina', lat: 50.4452, lng: -104.6189, category: 'city', description: 'Prairie capital with beautiful parks and museums', tags: ['city', 'culture', 'budget', 'family'], imageUrl: 'https://images.unsplash.com/photo-1530789253388-582c481c54b0?w=400' },
