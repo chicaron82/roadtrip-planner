@@ -12,6 +12,7 @@
 import type { Vehicle, TripSettings, TripSummary, TripMode, Location } from '../../types';
 import type { IcebreakerPrefill } from './IcebreakerGate';
 import type { useFourBeatArc } from '../../hooks';
+import { useCallback } from 'react';
 import { IcebreakerGate } from './IcebreakerGate';
 import { EstimateWorkshop } from './EstimateWorkshop';
 import { SketchCard } from './SketchCard';
@@ -53,6 +54,12 @@ export interface IcebreakerOverlayProps {
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function IcebreakerOverlays(p: IcebreakerOverlayProps) {
+  const handleAdventurePreviewChange = useCallback(
+    (lat: number, lng: number, radiusKm: number) => p.setAdventurePreview({ lat, lng, radiusKm }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [p.setAdventurePreview],
+  );
+
   return (
     <>
       {/* Beat 2 — Sketch Card */}
@@ -139,9 +146,7 @@ export function IcebreakerOverlays(p: IcebreakerOverlayProps) {
           mode={p.icebreakerMode}
           onComplete={(mode, prefill) => { p.setAdventurePreview(null); p.handleIcebreakerComplete(mode, prefill); }}
           onEscape={(mode, saveAsClassic, prefillLocations) => { p.setAdventurePreview(null); p.handleIcebreakerEscape(mode, saveAsClassic, prefillLocations); }}
-          onAdventurePreviewChange={(lat, lng, radiusKm) =>
-            p.setAdventurePreview({ lat, lng, radiusKm })
-          }
+          onAdventurePreviewChange={handleAdventurePreviewChange}
         />
       )}
     </>
