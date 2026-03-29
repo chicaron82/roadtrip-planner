@@ -80,6 +80,13 @@ describe('estimateDetourTime', () => {
   it('returns ~4 minutes for a 2 km deviation (round-trip 4 km at 60 km/h)', () => {
     expect(estimateDetourTime(2)).toBe(4);
   });
+
+  it('uses actual driving speed when provided — highway driver pays less detour cost than backroad driver', () => {
+    // 5 km off route, round trip 10 km
+    // At 60 km/h: 10 minutes. At 110 km/h: ~5 minutes.
+    expect(estimateDetourTime(5, 60)).toBe(10);
+    expect(estimateDetourTime(5, 110)).toBe(5);
+  });
 });
 
 // ─── rankAndFilterPOIs — segmentIndex 0 timing fit ───────────────────────────
