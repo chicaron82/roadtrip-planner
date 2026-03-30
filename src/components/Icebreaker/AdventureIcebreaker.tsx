@@ -16,6 +16,7 @@ import type { IcebreakerPrefill } from './IcebreakerGate';
 import { IcebreakerQuestion } from './IcebreakerQuestion';
 import { LocationSearchInput } from '../Trip/Location/LocationSearchInput';
 import { calculateMaxDistance } from '../../lib/adventure/adventure-service';
+import { getLastOrigin } from '../../lib/storage';
 
 interface AdventureIcebreakerProps {
   onComplete: (prefill: IcebreakerPrefill) => void;
@@ -45,7 +46,9 @@ export function AdventureIcebreaker({ onComplete, onEscape, onPreviewChange }: A
   const [isExiting, setIsExiting] = useState(false);
 
   // Q1
-  const [origin, setOrigin] = useState<Partial<Location> | null>(null);
+  const lastOrigin = getLastOrigin();
+  const [origin, setOrigin] = useState<Partial<Location> | null>(lastOrigin);
+  const [originFromMemory, setOriginFromMemory] = useState(!!lastOrigin);
   const [days, setDays] = useState(3);
   const [budget, setBudget] = useState(1000);
 
@@ -126,11 +129,26 @@ export function AdventureIcebreaker({ onComplete, onEscape, onPreviewChange }: A
             <label style={{ color: 'rgba(245,240,232,0.5)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Starting from (optional)
             </label>
-            <LocationSearchInput
-              value={origin?.name ?? ''}
-              onSelect={(loc) => setOrigin(loc)}
-              placeholder="Your city or address…"
-            />
+            {originFromMemory && origin ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', background: 'rgba(234,88,12,0.08)', border: '1px solid rgba(234,88,12,0.2)', borderRadius: '10px' }}>
+                <span style={{ fontSize: '13px' }}>📍</span>
+                <span style={{ color: 'rgba(245,240,232,0.85)', fontSize: '13px', fontFamily: 'DM Mono, monospace', flex: 1 }}>
+                  Departing from {origin.name?.split(',')[0]}
+                </span>
+                <button
+                  onClick={() => { setOrigin(null); setOriginFromMemory(false); }}
+                  style={{ background: 'none', border: 'none', color: 'rgba(234,88,12,0.7)', fontSize: '12px', fontFamily: 'DM Mono, monospace', cursor: 'pointer', padding: 0, whiteSpace: 'nowrap' }}
+                >
+                  not you? change →
+                </button>
+              </div>
+            ) : (
+              <LocationSearchInput
+                value={origin?.name ?? ''}
+                onSelect={(loc) => setOrigin(loc)}
+                placeholder="Your city or address…"
+              />
+            )}
           </div>
           <button
             onClick={goNext}
