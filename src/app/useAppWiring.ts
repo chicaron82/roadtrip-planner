@@ -27,9 +27,9 @@ import type { AppWiringInputs, AppWiringOutput } from './useAppWiring.types';
 
 export function useAppWiring(i: AppWiringInputs): AppWiringOutput {
   // ── Derived surface flags ─────────────────────────────────────────────
-  const showPostTrip = !!i.activeJournal?.finalized && i.tripConfirmed && !i.showVoila;
+  const showPostTrip = !!i.journal.activeJournal?.finalized && i.session.tripConfirmed && !i.voila.showVoila;
   const showJournalAtAGlance =
-    i.tripConfirmed && i.viewMode === 'journal' && !i.showVoila && !!i.activeJournal && !showPostTrip;
+    i.session.tripConfirmed && i.journal.viewMode === 'journal' && !i.voila.showVoila && !!i.journal.activeJournal && !showPostTrip;
 
   // ── Planner wiring ────────────────────────────────────────────────────
   const {
@@ -39,71 +39,71 @@ export function useAppWiring(i: AppWiringInputs): AppWiringOutput {
 
   // ── Board (headquarters) ──────────────────────────────────────────────
   const board = useAppBoard({
-    showVoila: i.showVoila, showShareScreen: i.showShareScreen,
-    handleOpenShareScreen: i.handleOpenShareScreen, handleCloseShareScreen: i.handleCloseShareScreen,
-    handleVoilaEdit: i.handleVoilaEdit, handleVoilaLockIn: i.handleVoilaLockIn,
-    handleGoHome: i.handleGoHome, handleViewFullDetails: i.handleViewFullDetails,
-    handleFinalizeJournal: i.finalizeJournal,
-    handleStartFresh: () => { i.resetTripSession(); i.handleGoHome(); },
-    handleMinimizeToVoila: i.handleMinimizeToVoila,
-    handleReturnToJournal: i.handleReturnToJournal,
-    handleExitToTripDetails: () => i.setViewMode('plan'),
-    pendingTemplate: i.pendingTemplate, handleBuildFromTemplate, handleOpenPlannerFromTemplate,
-    handleDismissPendingTemplate: i.handleDismissPendingTemplate,
-    tripMode: i.tripMode, planningStep: i.planningStep,
-    tripConfirmed: i.tripConfirmed, hasSummary: !!i.summary,
-    arcActive: i.icebreaker.arcActive,
-    icebreakerOverlayProps: i.icebreaker.overlayProps,
-    showAdventureMode: i.showAdventureMode, showJournalAtAGlance, showPostTrip,
+    showVoila: i.voila.showVoila, showShareScreen: i.voila.showShareScreen,
+    handleOpenShareScreen: i.voila.handleOpenShareScreen, handleCloseShareScreen: i.voila.handleCloseShareScreen,
+    handleVoilaEdit: i.voila.handleVoilaEdit, handleVoilaLockIn: i.voila.handleVoilaLockIn,
+    handleGoHome: i.voila.handleGoHome, handleViewFullDetails: i.voila.handleViewFullDetails,
+    handleFinalizeJournal: i.journal.finalizeJournal,
+    handleStartFresh: () => { i.session.resetTripSession(); i.voila.handleGoHome(); },
+    handleMinimizeToVoila: i.voila.handleMinimizeToVoila,
+    handleReturnToJournal: i.voila.handleReturnToJournal,
+    handleExitToTripDetails: () => i.journal.setViewMode('plan'),
+    pendingTemplate: i.tripLoader.pendingTemplate, handleBuildFromTemplate, handleOpenPlannerFromTemplate,
+    handleDismissPendingTemplate: i.tripLoader.handleDismissPendingTemplate,
+    tripMode: i.tripMode.tripMode, planningStep: i.wizard.planningStep,
+    tripConfirmed: i.session.tripConfirmed, hasSummary: !!i.tripContext.summary,
+    arcActive: i.features.icebreaker.arcActive,
+    icebreakerOverlayProps: i.features.icebreaker.overlayProps,
+    showAdventureMode: i.tripMode.showAdventureMode, showJournalAtAGlance, showPostTrip,
     // ── Named prop bundles ──────────────────────────────────────────────
     voilaProps: {
-      summary: i.summary!,
-      settings: i.settings,
-      locations: i.locations,
-      customTitle: i.customTitle,
+      summary: i.tripContext.summary!,
+      settings: i.tripContext.settings,
+      locations: i.tripContext.locations,
+      customTitle: i.tripContext.customTitle,
       printInput: stepProps.step3Props.controller.commit?.printInput ?? undefined,
       precomputedEvents: stepProps.step3Props.controller.commit?.precomputedEvents ?? undefined,
       feasibility: stepProps.step3Props.controller.feasibility ?? undefined,
     },
     plannerProps: {
-      onRevealChange: i.setMapRevealed,
+      onRevealChange: i.sys.setMapRevealed,
       stepProps,
-      liveReflection: i.summary ? { summary: i.summary, vehicle: i.vehicle, settings: i.settings } : null,
+      liveReflection: i.tripContext.summary ? { summary: i.tripContext.summary, vehicle: i.tripContext.vehicle, settings: i.tripContext.settings } : null,
       routeStrategyProps: {
-        strategies: i.routeStrategies,
-        activeIndex: i.activeStrategyIndex,
-        onSelect: i.selectStrategy,
-        units: i.settings.units,
-        isRoundTrip: i.settings.isRoundTrip,
+        strategies: i.calculation.routeStrategies,
+        activeIndex: i.calculation.activeStrategyIndex,
+        onSelect: i.calculation.selectStrategy,
+        units: i.tripContext.settings.units,
+        isRoundTrip: i.tripContext.settings.isRoundTrip,
       },
       tripSummaryProps: {
-        summary: i.summary!,
-        settings: i.settings,
-        tripActive: i.tripActive,
-        onStop: () => i.setTripActive(false),
-        onOpenVehicleTab: () => i.goToStep(2),
+        summary: i.tripContext.summary!,
+        settings: i.tripContext.settings,
+        tripActive: i.tripMode.tripActive,
+        onStop: () => i.tripMode.setTripActive(false),
+        onOpenVehicleTab: () => i.wizard.goToStep(2),
       },
     },
-    templatePreviewProps: { pendingTemplate: i.pendingTemplate },
+    templatePreviewProps: { pendingTemplate: i.tripLoader.pendingTemplate },
     journalAtAGlanceProps: {
-      summary: i.summary!,
-      settings: i.settings,
-      activeJournal: i.activeJournal,
-      ghostCar: i.ghostCar,
-      onUpdateJournal: i.updateActiveJournal,
+      summary: i.tripContext.summary!,
+      settings: i.tripContext.settings,
+      activeJournal: i.journal.activeJournal,
+      ghostCar: i.features.ghostCar,
+      onUpdateJournal: i.journal.updateActiveJournal,
     },
-    postTripProps: i.activeJournal?.finalized && i.summary ? {
-      journal: i.activeJournal,
-      summary: i.summary,
-      settings: i.settings,
+    postTripProps: i.journal.activeJournal?.finalized && i.tripContext.summary ? {
+      journal: i.journal.activeJournal,
+      summary: i.tripContext.summary,
+      settings: i.tripContext.settings,
     } : null,
     landingProps: {
-      onSelectMode: i.icebreaker.handleLandingSelect,
-      hasSavedTrip: i.history.length > 0,
-      onContinueSavedTrip: () => i.setTripMode('plan'),
-      hasActiveSession: i.hasActiveSession,
-      onResumeSession: i.handleResumeSession,
-      lastDestination: i.lastDestination,
+      onSelectMode: i.features.icebreaker.handleLandingSelect,
+      hasSavedTrip: i.session.history.length > 0,
+      onContinueSavedTrip: () => i.tripLoader.setTripMode('plan'),
+      hasActiveSession: i.session.hasActiveSession,
+      onResumeSession: i.session.handleResumeSession,
+      lastDestination: i.session.lastDestination,
     },
   });
 
@@ -112,8 +112,8 @@ export function useAppWiring(i: AppWiringInputs): AppWiringOutput {
   const shareScreenProps: Omit<ComponentProps<typeof MakeMEETimeScreen>, 'onClose'> | null =
     stepProps.step3Props.controller.commit?.printInput ? {
       printInput: stepProps.step3Props.controller.commit.printInput,
-      journal: i.activeJournal,
-      tripOrigin: i.tripOrigin,
+      journal: i.journal.activeJournal,
+      tripOrigin: i.tripLoader.tripOrigin,
     } : null;
 
   return {
@@ -122,7 +122,7 @@ export function useAppWiring(i: AppWiringInputs): AppWiringOutput {
     adventureModeProps,
     plannerContextValue,
     shareScreenProps,
-    flyoverActive: i.flyoverActive,
-    handleFlyoverComplete: i.handleFlyoverComplete,
+    flyoverActive: i.voila.flyoverActive,
+    handleFlyoverComplete: i.voila.handleFlyoverComplete,
   };
 }

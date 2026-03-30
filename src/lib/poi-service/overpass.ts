@@ -3,6 +3,9 @@ import { OVERPASS_API, MAX_RETRIES, RETRY_DELAY_MS } from './config';
 
 /** Simple delay helper */
 export function delay(ms: number): Promise<void> {
+  if (import.meta.env.MODE === 'test') {
+    return Promise.resolve();
+  }
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 

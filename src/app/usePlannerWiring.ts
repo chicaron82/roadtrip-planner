@@ -38,101 +38,101 @@ export interface PlannerWiringOutput {
 
 export function usePlannerWiring(i: AppWiringInputs): PlannerWiringOutput {
   // ── canProceed (feeds plannerContextValue) ────────────────────────────
-  const canProceed = i.planningStep === 1 ? i.canProceedFromStep1 : i.canProceedFromStep2;
+  const canProceed = i.wizard.planningStep === 1 ? i.wizard.canProceedFromStep1 : i.wizard.canProceedFromStep2;
 
   // ── Template handlers ─────────────────────────────────────────────────
   const { handleBuildFromTemplate, handleOpenPlannerFromTemplate } = useAppTemplateHandlers({
-    handleImportTemplate: i.handleImportTemplate,
-    handleDismissPendingTemplate: i.handleDismissPendingTemplate,
-    setTripMode: i.setTripMode,
-    calculateAndDiscover: i.calculateAndDiscover,
+    handleImportTemplate: i.tripLoader.handleImportTemplate,
+    handleDismissPendingTemplate: i.tripLoader.handleDismissPendingTemplate,
+    setTripMode: i.tripLoader.setTripMode,
+    calculateAndDiscover: i.calculation.calculateAndDiscover,
   });
 
   // ── Planning step props ───────────────────────────────────────────────
   const stepProps = usePlanningStepProps({
-    planningStep: i.planningStep, goToStep: i.goToStep,
-    locations: i.locations, setLocations: i.setLocations,
-    vehicle: i.vehicle, setVehicle: i.setVehicle,
-    settings: i.settings, setSettings: i.setSettings,
-    summary: i.summary, tripMode: i.tripMode ?? 'plan',
-    setShowAdventureMode: i.setShowAdventureMode,
-    handleImportTemplate: i.handleImportTemplate, handleTemplateLoaded: i.handleTemplateLoaded,
-    handleSelectChallenge: i.handleSelectChallenge,
-    activeChallenge: i.activeChallenge, templateRecommendations: i.templateRecommendations,
-    activePreset: i.activePreset, presetOptions: i.presetOptions,
-    handlePresetChange: i.handlePresetChange, handleSharePreset: i.handleSharePreset,
-    shareJustCopied: i.shareJustCopied,
-    viewMode: i.viewMode, setViewMode: i.setViewMode,
-    activeJournal: i.activeJournal, isJournalComplete: i.isJournalComplete,
-    showCompleteOverlay: i.showCompleteOverlay, startJournal: i.startJournal,
-    updateActiveJournal: i.updateActiveJournal, confirmJournalComplete: i.confirmComplete,
-    tripConfirmed: i.tripConfirmed, setTripConfirmed: i.setTripConfirmed,
-    history: i.history,
-    addedStopCount: i.addedStopCount, externalStops: i.externalStops,
-    shareUrl: i.shareUrl, showOvernightPrompt: i.showOvernightPrompt,
-    suggestedOvernightStop: i.suggestedOvernightStop, dismissOvernightPrompt: i.dismissOvernightPrompt,
-    updateStopType: i.updateStopType,
-    poiSuggestions: i.poiSuggestions, poiInference: i.poiInference,
-    isLoadingPOIs: i.isLoadingPOIs, poiPartialResults: i.poiPartialResults,
-    poiFetchFailed: i.poiFetchFailed, addPOI: i.addPOI, addStop: i.addStop, dismissPOI: i.dismissPOI,
-    openInGoogleMaps: i.openInGoogleMaps, copyShareLink: i.copyShareLink,
-    openShareScreen: i.handleOpenShareScreen,
-    onLoadHistoryTrip: i.restoreHistoryTripSession,
-    precomputedEvents: i.canonicalTimeline?.events,
-    isCalculating: i.isCalculating,
-    calculateAndDiscover: i.calculateAndDiscover,
+    planningStep: i.wizard.planningStep, goToStep: i.wizard.goToStep,
+    locations: i.tripContext.locations, setLocations: i.tripContext.setLocations,
+    vehicle: i.tripContext.vehicle, setVehicle: i.tripContext.setVehicle,
+    settings: i.tripContext.settings, setSettings: i.tripContext.setSettings,
+    summary: i.tripContext.summary, tripMode: i.tripMode.tripMode ?? 'plan',
+    setShowAdventureMode: i.tripMode.setShowAdventureMode,
+    handleImportTemplate: i.tripLoader.handleImportTemplate, handleTemplateLoaded: i.tripLoader.handleTemplateLoaded,
+    handleSelectChallenge: i.tripLoader.handleSelectChallenge,
+    activeChallenge: i.tripLoader.activeChallenge, templateRecommendations: i.tripLoader.templateRecommendations,
+    activePreset: i.presets.activePreset, presetOptions: i.presets.presetOptions,
+    handlePresetChange: i.presets.handlePresetChange, handleSharePreset: i.presets.handleSharePreset,
+    shareJustCopied: i.presets.shareJustCopied,
+    viewMode: i.journal.viewMode, setViewMode: i.journal.setViewMode,
+    activeJournal: i.journal.activeJournal, isJournalComplete: i.journal.isJournalComplete,
+    showCompleteOverlay: i.journal.showCompleteOverlay, startJournal: i.journal.startJournal,
+    updateActiveJournal: i.journal.updateActiveJournal, confirmJournalComplete: i.journal.confirmComplete,
+    tripConfirmed: i.session.tripConfirmed, setTripConfirmed: i.session.setTripConfirmed,
+    history: i.session.history,
+    addedStopCount: i.session.addedStopCount, externalStops: i.session.externalStops,
+    shareUrl: i.calculation.shareUrl, showOvernightPrompt: i.calculation.showOvernightPrompt,
+    suggestedOvernightStop: i.calculation.suggestedOvernightStop, dismissOvernightPrompt: i.calculation.dismissOvernightPrompt,
+    updateStopType: i.calculation.updateStopType,
+    poiSuggestions: i.poi.poiSuggestions, poiInference: i.poi.poiInference,
+    isLoadingPOIs: i.poi.isLoadingPOIs, poiPartialResults: i.poi.poiPartialResults,
+    poiFetchFailed: i.poi.poiFetchFailed, addPOI: i.poi.addPOI, addStop: i.poi.addStop, dismissPOI: i.poi.dismissPOI,
+    openInGoogleMaps: i.sys.openInGoogleMaps, copyShareLink: i.sys.copyShareLink,
+    openShareScreen: i.voila.handleOpenShareScreen,
+    onLoadHistoryTrip: i.session.restoreHistoryTripSession,
+    precomputedEvents: i.tripContext.canonicalTimeline?.events,
+    isCalculating: i.calculation.isCalculating,
+    calculateAndDiscover: i.calculation.calculateAndDiscover,
   });
 
   // ── Map props ─────────────────────────────────────────────────────────
   const mapProps = useMapProps({
-    locations: i.locations, validRouteGeometry: i.validRouteGeometry,
-    routeFeasibilityStatus: i.routeFeasibilityStatus,
-    pois: i.pois, markerCategories: i.markerCategories,
-    tripActive: i.tripActive, strategicFuelStops: i.strategicFuelStops,
-    addedPOIIds: i.addedPOIIds, mapDayOptions: i.mapDayOptions,
-    handleMapClick: i.handleMapClick, routeDetails: i.summary,
-    handleAddPOIFromMap: i.handleAddPOIFromMap,
-    previewGeometry: i.previewGeometry, tripMode: i.tripMode,
-    routeStrategies: i.routeStrategies, activeStrategyIndex: i.activeStrategyIndex,
-    selectStrategy: i.selectStrategy, units: i.settings.units,
-    adventurePreview: i.adventurePreview,
+    locations: i.tripContext.locations, validRouteGeometry: i.map.validRouteGeometry,
+    routeFeasibilityStatus: i.map.routeFeasibilityStatus,
+    pois: i.poi.pois, markerCategories: i.poi.markerCategories,
+    tripActive: i.tripMode.tripActive, strategicFuelStops: i.calculation.strategicFuelStops,
+    addedPOIIds: i.poi.addedPOIIds, mapDayOptions: i.map.mapDayOptions,
+    handleMapClick: i.map.handleMapClick, routeDetails: i.tripContext.summary,
+    handleAddPOIFromMap: i.map.handleAddPOIFromMap,
+    previewGeometry: i.map.previewGeometry, tripMode: i.tripMode.tripMode,
+    routeStrategies: i.calculation.routeStrategies, activeStrategyIndex: i.calculation.activeStrategyIndex,
+    selectStrategy: i.calculation.selectStrategy, units: i.tripContext.settings.units,
+    adventurePreview: i.map.adventurePreview,
   });
 
   // ── Adventure mode props ──────────────────────────────────────────────
   const adventureModeProps: ComponentProps<typeof AdventureMode> = {
-    origin: i.locations.find(l => l.type === 'origin') || null,
-    initialValues: i.icebreaker.adventureInitialValues ?? undefined,
+    origin: i.tripContext.locations.find(l => l.type === 'origin') || null,
+    initialValues: i.features.icebreaker.adventureInitialValues ?? undefined,
     onOriginChange: (newOrigin) => {
-      i.setLocations(prev => prev.map(loc => loc.type === 'origin' ? { ...loc, ...newOrigin } : loc));
+      i.tripContext.setLocations(prev => prev.map(loc => loc.type === 'origin' ? { ...loc, ...newOrigin } : loc));
     },
-    onSelectDestination: i.handleAdventureSelect,
-    onSelectChallenge: (challenge) => { i.handleSelectChallenge(challenge); i.setShowAdventureMode(false); },
-    onClose: () => i.setShowAdventureMode(false),
-    fuelCostPerKm: (getWeightedFuelEconomyL100km(i.vehicle, i.settings.units) / 100) * i.settings.gasPrice,
+    onSelectDestination: i.tripLoader.handleAdventureSelect,
+    onSelectChallenge: (challenge) => { i.tripLoader.handleSelectChallenge(challenge); i.tripMode.setShowAdventureMode(false); },
+    onClose: () => i.tripMode.setShowAdventureMode(false),
+    fuelCostPerKm: (getWeightedFuelEconomyL100km(i.tripContext.vehicle, i.tripContext.settings.units) / 100) * i.tripContext.settings.gasPrice,
   };
 
   // ── Planner context value ─────────────────────────────────────────────
   // ghostCarActive: inline derivation (mirrors app-screen-policy getUIFlags) to
   // avoid a dependency on board output. Same three sources: tripConfirmed +
   // planningStep + hasSummary.
-  const ghostCarActive = i.tripConfirmed && i.planningStep === 3 && !!i.summary;
+  const ghostCarActive = i.session.tripConfirmed && i.wizard.planningStep === 3 && !!i.tripContext.summary;
   const plannerContextValue: PlannerContextType = {
-    planningStep: i.planningStep, completedSteps: i.completedSteps, canProceed,
-    isCalculating: i.isCalculating,
-    onStepClick: i.goToStep,
-    onNext: i.goToNextStep,
-    onBack: i.goToPrevStep,
-    onReset: i.resetTripSession,
-    tripMode: i.tripMode!,
-    showModeSwitcher: i.showModeSwitcher, setShowModeSwitcher: i.setShowModeSwitcher,
-    modeSwitcherRef: i.modeSwitcherRef,
-    onSwitchMode: i.handleSwitchMode,
-    onGoHome: i.handleGoHome,
-    ghostCar: ghostCarActive ? i.ghostCar : null,
-    markerCategories: i.markerCategories, loadingCategory: i.loadingCategory,
-    onToggleCategory: i.handleToggleCategory,
-    error: i.error, onClearError: i.clearError,
-    calculationMessage: i.calculationMessage,
+    planningStep: i.wizard.planningStep, completedSteps: i.wizard.completedSteps, canProceed,
+    isCalculating: i.calculation.isCalculating,
+    onStepClick: i.wizard.goToStep,
+    onNext: i.wizard.goToNextStep,
+    onBack: i.wizard.goToPrevStep,
+    onReset: i.session.resetTripSession,
+    tripMode: i.tripMode.tripMode!,
+    showModeSwitcher: i.tripMode.showModeSwitcher, setShowModeSwitcher: i.tripMode.setShowModeSwitcher,
+    modeSwitcherRef: i.tripMode.modeSwitcherRef,
+    onSwitchMode: i.tripMode.handleSwitchMode,
+    onGoHome: i.voila.handleGoHome,
+    ghostCar: ghostCarActive ? i.features.ghostCar : null,
+    markerCategories: i.poi.markerCategories, loadingCategory: i.poi.loadingCategory,
+    onToggleCategory: i.poi.handleToggleCategory,
+    error: i.sys.error, onClearError: i.sys.clearError,
+    calculationMessage: i.sys.calculationMessage,
   };
 
   return {

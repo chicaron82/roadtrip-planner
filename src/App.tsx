@@ -214,37 +214,60 @@ function AppContent() {
   // ── Wiring (assemble what the renderer needs) ──────────────────────────
   const [mapRevealed, setMapRevealed] = useState(false);
   const { board, mapProps, adventureModeProps, plannerContextValue, shareScreenProps } = useAppWiring({
-    locations, setLocations, vehicle, setVehicle, settings, setSettings, customTitle,
-    summary, canonicalTimeline,
-    tripMode, showAdventureMode, setShowAdventureMode,
-    showModeSwitcher, setShowModeSwitcher, modeSwitcherRef, handleSwitchMode,
-    tripActive, setTripActive,
-    previewGeometry, validRouteGeometry, routeFeasibilityStatus, mapDayOptions,
-    handleMapClick, handleAddPOIFromMap, adventurePreview,
-    planningStep, completedSteps, canProceedFromStep1, canProceedFromStep2,
-    goToStep, goToNextStep, goToPrevStep,
-    isCalculating, routeStrategies, activeStrategyIndex, selectStrategy,
-    strategicFuelStops, shareUrl, showOvernightPrompt, suggestedOvernightStop,
-    dismissOvernightPrompt, updateStopType, calculateAndDiscover,
-    pois, markerCategories, loadingCategory, handleToggleCategory, addedPOIIds,
-    poiSuggestions, poiInference, isLoadingPOIs, poiPartialResults, poiFetchFailed,
-    addPOI, addStop, dismissPOI,
-    activePreset, presetOptions, handlePresetChange, handleSharePreset, shareJustCopied,
-    activeChallenge, tripOrigin, templateRecommendations, pendingTemplate,
-    handleImportTemplate, handleTemplateLoaded, handleDismissPendingTemplate,
-    handleSelectChallenge, handleAdventureSelect, setTripMode,
-    activeJournal, viewMode, setViewMode, isJournalComplete, showCompleteOverlay,
-    startJournal, updateActiveJournal, confirmComplete, finalizeJournal, clearJournal,
-    tripConfirmed, setTripConfirmed, history, hasActiveSession, lastDestination,
-    resetTripSession, handleResumeSession, restoreHistoryTripSession,
-    addedStopCount: addedStops.length, externalStops,
-    showVoila, flyoverActive, showShareScreen,
-    handleShowVoila, handleFlyoverComplete,
-    handleVoilaEdit, handleVoilaLockIn, handleViewFullDetails, handleGoHome,
-    handleMinimizeToVoila, handleReturnToJournal, handleOpenShareScreen, handleCloseShareScreen,
-    ghostCar, icebreaker,
-    error, clearError, copyShareLink, openInGoogleMaps, calculationMessage,
-    setMapRevealed,
+    tripContext: {
+      locations, setLocations, vehicle, setVehicle, settings, setSettings,
+      customTitle, summary, canonicalTimeline,
+    },
+    tripMode: {
+      tripMode, showAdventureMode, setShowAdventureMode,
+      showModeSwitcher, setShowModeSwitcher, modeSwitcherRef, handleSwitchMode,
+      tripActive, setTripActive,
+    },
+    map: {
+      previewGeometry, validRouteGeometry, routeFeasibilityStatus, mapDayOptions,
+      handleMapClick, handleAddPOIFromMap, adventurePreview,
+    },
+    wizard: {
+      planningStep, completedSteps, canProceedFromStep1, canProceedFromStep2,
+      goToStep, goToNextStep, goToPrevStep,
+    },
+    calculation: {
+      isCalculating, routeStrategies, activeStrategyIndex, selectStrategy,
+      strategicFuelStops, shareUrl, showOvernightPrompt, suggestedOvernightStop,
+      dismissOvernightPrompt, updateStopType, calculateAndDiscover,
+    },
+    poi: {
+      pois, markerCategories, loadingCategory, handleToggleCategory, addedPOIIds,
+      poiSuggestions, poiInference, isLoadingPOIs, poiPartialResults, poiFetchFailed,
+      addPOI, addStop, dismissPOI,
+    },
+    presets: {
+      activePreset, presetOptions, handlePresetChange, handleSharePreset, shareJustCopied,
+    },
+    tripLoader: {
+      activeChallenge, tripOrigin, templateRecommendations, pendingTemplate,
+      handleImportTemplate, handleTemplateLoaded, handleDismissPendingTemplate,
+      handleSelectChallenge, handleAdventureSelect, setTripMode,
+    },
+    journal: {
+      activeJournal, viewMode, setViewMode, isJournalComplete, showCompleteOverlay,
+      startJournal, updateActiveJournal, confirmComplete, finalizeJournal, clearJournal,
+    },
+    session: {
+      tripConfirmed, setTripConfirmed, history, hasActiveSession, lastDestination,
+      resetTripSession, handleResumeSession, restoreHistoryTripSession,
+      addedStopCount: addedStops.length, externalStops,
+    },
+    voila: {
+      showVoila, flyoverActive, showShareScreen,
+      handleShowVoila, handleFlyoverComplete,
+      handleVoilaEdit, handleVoilaLockIn, handleViewFullDetails, handleGoHome,
+      handleMinimizeToVoila, handleReturnToJournal, handleOpenShareScreen, handleCloseShareScreen,
+    },
+    features: { ghostCar, icebreaker },
+    sys: {
+      error, clearError, copyShareLink, openInGoogleMaps, calculationMessage, setMapRevealed,
+    },
   });
 
   return (
