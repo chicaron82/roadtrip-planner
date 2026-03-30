@@ -44,9 +44,9 @@ export function PostTripScreen({
   const totalStops = journal.entries.filter(e => e.status === 'visited').length;
   const totalPhotos = journal.entries.reduce((sum, e) => sum + e.photos.length, 0)
     + journal.quickCaptures.filter(qc => qc.photo).length;
-  const entriesWithContent = journal.entries.filter(
+  const totalMemories = journal.entries.filter(
     e => e.status === 'visited' && (e.notes || e.photos.length > 0),
-  ).length;
+  ).length + journal.quickCaptures.length;
   const kmDriven = Math.round(summary.totalDistanceKm);
 
   return (
@@ -205,7 +205,7 @@ export function PostTripScreen({
                 { icon: '📍', value: totalStops, label: 'stops visited' },
                 { icon: '🛣', value: `${kmDriven.toLocaleString()} km`, label: 'driven' },
                 { icon: '📷', value: totalPhotos, label: 'photos' },
-                { icon: '✍️', value: entriesWithContent, label: 'journal entries' },
+                { icon: '✍️', value: totalMemories, label: 'memories' },
               ].map(({ icon, value, label }) => (
                 <div
                   key={label}
