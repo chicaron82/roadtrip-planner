@@ -11,6 +11,7 @@
 
 import type { TripSummary, TripSettings } from '../../types';
 import { getTripDayCounts } from '../../lib/trip-summary-view';
+import { useCountUp } from '../../hooks/ui/useCountUp';
 
 interface VoilaDashboardProps {
   summary: TripSummary;
@@ -47,6 +48,13 @@ export function VoilaDashboard({ summary, settings }: VoilaDashboardProps) {
   const totalCost = summary.costBreakdown ? Math.round(summary.costBreakdown.total) : null;
   const perPersonCost = totalCost && numTravelers > 1 ? Math.round(totalCost / numTravelers) : null;
 
+  // Countup animations — staggered by 100ms to cascade left-to-right
+  const animDays = useCountUp(days, 800, 0);
+  const animNights = useCountUp(nights, 800, 0);
+  const heroAmount = isSolo ? (totalCost ?? 0) : (perPersonCost ?? 0);
+  const animCost = useCountUp(heroAmount, 1000, 100);
+  const animTravelers = useCountUp(numTravelers, 600, 200);
+
   return (
     <div style={{
       display: 'flex',
@@ -56,21 +64,21 @@ export function VoilaDashboard({ summary, settings }: VoilaDashboardProps) {
       padding: '0 28px 28px',
     }}>
       {/* Chip 1 — Days / Nights */}
-      <Chip>{nights === 0 ? 'Day Trip' : `${days}d · ${nights}n`}</Chip>
+      <Chip>{nights === 0 ? 'Day Trip' : `${animDays}d · ${animNights}n`}</Chip>
 
       {/* Chip 2 — Hero Cost */}
       {totalCost && (
         <Chip>
           {isSolo
-            ? `${currency}${totalCost.toLocaleString()}`
-            : `${currency}${perPersonCost?.toLocaleString()}/person`
+            ? `${currency}${animCost.toLocaleString()}`
+            : `${currency}${animCost.toLocaleString()}/person`
           }
         </Chip>
       )}
 
       {/* Chip 3 — Travelers (hidden for solo) */}
       {!isSolo && (
-        <Chip>{numTravelers} travelers</Chip>
+        <Chip>{animTravelers} travelers</Chip>
       )}
     </div>
   );

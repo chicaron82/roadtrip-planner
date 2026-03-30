@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { MapPin, Trophy, Clock, Camera, Pencil, Trash2, Plus } from 'lucide-react';
 import type { TripJournal, JournalEntry, JournalPhoto, QuickCapture, TripDay } from '../../../types';
 import type { JournalTimelineSummary } from '../../../lib/trip-summary-slices';
@@ -35,10 +36,37 @@ export function JournalTimelineBody({
   handleOpenQuickCapture, handleEditCapture, handleDeleteCapture,
   formatTime, formatDate,
 }: JournalTimelineBodyProps) {
+  // Scroll-reveal: entries fade-in-up as they enter the viewport
+  const timelineRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const root = timelineRef.current;
+    if (!root) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            (e.target as HTMLElement).style.opacity = '1';
+            (e.target as HTMLElement).style.transform = 'translateY(0)';
+            observer.unobserve(e.target);
+          }
+        }
+      },
+      { rootMargin: '0px 0px -40px 0px', threshold: 0.05 },
+    );
+    const items = root.querySelectorAll<HTMLElement>('[data-reveal]');
+    for (const item of items) {
+      item.style.opacity = '0';
+      item.style.transform = 'translateY(16px)';
+      item.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+      observer.observe(item);
+    }
+    return () => observer.disconnect();
+  }, [journalStops.length]);
+
   return (
     <>
       {/* Timeline */}
-      <div className="space-y-0 pt-2 relative pb-12">
+      <div ref={timelineRef} className="space-y-0 pt-2 relative pb-12">
         <div className="absolute left-[19px] top-4 bottom-0 w-0.5 bg-border -z-10" />
 
         {/* Start Node */}
@@ -71,7 +99,7 @@ export function JournalTimelineBody({
             .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
           return (
-            <div key={`stop-${originalIndex}-${flatIndex}`}>
+            <div key={`stop-${originalIndex}-${flatIndex}`} data-reveal>
               {dayHeaders.map(({ day, isFirst }) => (
                 <DayHeader key={`day-${day.dayNumber}`} day={day} isFirst={isFirst} className="mb-6" />
               ))}

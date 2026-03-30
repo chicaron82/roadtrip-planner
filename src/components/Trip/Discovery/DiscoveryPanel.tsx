@@ -9,9 +9,10 @@
  * - Wikipedia external links
  */
 
-import { Sparkles, Loader2, Zap } from 'lucide-react';
+import { Sparkles, Zap } from 'lucide-react';
 import type { POISuggestion } from '../../../types';
 import { Button } from '../../UI/Button';
+import { Skeleton } from '../../UI/Skeleton';
 import { cn } from '../../../lib/utils';
 import { TierSection } from './TierSection';
 import { useDiscoveryController } from '../../../hooks';
@@ -62,11 +63,22 @@ export function DiscoveryPanel({
 
   if (isLoading) {
     return (
-      <div className={cn('rounded-xl border-2 border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4', className)}>
-        <div className="flex items-center justify-center gap-2 text-amber-700">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          <span className="text-sm font-medium">Scanning for cool stuff along your route...</span>
+      <div className={cn('rounded-xl border-2 border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4 space-y-3', className)}>
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-5 w-5 rounded-full" />
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-5 w-16 rounded-full" />
         </div>
+        <Skeleton className="h-8 w-full rounded-lg" />
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="flex items-center gap-3">
+            <Skeleton className="h-10 w-10 rounded-lg shrink-0" />
+            <div className="flex-1 space-y-1.5">
+              <Skeleton className="h-3.5 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
+          </div>
+        ))}
       </div>
     );
   }

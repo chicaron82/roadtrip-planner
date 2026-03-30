@@ -33,7 +33,7 @@ export function showToast({ message, type = 'success', duration = 3000 }: ToastO
 
   // Create toast element
   const toast = document.createElement('div');
-  toast.className = `${TOAST_COLORS[type]} text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-in slide-in-from-right-full pointer-events-auto transition-all duration-300 max-w-md`;
+  toast.className = `${TOAST_COLORS[type]} text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-in slide-in-from-right-full pointer-events-auto transition-all duration-300 max-w-md relative overflow-hidden`;
   const iconSpan = document.createElement('span');
   iconSpan.className = 'text-xl';
   iconSpan.textContent = TOAST_ICONS[type];
@@ -42,6 +42,19 @@ export function showToast({ message, type = 'success', duration = 3000 }: ToastO
   msgSpan.textContent = message;
   toast.appendChild(iconSpan);
   toast.appendChild(msgSpan);
+
+  // Progress bar — thin countdown at the bottom
+  const bar = document.createElement('div');
+  bar.style.cssText = `position:absolute;bottom:0;left:0;height:3px;width:100%;background:rgba(255,255,255,0.35);transform-origin:left;animation:toast-progress ${duration}ms linear forwards;`;
+  toast.appendChild(bar);
+
+  // Inject keyframe on first use
+  if (!document.getElementById('toast-progress-style')) {
+    const style = document.createElement('style');
+    style.id = 'toast-progress-style';
+    style.textContent = '@keyframes toast-progress{from{transform:scaleX(1)}to{transform:scaleX(0)}}';
+    document.head.appendChild(style);
+  }
 
   container.appendChild(toast);
 
