@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { rankAndFilterPOIs, rankDestinationPOIs, haversineDistance, estimateDetourTime, findNearestSegmentIndex } from './poi-ranking';
+import { rankAndFilterPOIs, rankDestinationPOIs } from './poi-ranking';
+import { haversineDistance, estimateDetourTime, findNearestSegmentIndex } from './geo-utils';
 import type { POISuggestion, RouteSegment, TripPreference, TripSummary } from '../types';
 import { buildJourneyContext } from './trip-orchestrator/journey-context';
 

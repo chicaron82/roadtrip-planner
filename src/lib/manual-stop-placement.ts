@@ -1,5 +1,5 @@
 import type { RouteSegment } from '../types';
-import { haversineDistance } from './poi-ranking';
+import { haversineDistance } from './geo-utils';
 import { getTripStartTime } from './trip-timezone';
 
 interface ManualStopPlacementOptions {

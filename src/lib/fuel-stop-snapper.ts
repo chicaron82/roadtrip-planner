@@ -1,6 +1,6 @@
 import type { StrategicFuelStop } from './calculations';
 import { executeOverpassQuery } from './poi-service/overpass';
-import { haversineDistance } from './poi-ranking';
+import { haversineDistance } from './geo-utils';
 
 /** Search radius in metres — if no station within this distance, mark isRemote. */
 const SNAP_RADIUS_M = 3000;

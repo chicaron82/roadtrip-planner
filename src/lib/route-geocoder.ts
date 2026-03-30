@@ -14,7 +14,7 @@
  * 💚 My Experience Engine
  */
 
-import { haversineDistance } from './poi-ranking';
+import { haversineDistance } from './geo-utils';
 import type { TimedEvent } from './trip-timeline';
 import type { POISuggestion } from '../types';
 import type { SuggestedStop } from './stop-suggestion-types';

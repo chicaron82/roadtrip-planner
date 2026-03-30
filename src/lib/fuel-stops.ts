@@ -10,7 +10,7 @@
  */
 
 import type { RouteSegment, Vehicle, TripSettings } from '../types';
-import { haversineDistance } from './poi-ranking';
+import { haversineDistance } from './geo-utils';
 import {
   getTankSizeLitres,
   getWeightedFuelEconomyL100km,

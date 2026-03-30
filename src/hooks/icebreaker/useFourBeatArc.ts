@@ -14,7 +14,7 @@ import { useState, useCallback, useMemo } from 'react';
 import type { Location, Vehicle, TripSettings, TripSummary } from '../../types';
 import type { TripEstimate } from '../../lib/estimate-service';
 import { generateEstimate } from '../../lib/estimate-service';
-import { haversineDistance } from '../../lib/poi-ranking';
+import { haversineDistance } from '../../lib/geo-utils';
 
 export type Beat = 2 | 3 | 4 | null;
 

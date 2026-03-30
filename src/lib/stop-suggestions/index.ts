@@ -12,4 +12,4 @@ export { mergeSuggestedStops } from './merge';
 
 // Display helpers and config factory
 // Re-exported for backwards compatibility with existing consumers
-export { createStopConfig, getStopIcon, getStopColors } from '../stop-display-helpers';
+export { createStopConfig, getStopColors } from '../stop-display-helpers';

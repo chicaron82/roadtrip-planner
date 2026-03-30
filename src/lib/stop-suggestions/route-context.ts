@@ -1,6 +1,6 @@
 import type { RouteSegment } from '../../types';
 import { cacheDiscoveredHub, findPreferredHubInWindow } from '../hub-cache';
-import { haversineDistance } from '../poi-ranking';
+import { haversineDistance } from '../geo-utils';
 import { interpolateRoutePosition } from '../route-geocoder';
 
 export interface StopPlanningRouteContext {

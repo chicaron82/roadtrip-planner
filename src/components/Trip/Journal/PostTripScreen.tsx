@@ -13,7 +13,8 @@
 
 import { motion } from 'framer-motion';
 import type { TripJournal, TripSettings } from '../../../types';
-import { exportJournalAsHTML, exportJournalAsTemplate } from '../../../lib/journal-export';
+import { exportJournalAsHTML } from '../../../lib/journal-export';
+import { exportJournalAsTemplate } from '../../../lib/journal-export-templates';
 import { getTripDisplayEndpoints } from '../../../lib/trip-summary-view';
 import type { TripRecapSummary } from '../../../lib/trip-summary-slices';
 import { formatDateRange } from '../../../lib/trip-formatters';

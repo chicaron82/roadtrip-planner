@@ -26,7 +26,7 @@ interface SelectTripModeParams {
   applyLastOrigin: () => void;
 }
 
-export function resetTripPlanningInputs(setLocations: SetLocations): void {
+function resetTripPlanningInputs(setLocations: SetLocations): void {
   setLocations(DEFAULT_LOCATIONS);
 }
 

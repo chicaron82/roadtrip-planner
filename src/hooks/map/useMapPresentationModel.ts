@@ -12,7 +12,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { POI, RouteSegment, TripDay } from '../../types';
-import { haversineDistance, estimateDetourTime } from '../../lib/poi-ranking';
+import { haversineDistance, estimateDetourTime } from '../../lib/geo-utils';
 import type { TileStyle } from '../../components/Map/map-constants';
 
 interface UseMapPresentationModelOptions {

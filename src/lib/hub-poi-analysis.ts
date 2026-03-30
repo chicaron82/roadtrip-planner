@@ -5,7 +5,7 @@
  * (i.e., a city/town worth caching for future fuel stop labeling).
  */
 
-import { haversineDistance } from './poi-ranking';
+import { haversineDistance } from './geo-utils';
 import type { POISuggestion } from '../types';
 import type { DiscoveredHub } from './hub-cache';
 

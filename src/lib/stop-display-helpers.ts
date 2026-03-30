@@ -13,19 +13,6 @@ import { getTankSizeLitres, getWeightedFuelEconomyL100km } from './unit-conversi
 import type { SuggestionStopType, StopSuggestionConfig } from './stop-suggestion-types';
 
 /**
- * Get stop icon emoji
- */
-export function getStopIcon(type: SuggestionStopType): string {
-  switch (type) {
-    case 'fuel': return '⛽';
-    case 'rest': return '☕';
-    case 'meal': return '🍽️';
-    case 'overnight': return '🏨';
-    default: return '📍';
-  }
-}
-
-/**
  * Get stop color scheme
  */
 export function getStopColors(type: SuggestionStopType): { bg: string; border: string; text: string } {

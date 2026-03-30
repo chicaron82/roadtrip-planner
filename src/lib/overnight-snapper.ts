@@ -1,7 +1,7 @@
 import type { TripDay } from '../types';
 import { executeOverpassQuery } from './poi-service/overpass';
 import { cacheDiscoveredHub, findPreferredHubInWindow } from './hub-cache';
-import { haversineDistance } from './poi-ranking';
+import { haversineDistance } from './geo-utils';
 import { reverseGeocodeTown } from './route-geocoder';
 
 /**

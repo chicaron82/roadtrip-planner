@@ -12,8 +12,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { PrintInput } from '../../../lib/canonical-trip';
 import type { TripJournal, TripOrigin } from '../../../types';
-import { exportTripAsTemplate, DEFAULT_SHARE_OPTIONS } from '../../../lib/journal-export';
-import type { ShareOptions } from '../../../lib/journal-export';
+import { exportTripAsTemplate, DEFAULT_SHARE_OPTIONS } from '../../../lib/journal-export-templates';
+import type { ShareOptions } from '../../../lib/journal-export-templates';
 import { ShareOptionsRow } from './ShareOptionsRow';
 import { DiscoveriesPreview } from './DiscoveriesPreview';
 

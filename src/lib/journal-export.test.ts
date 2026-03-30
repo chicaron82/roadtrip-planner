@@ -120,7 +120,7 @@ const STUB_PRINT_INPUT = {
 
 describe('exportJournalAsTemplate', () => {
   it('produces type: roadtrip-template', async () => {
-    const { exportJournalAsTemplate } = await import('./journal-export');
+    const { exportJournalAsTemplate } = await import('./journal-export-templates');
     let captured: unknown;
     const OrigBlob = globalThis.Blob;
     vi.stubGlobal('Blob', class MockBlob {
@@ -133,7 +133,7 @@ describe('exportJournalAsTemplate', () => {
   });
 
   it('has a stable id field', async () => {
-    const { exportJournalAsTemplate } = await import('./journal-export');
+    const { exportJournalAsTemplate } = await import('./journal-export-templates');
     let captured: unknown;
     const OrigBlob = globalThis.Blob;
     vi.stubGlobal('Blob', class MockBlob {
@@ -146,7 +146,7 @@ describe('exportJournalAsTemplate', () => {
   });
 
   it('writes lineage when journal.origin.type is template (lineage fix)', async () => {
-    const { exportJournalAsTemplate } = await import('./journal-export');
+    const { exportJournalAsTemplate } = await import('./journal-export-templates');
     let captured: unknown;
     const OrigBlob = globalThis.Blob;
     vi.stubGlobal('Blob', class MockBlob {
@@ -160,7 +160,7 @@ describe('exportJournalAsTemplate', () => {
   });
 
   it('does NOT write lineage when journal.origin is null', async () => {
-    const { exportJournalAsTemplate } = await import('./journal-export');
+    const { exportJournalAsTemplate } = await import('./journal-export-templates');
     let captured: unknown;
     const OrigBlob = globalThis.Blob;
     vi.stubGlobal('Blob', class MockBlob {
@@ -174,7 +174,7 @@ describe('exportJournalAsTemplate', () => {
   });
 
   it('filters recommendations to only entries with rating or isHighlight', async () => {
-    const { exportJournalAsTemplate } = await import('./journal-export');
+    const { exportJournalAsTemplate } = await import('./journal-export-templates');
     let captured: unknown;
     const OrigBlob = globalThis.Blob;
     vi.stubGlobal('Blob', class MockBlob {
@@ -190,7 +190,7 @@ describe('exportJournalAsTemplate', () => {
   });
 
   it('sets author from travelers[0]', async () => {
-    const { exportJournalAsTemplate } = await import('./journal-export');
+    const { exportJournalAsTemplate } = await import('./journal-export-templates');
     let captured: unknown;
     const OrigBlob = globalThis.Blob;
     vi.stubGlobal('Blob', class MockBlob {
@@ -207,7 +207,7 @@ describe('exportJournalAsTemplate', () => {
 
 describe('exportTripAsTemplate', () => {
   it('produces type: roadtrip-template', async () => {
-    const { exportTripAsTemplate } = await import('./journal-export');
+    const { exportTripAsTemplate } = await import('./journal-export-templates');
     let captured: unknown;
     const Blob = globalThis.Blob;
     vi.stubGlobal('Blob', class MockBlob {
@@ -222,7 +222,7 @@ describe('exportTripAsTemplate', () => {
   });
 
   it('has a stable id field', async () => {
-    const { exportTripAsTemplate } = await import('./journal-export');
+    const { exportTripAsTemplate } = await import('./journal-export-templates');
     let captured: unknown;
     const Blob = globalThis.Blob;
     vi.stubGlobal('Blob', class MockBlob {
@@ -237,7 +237,7 @@ describe('exportTripAsTemplate', () => {
   });
 
   it('route.origin populated from first location', async () => {
-    const { exportTripAsTemplate } = await import('./journal-export');
+    const { exportTripAsTemplate } = await import('./journal-export-templates');
     let captured: unknown;
     const Blob = globalThis.Blob;
     vi.stubGlobal('Blob', class MockBlob {
@@ -252,7 +252,7 @@ describe('exportTripAsTemplate', () => {
   });
 
   it('route.destination populated from last location', async () => {
-    const { exportTripAsTemplate } = await import('./journal-export');
+    const { exportTripAsTemplate } = await import('./journal-export-templates');
     let captured: unknown;
     const Blob = globalThis.Blob;
     vi.stubGlobal('Blob', class MockBlob {
@@ -267,7 +267,7 @@ describe('exportTripAsTemplate', () => {
   });
 
   it('settings fields present and correctly mapped', async () => {
-    const { exportTripAsTemplate } = await import('./journal-export');
+    const { exportTripAsTemplate } = await import('./journal-export-templates');
     let captured: unknown;
     const Blob = globalThis.Blob;
     vi.stubGlobal('Blob', class MockBlob {
@@ -289,7 +289,7 @@ describe('exportTripAsTemplate', () => {
 
 describe('template round-trip', () => {
   it('exportTripAsTemplate output passes parseSharedTemplate without throwing', async () => {
-    const { exportTripAsTemplate } = await import('./journal-export');
+    const { exportTripAsTemplate } = await import('./journal-export-templates');
     const { parseSharedTemplate } = await import('./url');
 
     let blobContent = '';
@@ -306,7 +306,7 @@ describe('template round-trip', () => {
   });
 
   it('parseSharedTemplate can read back what exportTripAsTemplate wrote', async () => {
-    const { exportTripAsTemplate } = await import('./journal-export');
+    const { exportTripAsTemplate } = await import('./journal-export-templates');
     const { parseSharedTemplate } = await import('./url');
 
     let blobContent = '';

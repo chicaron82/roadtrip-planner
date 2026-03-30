@@ -50,7 +50,7 @@
  * 💚 My Experience Engine
  */
 
-import { haversineDistance } from './poi-ranking';
+import { haversineDistance } from './geo-utils';
 import type { POISuggestion } from '../types';
 import { analyzeForHub } from './hub-poi-analysis';
 import {

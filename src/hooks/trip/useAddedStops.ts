@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { POI, POICategory, RouteSegment, TripSettings } from '../../types';
 import type { SuggestedStop, SuggestionStopType } from '../../lib/stop-suggestions';
-import { findNearestSegmentIndex, haversineDistance, estimateDetourTime } from '../../lib/poi-ranking';
+import { findNearestSegmentIndex, haversineDistance, estimateDetourTime } from '../../lib/geo-utils';
 import { deriveManualStopPlacement } from '../../lib/manual-stop-placement';
 
 interface AddedStopRouteSummary {
