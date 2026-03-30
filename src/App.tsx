@@ -157,6 +157,7 @@ function AppContent() {
     showVoila, flyoverActive, showShareScreen, triggerFlyover,
     handleShowVoila, handleFlyoverComplete, handleVoilaEdit, handleVoilaLockIn, handleViewFullDetails, handleGoHome,
     handleMinimizeToVoila, handleReturnToJournal,
+    dismissVoilaCurtain,
     handleOpenShareScreen, handleCloseShareScreen,
   } = useVoilaFlow({ icebreakerOrigin, isCalculating, setTripMode, setViewMode, goToStep, forceStep, setTripConfirmed });
 
@@ -184,9 +185,11 @@ function AppContent() {
   // Auto-start journal on lock-in. Creates a fresh journal each time —
   // if a completed journal exists it is archived in IndexedDB and replaced.
   // In-progress journals are preserved (mid-trip page reload recovery).
-  // 700ms delay lets StepsBanner's wizard→trip morph play first.
+  // When voila is still visible (lock-in curtain), start immediately —
+  // the StepsBanner morph isn't visible behind voila. Otherwise 700ms
+  // lets StepsBanner's wizard→trip morph play first.
   useEffect(() => {
-    if (!tripConfirmed || !summary || showVoila) return;
+    if (!tripConfirmed || !summary) return;
     if (isJournalComplete) return;                   // trip finished — never restart
     if (activeJournal) return;                       // in-progress — don't override
     if (isJournalLoading) return;                    // creation already in flight
@@ -198,9 +201,13 @@ function AppContent() {
       days: summary.drivingDays,
       travelerCount: settings.numTravelers ?? 1,
     }) : undefined);
-    const t = setTimeout(() => { void startJournal(title ?? undefined); }, 700);
+    const delay = showVoila ? 0 : 700;
+    const t = setTimeout(async () => {
+      await startJournal(title ?? undefined);
+      dismissVoilaCurtain();
+    }, delay);
     return () => clearTimeout(t);
-  }, [tripConfirmed, showVoila, activeJournal, isJournalComplete, isJournalLoading, summary, startJournal, customTitle, locations, settings.numTravelers]);
+  }, [tripConfirmed, showVoila, activeJournal, isJournalComplete, isJournalLoading, summary, startJournal, dismissVoilaCurtain, customTitle, locations, settings.numTravelers]);
 
 
 

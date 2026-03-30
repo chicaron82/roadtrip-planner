@@ -1,5 +1,6 @@
 import type React from 'react';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+// useRef used for lockInPendingRef (voila curtain pattern)
 import type { TripMode } from '../../types';
 import { loadActiveSession, loadSessionPhase, saveSessionPhase } from '../../lib/storage';
 
@@ -62,9 +63,14 @@ export function useVoilaFlow({
     setShowVoila(false);
   }, [isCalculating, setTripMode]);
 
+  const lockInPendingRef = useRef(false);
+
   const handleVoilaLockIn = useCallback(() => {
     setTripConfirmed(true);
-    setShowVoila(false);
+    // Don't dismiss voila yet — keep it visible as a curtain while the journal
+    // creates asynchronously. The auto-dismiss effect below hides voila once
+    // activeJournal arrives, preventing a flash of the Step 3 planner.
+    lockInPendingRef.current = true;
     // Both paths: forceStep(3) ensures the confirmed trip state renders correctly.
     // Classic path: markStepComplete advances completedSteps but NOT planningStep,
     // so planningStep is still 2 (the last step the user was on). Without this,
@@ -73,6 +79,15 @@ export function useVoilaFlow({
     forceStep(3);
     if (icebreakerOrigin) setTripMode('plan');
   }, [icebreakerOrigin, forceStep, setTripMode, setTripConfirmed]);
+
+  // Called after startJournal completes (success or failure) to drop the
+  // voila curtain. Gated by the ref so it's a no-op outside the lock-in flow.
+  const dismissVoilaCurtain = useCallback(() => {
+    if (lockInPendingRef.current) {
+      lockInPendingRef.current = false;
+      setShowVoila(false);
+    }
+  }, []);
 
   const handleViewFullDetails = useCallback(() => {
     setShowVoila(false);
@@ -109,6 +124,7 @@ export function useVoilaFlow({
     handleGoHome,
     handleMinimizeToVoila,
     handleReturnToJournal,
+    dismissVoilaCurtain,
     handleOpenShareScreen,
     handleCloseShareScreen,
   };
