@@ -46,6 +46,7 @@ export interface TripTimelineViewProps {
   activeChallenge?: TripChallenge | null;
   tripMode: TripMode;
   onStartJournal: (title?: string) => void;
+  onSkipJournal?: () => void;
   onUpdateJournal: (journal: TripJournal) => void;
   /** Propagated up from ItineraryTimeline — saved back into the journal so overrides survive refresh. */
   onStopOverridesChange?: (overrides: StopOverrides) => void;
@@ -83,6 +84,7 @@ export function TripTimelineView({
   activeChallenge,
   tripMode,
   onStartJournal,
+  onSkipJournal,
   onUpdateJournal,
   onStopOverridesChange,
   onUpdateStopType,
@@ -176,6 +178,7 @@ export function TripTimelineView({
         ) : (
           <StartJournalCTA
             onStart={onStartJournal}
+            onSkip={onSkipJournal}
             defaultName={defaultJournalName}
             tripMode={tripMode}
           />

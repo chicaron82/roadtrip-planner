@@ -56,8 +56,11 @@ export function TripRecapCard({ journal, summary, settings, totalStops }: TripRe
 
   const dateStart = journal.metadata.dates.actualStart ?? journal.metadata.dates.plannedStart;
   const dateEnd   = journal.metadata.dates.actualEnd   ?? journal.metadata.dates.plannedEnd;
-  const dateRange = dateStart && dateEnd ? formatDateRange(dateStart, dateEnd) : null;
-  const days      = dateStart && dateEnd ? calendarDays(dateStart, dateEnd) : summary.days?.length ?? 1;
+  const [sortedStart, sortedEnd] = dateStart && dateEnd && dateStart > dateEnd
+    ? [dateEnd, dateStart]
+    : [dateStart, dateEnd];
+  const dateRange = sortedStart && sortedEnd ? formatDateRange(sortedStart, sortedEnd) : null;
+  const days      = sortedStart && sortedEnd ? calendarDays(sortedStart, sortedEnd) : summary.days?.length ?? 1;
 
   const entriesWithContent = journal.entries.filter(
     e => e.status === 'visited' && (e.notes || e.photos.length > 0),

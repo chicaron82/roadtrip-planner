@@ -134,6 +134,8 @@ export interface AppWiringInputs {
     isJournalComplete: boolean;
     showCompleteOverlay: boolean;
     startJournal: (title?: string) => void;
+    skipJournal: () => void;
+    journalSkipped: boolean;
     updateActiveJournal: (j: TripJournal) => void;
     confirmComplete: () => void;
     finalizeJournal: () => void;

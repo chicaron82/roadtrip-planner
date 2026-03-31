@@ -74,6 +74,7 @@ export function TripViewer({
   poiFetchFailed,
   externalStops,
   onStartJournal,
+  onSkipJournal,
   onUpdateJournal,
   onUpdateStopType,
   onUpdateDayNotes,
@@ -107,6 +108,7 @@ export function TripViewer({
       activeChallenge={activeChallenge}
       tripMode={tripMode}
       onStartJournal={onStartJournal}
+      onSkipJournal={onSkipJournal}
       onUpdateJournal={onUpdateJournal}
       onUpdateStopType={onUpdateStopType}
       onUpdateDayNotes={onUpdateDayNotes}

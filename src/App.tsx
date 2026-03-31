@@ -103,7 +103,7 @@ function AppContent() {
     clearJournal: () => clearJournalRef.current(),
   });
 
-  const { activeJournal, viewMode, startJournal, updateActiveJournal, setViewMode, clearJournal, isJournalComplete, isLoading: isJournalLoading, showCompleteOverlay, confirmComplete, finalizeJournal, error: journalError, clearError: clearJournalError } =
+  const { activeJournal, viewMode, startJournal, skipJournal, journalSkipped, updateActiveJournal, setViewMode, clearJournal, isJournalComplete, isLoading: isJournalLoading, showCompleteOverlay, confirmComplete, finalizeJournal, error: journalError, clearError: clearJournalError } =
     useJournal({ summary, settings, vehicle, origin: tripOrigin, defaultTitle: activeChallenge?.title });
   // Wire clearJournal into the ref so calculateAndDiscover (declared above useJournal) can call it.
   useLayoutEffect(() => { clearJournalRef.current = clearJournal; });
@@ -191,6 +191,7 @@ function AppContent() {
   useEffect(() => {
     if (!tripConfirmed || !summary) return;
     if (isJournalComplete) return;                   // trip finished — never restart
+    if (journalSkipped) return;                      // user explicitly opted out
     if (activeJournal) return;                       // in-progress — don't override
     if (isJournalLoading) return;                    // creation already in flight
     // Seeded title: deterministic from destination + days + travelers.
@@ -207,7 +208,7 @@ function AppContent() {
       dismissVoilaCurtain();
     }, delay);
     return () => clearTimeout(t);
-  }, [tripConfirmed, showVoila, activeJournal, isJournalComplete, isJournalLoading, summary, startJournal, dismissVoilaCurtain, customTitle, locations, settings.numTravelers]);
+  }, [tripConfirmed, showVoila, activeJournal, isJournalComplete, journalSkipped, isJournalLoading, summary, startJournal, dismissVoilaCurtain, customTitle, locations, settings.numTravelers]);
 
 
 
@@ -251,7 +252,7 @@ function AppContent() {
     },
     journal: {
       activeJournal, viewMode, setViewMode, isJournalComplete, showCompleteOverlay,
-      startJournal, updateActiveJournal, confirmComplete, finalizeJournal, clearJournal,
+      startJournal, skipJournal, journalSkipped, updateActiveJournal, confirmComplete, finalizeJournal, clearJournal,
     },
     session: {
       tripConfirmed, setTripConfirmed, history, hasActiveSession, lastDestination,

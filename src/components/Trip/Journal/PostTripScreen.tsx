@@ -1,12 +1,9 @@
 /**
- * PostTripScreen — Full-screen "thank you" surface after journal finalization.
+ * PostTripScreen — Full-screen "thank you" surface after journal finalization or skip.
  *
- * Shown when journal.finalized is true. Presents the trip as a sealed souvenir:
- *  - Earned-reveal animation (staggered, like VoilaScreen)
- *  - Title + route + date range
- *  - Stats grid (stops, km, photos, entries)
- *  - Share / Print / Template export buttons
- *  - "Start fresh" CTA → clears active journal, returns to landing
+ * Two paths:
+ *  - journal finalized: full souvenir (title, stats, share/export/template buttons)
+ *  - journal skipped (journal = null): quiet farewell with optional "start journal" secondary link
  *
  * 💚 My Experience Engine — Thank you for your MEE time.
  */
@@ -20,34 +17,41 @@ import type { TripRecapSummary } from '../../../lib/trip-summary-slices';
 import { formatDateRange } from '../../../lib/trip-formatters';
 
 interface PostTripScreenProps {
-  journal: TripJournal;
+  journal: TripJournal | null;
   summary: TripRecapSummary;
   settings: TripSettings;
   onStartFresh: () => void;
   onShare: () => void;
   onPrint?: () => void;
+  /** Skip path only — shown as a quiet secondary link to start a journal after all. */
+  onStartJournal?: (title?: string) => void;
 }
 
 
 export function PostTripScreen({
-  journal, summary, settings, onStartFresh, onShare, onPrint,
+  journal, summary, settings, onStartFresh, onShare, onPrint, onStartJournal,
 }: PostTripScreenProps) {
   const endpoints = getTripDisplayEndpoints(summary);
   const origin = endpoints.origin?.name.split(',')[0] ?? 'Start';
   const destination = endpoints.destination?.name.split(',')[0] ?? 'End';
   const routeLabel = `${origin} → ${destination}`;
 
-  const dateStart = journal.metadata.dates.actualStart ?? journal.metadata.dates.plannedStart;
-  const dateEnd   = journal.metadata.dates.actualEnd   ?? journal.metadata.dates.plannedEnd;
-  const dateRange = dateStart && dateEnd ? formatDateRange(dateStart, dateEnd) : null;
+  const dateStart = journal?.metadata.dates.actualStart ?? journal?.metadata.dates.plannedStart;
+  const dateEnd   = journal?.metadata.dates.actualEnd   ?? journal?.metadata.dates.plannedEnd;
+  const [sortedStart, sortedEnd] = dateStart && dateEnd && dateStart > dateEnd
+    ? [dateEnd, dateStart]
+    : [dateStart, dateEnd];
+  const dateRange = sortedStart && sortedEnd ? formatDateRange(sortedStart, sortedEnd) : null;
 
-  const totalStops = journal.entries.filter(e => e.status === 'visited').length;
-  const totalPhotos = journal.entries.reduce((sum, e) => sum + e.photos.length, 0)
-    + journal.quickCaptures.filter(qc => qc.photo).length;
-  const totalMemories = journal.entries.filter(
+  const totalStops = journal?.entries.filter(e => e.status === 'visited').length ?? 0;
+  const totalPhotos = (journal?.entries.reduce((sum, e) => sum + e.photos.length, 0) ?? 0)
+    + (journal?.quickCaptures.filter(qc => qc.photo).length ?? 0);
+  const totalMemories = (journal?.entries.filter(
     e => e.status === 'visited' && (e.notes || e.photos.length > 0),
-  ).length + journal.quickCaptures.length;
+  ).length ?? 0) + (journal?.quickCaptures.length ?? 0);
   const kmDriven = Math.round(summary.totalDistanceKm);
+
+  const title = journal?.metadata.title ?? routeLabel;
 
   return (
     <div style={{
@@ -117,7 +121,7 @@ export function PostTripScreen({
                 lineHeight: 1.15,
               }}
             >
-              {journal.metadata.title}
+              {title}
             </motion.h1>
 
             <motion.div
@@ -193,62 +197,53 @@ export function PostTripScreen({
             </div>
           </motion.div>
 
-          {/* Stats grid */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.85 }}
-            style={{ padding: '0 28px 24px' }}
-          >
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { icon: '📍', value: totalStops, label: 'stops visited' },
-                { icon: '🛣', value: `${kmDriven.toLocaleString()} km`, label: 'driven' },
-                { icon: '📷', value: totalPhotos, label: 'photos' },
-                { icon: '✍️', value: totalMemories, label: 'memories' },
-              ].map(({ icon, value, label }) => (
-                <div
-                  key={label}
-                  className="rounded-xl p-3 flex items-center gap-3"
-                  style={{ background: 'rgba(74,222,128,0.06)', border: '1px solid rgba(74,222,128,0.1)' }}
-                >
-                  <span className="text-xl">{icon}</span>
-                  <div>
-                    <div className="text-sm font-bold text-green-200">{value}</div>
-                    <div
-                      className="text-green-500/70"
-                      style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase' }}
-                    >
-                      {label}
+          {/* Stats grid — journal path only */}
+          {journal && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.85 }}
+              style={{ padding: '0 28px 24px' }}
+            >
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { icon: '📍', value: totalStops, label: 'stops visited' },
+                  { icon: '🛣', value: `${kmDriven.toLocaleString()} km`, label: 'driven' },
+                  { icon: '📷', value: totalPhotos, label: 'photos' },
+                  { icon: '✍️', value: totalMemories, label: 'memories' },
+                ].map(({ icon, value, label }) => (
+                  <div
+                    key={label}
+                    className="rounded-xl p-3 flex items-center gap-3"
+                    style={{ background: 'rgba(74,222,128,0.06)', border: '1px solid rgba(74,222,128,0.1)' }}
+                  >
+                    <span className="text-xl">{icon}</span>
+                    <div>
+                      <div className="text-sm font-bold text-green-200">{value}</div>
+                      <div
+                        className="text-green-500/70"
+                        style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase' }}
+                      >
+                        {label}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
 
-          {/* Action buttons */}
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 1.0 }}
-            style={{ padding: '0 28px 32px' }}
-          >
-            <div className="flex gap-2 flex-wrap">
-              <button
-                onClick={onShare}
-                className="flex-1 py-2.5 rounded-xl text-xs font-semibold tracking-wider uppercase transition-all"
-                style={{
-                  background: 'rgba(74,222,128,0.12)',
-                  border: '1px solid rgba(74,222,128,0.2)',
-                  color: '#86efac',
-                }}
-              >
-                📤 Share
-              </button>
-              {onPrint && (
+          {/* Action buttons — journal path only */}
+          {journal && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: 1.0 }}
+              style={{ padding: '0 28px 32px' }}
+            >
+              <div className="flex gap-2 flex-wrap">
                 <button
-                  onClick={onPrint}
+                  onClick={onShare}
                   className="flex-1 py-2.5 rounded-xl text-xs font-semibold tracking-wider uppercase transition-all"
                   style={{
                     background: 'rgba(74,222,128,0.12)',
@@ -256,40 +251,78 @@ export function PostTripScreen({
                     color: '#86efac',
                   }}
                 >
-                  🖨 Print
+                  📤 Share
                 </button>
-              )}
+                {onPrint && (
+                  <button
+                    onClick={onPrint}
+                    className="flex-1 py-2.5 rounded-xl text-xs font-semibold tracking-wider uppercase transition-all"
+                    style={{
+                      background: 'rgba(74,222,128,0.12)',
+                      border: '1px solid rgba(74,222,128,0.2)',
+                      color: '#86efac',
+                    }}
+                  >
+                    🖨 Print
+                  </button>
+                )}
+                <button
+                  onClick={() => exportJournalAsHTML(journal, summary)}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-semibold tracking-wider uppercase transition-all"
+                  style={{
+                    background: 'rgba(74,222,128,0.12)',
+                    border: '1px solid rgba(74,222,128,0.2)',
+                    color: '#86efac',
+                  }}
+                >
+                  📄 Export
+                </button>
+                <button
+                  onClick={() => exportJournalAsTemplate(journal, summary, settings)}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-semibold tracking-wider uppercase transition-all"
+                  style={{
+                    background: 'rgba(74,222,128,0.12)',
+                    border: '1px solid rgba(74,222,128,0.2)',
+                    color: '#86efac',
+                  }}
+                >
+                  🔀 Template
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Skip path — quiet "actually I'd like to" secondary link */}
+          {!journal && onStartJournal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3, delay: 0.85 }}
+              style={{ padding: '0 28px 32px', textAlign: 'center' }}
+            >
               <button
-                onClick={() => exportJournalAsHTML(journal, summary)}
-                className="flex-1 py-2.5 rounded-xl text-xs font-semibold tracking-wider uppercase transition-all"
+                onClick={() => onStartJournal()}
                 style={{
-                  background: 'rgba(74,222,128,0.12)',
-                  border: '1px solid rgba(74,222,128,0.2)',
-                  color: '#86efac',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: '"DM Mono", monospace',
+                  fontSize: 11,
+                  color: 'rgba(245, 240, 232, 0.3)',
+                  letterSpacing: '0.06em',
                 }}
               >
-                📄 Export
+                Actually, I'd like to remember this trip →
               </button>
-              <button
-                onClick={() => exportJournalAsTemplate(journal, summary, settings)}
-                className="flex-1 py-2.5 rounded-xl text-xs font-semibold tracking-wider uppercase transition-all"
-                style={{
-                  background: 'rgba(74,222,128,0.12)',
-                  border: '1px solid rgba(74,222,128,0.2)',
-                  color: '#86efac',
-                }}
-              >
-                🔀 Template
-              </button>
-            </div>
-          </motion.div>
+            </motion.div>
+          )}
         </div>
 
         {/* Sticky bottom bar */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.3, delay: 1.15 }}
+          transition={{ duration: 0.3, delay: journal ? 1.15 : 0.95 }}
           style={{
             padding: '12px 16px',
             borderTop: '1px solid rgba(245, 240, 232, 0.07)',

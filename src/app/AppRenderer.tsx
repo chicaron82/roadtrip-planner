@@ -97,6 +97,7 @@ export function AppRenderer({
           settings={board.postTripProps.settings}
           onStartFresh={board.commands.startFresh}
           onShare={board.commands.openShareScreen}
+          onStartJournal={board.postTripProps.onStartJournal}
         />
       )}
 

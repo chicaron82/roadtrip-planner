@@ -27,7 +27,7 @@ import type { AppWiringInputs, AppWiringOutput } from './useAppWiring.types';
 
 export function useAppWiring(i: AppWiringInputs): AppWiringOutput {
   // ── Derived surface flags ─────────────────────────────────────────────
-  const showPostTrip = !!i.journal.activeJournal?.finalized && i.session.tripConfirmed && !i.voila.showVoila;
+  const showPostTrip = (!!i.journal.activeJournal?.finalized || i.journal.journalSkipped) && i.session.tripConfirmed && !i.voila.showVoila;
   const showJournalAtAGlance =
     i.session.tripConfirmed && i.journal.viewMode === 'journal' && !i.voila.showVoila && !!i.journal.activeJournal && !showPostTrip;
 
@@ -92,10 +92,11 @@ export function useAppWiring(i: AppWiringInputs): AppWiringOutput {
       ghostCar: i.features.ghostCar,
       onUpdateJournal: i.journal.updateActiveJournal,
     },
-    postTripProps: i.journal.activeJournal?.finalized && i.tripContext.summary ? {
-      journal: i.journal.activeJournal,
+    postTripProps: (i.journal.activeJournal?.finalized || i.journal.journalSkipped) && i.tripContext.summary ? {
+      journal: i.journal.activeJournal?.finalized ? i.journal.activeJournal : null,
       summary: i.tripContext.summary,
       settings: i.tripContext.settings,
+      onStartJournal: i.journal.journalSkipped ? i.journal.startJournal : undefined,
     } : null,
     landingProps: {
       onSelectMode: i.features.icebreaker.handleLandingSelect,

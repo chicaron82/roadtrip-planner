@@ -51,6 +51,7 @@ interface UsePlanningStepPropsOptions {
   isJournalComplete: boolean;
   showCompleteOverlay: boolean;
   startJournal: (title?: string) => void;
+  skipJournal?: () => void;
   updateActiveJournal: (j: TripJournal) => void;
   confirmJournalComplete: () => void;
   // Trip state
@@ -150,6 +151,7 @@ export function usePlanningStepProps(o: UsePlanningStepPropsOptions): PlanningSt
     showCompleteOverlay: o.showCompleteOverlay,
     onConfirmJournalComplete: o.confirmJournalComplete,
     onStartJournal: o.startJournal,
+    onSkipJournal: o.skipJournal,
     onUpdateJournal: o.updateActiveJournal,
     onUpdateStopType: o.updateStopType,
     onDismissOvernight: o.dismissOvernightPrompt,

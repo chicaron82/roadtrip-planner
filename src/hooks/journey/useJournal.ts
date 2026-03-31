@@ -44,9 +44,11 @@ interface UseJournalReturn {
   isJournalComplete: boolean;
   /** True when complete but overlay not yet dismissed — drives TripViewer overlay. */
   showCompleteOverlay: boolean;
+  journalSkipped: boolean;
 
   // Actions
   startJournal: (title?: string) => Promise<void>;
+  skipJournal: () => void;
   updateActiveJournal: (journal: TripJournal) => Promise<void>;
   setViewMode: (mode: ViewMode) => void;
   clearJournal: () => void;
@@ -69,6 +71,7 @@ export function useJournal({
   const [error, setError] = useState<string | null>(null);
   const [isJournalComplete, setIsJournalComplete] = useState(false);
   const [completionAcknowledged, setCompletionAcknowledged] = useState(false);
+  const [journalSkipped, setJournalSkipped] = useState(false);
 
   // Load active journal on mount — but only if it's in-progress (not complete).
   // A completed journal means the trip is done; the next journey should start
@@ -198,11 +201,16 @@ export function useJournal({
     }
   }, [activeJournal]);
 
+  const skipJournal = useCallback(() => {
+    setJournalSkipped(true);
+  }, []);
+
   const clearJournal = useCallback(() => {
     setActiveJournal(null);
     setViewMode('plan');
     setIsJournalComplete(false);
     setCompletionAcknowledged(false);
+    setJournalSkipped(false);
     setActiveJournalId(null); // persist the clear — prevents stale journal reloading on next page load
   }, []);
 
@@ -221,7 +229,9 @@ export function useJournal({
     error,
     isJournalComplete,
     showCompleteOverlay: isJournalComplete && !completionAcknowledged,
+    journalSkipped,
     startJournal,
+    skipJournal,
     updateActiveJournal,
     setViewMode,
     clearJournal,

@@ -56,6 +56,7 @@ export interface UseStep3ControllerOptions {
   showCompleteOverlay?: boolean;
   onConfirmJournalComplete?: () => void;
   onStartJournal: (title?: string) => void;
+  onSkipJournal?: () => void;
   onUpdateJournal: (journal: TripJournal) => void;
   onUpdateStopType: (segmentIndex: number, stopType: StopType) => void;
   onDismissOvernight: () => void;

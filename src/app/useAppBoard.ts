@@ -55,9 +55,10 @@ export interface JournalAtAGlancePropsBundle {
 }
 
 export interface PostTripPropsBundle {
-  journal: TripJournal;
+  journal: TripJournal | null;
   summary: TripSummary;
   settings: TripSettings;
+  onStartJournal?: (title?: string) => void;
 }
 
 export interface PlannerPropsBundle extends PlannerFullscreenShellProps {

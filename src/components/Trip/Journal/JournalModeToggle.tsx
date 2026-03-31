@@ -83,6 +83,7 @@ export function JournalModeToggle({
 // Start Journal CTA — expands to show a name input before creating the journal
 interface StartJournalCTAProps {
   onStart: (title?: string) => void;
+  onSkip?: () => void;
   className?: string;
   /** Pre-filled title suggestion (e.g. challenge title or template name) */
   defaultName?: string;
@@ -90,7 +91,7 @@ interface StartJournalCTAProps {
   tripMode?: TripMode;
 }
 
-export function StartJournalCTA({ onStart, className, defaultName, tripMode = 'plan' }: StartJournalCTAProps) {
+export function StartJournalCTA({ onStart, onSkip, className, defaultName, tripMode = 'plan' }: StartJournalCTAProps) {
   // Skip the teaser step when a name is already known — go straight to the form
   const [expanded, setExpanded] = useState(!!defaultName);
   const [name, setName] = useState(defaultName ?? '');
@@ -132,6 +133,16 @@ export function StartJournalCTA({ onStart, className, defaultName, tripMode = 'p
         <p className="text-xs mt-3" style={{ color: `${accentColor}80` }}>
           Works offline. Your memories are saved locally.
         </p>
+
+        {onSkip && (
+          <button
+            onClick={onSkip}
+            className="mt-3 text-xs transition-colors"
+            style={{ color: 'hsl(var(--muted-foreground) / 0.5)', background: 'none', border: 'none', cursor: 'pointer' }}
+          >
+            No thanks
+          </button>
+        )}
       </div>
     );
   }

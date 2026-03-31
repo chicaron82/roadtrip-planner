@@ -64,7 +64,7 @@ export function usePlannerWiring(i: AppWiringInputs): PlannerWiringOutput {
     shareJustCopied: i.presets.shareJustCopied,
     viewMode: i.journal.viewMode, setViewMode: i.journal.setViewMode,
     activeJournal: i.journal.activeJournal, isJournalComplete: i.journal.isJournalComplete,
-    showCompleteOverlay: i.journal.showCompleteOverlay, startJournal: i.journal.startJournal,
+    showCompleteOverlay: i.journal.showCompleteOverlay, startJournal: i.journal.startJournal, skipJournal: i.journal.skipJournal,
     updateActiveJournal: i.journal.updateActiveJournal, confirmJournalComplete: i.journal.confirmComplete,
     tripConfirmed: i.session.tripConfirmed, setTripConfirmed: i.session.setTripConfirmed,
     history: i.session.history,

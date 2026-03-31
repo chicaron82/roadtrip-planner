@@ -45,6 +45,7 @@ export interface TripViewerProps {
 
   // Intent callbacks — viewer emits, upstream controller mutates canonical truth
   onStartJournal: (title?: string) => void;
+  onSkipJournal?: () => void;
   onUpdateJournal: (journal: TripJournal) => void;
   onUpdateStopType: (segmentIndex: number, stopType: StopType) => void;
   onUpdateDayNotes?: (dayNumber: number, notes: string) => void;

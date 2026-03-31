@@ -68,6 +68,7 @@ export interface Step3ViewerModel {
   activeChallenge?: TripChallenge | null;
   tripMode: TripMode;
   onStartJournal: (title?: string) => void;
+  onSkipJournal?: () => void;
   onUpdateJournal: (journal: TripJournal) => void;
   onUpdateStopType: (segmentIndex: number, stopType: StopType) => void;
   onUpdateDayNotes: (dayNumber: number, notes: string) => void;
@@ -209,6 +210,7 @@ interface BuildStep3ViewerModelOptions {
   showCompleteOverlay?: boolean;
   onConfirmJournalComplete?: () => void;
   onStartJournal: (title?: string) => void;
+  onSkipJournal?: () => void;
   onUpdateJournal: (journal: TripJournal) => void;
   onUpdateStopType: (segmentIndex: number, stopType: StopType) => void;
   onUpdateDayNotes: (dayNumber: number, notes: string) => void;
