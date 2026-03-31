@@ -150,13 +150,18 @@ export function useIcebreakerOrchestrator(
     return false;
   }, [arc, estimateWorkshopActive]);
 
-  // When calculation fails at beat 4, exit the arc so the user isn't left
-  // stuck on a blank map. The calcError toast fires independently via useAppCallbacks.
+  // When calculation fails at beat 4, exit the arc and fall back to the
+  // classic wizard so the user can see the error toast and retry. Without
+  // setting tripMode the surface falls to 'landing' because tripMode is
+  // still null in the icebreaker path (only set on voila lock-in).
   useEffect(() => {
     if (arc.beat === 4 && arc.isBuilding && calcError) {
       arc.exitArc();
+      setTripMode('plan');
+      markStepComplete(1);
+      forceStep(2);
     }
-  }, [arc, calcError]);
+  }, [arc, calcError, setTripMode, markStepComplete, forceStep]);
 
   /**
    * Android back button handler — navigates within the arc/icebreaker.
