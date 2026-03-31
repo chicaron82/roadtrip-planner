@@ -17,6 +17,7 @@ export function LocationSearchInput({ value, onSelect, placeholder, className }:
   const [results, setResults] = useState<Partial<Location>[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const timeoutRef = useRef<number | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -51,6 +52,7 @@ export function LocationSearchInput({ value, onSelect, placeholder, className }:
         const locations = await searchLocations(text);
         setResults(locations);
         setIsOpen(locations.length > 0);
+        setActiveIndex(-1);
       } catch {
         setResults([]);
         setIsOpen(false);
@@ -70,7 +72,25 @@ export function LocationSearchInput({ value, onSelect, placeholder, className }:
     setQuery('');
     setResults([]);
     setIsOpen(false);
+    setActiveIndex(-1);
     onSelect({ name: '', lat: 0, lng: 0 });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!isOpen || results.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIndex(prev => (prev + 1) % results.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex(prev => (prev <= 0 ? results.length - 1 : prev - 1));
+    } else if (e.key === 'Enter' && activeIndex >= 0) {
+      e.preventDefault();
+      handleSelect(results[activeIndex]);
+    } else if (e.key === 'Escape') {
+      setIsOpen(false);
+      setActiveIndex(-1);
+    }
   };
 
   return (
@@ -78,8 +98,12 @@ export function LocationSearchInput({ value, onSelect, placeholder, className }:
       <Input
         value={query}
         onChange={(e) => handleSearch(e.target.value)}
+        onKeyDown={handleKeyDown}
         placeholder={placeholder}
         className="h-10 text-sm pr-8"
+        role="combobox"
+        aria-expanded={isOpen}
+        aria-activedescendant={activeIndex >= 0 ? `location-option-${activeIndex}` : undefined}
       />
 
       {isLoading && (
@@ -102,11 +126,14 @@ export function LocationSearchInput({ value, onSelect, placeholder, className }:
 
       {isOpen && results.length > 0 && (
         <Card className="absolute z-50 top-full mt-1 w-full overflow-hidden shadow-xl rounded-md border-border/50">
-          <div className="bg-popover text-popover-foreground">
+          <div className="bg-popover text-popover-foreground" role="listbox">
              {results.map((result, index) => (
                 <button
                     key={index}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors border-b border-border/40 last:border-0"
+                    id={`location-option-${index}`}
+                    role="option"
+                    aria-selected={index === activeIndex}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors border-b border-border/40 last:border-0 ${index === activeIndex ? 'bg-accent' : ''}`}
                     // onMouseDown + preventDefault keeps the input focused long enough
                     // for handleSelect to fire before the document mousedown listener
                     // collapses the dropdown (classic blur-before-click race condition).

@@ -11,6 +11,7 @@
 import type { POISuggestion, RouteSegment, TripPreference, POISuggestionCategory } from '../types';
 import type { JourneyContextSegment } from './trip-orchestrator/journey-context';
 import { formatDriveTime } from './driver-rotation';
+import { normalizeToIANA } from './trip-timezone';
 
 const OUTDOOR_CATEGORIES: POISuggestionCategory[] = [
   'viewpoint', 'park', 'waterfall', 'attraction', 'landmark',
@@ -32,8 +33,9 @@ const MAX_DETOUR_MINUTES = 30;
 /** Return fractional hour (0–23.99) in a specific IANA timezone, or fall back to local. */
 export function getLocalTod(date: Date, tz?: string): number {
   if (tz) {
+    const iana = normalizeToIANA(tz);
     const parts = new Intl.DateTimeFormat('en', {
-      hour: 'numeric', minute: 'numeric', hourCycle: 'h23', timeZone: tz,
+      hour: 'numeric', minute: 'numeric', hourCycle: 'h23', timeZone: iana,
     }).formatToParts(date);
     const h = parseInt(parts.find(p => p.type === 'hour')?.value ?? '0', 10);
     const m = parseInt(parts.find(p => p.type === 'minute')?.value ?? '0', 10);

@@ -1,5 +1,6 @@
 import * as SunCalc from 'suncalc';
 import type { TripSummary } from '../../types';
+import { normalizeToIANA } from '../trip-timezone';
 
 export interface JourneyContextSegment {
   segmentIndex: number;
@@ -24,12 +25,17 @@ export interface JourneyContext {
 /** Return fractional hour (0–23.99) in a specific IANA timezone, or fall back to local. */
 function getLocalTod(date: Date, tz?: string): number {
   if (tz) {
-    const parts = new Intl.DateTimeFormat('en', {
-      hour: 'numeric', minute: 'numeric', hourCycle: 'h23', timeZone: tz,
-    }).formatToParts(date);
-    const h = parseInt(parts.find(p => p.type === 'hour')?.value ?? '0', 10);
-    const m = parseInt(parts.find(p => p.type === 'minute')?.value ?? '0', 10);
-    return h + m / 60;
+    try {
+      const iana = normalizeToIANA(tz);
+      const parts = new Intl.DateTimeFormat('en', {
+        hour: 'numeric', minute: 'numeric', hourCycle: 'h23', timeZone: iana,
+      }).formatToParts(date);
+      const h = parseInt(parts.find(p => p.type === 'hour')?.value ?? '0', 10);
+      const m = parseInt(parts.find(p => p.type === 'minute')?.value ?? '0', 10);
+      return h + m / 60;
+    } catch (_err) {
+      console.warn(`[getLocalTod] Invalid timezone: ${tz}. Falling back to system local time.`);
+    }
   }
   return date.getHours() + date.getMinutes() / 60;
 }
