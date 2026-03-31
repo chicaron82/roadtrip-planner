@@ -13,6 +13,9 @@ import { ItineraryTimelineBody } from './ItineraryTimelineBody';
 import { computeSwapAssignments, getDriverName } from '../../../lib/driver-rotation';
 import type { CanonicalTripDay } from '../../../lib/canonical-trip';
 import type { ViewerRouteSummary } from '../../../lib/trip-summary-slices';
+import { ItineraryEditProvider, type ItineraryEditCallbacks } from './ItineraryEditContext';
+
+// ── Outer wrapper props (includes edit callbacks + overrides) ────────────────
 
 interface ItineraryTimelineProps {
   summary: ViewerRouteSummary;
@@ -42,26 +45,28 @@ interface ItineraryTimelineProps {
   onStopOverridesChange?: (overrides: StopOverrides) => void;
 }
 
-interface ItineraryTimelineContentProps extends Omit<ItineraryTimelineProps, 'initialStopOverrides' | 'onStopOverridesChange' | 'externalStops'> {
+// ── Content props (display + POI only — edit callbacks come from context) ────
+
+interface ItineraryTimelineContentProps {
+  summary: ViewerRouteSummary;
+  settings: TripSettings;
+  vehicle?: Vehicle;
+  days?: TripDay[];
+  poiSuggestions?: POISuggestion[];
+  isLoadingPOIs?: boolean;
+  poiPartialResults?: boolean;
+  poiFetchFailed?: boolean;
+  onAddPOI?: (poiId: string, segmentIndex?: number) => void;
+  onDismissPOI?: (poiId: string) => void;
   timelineData: UseTimelineDataResult;
 }
+
+// ── Content component ────────────────────────────────────────────────────────
 
 export function ItineraryTimelineContent({
   summary,
   settings,
   days,
-  onUpdateStopType,
-  onUpdateActivity,
-  onUpdateDayType,
-  onAddDayActivity,
-  onUpdateDayActivity,
-  onRemoveDayActivity,
-  onUpdateDayNotes,
-  onUpdateDayTitle,
-  onAddDayOption,
-  onRemoveDayOption,
-  onSelectDayOption,
-  onUpdateOvernight,
   poiSuggestions,
   isLoadingPOIs,
   poiPartialResults,
@@ -196,17 +201,6 @@ export function ItineraryTimelineContent({
         setEditingActivity={setEditingActivity}
         setEditingOvernight={setEditingOvernight}
         setEditingDayActivity={setEditingDayActivity}
-        onUpdateStopType={onUpdateStopType}
-        onUpdateActivity={onUpdateActivity}
-        onUpdateDayType={onUpdateDayType}
-        onAddDayActivity={onAddDayActivity}
-        onUpdateDayActivity={onUpdateDayActivity}
-        onUpdateDayNotes={onUpdateDayNotes}
-        onUpdateDayTitle={onUpdateDayTitle}
-        onAddDayOption={onAddDayOption}
-        onRemoveDayOption={onRemoveDayOption}
-        onSelectDayOption={onSelectDayOption}
-        onUpdateOvernight={onUpdateOvernight}
         swapSuggestions={swapSuggestions}
       />
 
@@ -228,20 +222,17 @@ export function ItineraryTimelineContent({
 
       <TimelineDialogs
         editingActivity={editingActivity}
-        onUpdateActivity={onUpdateActivity}
         setEditingActivity={setEditingActivity}
         editingOvernight={editingOvernight}
-        onUpdateOvernight={onUpdateOvernight}
         setEditingOvernight={setEditingOvernight}
         editingDayActivity={editingDayActivity}
-        onAddDayActivity={onAddDayActivity}
-        onUpdateDayActivity={onUpdateDayActivity}
-        onRemoveDayActivity={onRemoveDayActivity}
         setEditingDayActivity={setEditingDayActivity}
       />
     </div>
   );
 }
+
+// ── Outer wrapper — owns useTimelineData + provides ItineraryEditContext ─────
 
 export function ItineraryTimeline({
   summary,
@@ -280,31 +271,36 @@ export function ItineraryTimeline({
     onStopOverridesChange,
   });
 
+  const editCallbacks: ItineraryEditCallbacks = {
+    onUpdateStopType,
+    onUpdateActivity,
+    onUpdateDayType,
+    onAddDayActivity,
+    onUpdateDayActivity,
+    onRemoveDayActivity,
+    onUpdateDayNotes,
+    onUpdateDayTitle,
+    onAddDayOption,
+    onRemoveDayOption,
+    onSelectDayOption,
+    onUpdateOvernight,
+  };
+
   return (
-    <ItineraryTimelineContent
-      summary={summary}
-      settings={settings}
-      vehicle={vehicle}
-      days={days}
-      onUpdateStopType={onUpdateStopType}
-      onUpdateActivity={onUpdateActivity}
-      onUpdateDayType={onUpdateDayType}
-      onAddDayActivity={onAddDayActivity}
-      onUpdateDayActivity={onUpdateDayActivity}
-      onRemoveDayActivity={onRemoveDayActivity}
-      onUpdateDayNotes={onUpdateDayNotes}
-      onUpdateDayTitle={onUpdateDayTitle}
-      onAddDayOption={onAddDayOption}
-      onRemoveDayOption={onRemoveDayOption}
-      onSelectDayOption={onSelectDayOption}
-      onUpdateOvernight={onUpdateOvernight}
-      poiSuggestions={poiSuggestions}
-      isLoadingPOIs={isLoadingPOIs}
-      poiPartialResults={poiPartialResults}
-      poiFetchFailed={poiFetchFailed}
-      onAddPOI={onAddPOI}
-      onDismissPOI={onDismissPOI}
-      timelineData={timelineData}
-    />
+    <ItineraryEditProvider callbacks={editCallbacks}>
+      <ItineraryTimelineContent
+        summary={summary}
+        settings={settings}
+        vehicle={vehicle}
+        days={days}
+        poiSuggestions={poiSuggestions}
+        isLoadingPOIs={isLoadingPOIs}
+        poiPartialResults={poiPartialResults}
+        poiFetchFailed={poiFetchFailed}
+        onAddPOI={onAddPOI}
+        onDismissPOI={onDismissPOI}
+        timelineData={timelineData}
+      />
+    </ItineraryEditProvider>
   );
 }

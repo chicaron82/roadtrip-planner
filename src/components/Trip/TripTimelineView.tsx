@@ -27,6 +27,7 @@ import { ItineraryTimelineContent } from './Itinerary/ItineraryTimeline';
 import { StartJournalCTA } from './Journal/JournalModeToggle';
 import type { ViewerRouteSummary } from '../../lib/trip-summary-slices';
 import { useTripCore } from '../../contexts/TripContext';
+import { ItineraryEditProvider, type ItineraryEditCallbacks } from './Itinerary/ItineraryEditContext';
 
 const SmartTimeline = lazy(() => import('./Timeline/SmartTimeline').then(m => ({ default: m.SmartTimeline })));
 const JournalTimeline = lazy(() => import('./Journal/JournalTimeline').then(m => ({ default: m.JournalTimeline })));
@@ -121,6 +122,17 @@ export function TripTimelineView({
     onStopOverridesChange: handleStopOverridesChange,
   });
 
+  const editCallbacks: ItineraryEditCallbacks = {
+    onUpdateStopType,
+    onUpdateDayNotes,
+    onUpdateDayTitle,
+    onUpdateDayType,
+    onAddDayActivity,
+    onUpdateDayActivity,
+    onRemoveDayActivity,
+    onUpdateOvernight,
+  };
+
   return (
     <>
       {/* Simulation View Toggle (plan mode only) */}
@@ -169,27 +181,21 @@ export function TripTimelineView({
           />
         )
       ) : (
-        <ItineraryTimelineContent
-          summary={summary}
-          settings={settings}
-          vehicle={vehicle}
-          days={summary.days}
-          onUpdateStopType={onUpdateStopType}
-          onUpdateDayNotes={onUpdateDayNotes}
-          onUpdateDayTitle={onUpdateDayTitle}
-          onUpdateDayType={onUpdateDayType}
-          onAddDayActivity={onAddDayActivity}
-          onUpdateDayActivity={onUpdateDayActivity}
-          onRemoveDayActivity={onRemoveDayActivity}
-          onUpdateOvernight={onUpdateOvernight}
-          poiSuggestions={poiSuggestions}
-          isLoadingPOIs={isLoadingPOIs}
-          poiPartialResults={poiPartialResults}
-          poiFetchFailed={poiFetchFailed}
-          onAddPOI={onAddPOI}
-          onDismissPOI={onDismissPOI}
-          timelineData={itineraryData}
-        />
+        <ItineraryEditProvider callbacks={editCallbacks}>
+          <ItineraryTimelineContent
+            summary={summary}
+            settings={settings}
+            vehicle={vehicle}
+            days={summary.days}
+            poiSuggestions={poiSuggestions}
+            isLoadingPOIs={isLoadingPOIs}
+            poiPartialResults={poiPartialResults}
+            poiFetchFailed={poiFetchFailed}
+            onAddPOI={onAddPOI}
+            onDismissPOI={onDismissPOI}
+            timelineData={itineraryData}
+          />
+        </ItineraryEditProvider>
       )}
     </>
   );

@@ -1,6 +1,7 @@
 import type { Activity, OvernightStop } from '../../../types';
 import { ActivityEditor } from './ActivityEditor';
 import { OvernightEditor } from './OvernightEditor';
+import { useItineraryEditContext } from './ItineraryEditContext';
 
 interface EditingActivity {
   segmentIndex: number;
@@ -21,17 +22,12 @@ interface EditingDayActivity {
 
 interface TimelineDialogsProps {
   editingActivity: EditingActivity | null;
-  onUpdateActivity?: (segmentIndex: number, activity: Activity | undefined) => void;
   setEditingActivity: (val: EditingActivity | null) => void;
 
   editingOvernight: EditingOvernight | null;
-  onUpdateOvernight?: (dayNumber: number, overnight: OvernightStop) => void;
   setEditingOvernight: (val: EditingOvernight | null) => void;
 
   editingDayActivity: EditingDayActivity | null;
-  onAddDayActivity?: (dayNumber: number, activity: Activity) => void;
-  onUpdateDayActivity?: (dayNumber: number, activityIndex: number, activity: Activity) => void;
-  onRemoveDayActivity?: (dayNumber: number, activityIndex: number) => void;
   setEditingDayActivity: (val: EditingDayActivity | null) => void;
 }
 
@@ -39,17 +35,20 @@ export type { EditingDayActivity };
 
 export function TimelineDialogs({
   editingActivity,
-  onUpdateActivity,
   setEditingActivity,
   editingOvernight,
-  onUpdateOvernight,
   setEditingOvernight,
   editingDayActivity,
-  onAddDayActivity,
-  onUpdateDayActivity,
-  onRemoveDayActivity,
   setEditingDayActivity,
 }: TimelineDialogsProps) {
+  const {
+    onUpdateActivity,
+    onUpdateOvernight,
+    onAddDayActivity,
+    onUpdateDayActivity,
+    onRemoveDayActivity,
+  } = useItineraryEditContext();
+
   return (
     <>
       {/* Activity Editor Dialog */}

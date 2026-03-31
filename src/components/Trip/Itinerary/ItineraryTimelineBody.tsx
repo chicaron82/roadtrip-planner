@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { getDriverName } from '../../../lib/driver-rotation';
-import type { Activity, DayOption, DayType, OvernightStop, StopType, TripDay, TripSettings } from '../../../types';
+import type { TripDay, TripSettings } from '../../../types';
 import { ActivityBadge } from './ActivityEditor';
 import { DaySection } from './DaySection';
 import { SuggestedStopCard } from './SuggestedStopCard';
@@ -9,6 +9,8 @@ import type { SuggestedStop } from '../../../lib/stop-suggestions';
 import type { EditingDayActivity } from './TimelineDialogs';
 import type { SimulationItem } from './useTimelineData';
 import type { SegmentLookupSummary } from '../../../lib/trip-summary-slices';
+import { useItineraryEditContext } from './ItineraryEditContext';
+import type { Activity, OvernightStop } from '../../../types';
 
 interface ItineraryTimelineBodyProps {
   summary: SegmentLookupSummary;
@@ -32,17 +34,6 @@ interface ItineraryTimelineBodyProps {
   setEditingActivity: (value: { segmentIndex: number; activity?: Activity; locationName?: string } | null) => void;
   setEditingOvernight: (value: { dayNumber: number; overnight: OvernightStop } | null) => void;
   setEditingDayActivity: (value: EditingDayActivity | null) => void;
-  onUpdateStopType?: (segmentIndex: number, newStopType: StopType) => void;
-  onUpdateActivity?: (segmentIndex: number, activity: Activity | undefined) => void;
-  onUpdateDayType?: (dayNumber: number, dayType: DayType) => void;
-  onAddDayActivity?: (dayNumber: number, activity: Activity) => void;
-  onUpdateDayActivity?: (dayNumber: number, activityIndex: number, activity: Activity) => void;
-  onUpdateDayNotes?: (dayNumber: number, notes: string) => void;
-  onUpdateDayTitle?: (dayNumber: number, title: string) => void;
-  onAddDayOption?: (dayNumber: number, option: DayOption) => void;
-  onRemoveDayOption?: (dayNumber: number, optionIndex: number) => void;
-  onSelectDayOption?: (dayNumber: number, optionIndex: number) => void;
-  onUpdateOvernight?: (dayNumber: number, overnight: OvernightStop) => void;
   /** stopId → driver number for unassigned-driver swap annotations on fuel cards. */
   swapSuggestions?: Record<string, number>;
 }
@@ -69,19 +60,22 @@ export function ItineraryTimelineBody({
   setEditingActivity,
   setEditingOvernight,
   setEditingDayActivity,
-  onUpdateStopType,
-  onUpdateActivity,
-  onUpdateDayType,
-  onAddDayActivity,
-  onUpdateDayActivity,
-  onUpdateDayNotes,
-  onUpdateDayTitle,
-  onAddDayOption,
-  onRemoveDayOption,
-  onSelectDayOption,
-  onUpdateOvernight,
   swapSuggestions = {},
 }: ItineraryTimelineBodyProps) {
+  const {
+    onUpdateStopType,
+    onUpdateActivity,
+    onUpdateDayType,
+    onUpdateDayNotes,
+    onUpdateDayTitle,
+    onAddDayActivity,
+    onUpdateDayActivity,
+    onUpdateOvernight,
+    onAddDayOption,
+    onRemoveDayOption,
+    onSelectDayOption,
+  } = useItineraryEditContext();
+
   return (
     <div className="space-y-0 pt-2 relative pb-12">
       <div className="absolute left-[19px] top-4 bottom-0 w-0.5 bg-border -z-10"></div>
