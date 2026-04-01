@@ -34,8 +34,10 @@ export async function calculateRoute(
   const primary = getActiveRoutingProvider();
   const start = performance.now();
 
-  // ── Google primary (Phase 2 — wired when google-routing.ts lands) ─────
-  if (primary === 'google') {
+  // ── Google primary ─────────────────────────────────────────────────────
+  // Skip Google when avoidBorders is requested — Google Routes API has no
+  // country restriction. Our border avoidance uses OSRM guard waypoints.
+  if (primary === 'google' && !options?.avoidBorders) {
     try {
       const { routeWithGoogle } = await import('./google/google-routing');
       const result = await routeWithGoogle(locations, options);

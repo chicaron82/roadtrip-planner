@@ -3,6 +3,9 @@ import { executeOverpassQuery } from './poi-service/overpass';
 import { cacheDiscoveredHub, findPreferredHubInWindow } from './hub-cache';
 import { haversineDistance } from './geo-utils';
 import { reverseGeocodeTown } from './route-geocoder';
+import { getActivePOIProvider } from './providers/provider-config';
+import { reverseGeocodeWithGoogle } from './providers/google/google-reverse-geocode';
+import { recordProviderEvent } from './providers/provider-telemetry';
 
 /**
  * Search radius for finding the nearest real settlement.
@@ -53,6 +56,69 @@ export async function snapOvernightsToTowns(
     d => d.overnight?.location.id?.startsWith('transit-split-'),
   );
   if (transitDays.length === 0) return [];
+
+  const provider = getActivePOIProvider();
+  const results: SnappedOvernight[] = [];
+
+  // ── Google primary: reverse geocode each transit-split point ───────────
+  if (provider === 'google') {
+    const start = performance.now();
+    try {
+      const geocodeResults = await Promise.all(
+        transitDays.map(d => {
+          const { lat, lng } = d.overnight!.location;
+
+          // Check hub cache first
+          const nearbyHub = findPreferredHubInWindow(lat, lng, HUB_OVERRIDE_WINDOW_KM);
+          if (nearbyHub && haversineDistance(lat, lng, nearbyHub.lat, nearbyHub.lng) <= HUB_OVERRIDE_WINDOW_KM) {
+            return Promise.resolve({ name: nearbyHub.name, lat: nearbyHub.lat, lng: nearbyHub.lng });
+          }
+
+          return reverseGeocodeWithGoogle(lat, lng, signal);
+        }),
+      );
+
+      for (let i = 0; i < transitDays.length; i++) {
+        const result = geocodeResults[i];
+        if (!result || signal.aborted) continue;
+
+        cacheDiscoveredHub({
+          name: result.name,
+          lat: result.lat,
+          lng: result.lng,
+          radius: 25,
+          poiCount: 1,
+          discoveredAt: new Date().toISOString(),
+          source: 'discovered',
+        });
+
+        results.push({
+          dayNumber: transitDays[i].dayNumber,
+          lat: result.lat,
+          lng: result.lng,
+          name: result.name,
+        });
+      }
+
+      if (results.length > 0) {
+        recordProviderEvent('poi', 'google', 'success', performance.now() - start);
+        return results;
+      }
+    } catch {
+      recordProviderEvent('poi', 'google', 'failure', performance.now() - start);
+      // fall through to Overpass
+    }
+  }
+
+  // ── Overpass fallback: batched settlement query ────────────────────────
+  return snapOvernightsWithOverpass(transitDays, signal);
+}
+
+/** Original Overpass-based overnight snapping logic. */
+async function snapOvernightsWithOverpass(
+  transitDays: TripDay[],
+  signal: AbortSignal,
+): Promise<SnappedOvernight[]> {
 
   const aroundFilters = transitDays
     .map(d => {
