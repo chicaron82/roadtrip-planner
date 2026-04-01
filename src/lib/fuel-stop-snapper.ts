@@ -1,6 +1,10 @@
 import type { StrategicFuelStop } from './calculations';
 import { executeOverpassQuery } from './poi-service/overpass';
+import type { OverpassElement } from './poi-service/types';
 import { haversineDistance } from './geo-utils';
+import { getActivePOIProvider } from './providers/provider-config';
+import { searchNearby, GOOGLE_POI_TYPES } from './providers/google/google-places-nearby';
+import { recordProviderEvent } from './providers/provider-telemetry';
 
 /** Search radius in metres — if no station within this distance, mark isRemote. */
 const SNAP_RADIUS_M = 3000;
@@ -11,6 +15,45 @@ const snappedStopCache = new Map<string, StrategicFuelStop>();
 function getCacheKey(lat: number, lng: number): string {
   // Round to ~100m precision (3 decimal places) to handle slight float fuzziness
   return `${lat.toFixed(3)},${lng.toFixed(3)}`;
+}
+
+/**
+ * Fetch fuel stations near a list of stops. Tries Google first, falls back to Overpass.
+ * Returns Overpass-shaped elements so the snap logic can stay unchanged.
+ */
+async function fetchFuelStations(stops: StrategicFuelStop[]): Promise<OverpassElement[]> {
+  const provider = getActivePOIProvider();
+  const start = performance.now();
+
+  if (provider === 'google') {
+    try {
+      const allPlaces = await Promise.all(
+        stops.map(s => searchNearby(s.lat, s.lng, SNAP_RADIUS_M, GOOGLE_POI_TYPES.gas, 5)),
+      );
+      const elements: OverpassElement[] = allPlaces.flat().map(p => ({
+        type: 'node' as const,
+        id: parseInt(p.id.replace(/\D/g, '').slice(0, 10)) || Math.random() * 1e9,
+        lat: p.lat,
+        lon: p.lng,
+        tags: { name: p.name, 'addr:city': p.address },
+      }));
+      recordProviderEvent('poi', 'google', 'success', performance.now() - start);
+      return elements;
+    } catch {
+      recordProviderEvent('poi', 'google', 'failure', performance.now() - start);
+      // fall through to Overpass
+    }
+  }
+
+  // Overpass fallback — batched union query
+  const aroundFilters = stops
+    .map(s => `  node(around:${SNAP_RADIUS_M},${s.lat},${s.lng})[amenity=fuel];`)
+    .join('\n');
+
+  const query = `[out:json][timeout:25];\n(\n${aroundFilters}\n);\nout body;`;
+  const elements = await executeOverpassQuery(query);
+  recordProviderEvent('poi', 'overpass', elements.length > 0 ? 'success' : 'failure', performance.now() - start);
+  return elements;
 }
 
 /**
@@ -54,18 +97,8 @@ export async function snapFuelStopsToStations(
     return result;
   }
 
-  // 2. Build one union query for only the UNCACHED stops
-  const aroundFilters = uncachedStops
-    .map(s => `  node(around:${SNAP_RADIUS_M},${s.lat},${s.lng})[amenity=fuel];`)
-    .join('\n');
-
-  const query = `[out:json][timeout:25];
-(
-${aroundFilters}
-);
-out body;`;
-
-  const elements = await executeOverpassQuery(query);
+  // 2. Fetch fuel stations near uncached stops
+  const elements = await fetchFuelStations(uncachedStops);
 
   // 3. Process uncached results and populate cache
   uncachedStops.forEach((stop, idx) => {

@@ -15,6 +15,17 @@ vi.mock('./poi-service/overpass', () => ({
   executeOverpassQuery: vi.fn(),
 }));
 
+// Force Overpass path in tests (no Google key in test env)
+vi.mock('./providers/provider-config', () => ({
+  getActivePOIProvider: () => 'overpass' as const,
+  hasGoogleKey: false,
+  GOOGLE_MAPS_KEY: '',
+  PROVIDER_URLS: {},
+  PROVIDER_CONFIG: { google: { timeoutMs: 10000 }, osrm: { durationCorrectionFactor: 0.85, timeoutMs: 15000 } },
+  getActiveGeocodingProvider: () => 'nominatim' as const,
+  getActiveRoutingProvider: () => 'osrm' as const,
+}));
+
 // Import SUT and mock reference after vi.mock declarations.
 import { searchPOIsAlongRoute, searchNearbyPOIs } from './poi';
 import { executeOverpassQuery } from './poi-service/overpass';

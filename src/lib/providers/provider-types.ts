@@ -7,7 +7,7 @@
  * 💚 My Experience Engine — Provider layer
  */
 
-export type ProviderName = 'google' | 'osrm' | 'nominatim' | 'photon';
+export type ProviderName = 'google' | 'osrm' | 'nominatim' | 'photon' | 'overpass';
 
 export interface GeocodingResult {
   id: string;

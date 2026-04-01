@@ -8,7 +8,7 @@
  * 💚 My Experience Engine — Provider telemetry
  */
 
-type EventType = 'geocoding' | 'routing';
+type EventType = 'geocoding' | 'routing' | 'poi';
 type Outcome = 'success' | 'failure';
 
 interface ProviderEvent {
@@ -33,7 +33,10 @@ export function recordProviderEvent(
   if (!w.__MEE_PROVIDERS__) w.__MEE_PROVIDERS__ = [];
   w.__MEE_PROVIDERS__.push(event);
 
+  const label = `[MEE provider] ${type} ${provider} ${outcome} in ${durationMs.toFixed(0)}ms`;
   if (outcome === 'failure') {
-    console.warn(`[MEE provider] ${type} ${provider} FAILED in ${durationMs.toFixed(0)}ms`);
+    console.warn(label);
+  } else {
+    console.info(label);
   }
 }

@@ -4,6 +4,9 @@ import { executeOverpassQuery } from './poi-service/overpass';
 import { estimateRouteDistanceKm, sampleRouteByKm } from './poi-service/geo';
 import { CATEGORY_TAG_QUERIES } from './poi-service/config';
 import type { OverpassElement } from './poi-service/types';
+import { getActivePOIProvider } from './providers/provider-config';
+import { searchNearby, GOOGLE_POI_TYPES } from './providers/google/google-places-nearby';
+import { recordProviderEvent } from './providers/provider-telemetry';
 
 interface NominatimResult {
     place_id: number;
@@ -33,25 +36,57 @@ const MARKER_CATEGORY_MAPPING: Record<POICategory, POISuggestionCategory[]> = {
 };
 
 /**
- * Search for POIs along a route corridor using Overpass API.
- * Returns map-marker POIs (the simpler POI type) scattered along the route.
- * Reuses the shared Overpass client (retries + backoff) and tag mappings
- * from poi-service to avoid duplicated config and rate-limit inconsistencies.
+ * Search for POIs along a route corridor.
+ * Primary: Google Nearby Search (if key available)
+ * Fallback: Overpass API with corridor sampling
  */
 export async function searchPOIsAlongRoute(
     routeGeometry: [number, number][],
     category: POICategory
 ): Promise<POI[]> {
-    try {
-        // Use corridor sampling instead of a flat bounding box — a bbox over a
-        // 700km route (e.g. WPG→TB) is too large and Overpass times out or hits
-        // maxsize, silently returning nothing. Around-circles at sampled points
-        // stay tight to the actual road and scale correctly for any route length.
-        const routeKm = estimateRouteDistanceKm(routeGeometry);
-        const stepKm = Math.max(30, routeKm / 15);
-        const radiusM = Math.round(Math.min(stepKm * 500 + 5000, 20000)); // 5–20km radius
-        const samples = sampleRouteByKm(routeGeometry, stepKm, 15);
+    const routeKm = estimateRouteDistanceKm(routeGeometry);
+    const stepKm = Math.max(30, routeKm / 15);
+    const radiusM = Math.round(Math.min(stepKm * 500 + 5000, 20000));
+    const samples = sampleRouteByKm(routeGeometry, stepKm, 15);
 
+    const provider = getActivePOIProvider();
+    const start = performance.now();
+
+    // ── Google primary ──────────────────────────────────────────────────
+    if (provider === 'google') {
+        try {
+            const googleTypes = MARKER_CATEGORY_MAPPING[category]
+                .flatMap(cat => GOOGLE_POI_TYPES[cat] ?? []);
+            if (googleTypes.length > 0) {
+                const allPlaces = await Promise.all(
+                    samples.map(([lat, lng]) => searchNearby(lat, lng, radiusM, googleTypes, 10)),
+                );
+                const seen = new Set<string>();
+                const pois: POI[] = allPlaces.flat()
+                    .filter(p => {
+                        if (!p.name || seen.has(p.id)) return false;
+                        seen.add(p.id);
+                        return true;
+                    })
+                    .map(p => ({
+                        id: `route-google-${p.id}`,
+                        name: p.name,
+                        lat: p.lat,
+                        lng: p.lng,
+                        category,
+                        address: p.address || undefined,
+                    }));
+                recordProviderEvent('poi', 'google', 'success', performance.now() - start);
+                return pois;
+            }
+        } catch {
+            recordProviderEvent('poi', 'google', 'failure', performance.now() - start);
+            // fall through to Overpass
+        }
+    }
+
+    // ── Overpass fallback ────────────────────────────────────────────────
+    try {
         const categories = MARKER_CATEGORY_MAPPING[category];
         const lines: string[] = [];
         for (const [lat, lng] of samples) {
@@ -72,6 +107,7 @@ ${lines.join('\n')}
         `.trim();
 
         const elements = await executeOverpassQuery(query);
+        recordProviderEvent('poi', 'overpass', 'success', performance.now() - start);
 
         return elements
             .map((el: OverpassElement) => {
@@ -79,7 +115,7 @@ ${lines.join('\n')}
                 const lng = el.lon || el.center?.lon;
                 if (!lat || !lng) return null;
                 const name = el.tags?.name || el.tags?.['name:en'];
-                if (!name) return null; // Skip unnamed POIs for map markers
+                if (!name) return null;
                 return {
                     id: `route-${el.type}-${el.id}`,
                     name,
@@ -91,16 +127,41 @@ ${lines.join('\n')}
             })
             .filter(Boolean) as POI[];
     } catch (error) {
+        recordProviderEvent('poi', 'overpass', 'failure', performance.now() - start);
         console.error(`Failed to fetch ${category} along route:`, error);
         return [];
     }
 }
 
 export async function searchNearbyPOIs(lat: number, lng: number, category: POICategory): Promise<POI[]> {
+    const provider = getActivePOIProvider();
+
+    // ── Google primary ──────────────────────────────────────────────────
+    if (provider === 'google') {
+        try {
+            const googleTypes = MARKER_CATEGORY_MAPPING[category]
+                .flatMap(cat => GOOGLE_POI_TYPES[cat] ?? []);
+            if (googleTypes.length > 0) {
+                const places = await searchNearby(lat, lng, 10_000, googleTypes, 10);
+                return places
+                    .filter(p => p.name)
+                    .map(p => ({
+                        id: p.id,
+                        name: p.name,
+                        lat: p.lat,
+                        lng: p.lng,
+                        category,
+                        address: p.address || undefined,
+                    }));
+            }
+        } catch {
+            // fall through to Nominatim
+        }
+    }
+
+    // ── Nominatim fallback ──────────────────────────────────────────────
     try {
         const query = CATEGORY_QUERIES[category];
-        // Bounding box roughly +/- 0.1 deg (~10km) around the point
-        // viewbox=<x1>,<y1>,<x2>,<y2>  (left,top,right,bottom)
         const offset = 0.05; 
         const viewbox = `${lng-offset},${lat+offset},${lng+offset},${lat-offset}`;
         

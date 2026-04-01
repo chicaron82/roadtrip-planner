@@ -31,6 +31,8 @@ export const PROVIDER_URLS = {
   // Google: new REST APIs with native CORS support.
   // Places API (New) — single-call search with coordinates.
   googlePlaces: 'https://places.googleapis.com/v1/places:searchText',
+  // Places Nearby Search — POI discovery by location + type.
+  googleNearby: 'https://places.googleapis.com/v1/places:searchNearby',
   // Routes API — CORS-friendly routing with encoded polylines.
   googleRoutes: 'https://routes.googleapis.com/directions/v2:computeRoutes',
 } as const;
@@ -60,4 +62,8 @@ export function getActiveGeocodingProvider(): 'google' | 'nominatim' {
 
 export function getActiveRoutingProvider(): 'google' | 'osrm' {
   return hasGoogleKey ? 'google' : 'osrm';
+}
+
+export function getActivePOIProvider(): 'google' | 'overpass' {
+  return hasGoogleKey ? 'google' : 'overpass';
 }
