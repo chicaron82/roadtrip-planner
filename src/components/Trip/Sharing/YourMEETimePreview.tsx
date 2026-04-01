@@ -14,7 +14,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { TemplateImportResult } from '../../../lib/url';
 import type { Location } from '../../../types';
-import { searchLocations } from '../../../lib/api-geocoding';
+import { searchLocations } from '../../../lib/api';
 import { LineageDisplay } from './LineageDisplay';
 import { WorkshopTitleInput } from '../../Workshop/WorkshopTitleInput';
 

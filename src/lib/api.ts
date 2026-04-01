@@ -1,15 +1,17 @@
 /**
  * api.ts — Public interface for all external API calls.
  *
- * Re-exports from focused modules:
- *   api-geocoding.ts  — Location search (Photon + Nominatim)
- *   api-routing.ts    — OSRM route fetching, strategy selection, border-corridor retry
+ * Re-exports from provider dispatchers:
+ *   providers/geocoding-provider  — Location search (Google → Nominatim → Photon)
+ *   providers/routing-provider    — Route calculation (Google → OSRM)
+ *
+ * Consumers should import from this barrel — never from adapters directly.
  */
 
-export { searchLocations } from './api-geocoding';
+export { searchLocations } from './providers/geocoding-provider';
 export {
   fetchRouteGeometry,
   calculateRoute,
   fetchAllRouteStrategies,
   fetchOSRMRoute,
-} from './api-routing';
+} from './providers/routing-provider';
