@@ -129,6 +129,7 @@ export function useJournal({
     setIsJournalComplete(false);
     setCompletionAcknowledged(false);
     setActiveJournalId(null);
+    setJournalSkipped(false); // un-skip if the user changes their mind
 
     try {
       const resolvedTitle = title || defaultTitle || undefined;
