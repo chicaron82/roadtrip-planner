@@ -10,6 +10,7 @@
  * 💚 My Experience Engine — Google POI adapter
  */
 
+import { makeProviderHttpError } from '../provider-types';
 import { GOOGLE_MAPS_KEY, PROVIDER_URLS, PROVIDER_CONFIG } from '../provider-config';
 
 /** Google Places type → app-friendly type mapping. */
@@ -91,7 +92,7 @@ export async function searchNearby(
     });
 
     if (!response.ok) {
-      throw new Error(`Nearby Search ${response.status}: ${response.statusText}`);
+      throw makeProviderHttpError(`Nearby Search ${response.status}: ${response.statusText}`, response.status);
     }
 
     const data: NearbyResponse = await response.json();

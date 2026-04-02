@@ -64,26 +64,6 @@ export const TRIP_CONSTANTS = {
   },
 
   /**
-   * OSRM routing corrections
-   *
-   * The public OSRM demo server uses conservative speed profiles that
-   * produce LONGER driving times than typical real-world travel — roughly
-   * 15% slower than Google Maps or what most drivers actually experience.
-   *
-   * Multiply raw OSRM durations by this factor (0.85) to bring them in
-   * line with real-world expectations.
-   *
-   * Example: OSRM says Winnipeg → Regina = 6h56m.
-   *          × 0.85 = 5h54m, close to Google Maps' ~5h50m.
-   *
-   * Calibrated against Google Maps for Canadian prairie / Trans-Canada
-   * routes. May need regional adjustment for mountainous or urban routes.
-   */
-  routing: {
-    osrmDurationFactor: 0.85,
-  },
-
-  /**
    * Stop suggestion and consolidation parameters
    *
    * These thresholds govern when fuel/meal/rest stops are placed along the route.

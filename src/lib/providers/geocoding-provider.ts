@@ -2,7 +2,7 @@
  * geocoding-provider.ts — Location search dispatcher.
  *
  * Primary: Google Places (New) if key available
- * Fallback: Nominatim → Photon chain
+ * Fallback: Nominatim
  *
  * Consumers call searchLocations() via the api.ts barrel.
  * Never import adapters directly.
@@ -11,8 +11,9 @@
  */
 
 import type { GeocodingResult } from './provider-types';
+import { isProviderHttpError } from './provider-types';
 import { getActiveGeocodingProvider } from './provider-config';
-import { searchWithNominatim, searchWithPhoton } from '../api-geocoding';
+import { searchWithNominatim } from '../api-geocoding';
 import { recordProviderEvent } from './provider-telemetry';
 
 // In-flight deduplication — same query never fires twice simultaneously
@@ -39,8 +40,9 @@ async function _search(query: string): Promise<GeocodingResult[]> {
       const results = await searchWithGoogle(query);
       recordProviderEvent('geocoding', 'google', 'success', performance.now() - start);
       if (results.length > 0) return results;
-    } catch {
-      recordProviderEvent('geocoding', 'google', 'failure', performance.now() - start);
+    } catch (err) {
+      const statusCode = isProviderHttpError(err) ? err.status : undefined;
+      recordProviderEvent('geocoding', 'google', 'failure', performance.now() - start, statusCode);
       // fall through to Nominatim
     }
   }
@@ -54,13 +56,5 @@ async function _search(query: string): Promise<GeocodingResult[]> {
     recordProviderEvent('geocoding', 'nominatim', 'failure', performance.now() - start);
   }
 
-  // ── Photon last resort ────────────────────────────────────────────────
-  try {
-    const results = await searchWithPhoton(query);
-    recordProviderEvent('geocoding', 'photon', 'success', performance.now() - start);
-    return results;
-  } catch {
-    recordProviderEvent('geocoding', 'photon', 'failure', performance.now() - start);
-    return [];
-  }
+  return [];
 }

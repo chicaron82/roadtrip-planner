@@ -22,9 +22,6 @@ export const PROVIDER_URLS = {
   // Direct browser requests to Nominatim are blocked (CORS).
   nominatim: 'https://nominatim-proxy.aaronsauddin.workers.dev',
 
-  // Photon: fuzzy/typo-tolerant fallback. Missing major Canadian cities.
-  photon: 'https://photon.komoot.io',
-
   // OSRM: public OSM routing server. CORS-friendly, no SLA.
   osrm: 'https://routing.openstreetmap.de/routed-car',
 

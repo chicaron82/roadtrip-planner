@@ -17,6 +17,7 @@ interface ProviderEvent {
   outcome: Outcome;
   durationMs: number;
   timestamp: number;
+  statusCode?: number;
 }
 
 export function recordProviderEvent(
@@ -24,16 +25,18 @@ export function recordProviderEvent(
   provider: string,
   outcome: Outcome,
   durationMs: number,
+  statusCode?: number,
 ): void {
   if (!import.meta.env.DEV) return;
 
-  const event: ProviderEvent = { type, provider, outcome, durationMs, timestamp: Date.now() };
+  const event: ProviderEvent = { type, provider, outcome, durationMs, timestamp: Date.now(), statusCode };
 
   const w = window as unknown as { __MEE_PROVIDERS__?: ProviderEvent[] };
   if (!w.__MEE_PROVIDERS__) w.__MEE_PROVIDERS__ = [];
   w.__MEE_PROVIDERS__.push(event);
 
-  const label = `[MEE provider] ${type} ${provider} ${outcome} in ${durationMs.toFixed(0)}ms`;
+  const statusSuffix = statusCode != null ? ` [HTTP ${statusCode}]` : '';
+  const label = `[MEE provider] ${type} ${provider} ${outcome} in ${durationMs.toFixed(0)}ms${statusSuffix}`;
   if (outcome === 'failure') {
     console.warn(label);
   } else {

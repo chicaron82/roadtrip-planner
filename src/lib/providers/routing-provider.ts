@@ -5,7 +5,7 @@
  * Fallback: OSRM (routing.openstreetmap.de)
  *
  * CRITICAL: Duration correction is provider-specific.
- *   OSRM: × 0.85 (applied inside fetchOSRMRoute, kept there for now)
+ *   OSRM: × 0.85 (PROVIDER_CONFIG.osrm.durationCorrectionFactor, applied in api-routing.ts)
  *   Google: × 1.0 (accurate natively — no correction)
  *
  * fetchRouteGeometry and fetchAllRouteStrategies remain OSRM-only for now.
@@ -15,6 +15,7 @@
  */
 
 import type { Location, RouteSegment, RouteStrategy } from '../../types';
+import { isProviderHttpError } from './provider-types';
 import { getActiveRoutingProvider } from './provider-config';
 import {
   calculateRoute as osrmCalculateRoute,
@@ -45,8 +46,9 @@ export async function calculateRoute(
         recordProviderEvent('routing', 'google', 'success', performance.now() - start);
         return result;
       }
-    } catch {
-      recordProviderEvent('routing', 'google', 'failure', performance.now() - start);
+    } catch (err) {
+      const statusCode = isProviderHttpError(err) ? err.status : undefined;
+      recordProviderEvent('routing', 'google', 'failure', performance.now() - start, statusCode);
       // fall through to OSRM
     }
   }

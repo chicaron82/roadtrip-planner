@@ -10,6 +10,7 @@
  */
 
 import type { Location, RouteSegment } from '../../../types';
+import { makeProviderHttpError } from '../provider-types';
 import { GOOGLE_MAPS_KEY, PROVIDER_URLS, PROVIDER_CONFIG } from '../provider-config';
 
 /** Fields to request — minimise billing. */
@@ -117,7 +118,7 @@ export async function routeWithGoogle(
     });
 
     if (!response.ok) {
-      throw new Error(`Routes API ${response.status}: ${response.statusText}`);
+      throw makeProviderHttpError(`Routes API ${response.status}: ${response.statusText}`, response.status);
     }
 
     const data: RoutesResponse = await response.json();

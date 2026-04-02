@@ -10,6 +10,7 @@
  */
 
 import type { GeocodingResult } from '../provider-types';
+import { makeProviderHttpError } from '../provider-types';
 import { GOOGLE_MAPS_KEY, PROVIDER_URLS, PROVIDER_CONFIG } from '../provider-config';
 
 /** Bounding bias: North America (Canada + USA). */
@@ -59,7 +60,7 @@ export async function searchWithGoogle(query: string): Promise<GeocodingResult[]
     });
 
     if (!response.ok) {
-      throw new Error(`Places API ${response.status}: ${response.statusText}`);
+      throw makeProviderHttpError(`Places API ${response.status}: ${response.statusText}`, response.status);
     }
 
     const data: PlacesResponse = await response.json();

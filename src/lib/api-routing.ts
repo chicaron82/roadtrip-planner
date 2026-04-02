@@ -14,7 +14,7 @@ import {
   insertGuardWaypoints,
   shouldTryLakeSuperiorCorridor,
 } from './border-avoidance';
-import { TRIP_CONSTANTS } from './trip-constants';
+import { PROVIDER_CONFIG } from './providers/provider-config';
 
 // ==================== ROUTING BASE URL ====================
 
@@ -274,8 +274,8 @@ export async function fetchOSRMRoute(
             distanceKm: leg.distance / 1000,
             // OSRM defaults to very conservative speeds. Apply a correction factor
             // to align closer with real-world Google Maps estimates.
-            // Factor is defined in TRIP_CONSTANTS.routing.osrmDurationFactor.
-            durationMinutes: (leg.duration / 60) * TRIP_CONSTANTS.routing.osrmDurationFactor,
+            // Factor is defined in PROVIDER_CONFIG.osrm.durationCorrectionFactor.
+            durationMinutes: (leg.duration / 60) * PROVIDER_CONFIG.osrm.durationCorrectionFactor,
             fuelNeededLitres: 0, // Calculated later
             fuelCost: 0, // Calculated later
         });

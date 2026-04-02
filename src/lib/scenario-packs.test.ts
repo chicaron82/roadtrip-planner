@@ -16,6 +16,7 @@ import { calculateTripCosts, calculateArrivalTimes } from './calculations';
 import { splitTripByDays, calculateCostBreakdown } from './budget';
 import type { RouteSegment, Vehicle } from '../types';
 import { makeSettings } from '../test/fixtures';
+import { PROVIDER_CONFIG } from './providers/provider-config';
 import { TRIP_CONSTANTS } from './trip-constants';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -142,7 +143,7 @@ function planTrip(
   // Apply OSRM correction to segment durations (matches real pipeline)
   const correctedSegments = summary.segments.map(s => ({
     ...s,
-    durationMinutes: Math.round(s.durationMinutes * TRIP_CONSTANTS.routing.osrmDurationFactor),
+    durationMinutes: Math.round(s.durationMinutes * PROVIDER_CONFIG.osrm.durationCorrectionFactor),
   }));
 
   const timed = calculateArrivalTimes(
