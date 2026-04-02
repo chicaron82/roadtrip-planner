@@ -47,6 +47,7 @@ export interface TripTimelineViewProps {
   tripMode: TripMode;
   onStartJournal: (title?: string) => void;
   onSkipJournal?: () => void;
+  onAbandonJournal?: () => void;
   onUpdateJournal: (journal: TripJournal) => void;
   /** Propagated up from ItineraryTimeline — saved back into the journal so overrides survive refresh. */
   onStopOverridesChange?: (overrides: StopOverrides) => void;
@@ -85,6 +86,7 @@ export function TripTimelineView({
   tripMode,
   onStartJournal,
   onSkipJournal,
+  onAbandonJournal,
   onUpdateJournal,
   onStopOverridesChange,
   onUpdateStopType,
@@ -173,6 +175,7 @@ export function TripTimelineView({
               settings={settings}
               journal={activeJournal}
               onUpdateJournal={onUpdateJournal}
+              onAbandonJournal={onAbandonJournal}
             />
           </Suspense>
         ) : (

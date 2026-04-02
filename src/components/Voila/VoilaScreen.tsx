@@ -45,6 +45,7 @@ interface VoilaScreenProps {
   feasibility?: FeasibilityResult;
   onEditTrip: () => void;
   onLockIn: () => void;
+  onSkipJournal?: () => void;
   onShare: () => void;
   onViewFullDetails?: () => void;
   /** Active journal context — enables "return to journal" affordance. */
@@ -55,7 +56,7 @@ interface VoilaScreenProps {
 export function VoilaScreen({
   summary, settings, locations, customTitle,
   printInput, precomputedEvents, feasibility,
-  onEditTrip, onLockIn, onShare, onViewFullDetails,
+  onEditTrip, onLockIn, onSkipJournal, onShare, onViewFullDetails,
   activeJournalSummary, onReturnToJournal,
 }: VoilaScreenProps) {
   const [activeDetail, setActiveDetail] = useState<DetailCard | null>(null);
@@ -77,6 +78,11 @@ export function VoilaScreen({
   const handleLockIn = useCallback(() => {
     setLockInActive(true);
   }, []);
+
+  const handleSkipAndLockIn = useCallback(() => {
+    onSkipJournal?.();
+    setLockInActive(true);
+  }, [onSkipJournal]);
 
   const handleLockInComplete = useCallback(() => {
     setLockInActive(false);
@@ -360,6 +366,25 @@ export function VoilaScreen({
               </button>
             )}
           </div>
+
+          {!activeJournalSummary && onSkipJournal && (
+            <button
+              onClick={handleSkipAndLockIn}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontFamily: '"DM Mono", monospace',
+                fontSize: 11,
+                color: 'rgba(245, 240, 232, 0.3)',
+                letterSpacing: '0.06em',
+                textAlign: 'center',
+                padding: '2px 0 4px',
+              }}
+            >
+              No thanks, skip journal
+            </button>
+          )}
         </div>
 
         {/* Tier A — Itinerary detail */}

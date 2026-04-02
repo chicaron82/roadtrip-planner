@@ -69,6 +69,7 @@ export interface Step3ViewerModel {
   tripMode: TripMode;
   onStartJournal: (title?: string) => void;
   onSkipJournal?: () => void;
+  onAbandonJournal?: () => void;
   onUpdateJournal: (journal: TripJournal) => void;
   onUpdateStopType: (segmentIndex: number, stopType: StopType) => void;
   onUpdateDayNotes: (dayNumber: number, notes: string) => void;
@@ -211,6 +212,7 @@ interface BuildStep3ViewerModelOptions {
   onConfirmJournalComplete?: () => void;
   onStartJournal: (title?: string) => void;
   onSkipJournal?: () => void;
+  onAbandonJournal?: () => void;
   onUpdateJournal: (journal: TripJournal) => void;
   onUpdateStopType: (segmentIndex: number, stopType: StopType) => void;
   onUpdateDayNotes: (dayNumber: number, notes: string) => void;

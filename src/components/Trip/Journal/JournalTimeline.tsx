@@ -19,9 +19,11 @@ interface JournalTimelineProps {
   hideFloatingAdd?: boolean;
   /** Seal the journal as a read-only souvenir. */
   onFinalize?: () => void;
+  /** Abandon the journal mid-trip — skips journaling and returns to itinerary. */
+  onAbandonJournal?: () => void;
 }
 
-export function JournalTimeline({ summary, settings, journal, onUpdateJournal, className, hideFloatingAdd, onFinalize }: JournalTimelineProps) {
+export function JournalTimeline({ summary, settings, journal, onUpdateJournal, className, hideFloatingAdd, onFinalize, onAbandonJournal }: JournalTimelineProps) {
   const {
     startTime,
     originTimezone,
@@ -195,6 +197,26 @@ export function JournalTimeline({ summary, settings, journal, onUpdateJournal, c
         formatTime={formatTime}
         formatDate={formatDate}
       />
+
+      {/* Quiet bail-out — lets mid-trip users skip journaling without finishing */}
+      {!isFinalized && onAbandonJournal && (
+        <div style={{ textAlign: 'center', paddingTop: 4 }}>
+          <button
+            onClick={onAbandonJournal}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontFamily: '"DM Mono", monospace',
+              fontSize: 11,
+              color: 'hsl(var(--muted-foreground) / 0.4)',
+              letterSpacing: '0.04em',
+            }}
+          >
+            Not feeling it →
+          </button>
+        </div>
+      )}
 
       {/* Trip Complete — rich recap souvenir */}
       {visitedCount === totalStops && (

@@ -75,6 +75,7 @@ export function TripViewer({
   externalStops,
   onStartJournal,
   onSkipJournal,
+  onAbandonJournal,
   onUpdateJournal,
   onUpdateStopType,
   onUpdateDayNotes,
@@ -109,6 +110,7 @@ export function TripViewer({
       tripMode={tripMode}
       onStartJournal={onStartJournal}
       onSkipJournal={onSkipJournal}
+      onAbandonJournal={onAbandonJournal}
       onUpdateJournal={onUpdateJournal}
       onUpdateStopType={onUpdateStopType}
       onUpdateDayNotes={onUpdateDayNotes}

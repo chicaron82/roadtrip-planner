@@ -57,6 +57,7 @@ export interface UseStep3ControllerOptions {
   onConfirmJournalComplete?: () => void;
   onStartJournal: (title?: string) => void;
   onSkipJournal?: () => void;
+  onAbandonJournal?: () => void;
   onUpdateJournal: (journal: TripJournal) => void;
   onUpdateStopType: (segmentIndex: number, stopType: StopType) => void;
   onDismissOvernight: () => void;

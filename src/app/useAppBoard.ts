@@ -76,6 +76,7 @@ export interface AppBoardInputs {
   handleCloseShareScreen: () => void;
   handleVoilaEdit: () => void;
   handleVoilaLockIn: () => void;
+  handleSkipJournal: () => void;
   handleGoHome: () => void;
   handleViewFullDetails: () => void;
   handleFinalizeJournal: () => void;
@@ -139,6 +140,7 @@ export interface AppBoardCommands {
   closeShareScreen: () => void;
   editVoila: () => void;
   lockInVoila: () => void;
+  skipJournal: () => void;
   viewFullDetails: () => void;
   goHome: () => void;
   finalizeJournal: () => void;
@@ -177,6 +179,7 @@ export function useAppBoard(inputs: AppBoardInputs): AppBoard {
       closeShareScreen: inputs.handleCloseShareScreen,
       editVoila: inputs.handleVoilaEdit,
       lockInVoila: inputs.handleVoilaLockIn,
+      skipJournal: inputs.handleSkipJournal,
       viewFullDetails: inputs.handleViewFullDetails,
       goHome: inputs.handleGoHome,
       finalizeJournal: inputs.handleFinalizeJournal,

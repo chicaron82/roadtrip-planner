@@ -65,6 +65,7 @@ export function usePlannerWiring(i: AppWiringInputs): PlannerWiringOutput {
     viewMode: i.journal.viewMode, setViewMode: i.journal.setViewMode,
     activeJournal: i.journal.activeJournal, isJournalComplete: i.journal.isJournalComplete,
     showCompleteOverlay: i.journal.showCompleteOverlay, startJournal: i.journal.startJournal, skipJournal: i.journal.skipJournal,
+    abandonJournal: () => { i.journal.skipJournal(); i.journal.clearJournal(); i.journal.setViewMode('plan'); },
     updateActiveJournal: i.journal.updateActiveJournal, confirmJournalComplete: i.journal.confirmComplete,
     tripConfirmed: i.session.tripConfirmed, setTripConfirmed: i.session.setTripConfirmed,
     history: i.session.history,

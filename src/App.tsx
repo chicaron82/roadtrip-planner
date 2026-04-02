@@ -191,7 +191,7 @@ function AppContent() {
   useEffect(() => {
     if (!tripConfirmed || !summary) return;
     if (isJournalComplete) return;                   // trip finished — never restart
-    if (journalSkipped) return;                      // user explicitly opted out
+    if (journalSkipped) { dismissVoilaCurtain(); return; }  // user opted out — still drop the curtain
     if (activeJournal) return;                       // in-progress — don't override
     if (isJournalLoading) return;                    // creation already in flight
     // Seeded title: deterministic from destination + days + travelers.

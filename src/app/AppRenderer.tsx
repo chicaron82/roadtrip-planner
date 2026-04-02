@@ -55,6 +55,7 @@ export function AppRenderer({
           {...board.voilaProps}
           onEditTrip={board.commands.editVoila}
           onLockIn={board.commands.lockInVoila}
+          onSkipJournal={board.commands.skipJournal}
           onShare={board.commands.openShareScreen}
           onViewFullDetails={board.commands.viewFullDetails}
           activeJournalSummary={board.journalAtAGlanceProps.activeJournal ? {

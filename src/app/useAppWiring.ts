@@ -42,6 +42,7 @@ export function useAppWiring(i: AppWiringInputs): AppWiringOutput {
     showVoila: i.voila.showVoila, showShareScreen: i.voila.showShareScreen,
     handleOpenShareScreen: i.voila.handleOpenShareScreen, handleCloseShareScreen: i.voila.handleCloseShareScreen,
     handleVoilaEdit: i.voila.handleVoilaEdit, handleVoilaLockIn: i.voila.handleVoilaLockIn,
+    handleSkipJournal: i.journal.skipJournal,
     handleGoHome: i.voila.handleGoHome, handleViewFullDetails: i.voila.handleViewFullDetails,
     handleFinalizeJournal: i.journal.finalizeJournal,
     handleStartFresh: () => { i.session.resetTripSession(); i.voila.handleGoHome(); },
