@@ -21,6 +21,7 @@ interface UseSessionLifecycleOptions {
   clearStops: () => void;
   clearTripCalculation: () => void;
   clearJournal?: () => void;
+  setCustomTitle?: (title: string | null) => void;
   calculateAndDiscover: () => Promise<void>;
   forceStep: (step: 1 | 2 | 3) => void;
   markStepComplete: (step: number) => void;
@@ -42,6 +43,7 @@ export function useSessionLifecycle({
   clearStops,
   clearTripCalculation,
   clearJournal,
+  setCustomTitle,
   calculateAndDiscover,
   forceStep,
   markStepComplete,
@@ -116,8 +118,9 @@ export function useSessionLifecycle({
       setTripOrigin,
       setTripConfirmed,
       clearJournal,
+      setCustomTitle,
     });
-  }, [setLocations, clearTripCalculation, resetPOIs, clearStops, resetWizard, setActiveChallenge, setTripOrigin, setTripConfirmed, clearJournal]);
+  }, [setLocations, clearTripCalculation, resetPOIs, clearStops, resetWizard, setActiveChallenge, setTripOrigin, setTripConfirmed, clearJournal, setCustomTitle]);
 
   const selectTripMode = useCallback((mode: TripMode) => {
     resetAppAndSelectTripMode({

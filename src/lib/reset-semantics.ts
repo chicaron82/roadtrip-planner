@@ -15,6 +15,7 @@ interface ResetTripSessionParams {
   setTripOrigin: (origin: TripOrigin | null) => void;
   setTripConfirmed: (value: boolean) => void;
   clearJournal?: () => void;
+  setCustomTitle?: (title: string | null) => void;
 }
 
 interface SelectTripModeParams {
@@ -40,6 +41,7 @@ export function resetTripSession({
   setTripOrigin,
   setTripConfirmed,
   clearJournal,
+  setCustomTitle,
 }: ResetTripSessionParams): void {
   resetTripPlanningInputs(setLocations);
   clearTripCalculation();
@@ -50,6 +52,7 @@ export function resetTripSession({
   setTripOrigin(null);
   setTripConfirmed(false);
   clearJournal?.();
+  setCustomTitle?.(null);
   clearActiveSession();
   clearSessionPhase();
 }

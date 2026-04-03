@@ -146,7 +146,7 @@ function AppContent() {
   const { history, hasActiveSession, lastDestination, resetTripSession, selectTripMode, restoreHistoryTripSession } = useSessionLifecycle({
     locations, settings, tripConfirmed,
     setLocations, setSettings, setTripConfirmed, setTripMode, setShowAdventureMode,
-    setActiveChallenge, setTripOrigin, resetPOIs, resetWizard, clearStops, clearTripCalculation, clearJournal,
+    setActiveChallenge, setTripOrigin, resetPOIs, resetWizard, clearStops, clearTripCalculation, clearJournal, setCustomTitle,
     calculateAndDiscover, forceStep, markStepComplete,
   });
 
