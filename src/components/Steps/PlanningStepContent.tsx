@@ -26,6 +26,7 @@ interface PlanningStepContentProps {
   onTemplateLoaded?: (r: TemplateImportResult) => void;
   templateRecommendations?: TemplateImportResult['meta']['recommendations'];
   // Step 2
+  onAvoidBordersToggle?: () => void;
   activePreset: StylePreset;
   presetOptions: StylePreset[];
   onPresetChange: (p: StylePreset) => void;
@@ -58,6 +59,7 @@ export function PlanningStepContent(p: PlanningStepContentProps) {
         onPresetChange={p.onPresetChange}
         onSharePreset={p.onSharePreset}
         shareJustCopied={p.shareJustCopied}
+        onAvoidBordersToggle={p.onAvoidBordersToggle}
       />
     );
   }

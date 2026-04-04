@@ -22,6 +22,7 @@ interface Step2ContentProps {
   onPresetChange: (preset: StylePreset) => void;
   onSharePreset: () => void;
   shareJustCopied?: boolean;
+  onAvoidBordersToggle?: () => void;
 }
 
 export function Step2Content({
@@ -35,6 +36,7 @@ export function Step2Content({
   onPresetChange,
   onSharePreset,
   shareJustCopied,
+  onAvoidBordersToggle,
 }: Step2ContentProps) {
   // Derived summaries for collapsed section chips
   const numRooms = settings.numRooms ?? Math.ceil(settings.numTravelers / 2);
@@ -139,6 +141,7 @@ export function Step2Content({
           onPresetChange={onPresetChange}
           onSharePreset={onSharePreset}
           shareJustCopied={shareJustCopied}
+          onAvoidBordersToggle={onAvoidBordersToggle}
         />
       </CollapsibleSection>
     </div>

@@ -100,6 +100,14 @@ export function usePlanningStepProps(o: UsePlanningStepPropsOptions): PlanningSt
     setTimeout(() => o.calculateAndDiscover(), 0);
   }, [o]);
 
+  // Toggle avoidBorders and re-run if a trip is already calculated.
+  // Only recalculates when summary exists — if the user hasn't built yet,
+  // the toggle just stages the setting for the upcoming calculation.
+  const handleAvoidBordersToggle = useCallback(() => {
+    o.setSettings(prev => ({ ...prev, avoidBorders: !prev.avoidBorders }));
+    if (o.summary) setTimeout(() => o.calculateAndDiscover(), 0);
+  }, [o]);
+
   const step3Controller = useStep3Controller({
     summary: o.summary,
     settings: o.settings,
@@ -155,6 +163,7 @@ export function usePlanningStepProps(o: UsePlanningStepPropsOptions): PlanningSt
     onPresetChange: o.handlePresetChange,
     onSharePreset: o.handleSharePreset,
     shareJustCopied: o.shareJustCopied,
+    onAvoidBordersToggle: handleAvoidBordersToggle,
     step3Props: {
       controller: step3Controller,
       history: o.history,

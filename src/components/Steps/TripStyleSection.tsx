@@ -14,6 +14,7 @@ interface TripStyleSectionProps {
   shareJustCopied?: boolean;
   /** Suppresses the first section's border-t/pt-4 and its heading. */
   headless?: boolean;
+  onAvoidBordersToggle?: () => void;
 }
 
 export function TripStyleSection({
@@ -26,6 +27,7 @@ export function TripStyleSection({
   onSharePreset,
   shareJustCopied,
   headless = false,
+  onAvoidBordersToggle,
 }: TripStyleSectionProps) {
   return (
     <>
@@ -40,7 +42,9 @@ export function TripStyleSection({
 
         {/* Avoid Borders Toggle */}
         <button
-          onClick={() => setSettings((prev) => ({ ...prev, avoidBorders: !prev.avoidBorders }))}
+          onClick={() => onAvoidBordersToggle
+            ? onAvoidBordersToggle()
+            : setSettings(prev => ({ ...prev, avoidBorders: !prev.avoidBorders }))}
           className={`w-full mb-4 p-3 rounded-lg border-2 transition-all text-left flex items-center gap-3 ${
             settings.avoidBorders
               ? 'border-red-500/40 bg-red-500/10'
