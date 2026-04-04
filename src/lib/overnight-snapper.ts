@@ -4,7 +4,7 @@ import { cacheDiscoveredHub, findPreferredHubInWindow } from './hub-cache';
 import { haversineDistance } from './geo-utils';
 import { reverseGeocodeTown } from './route-geocoder';
 import { getActivePOIProvider } from './providers/provider-config';
-import { reverseGeocodeWithGoogle } from './providers/google/google-reverse-geocode';
+import { findNearbyTownWithGoogle } from './providers/google/google-geocoding';
 import { recordProviderEvent } from './providers/provider-telemetry';
 
 /**
@@ -74,7 +74,7 @@ export async function snapOvernightsToTowns(
             return Promise.resolve({ name: nearbyHub.name, lat: nearbyHub.lat, lng: nearbyHub.lng });
           }
 
-          return reverseGeocodeWithGoogle(lat, lng, signal);
+          return findNearbyTownWithGoogle(lat, lng, signal);
         }),
       );
 
