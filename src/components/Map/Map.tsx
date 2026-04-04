@@ -1,15 +1,14 @@
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import type { Location, POI, MarkerCategory, RouteSegment, TripDay } from '../../types';
+import type { Location, RouteSegment, TripDay } from '../../types';
 import type { StrategicFuelStop } from '../../lib/calculations';
 import type { FeasibilityStatus } from '../../lib/feasibility';
 import { formatDuration, formatDistance } from '../../lib/calculations';
 import { AnimatedPolyline } from './AnimatedPolyline';
-import { POIPopup, type PopupDayOption } from './POIPopup';
 import { DayRouteLayer } from './DayRouteLayer';
 import { FuelStopLayer } from './FuelStopLayer';
 import { TILE_LAYERS, type TileStyle, PREVIEW_LINE_COLOR, FEASIBILITY_LINE_COLOR, DEFAULT_ROUTE_COLOR, weatherEmoji } from './map-constants';
-import { createCustomIcon, createAddedIcon, createDeclaredWaypointIcon, createPassiveWaypointIcon } from './map-icons';
+import { createCustomIcon, createDeclaredWaypointIcon, createPassiveWaypointIcon } from './map-icons';
 import { MapUpdater, MapClickHandler } from './MapHelpers';
 import { FlyoverTrigger } from './FlyoverTrigger';
 import { findNearestSegment } from './map-utils';
@@ -27,13 +26,8 @@ interface MapProps {
   locations: Location[];
   routeGeometry: [number, number][] | null;
   tripActive: boolean;
-  pois: POI[];
-  markerCategories: MarkerCategory[];
   strategicFuelStops?: StrategicFuelStop[];
-  addedPOIIds?: Set<string>;
-  dayOptions?: PopupDayOption[];
   onMapClick?: (lat: number, lng: number) => void;
-  onAddPOI?: (poi: POI, afterSegmentIndex?: number) => void;
   previewGeometry?: [number, number][] | null;
   tripMode?: string;
   feasibilityStatus?: FeasibilityStatus | null;
@@ -50,15 +44,15 @@ interface MapProps {
 }
 
 export function Map({
-  locations, routeGeometry, pois, markerCategories, strategicFuelStops = [],
-  addedPOIIds, dayOptions, onMapClick, onAddPOI, previewGeometry, tripMode,
+  locations, routeGeometry, strategicFuelStops = [],
+  onMapClick, previewGeometry, tripMode,
   feasibilityStatus, alternateGeometries, tripDays, routeSegments, routeTotals,
   units = 'metric', adventurePreview, flyoverActive, onFlyoverComplete,
 }: MapProps) {
   const {
     tileStyle, setTileStyle,
     clickedSegment, setClickedSegment,
-    isMultiDay, getDetourMinutes,
+    isMultiDay,
     markerPhase,
   } = useMapPresentationModel({ routeGeometry, tripDays });
 
@@ -214,28 +208,6 @@ export function Map({
             </Popup>
           </Marker>
         ))}
-
-        {/* POI Markers — phase 3 */}
-        {markerPhase >= 3 && pois.map((poi) => {
-          const category = markerCategories.find(c => c.id === poi.category);
-          if (!category || !category.visible) return null;
-          const isAdded = addedPOIIds?.has(poi.id) ?? false;
-          return (
-            <Marker key={poi.id} position={[poi.lat, poi.lng]} icon={isAdded ? createAddedIcon(category.emoji) : createCustomIcon(poi.category, category.color.replace('bg-', ''), category.emoji)}>
-              <Popup className="font-sans">
-                {onAddPOI ? (
-                  <POIPopup poi={poi} category={category} isAdded={isAdded} detourMinutes={getDetourMinutes(poi)} dayOptions={dayOptions} onAdd={onAddPOI} />
-                ) : (
-                  <div className="p-1 text-center">
-                    <div className="text-xl mb-1">{category.emoji}</div>
-                    <strong>{poi.name}</strong>
-                    {poi.address && <div className="text-xs text-muted-foreground mt-1 max-w-[200px] truncate">{poi.address}</div>}
-                  </div>
-                )}
-              </Popup>
-            </Marker>
-          );
-        })}
 
         {/* Strategic Fuel Stop Markers — phase 2 */}
         {markerPhase >= 2 && <FuelStopLayer stops={strategicFuelStops} />}

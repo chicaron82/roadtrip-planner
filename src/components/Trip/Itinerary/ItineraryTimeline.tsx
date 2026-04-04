@@ -1,12 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Sparkles } from 'lucide-react';
-import type { TripSettings, Vehicle, StopType, TripDay, DayType, Activity, DayOption, OvernightStop, POISuggestion } from '../../../types';
+import type { TripSettings, Vehicle, StopType, TripDay, DayType, Activity, DayOption, OvernightStop } from '../../../types';
 import { SmartSuggestions } from './SmartSuggestions';
 import { SuggestedStopCard } from './SuggestedStopCard';
 import { DriverStatsPanel } from './DriverStatsPanel';
 import { useTimelineData, type StopOverrides, type UseTimelineDataResult } from './useTimelineData';
 import { TripHeaderSummary } from './TripHeaderSummary';
-import { DestinationDiscovery } from '../Discovery/DestinationDiscovery';
 import { TimelineDialogs, type EditingDayActivity } from './TimelineDialogs';
 import type { SuggestedStop } from '../../../lib/stop-suggestions';
 import { ItineraryTimelineBody } from './ItineraryTimelineBody';
@@ -34,12 +33,6 @@ interface ItineraryTimelineProps {
   onRemoveDayOption?: (dayNumber: number, optionIndex: number) => void;
   onSelectDayOption?: (dayNumber: number, optionIndex: number) => void;
   onUpdateOvernight?: (dayNumber: number, overnight: OvernightStop) => void;
-  poiSuggestions?: POISuggestion[];
-  isLoadingPOIs?: boolean;
-  poiPartialResults?: boolean;
-  poiFetchFailed?: boolean;
-  onAddPOI?: (poiId: string, segmentIndex?: number) => void;
-  onDismissPOI?: (poiId: string) => void;
   externalStops?: SuggestedStop[];
   initialStopOverrides?: StopOverrides;
   onStopOverridesChange?: (overrides: StopOverrides) => void;
@@ -52,12 +45,6 @@ interface ItineraryTimelineContentProps {
   settings: TripSettings;
   vehicle?: Vehicle;
   days?: TripDay[];
-  poiSuggestions?: POISuggestion[];
-  isLoadingPOIs?: boolean;
-  poiPartialResults?: boolean;
-  poiFetchFailed?: boolean;
-  onAddPOI?: (poiId: string, segmentIndex?: number) => void;
-  onDismissPOI?: (poiId: string) => void;
   timelineData: UseTimelineDataResult;
 }
 
@@ -67,12 +54,6 @@ export function ItineraryTimelineContent({
   summary,
   settings,
   days,
-  poiSuggestions,
-  isLoadingPOIs,
-  poiPartialResults,
-  poiFetchFailed,
-  onAddPOI,
-  onDismissPOI,
   timelineData,
 }: ItineraryTimelineContentProps) {
   const {
@@ -208,18 +189,6 @@ export function ItineraryTimelineContent({
         <DriverStatsPanel stats={driverRotation.stats} driverNames={settings.driverNames} />
       )}
 
-      {onAddPOI && onDismissPOI && (poiSuggestions?.length || isLoadingPOIs || poiFetchFailed) && (
-        <DestinationDiscovery
-          summary={summary}
-          poiSuggestions={poiSuggestions}
-          isLoadingPOIs={isLoadingPOIs}
-          poiPartialResults={poiPartialResults}
-          poiFetchFailed={poiFetchFailed}
-          onAddPOI={onAddPOI}
-          onDismissPOI={onDismissPOI}
-        />
-      )}
-
       <TimelineDialogs
         editingActivity={editingActivity}
         setEditingActivity={setEditingActivity}
@@ -251,12 +220,6 @@ export function ItineraryTimeline({
   onRemoveDayOption,
   onSelectDayOption,
   onUpdateOvernight,
-  poiSuggestions,
-  isLoadingPOIs,
-  poiPartialResults,
-  poiFetchFailed,
-  onAddPOI,
-  onDismissPOI,
   externalStops,
   initialStopOverrides,
   onStopOverridesChange,
@@ -293,12 +256,6 @@ export function ItineraryTimeline({
         settings={settings}
         vehicle={vehicle}
         days={days}
-        poiSuggestions={poiSuggestions}
-        isLoadingPOIs={isLoadingPOIs}
-        poiPartialResults={poiPartialResults}
-        poiFetchFailed={poiFetchFailed}
-        onAddPOI={onAddPOI}
-        onDismissPOI={onDismissPOI}
         timelineData={timelineData}
       />
     </ItineraryEditProvider>

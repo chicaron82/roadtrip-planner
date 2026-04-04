@@ -45,9 +45,7 @@ function AppContent() {
   } = useStylePreset({ setSettings });
 
   const {
-    pois, markerCategories, loadingCategory, poiSuggestions, poiInference, isLoadingPOIs,
-    poiPartialResults, poiFetchFailed,
-    error: poiError, toggleCategory, addPOI, dismissPOI,
+    poiSuggestions, poiInference,
     clearError: clearPOIError, resetPOIs,
   } = usePOI({
     routeGeometry: summary?.fullGeometry,
@@ -58,7 +56,7 @@ function AppContent() {
     roundTripMidpoint: summary?.roundTripMidpoint,
   });
 
-  const { addedStops, addedPOIIds, addStop, clearStops, asSuggestedStops, externalStops } =
+  const { addedStops, addStop, clearStops, asSuggestedStops, externalStops } =
     useAddedStops(summary, settings);
 
   // ── L2: Calculation ───────────────────────────────────────────────────────
@@ -109,8 +107,8 @@ function AppContent() {
   useLayoutEffect(() => { clearJournalRef.current = clearJournal; });
 
   const {
-    validRouteGeometry, routeFeasibilityStatus, mapDayOptions,
-    handleMapClick, handleAddPOIFromMap, openInGoogleMaps,
+    validRouteGeometry, routeFeasibilityStatus,
+    handleMapClick, openInGoogleMaps,
     copyShareLink: triggerCopyShareLink,
   } = useMapInteractions({
     locations,
@@ -128,11 +126,11 @@ function AppContent() {
     setAdaptiveDefaults,
   });
 
-  const { error, clearError, copyShareLink, handleToggleCategory, goToNextStep, handleResumeSession } =
+  const { error, clearError, copyShareLink, goToNextStep, handleResumeSession } =
     useAppCallbacks({
-      poiError, calcError, journalError, clearPOIError, clearCalcError, clearJournalError,
+      calcError, journalError, clearPOIError, clearCalcError, clearJournalError,
       triggerCopyShareLink, shareUrl,
-      locations, toggleCategory, validRouteGeometry,
+      locations,
       planningStep, calculateAndDiscover, wizardNext,
       setTripMode,
     });
@@ -225,8 +223,8 @@ function AppContent() {
       tripActive, setTripActive,
     },
     map: {
-      previewGeometry, validRouteGeometry, routeFeasibilityStatus, mapDayOptions,
-      handleMapClick, handleAddPOIFromMap, adventurePreview,
+      previewGeometry, validRouteGeometry, routeFeasibilityStatus,
+      handleMapClick, adventurePreview,
     },
     wizard: {
       planningStep, completedSteps, canProceedFromStep1, canProceedFromStep2,
@@ -238,9 +236,7 @@ function AppContent() {
       dismissOvernightPrompt, updateStopType, calculateAndDiscover,
     },
     poi: {
-      pois, markerCategories, loadingCategory, handleToggleCategory, addedPOIIds,
-      poiSuggestions, poiInference, isLoadingPOIs, poiPartialResults, poiFetchFailed,
-      addPOI, addStop, dismissPOI,
+      poiSuggestions, poiInference,
     },
     presets: {
       activePreset, presetOptions, handlePresetChange, handleSharePreset, shareJustCopied,

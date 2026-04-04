@@ -12,7 +12,6 @@
 
 import { useRef, useEffect, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-import { Spinner } from './UI/Spinner';
 import type { TripMode } from '../types';
 import { usePlanner } from '../contexts';
 
@@ -31,7 +30,6 @@ export function WizardContent({ children }: WizardContentProps) {
     planningStep, canProceed, isCalculating,
     onNext, onBack, onReset,
     tripMode,
-    markerCategories, loadingCategory, onToggleCategory,
     error, onClearError,
     calculationMessage,
   } = usePlanner();
@@ -45,31 +43,6 @@ export function WizardContent({ children }: WizardContentProps) {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 text-foreground">
-      {/* POI Category Bar (Step 3 only) */}
-      {planningStep === 3 && (
-        <div className="px-3 py-2 flex gap-2 overflow-x-auto no-scrollbar items-center shrink-0 border-b border-white/5">
-          {markerCategories.map(cat => (
-            <button
-              key={cat.id}
-              onClick={() => !loadingCategory && onToggleCategory(cat.id)}
-              disabled={!!loadingCategory}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all whitespace-nowrap ${
-                cat.visible
-                  ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                  : 'bg-background text-muted-foreground border-border hover:bg-muted'
-              } ${loadingCategory && loadingCategory !== cat.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              {loadingCategory === cat.id ? (
-                <Spinner size={12} className="text-current" />
-              ) : (
-                <span>{cat.emoji}</span>
-              )}
-              <span>{cat.label}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* Error Banner */}
       {error && (
         <div className="mx-3 mt-2 px-3 py-2 bg-red-50 text-red-600 text-xs rounded border border-red-100 flex items-center gap-2 shrink-0">

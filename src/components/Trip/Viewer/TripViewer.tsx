@@ -69,9 +69,6 @@ export function TripViewer({
   onConfirmJournalComplete,
   poiSuggestions,
   poiInference,
-  isLoadingPOIs,
-  poiPartialResults,
-  poiFetchFailed,
   externalStops,
   onStartJournal,
   onSkipJournal,
@@ -85,8 +82,6 @@ export function TripViewer({
   onUpdateDayActivity,
   onRemoveDayActivity,
   onUpdateOvernight,
-  onAddPOI,
-  onDismissPOI,
 }: TripViewerProps) {
   // Viewer-local UI state — per arch spec, lives here, not in the parent gate
   const [isExpanded, setIsExpanded] = useState(false);
@@ -122,11 +117,6 @@ export function TripViewer({
       onUpdateOvernight={onUpdateOvernight}
       poiSuggestions={poiSuggestions}
       poiInference={poiInference}
-      isLoadingPOIs={isLoadingPOIs}
-      poiPartialResults={poiPartialResults}
-      poiFetchFailed={poiFetchFailed}
-      onAddPOI={onAddPOI}
-      onDismissPOI={onDismissPOI}
       externalStops={externalStops}
     />
   );

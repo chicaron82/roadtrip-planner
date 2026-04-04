@@ -65,11 +65,6 @@ export interface TripTimelineViewProps {
   // POI
   poiSuggestions: POISuggestion[];
   poiInference?: POISuggestion[];
-  isLoadingPOIs: boolean;
-  poiPartialResults?: boolean;
-  poiFetchFailed?: boolean;
-  onAddPOI: (poiId: string, segmentIndex?: number) => void;
-  onDismissPOI: (poiId: string) => void;
   externalStops?: SuggestedStop[];
 }
 
@@ -99,11 +94,6 @@ export function TripTimelineView({
   onUpdateOvernight,
   poiSuggestions,
   poiInference,
-  isLoadingPOIs,
-  poiPartialResults,
-  poiFetchFailed,
-  onAddPOI,
-  onDismissPOI,
   externalStops,
 }: TripTimelineViewProps) {
   // Toggle for SmartTimeline (simulation view) — hidden by default, available for power users
@@ -193,12 +183,6 @@ export function TripTimelineView({
             settings={settings}
             vehicle={vehicle}
             days={summary.days}
-            poiSuggestions={poiSuggestions}
-            isLoadingPOIs={isLoadingPOIs}
-            poiPartialResults={poiPartialResults}
-            poiFetchFailed={poiFetchFailed}
-            onAddPOI={onAddPOI}
-            onDismissPOI={onDismissPOI}
             timelineData={itineraryData}
           />
         </ItineraryEditProvider>

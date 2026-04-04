@@ -10,8 +10,8 @@
 import type { ComponentProps } from 'react';
 import type {
   Location, Vehicle, TripSettings, TripSummary, TripChallenge, TripJournal,
-  TripMode, MarkerCategory, POICategory, RouteStrategy, POISuggestion, POI,
-  RouteSegment, StopType, HistoryTripSnapshot, TripOrigin,
+  TripMode, RouteStrategy, POISuggestion,
+  StopType, HistoryTripSnapshot, TripOrigin,
 } from '../types';
 import type { TemplateImportResult } from '../lib/url';
 import type { GhostCarState } from '../hooks';
@@ -60,9 +60,7 @@ export interface AppWiringInputs {
     previewGeometry: [number, number][] | null;
     validRouteGeometry: [number, number][] | null;
     routeFeasibilityStatus: FeasibilityStatus | null | undefined;
-    mapDayOptions: ComponentProps<typeof Map>['dayOptions'];
     handleMapClick: ComponentProps<typeof Map>['onMapClick'];
-    handleAddPOIFromMap: ComponentProps<typeof Map>['onAddPOI'];
     adventurePreview: { lat: number; lng: number; radiusKm: number } | null;
   };
 
@@ -91,19 +89,8 @@ export interface AppWiringInputs {
   };
 
   poi: {
-    pois: ComponentProps<typeof Map>['pois'];
-    markerCategories: MarkerCategory[];
-    loadingCategory: string | null;
-    handleToggleCategory: (id: POICategory) => void;
-    addedPOIIds: ComponentProps<typeof Map>['addedPOIIds'];
     poiSuggestions: POISuggestion[];
     poiInference?: POISuggestion[];
-    isLoadingPOIs: boolean;
-    poiPartialResults: boolean;
-    poiFetchFailed: boolean;
-    addPOI: (id: string) => void;
-    addStop: (poi: POI, segments: RouteSegment[], explicitSegmentIndex?: number) => void;
-    dismissPOI: (id: string) => void;
   };
 
   presets: {

@@ -72,12 +72,9 @@ function makeProps(overrides: Partial<TripViewerProps> = {}): TripViewerProps {
     activeJournal: null,
     tripMode: 'plan',
     poiSuggestions: [],
-    isLoadingPOIs: false,
     onStartJournal: vi.fn(),
     onUpdateJournal: vi.fn(),
     onUpdateStopType: vi.fn(),
-    onAddPOI: vi.fn(),
-    onDismissPOI: vi.fn(),
     ...overrides,
   };
 }

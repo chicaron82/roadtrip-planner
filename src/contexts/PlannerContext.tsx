@@ -13,7 +13,7 @@
 
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, type ReactNode, type RefObject, type Dispatch, type SetStateAction } from 'react';
-import type { TripMode, MarkerCategory, POICategory } from '../types';
+import type { TripMode } from '../types';
 import type { PlanningStep } from '../hooks';
 import type { GhostCarState } from '../hooks';
 
@@ -40,11 +40,6 @@ export interface PlannerContextType {
 
   // Ghost car (trip mode step 3)
   ghostCar: GhostCarState | null;
-
-  // POI category bar (shown at step 3)
-  markerCategories: MarkerCategory[];
-  loadingCategory: string | null;
-  onToggleCategory: (id: POICategory) => void;
 
   // Error banner
   error: string | null;

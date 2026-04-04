@@ -45,9 +45,6 @@ export interface UseStep3ControllerOptions {
   showOvernightPrompt: boolean;
   poiSuggestions: POISuggestion[];
   poiInference?: POISuggestion[];
-  isLoadingPOIs: boolean;
-  poiPartialResults?: boolean;
-  poiFetchFailed?: boolean;
   externalStops?: SuggestedStop[];
   onOpenGoogleMaps: () => void;
   onCopyShareLink: () => void;
@@ -61,8 +58,6 @@ export interface UseStep3ControllerOptions {
   onUpdateJournal: (journal: TripJournal) => void;
   onUpdateStopType: (segmentIndex: number, stopType: StopType) => void;
   onDismissOvernight: () => void;
-  onAddPOI: (poiId: string, segmentIndex?: number) => void;
-  onDismissPOI: (poiId: string) => void;
   onConfirmTrip: () => void;
   onUnconfirmTrip: () => void;
 }

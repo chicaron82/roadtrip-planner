@@ -81,11 +81,6 @@ export interface Step3ViewerModel {
   onUpdateOvernight: (dayNumber: number, overnight: OvernightStop) => void;
   poiSuggestions: POISuggestion[];
   poiInference?: POISuggestion[];
-  isLoadingPOIs: boolean;
-  poiPartialResults?: boolean;
-  poiFetchFailed?: boolean;
-  onAddPOI: (poiId: string, segmentIndex?: number) => void;
-  onDismissPOI: (poiId: string) => void;
   externalStops?: SuggestedStop[];
 }
 
@@ -224,11 +219,6 @@ interface BuildStep3ViewerModelOptions {
   onUpdateOvernight: (dayNumber: number, overnight: OvernightStop) => void;
   poiSuggestions: POISuggestion[];
   poiInference?: POISuggestion[];
-  isLoadingPOIs: boolean;
-  poiPartialResults?: boolean;
-  poiFetchFailed?: boolean;
-  onAddPOI: (poiId: string, segmentIndex?: number) => void;
-  onDismissPOI: (poiId: string) => void;
   externalStops?: SuggestedStop[];
 }
 

@@ -33,9 +33,6 @@ export interface TripViewerProps {
   // POI state
   poiSuggestions: POISuggestion[];
   poiInference?: POISuggestion[];
-  isLoadingPOIs: boolean;
-  poiPartialResults?: boolean;
-  poiFetchFailed?: boolean;
   externalStops?: SuggestedStop[];
 
   // Journal completion
@@ -56,6 +53,4 @@ export interface TripViewerProps {
   onUpdateDayActivity?: (dayNumber: number, activityIndex: number, activity: Activity) => void;
   onRemoveDayActivity?: (dayNumber: number, activityIndex: number) => void;
   onUpdateOvernight?: (dayNumber: number, overnight: OvernightStop) => void;
-  onAddPOI: (poiId: string, segmentIndex?: number) => void;
-  onDismissPOI: (poiId: string) => void;
 }
