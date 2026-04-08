@@ -16,7 +16,7 @@ import { getEntryPreference, saveEntryPreference } from '../../lib/storage';
 import { ROUTE_DOTS } from './mode-config';
 import { LandingHeroSection } from './LandingHeroSection';
 import { LandingFooter } from './LandingFooter';
-import { LandingRouteScene } from './LandingRouteScene';
+import { LandingUnifiedCTA } from './LandingUnifiedCTA';
 import './landing.css';
 
 export interface LandingScreenProps {
@@ -94,14 +94,21 @@ export function LandingScreen({ onSelectMode, hasSavedTrip, onContinueSavedTrip,
         }}
       >
         <LandingHeroSection pulseActive={pulseActive} />
-        <LandingRouteScene
-          onSelectMode={handleSelect}
+        <LandingUnifiedCTA
+          onPrimary={() => handleSelect('plan')}
+          onAdventure={() => handleSelect('adventure')}
+          onEstimate={() => handleSelect('estimate')}
+          onClassic={() => {
+            saveEntryPreference('classic');
+            setEntryPreference('classic');
+            handleSelect('plan');
+          }}
+          isReturning={!!lastDestination}
           lastDestination={lastDestination}
           hasActiveSession={hasActiveSession}
           onResumeSession={onResumeSession}
           hasSavedTrip={hasSavedTrip}
           onContinueSavedTrip={onContinueSavedTrip}
-          onExitStart={(fn) => { setIsExiting(true); setTimeout(fn, 600); }}
         />
 
         {entryPreference === 'classic' && (

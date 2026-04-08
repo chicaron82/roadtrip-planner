@@ -10,7 +10,7 @@ import {
   useWizard, useTripCalculation, useJournal, usePOI, useEagerRoute, useAddedStops,
   useStylePreset, useTripMode, useTripLoader, useMapInteractions, useURLHydration,
   useCalculateAndDiscover, useGhostCar,
-  useAppCallbacks, useArrivalSnap, useCalculationMessages,
+  useAppCallbacks, useArrivalSnap,
 } from './hooks';
 import { useSessionLifecycle, useVoilaFlow, useAppBackPress } from './hooks/session';
 import { buildSeededTitle } from './lib/trip-title-seeds';
@@ -148,8 +148,6 @@ function AppContent() {
     calculateAndDiscover, forceStep, markStepComplete,
   });
 
-  const calculationMessage = useCalculationMessages(isCalculating, locations, icebreakerOrigin);
-
   // ── Voila Flow (CEO of post-calculation reveal) ───────────────────────────
   const {
     showVoila, flyoverActive, showShareScreen, triggerFlyover,
@@ -164,7 +162,7 @@ function AppContent() {
     locations, setLocations, vehicle, setVehicle, settings, setSettings, setIcebreakerOrigin,
     markStepComplete, forceStep,
     tripMode, setTripMode, selectTripMode, setShowAdventureMode,
-    calculateAndDiscover, isCalculating, summary, calculationMessage, calcError,
+    calculateAndDiscover, isCalculating, summary, calcError,
     setAdventurePreview, onShowVoila: handleShowVoila, customTitle, setCustomTitle,
   });
 
@@ -262,7 +260,7 @@ function AppContent() {
     },
     features: { ghostCar, icebreaker },
     sys: {
-      error, clearError, copyShareLink, openInGoogleMaps, calculationMessage,
+      error, clearError, copyShareLink, openInGoogleMaps, calculationMessage: icebreaker.calculationMessage,
     },
   });
 

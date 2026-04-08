@@ -15,6 +15,7 @@ import type { Location, Vehicle, TripSettings, TripSummary } from '../../types';
 import type { TripEstimate } from '../../lib/estimate-service';
 import { generateEstimate } from '../../lib/estimate-service';
 import { haversineDistance } from '../../lib/geo-utils';
+import type { RevealPlan } from '../../lib/reveal/reveal-weight';
 
 export type Beat = 2 | 3 | 4 | null;
 
@@ -37,6 +38,7 @@ export interface FourBeatArcState {
   isBuilding: boolean;
   isRevealing: boolean;
   sketchData: SketchData | null;
+  revealPlan: RevealPlan | null;
 
   /** Enter Beat 2 with icebreaker data. Computes haversine sketch estimate. */
   enterSketch: (locations: Location[], vehicle: Vehicle, settings: TripSettings) => void;
@@ -52,6 +54,8 @@ export interface FourBeatArcState {
   exitArc: () => void;
   /** Return to Beat 2 from Beat 3 without recomputing sketch data. Used by back button. */
   returnToSketch: () => void;
+  /** Set by the orchestrator — initial plan from sketch data, refined on build complete. */
+  setRevealPlan: (plan: RevealPlan) => void;
 }
 
 /**
@@ -76,6 +80,7 @@ export function useFourBeatArc(): FourBeatArcState {
   const [isBuilding, setIsBuilding] = useState(false);
   const [isRevealing, setIsRevealing] = useState(false);
   const [sketchData, setSketchData] = useState<SketchData | null>(null);
+  const [revealPlan, setRevealPlan] = useState<RevealPlan | null>(null);
 
   const enterSketch = useCallback((
     locations: Location[],
@@ -131,6 +136,7 @@ export function useFourBeatArc(): FourBeatArcState {
     setIsBuilding(false);
     setIsRevealing(false);
     setSketchData(null);
+    setRevealPlan(null);
   }, []);
 
   /** Return to Beat 2 without recomputing — preserves existing sketchData. */
@@ -138,11 +144,14 @@ export function useFourBeatArc(): FourBeatArcState {
     setBeat(2);
   }, []);
 
+  const setRevealPlanCb = useCallback((plan: RevealPlan) => setRevealPlan(plan), []);
+
   return useMemo(() => ({
     beat,
     isBuilding,
     isRevealing,
     sketchData,
+    revealPlan,
     enterSketch,
     enterWorkshop,
     startCalculation,
@@ -150,5 +159,6 @@ export function useFourBeatArc(): FourBeatArcState {
     onRevealComplete,
     exitArc,
     returnToSketch,
-  }), [beat, isBuilding, isRevealing, sketchData, enterSketch, enterWorkshop, startCalculation, onBuildComplete, onRevealComplete, exitArc, returnToSketch]);
+    setRevealPlan: setRevealPlanCb,
+  }), [beat, isBuilding, isRevealing, sketchData, revealPlan, enterSketch, enterWorkshop, startCalculation, onBuildComplete, onRevealComplete, exitArc, returnToSketch, setRevealPlanCb]);
 }

@@ -20,6 +20,8 @@ interface VoilaRevealProps {
   originName: string;
   destinationName: string;
   onComplete: () => void;
+  /** Override hold time in ms from the reveal weight system. Falls back to desktop/mobile defaults. */
+  holdMs?: number;
 }
 
 /** Hold time before auto-dismiss (ms). */
@@ -36,6 +38,7 @@ export function VoilaReveal({
   originName,
   destinationName,
   onComplete,
+  holdMs,
 }: VoilaRevealProps) {
   const dismissed = useRef(false);
 
@@ -45,9 +48,9 @@ export function VoilaReveal({
     onComplete();
   };
 
-  // Auto-dismiss after hold
+  // Auto-dismiss after hold — reveal-weight holdMs takes priority over device defaults.
   useEffect(() => {
-    const hold = isMobileViewport() ? HOLD_MOBILE : HOLD_DESKTOP;
+    const hold = holdMs ?? (isMobileViewport() ? HOLD_MOBILE : HOLD_DESKTOP);
     const id = setTimeout(dismiss, hold);
     return () => clearTimeout(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps

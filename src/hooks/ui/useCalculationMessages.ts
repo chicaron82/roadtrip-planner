@@ -17,7 +17,7 @@ function cityName(loc: Location | undefined): string {
   return loc?.name?.split(',')[0]?.trim() ?? '';
 }
 
-function buildMessages(locations: Location[], icebreakerOrigin?: boolean): string[] {
+function buildMessages(locations: Location[], icebreakerOrigin?: boolean, overrideSteps?: string[]): string[] {
   const origin      = locations.find(l => l.type === 'origin');
   const destination = locations.find(l => l.type === 'destination');
   const waypoints   = locations.filter(l => l.type === 'waypoint' && l.name);
@@ -29,6 +29,10 @@ function buildMessages(locations: Location[], icebreakerOrigin?: boolean): strin
   const msgs: string[] = [];
 
   if (icebreakerOrigin) {
+    if (overrideSteps && overrideSteps.length > 0) {
+      // Reveal-weight mode-aware copy replaces default icebreaker messages
+      return [...overrideSteps];
+    }
     // Four-Beat Arc — MEE-forward voice during Beat 4 calculation
     msgs.push(from && to ? `MEE is mapping ${from} to ${to}…` : 'MEE is mapping your route…');
     msgs.push('Finding the real roads…');
@@ -69,8 +73,12 @@ export function useCalculationMessages(
   isCalculating: boolean,
   locations: Location[],
   icebreakerOrigin?: boolean,
+  overrideSteps?: string[],
 ): string | null {
-  const messages = useMemo(() => buildMessages(locations, icebreakerOrigin), [locations, icebreakerOrigin]);
+  const messages = useMemo(
+    () => buildMessages(locations, icebreakerOrigin, overrideSteps),
+    [locations, icebreakerOrigin, overrideSteps],
+  );
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
