@@ -53,11 +53,12 @@ export function PlanIcebreaker({ onComplete, onEscape }: PlanIcebreakerProps) {
 
   const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640);
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 767px)').matches);
   useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 640);
-    window.addEventListener('resize', handler);
-    return () => window.removeEventListener('resize', handler);
+    const query = window.matchMedia('(max-width: 767px)');
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    query.addEventListener('change', handler);
+    return () => query.removeEventListener('change', handler);
   }, []);
 
   const transition = (fn: () => void) => {
@@ -123,6 +124,7 @@ export function PlanIcebreaker({ onComplete, onEscape }: PlanIcebreakerProps) {
       display: 'flex',
       flexDirection: isMobile ? 'column' : 'row',
       alignItems: 'flex-start',
+      width: '100%',
       gap: isMobile ? 0 : 28,
     }}>
       <div style={{ flex: 1, minWidth: 0 }}>

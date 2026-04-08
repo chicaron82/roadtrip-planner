@@ -211,7 +211,6 @@ function AppContent() {
 
 
   // ── Wiring (assemble what the renderer needs) ──────────────────────────
-  const [mapRevealed, setMapRevealed] = useState(false);
   const { board, mapProps, adventureModeProps, plannerContextValue, shareScreenProps } = useAppWiring({
     tripContext: {
       locations, setLocations, vehicle, setVehicle, settings, setSettings,
@@ -263,7 +262,7 @@ function AppContent() {
     },
     features: { ghostCar, icebreaker },
     sys: {
-      error, clearError, copyShareLink, openInGoogleMaps, calculationMessage, setMapRevealed,
+      error, clearError, copyShareLink, openInGoogleMaps, calculationMessage,
     },
   });
 
@@ -283,7 +282,6 @@ function AppContent() {
 
       <AppRenderer
         board={board}
-        mapRevealed={mapRevealed}
         adventureModeProps={adventureModeProps}
         plannerContextValue={plannerContextValue}
         shareScreenProps={shareScreenProps}
