@@ -166,6 +166,7 @@ function AppContent() {
     tripMode, setTripMode, selectTripMode, setShowAdventureMode,
     calculateAndDiscover, isCalculating, summary, calculationMessage, calcError,
     setAdventurePreview, onShowVoila: handleShowVoila, customTitle, setCustomTitle,
+    onTriggerFlyover: triggerFlyover,
   });
 
   useLayoutEffect(() => {
@@ -274,7 +275,12 @@ function AppContent() {
             <Map
               {...mapProps}
               flyoverActive={flyoverActive}
-              onFlyoverComplete={handleFlyoverComplete}
+              onFlyoverComplete={() => {
+                handleFlyoverComplete();
+                if (icebreaker.overlayProps.arc.beat === 4) {
+                  icebreaker.overlayProps.arc.onBuildComplete();
+                }
+              }}
             />
           </Suspense>
         </ErrorBoundary>

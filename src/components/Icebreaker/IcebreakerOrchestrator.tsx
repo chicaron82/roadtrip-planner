@@ -55,6 +55,8 @@ interface IcebreakerOrchestratorProps {
   onShowVoila: () => void;
   customTitle: string | null;
   setCustomTitle: (title: string | null) => void;
+  /** Trigger the cinematic map flyover before starting the Voila reveal */
+  onTriggerFlyover: () => void;
 }
 
 // ── Return (what App.tsx reads) ──────────────────────────────────────────────
@@ -81,7 +83,7 @@ export function useIcebreakerOrchestrator(
     tripMode, setTripMode, selectTripMode, setShowAdventureMode,
     calculateAndDiscover, isCalculating, summary, calculationMessage, calcError,
     setAdventurePreview, onShowVoila,
-    customTitle, setCustomTitle,
+    customTitle, setCustomTitle, onTriggerFlyover,
   } = props;
 
   const arc = useFourBeatArc();
@@ -139,7 +141,7 @@ export function useIcebreakerOrchestrator(
   /** Arc intercept — returns true if the arc handled the calc completion. */
   const onCalcComplete = useCallback((): boolean => {
     if (arc.beat === 4) {
-      arc.onBuildComplete();
+      onTriggerFlyover();
       return true;
     }
     // If the estimate workshop is open, the calculation was triggered just to

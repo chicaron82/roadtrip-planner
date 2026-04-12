@@ -118,13 +118,13 @@ export function UnifiedWorkshopPanel({
   const multiPerson = travelers > 1;
 
   return (
-    <div style={{
+    <div className="landing-screen" style={{
       position: 'fixed', inset: 0, zIndex: 50,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       pointerEvents: 'none',
     }}>
-      {/* Full-screen dark wash — same treatment as wizard and icebreaker */}
-      <div style={{ position: 'absolute', inset: 0, background: 'rgba(14, 11, 7, 0.72)', pointerEvents: 'none' }} />
+      <div className="landing-bg-overlay" />
+      <div className="landing-aurora" style={{ animation: 'landing-aurora 12s ease-in-out infinite', opacity: 0.8 }} />
 
       <div
         className="workshop-panel"

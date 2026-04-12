@@ -38,13 +38,13 @@ export function SketchCard({
   const framingLine = buildSketchFramingLine(tripMode);
 
   return (
-    <div style={{
+    <div className="landing-screen" style={{
       position: 'fixed', inset: 0, zIndex: 50,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       pointerEvents: 'none',
     }}>
-      {/* Full-screen dark wash — same treatment as wizard and icebreaker */}
-      <div style={{ position: 'absolute', inset: 0, background: 'rgba(14, 11, 7, 0.72)', pointerEvents: 'none' }} />
+      <div className="landing-bg-overlay" />
+      <div className="landing-aurora" style={{ animation: 'landing-aurora 12s ease-in-out infinite', opacity: 0.8 }} />
 
       {/* Mobile: bottom sheet, Desktop: content floats on wash */}
       <div
