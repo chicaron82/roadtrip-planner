@@ -15,9 +15,10 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import type { Vehicle, TripSettings, TripSummary, TripMode, Location } from '../../types';
 import type { AdventureInitialValues } from '../../hooks';
-import { useFourBeatArc } from '../../hooks';
+import { useFourBeatArc, useCalculationMessages } from '../../hooks';
 import { useIcebreakerGate } from '../../hooks';
 import { buildSeededTitle } from '../../lib/trip-title-seeds';
+import { detectRevealMode, computeRevealPlan, markTripSeen } from '../../lib/reveal/reveal-weight';
 import type { IcebreakerOverlayProps } from './IcebreakerOverlays';
 
 // ── Props (what App.tsx passes in) ───────────────────────────────────────────
@@ -46,7 +47,6 @@ interface IcebreakerOrchestratorProps {
   calculateAndDiscover: () => void;
   isCalculating: boolean;
   summary: TripSummary | null;
-  calculationMessage: string | null;
   calcError: string | null;
 
   // Adventure preview (map circle)
@@ -68,6 +68,8 @@ export interface IcebreakerOrchestratorState {
   onCalcComplete: () => boolean;
   /** Android back button handler — navigates within the arc/icebreaker instead of exiting. */
   handleBack: () => void;
+  /** Progressive calculation message — computed here, passed out for classic wizard use. */
+  calculationMessage: string | null;
 }
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
@@ -79,7 +81,7 @@ export function useIcebreakerOrchestrator(
     locations, setLocations, vehicle, setVehicle, settings, setSettings, setIcebreakerOrigin,
     markStepComplete, forceStep,
     tripMode, setTripMode, selectTripMode, setShowAdventureMode,
-    calculateAndDiscover, isCalculating, summary, calculationMessage, calcError,
+    calculateAndDiscover, isCalculating, summary, calcError,
     setAdventurePreview, onShowVoila,
     customTitle, setCustomTitle,
   } = props;
@@ -129,16 +131,56 @@ export function useIcebreakerOrchestrator(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estimateWorkshopActive]);
 
+  // Compute initial reveal plan as soon as sketch data is available (Beat 2).
+  // Uses haversine estimate + familiar detection. Refined with real data at onBuildComplete.
+  useEffect(() => {
+    if (!arc.sketchData) return;
+    const origin = arc.sketchData.originName.split(',')[0].trim();
+    const dest = arc.sketchData.destinationName.split(',')[0].trim();
+    const mode = detectRevealMode(origin, dest, settings.isRoundTrip);
+    const plan = computeRevealPlan({
+      mode,
+      distanceKm: arc.sketchData.distanceKm,
+      drivingDays: arc.sketchData.days,
+    });
+    arc.setRevealPlan(plan);
+  // arc.setRevealPlan is stable; settings.isRoundTrip is a primitive
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [arc.sketchData, arc.setRevealPlan, settings.isRoundTrip]);
+
+  // Progressive calculation messages — computed here so the orchestrator owns reveal concerns.
+  // arc.beat !== null is used instead of icebreakerOrigin (equivalent during the arc).
+  const calculationMessage = useCalculationMessages(
+    isCalculating,
+    locations,
+    arc.beat !== null,
+    arc.revealPlan?.steps,
+  );
+
   /** Called when the Four-Beat Arc voilà bloom completes — mounts VoilaScreen. */
   const handleArcComplete = useCallback(() => {
+    if (arc.sketchData) {
+      const origin = arc.sketchData.originName.split(',')[0].trim();
+      const dest = arc.sketchData.destinationName.split(',')[0].trim();
+      markTripSeen(origin, dest, settings.isRoundTrip);
+    }
     arc.onRevealComplete();
     setIcebreakerOrigin(true);
     onShowVoila();
-  }, [arc, setIcebreakerOrigin, onShowVoila]);
+  }, [arc, settings.isRoundTrip, setIcebreakerOrigin, onShowVoila]);
 
   /** Arc intercept — returns true if the arc handled the calc completion. */
   const onCalcComplete = useCallback((): boolean => {
     if (arc.beat === 4) {
+      // Refine the reveal plan with actual summary data (real distance + days).
+      if (summary) {
+        const refinedPlan = computeRevealPlan({
+          mode: arc.revealPlan?.mode ?? 'fresh',
+          distanceKm: summary.totalDistanceKm,
+          drivingDays: summary.drivingDays,
+        });
+        arc.setRevealPlan(refinedPlan);
+      }
       arc.onBuildComplete();
       return true;
     }
@@ -148,7 +190,7 @@ export function useIcebreakerOrchestrator(
       return true;
     }
     return false;
-  }, [arc, estimateWorkshopActive]);
+  }, [arc, estimateWorkshopActive, summary]);
 
   // When calculation fails at beat 4, exit the arc and fall back to the
   // classic wizard so the user can see the error toast and retry. Without
@@ -222,6 +264,7 @@ export function useIcebreakerOrchestrator(
     arcActive,
     onCalcComplete,
     handleBack,
+    calculationMessage,
     overlayProps,
   };
 }

@@ -118,6 +118,7 @@ export function IcebreakerOverlays(p: IcebreakerOverlayProps) {
           settings={p.settings}
           originName={p.locations.find(l => l.type === 'origin')?.name ?? ''}
           destinationName={p.locations.find(l => l.type === 'destination')?.name ?? ''}
+          holdMs={p.arc.revealPlan?.minimumHoldMs}
           onComplete={p.handleArcComplete}
         />
       )}

@@ -174,7 +174,6 @@ export interface AppWiringInputs {
     copyShareLink: () => void;
     openInGoogleMaps: () => void;
     calculationMessage?: string | null;
-    setMapRevealed: (v: boolean) => void;
   };
 }
 

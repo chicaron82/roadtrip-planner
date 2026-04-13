@@ -67,7 +67,6 @@ export function useAppWiring(i: AppWiringInputs): AppWiringOutput {
       feasibility: stepProps.step3Props.controller.feasibility ?? undefined,
     },
     plannerProps: {
-      onRevealChange: i.sys.setMapRevealed,
       stepProps,
       liveReflection: i.tripContext.summary ? { summary: i.tripContext.summary, vehicle: i.tripContext.vehicle, settings: i.tripContext.settings } : null,
       routeStrategyProps: {

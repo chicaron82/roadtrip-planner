@@ -27,7 +27,6 @@ import type { AppBoard } from './useAppBoard';
 
 interface AppRendererProps {
   board: AppBoard;
-  mapRevealed: boolean;
   adventureModeProps: ComponentProps<typeof AdventureMode>;
   plannerContextValue: PlannerContextType;
   shareScreenProps: Omit<ComponentProps<typeof MakeMEETimeScreen>, 'onClose'> | null;
@@ -35,7 +34,6 @@ interface AppRendererProps {
 
 export function AppRenderer({
   board,
-  mapRevealed,
   adventureModeProps,
   plannerContextValue,
   shareScreenProps,
@@ -128,7 +126,7 @@ export function AppRenderer({
           )}
 
           {board.uiFlags.shouldShowTripSummaryCard && (
-            <div className={`absolute z-20 pointer-events-none bottom-4 left-14 right-2 md:bottom-6 md:right-6 md:left-auto md:w-[380px] ${mapRevealed ? 'flex' : 'hidden md:flex'}`}>
+            <div className="absolute z-20 pointer-events-none bottom-4 left-14 right-2 md:bottom-6 md:right-6 md:left-auto md:w-[380px] hidden md:flex">
               <div className="pointer-events-auto w-full">
                 <TripSummaryCard {...tripSummaryProps} />
               </div>

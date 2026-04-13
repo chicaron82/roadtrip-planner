@@ -1,13 +1,13 @@
 {
 	"folders": [
 		{
-			"path": "../VN-Project"
-		},
-		{
 			"path": "."
 		},
 		{
 			"path": "../chicharons-kitchen"
+		},
+		{
+			"path": "../fleet-garage"
 		}
 	],
 	"settings": {
