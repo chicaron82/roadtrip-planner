@@ -11,7 +11,7 @@
 
 import type { GeocodingResult } from '../provider-types';
 import { makeProviderHttpError } from '../provider-types';
-import { GOOGLE_MAPS_KEY, PROVIDER_URLS, PROVIDER_CONFIG } from '../provider-config';
+import { GOOGLE_MAPS_KEY, PROVIDER_URLS, googleFetchSignal } from '../provider-config';
 
 /** Bounding bias: North America (Canada + USA). */
 const LOCATION_BIAS = {
@@ -63,91 +63,73 @@ export async function findNearbyTownWithGoogle(
   lng: number,
   signal?: AbortSignal,
 ): Promise<{ name: string; lat: number; lng: number } | null> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), PROVIDER_CONFIG.google.timeoutMs);
-
-  if (signal) {
-    signal.addEventListener('abort', () => controller.abort(), { once: true });
-  }
-
-  try {
-    const response = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': GOOGLE_MAPS_KEY,
-        'X-Goog-FieldMask': NEARBY_FIELD_MASK,
-      },
-      body: JSON.stringify({
-        locationRestriction: {
-          circle: {
-            center: { latitude: lat, longitude: lng },
-            radius: 50000,
-          },
+  const response = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': GOOGLE_MAPS_KEY,
+      'X-Goog-FieldMask': NEARBY_FIELD_MASK,
+    },
+    body: JSON.stringify({
+      locationRestriction: {
+        circle: {
+          center: { latitude: lat, longitude: lng },
+          radius: 50000,
         },
-        includedTypes: ['locality'],
-        maxResultCount: 1,
-        languageCode: 'en',
-      }),
-      signal: controller.signal,
-    });
+      },
+      includedTypes: ['locality'],
+      maxResultCount: 1,
+      languageCode: 'en',
+    }),
+    signal: googleFetchSignal(signal),
+  });
 
-    if (!response.ok) return null;
+  if (!response.ok) return null;
 
-    const data: PlacesResponse = await response.json();
-    const place = data.places?.[0];
-    if (!place?.displayName?.text || !place.location) return null;
+  const data: PlacesResponse = await response.json();
+  const place = data.places?.[0];
+  if (!place?.displayName?.text || !place.location) return null;
 
-    const components = place.addressComponents ?? [];
-    const adminLevel1 = components.find(c => c.types.includes('administrative_area_level_1'));
-    const name = adminLevel1?.shortText
-      ? `${place.displayName.text}, ${adminLevel1.shortText}`
-      : place.displayName.text;
+  const components = place.addressComponents ?? [];
+  const adminLevel1 = components.find(c => c.types.includes('administrative_area_level_1'));
+  const name = adminLevel1?.shortText
+    ? `${place.displayName.text}, ${adminLevel1.shortText}`
+    : place.displayName.text;
 
-    return { name, lat: place.location.latitude, lng: place.location.longitude };
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  return { name, lat: place.location.latitude, lng: place.location.longitude };
 }
 
 export async function searchWithGoogle(query: string): Promise<GeocodingResult[]> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), PROVIDER_CONFIG.google.timeoutMs);
+  const response = await fetch(PROVIDER_URLS.googlePlaces, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': GOOGLE_MAPS_KEY,
+      'X-Goog-FieldMask': FIELD_MASK,
+    },
+    body: JSON.stringify({
+      textQuery: query,
+      locationBias: LOCATION_BIAS,
+      maxResultCount: 5,
+      languageCode: 'en',
+    }),
+    signal: googleFetchSignal(),
+  });
 
-  try {
-    const response = await fetch(PROVIDER_URLS.googlePlaces, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': GOOGLE_MAPS_KEY,
-        'X-Goog-FieldMask': FIELD_MASK,
-      },
-      body: JSON.stringify({
-        textQuery: query,
-        locationBias: LOCATION_BIAS,
-        maxResultCount: 5,
-        languageCode: 'en',
-      }),
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      throw makeProviderHttpError(`Places API ${response.status}: ${response.statusText}`, response.status);
-    }
-
-    const data: PlacesResponse = await response.json();
-    if (!data.places?.length) return [];
-
-    return data.places
-      .filter(p => p.location?.latitude != null && p.location?.longitude != null)
-      .map(p => ({
-        id: p.id,
-        name: p.displayName?.text ?? p.formattedAddress ?? query,
-        address: p.formattedAddress ?? '',
-        lat: p.location!.latitude,
-        lng: p.location!.longitude,
-      }));
-  } finally {
-    clearTimeout(timeoutId);
+  if (!response.ok) {
+    throw makeProviderHttpError(`Places API ${response.status}: ${response.statusText}`, response.status);
   }
+
+  const data: PlacesResponse = await response.json();
+  if (!data.places?.length) return [];
+
+  return data.places
+    .filter(p => p.location?.latitude != null && p.location?.longitude != null)
+    .map(p => ({
+      id: p.id,
+      name: p.displayName?.text ?? p.formattedAddress ?? query,
+      address: p.formattedAddress ?? '',
+      lat: p.location!.latitude,
+      lng: p.location!.longitude,
+    }));
 }

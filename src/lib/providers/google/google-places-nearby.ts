@@ -11,7 +11,7 @@
  */
 
 import { makeProviderHttpError } from '../provider-types';
-import { GOOGLE_MAPS_KEY, PROVIDER_URLS, PROVIDER_CONFIG } from '../provider-config';
+import { GOOGLE_MAPS_KEY, PROVIDER_URLS, googleFetchSignal } from '../provider-config';
 
 /** Google Places type → app-friendly type mapping. */
 export const GOOGLE_POI_TYPES: Record<string, string[]> = {
@@ -67,48 +67,41 @@ export async function searchNearby(
   includedTypes: string[],
   maxResultCount = 20,
 ): Promise<NearbyPlace[]> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), PROVIDER_CONFIG.google.timeoutMs);
-
-  try {
-    const response = await fetch(PROVIDER_URLS.googleNearby, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': GOOGLE_MAPS_KEY,
-        'X-Goog-FieldMask': FIELD_MASK,
-      },
-      body: JSON.stringify({
-        includedTypes,
-        maxResultCount,
-        locationRestriction: {
-          circle: {
-            center: { latitude: lat, longitude: lng },
-            radius: radiusM,
-          },
+  const response = await fetch(PROVIDER_URLS.googleNearby, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': GOOGLE_MAPS_KEY,
+      'X-Goog-FieldMask': FIELD_MASK,
+    },
+    body: JSON.stringify({
+      includedTypes,
+      maxResultCount,
+      locationRestriction: {
+        circle: {
+          center: { latitude: lat, longitude: lng },
+          radius: radiusM,
         },
-      }),
-      signal: controller.signal,
-    });
+      },
+    }),
+    signal: googleFetchSignal(),
+  });
 
-    if (!response.ok) {
-      throw makeProviderHttpError(`Nearby Search ${response.status}: ${response.statusText}`, response.status);
-    }
-
-    const data: NearbyResponse = await response.json();
-    if (!data.places?.length) return [];
-
-    return data.places
-      .filter(p => p.location?.latitude != null && p.location?.longitude != null)
-      .map(p => ({
-        id: p.id,
-        name: p.displayName?.text ?? '',
-        address: p.formattedAddress ?? '',
-        lat: p.location!.latitude,
-        lng: p.location!.longitude,
-        type: p.primaryType,
-      }));
-  } finally {
-    clearTimeout(timeoutId);
+  if (!response.ok) {
+    throw makeProviderHttpError(`Nearby Search ${response.status}: ${response.statusText}`, response.status);
   }
+
+  const data: NearbyResponse = await response.json();
+  if (!data.places?.length) return [];
+
+  return data.places
+    .filter(p => p.location?.latitude != null && p.location?.longitude != null)
+    .map(p => ({
+      id: p.id,
+      name: p.displayName?.text ?? '',
+      address: p.formattedAddress ?? '',
+      lat: p.location!.latitude,
+      lng: p.location!.longitude,
+      type: p.primaryType,
+    }));
 }

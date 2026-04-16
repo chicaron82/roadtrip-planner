@@ -11,7 +11,7 @@
 
 import type { Location, RouteSegment } from '../../../types';
 import { makeProviderHttpError } from '../provider-types';
-import { GOOGLE_MAPS_KEY, PROVIDER_URLS, PROVIDER_CONFIG } from '../provider-config';
+import { GOOGLE_MAPS_KEY, PROVIDER_URLS, googleFetchSignal } from '../provider-config';
 
 /** Fields to request — minimise billing. */
 const FIELD_MASK = [
@@ -95,53 +95,44 @@ export async function routeWithGoogle(
   if (options?.avoidTolls) routeModifiers.avoidTolls = true;
   if (options?.scenicMode) routeModifiers.avoidHighways = true;
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), PROVIDER_CONFIG.google.timeoutMs);
+  const response = await fetch(PROVIDER_URLS.googleRoutes, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': GOOGLE_MAPS_KEY,
+      'X-Goog-FieldMask': FIELD_MASK,
+    },
+    body: JSON.stringify({
+      origin,
+      destination,
+      intermediates: intermediates.length > 0 ? intermediates : undefined,
+      travelMode: 'DRIVE',
+      polylineQuality: 'HIGH_QUALITY',
+      routeModifiers: Object.keys(routeModifiers).length > 0 ? routeModifiers : undefined,
+    }),
+    signal: googleFetchSignal(),
+  });
 
-  try {
-    const response = await fetch(PROVIDER_URLS.googleRoutes, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': GOOGLE_MAPS_KEY,
-        'X-Goog-FieldMask': FIELD_MASK,
-      },
-      body: JSON.stringify({
-        origin,
-        destination,
-        intermediates: intermediates.length > 0 ? intermediates : undefined,
-        travelMode: 'DRIVE',
-        polylineQuality: 'HIGH_QUALITY',
-        routeModifiers: Object.keys(routeModifiers).length > 0 ? routeModifiers : undefined,
-      }),
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      throw makeProviderHttpError(`Routes API ${response.status}: ${response.statusText}`, response.status);
-    }
-
-    const data: RoutesResponse = await response.json();
-    const route = data.routes?.[0];
-    if (!route?.legs?.length) return null;
-
-    // Decode polyline
-    const fullGeometry = route.polyline?.encodedPolyline
-      ? decodePolyline(route.polyline.encodedPolyline)
-      : [];
-
-    // Map legs to segments
-    const segments: RouteSegment[] = route.legs.map((leg, i) => ({
-      from: valid[i],
-      to: valid[i + 1],
-      distanceKm: (leg.distanceMeters ?? 0) / 1000,
-      durationMinutes: parseDurationSeconds(leg.duration) / 60,
-      fuelNeededLitres: 0, // Calculated downstream
-      fuelCost: 0, // Calculated downstream
-    }));
-
-    return { segments, fullGeometry };
-  } finally {
-    clearTimeout(timeoutId);
+  if (!response.ok) {
+    throw makeProviderHttpError(`Routes API ${response.status}: ${response.statusText}`, response.status);
   }
+
+  const data: RoutesResponse = await response.json();
+  const route = data.routes?.[0];
+  if (!route?.legs?.length) return null;
+
+  const fullGeometry = route.polyline?.encodedPolyline
+    ? decodePolyline(route.polyline.encodedPolyline)
+    : [];
+
+  const segments: RouteSegment[] = route.legs.map((leg, i) => ({
+    from: valid[i],
+    to: valid[i + 1],
+    distanceKm: (leg.distanceMeters ?? 0) / 1000,
+    durationMinutes: parseDurationSeconds(leg.duration) / 60,
+    fuelNeededLitres: 0, // Calculated downstream
+    fuelCost: 0, // Calculated downstream
+  }));
+
+  return { segments, fullGeometry };
 }

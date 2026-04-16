@@ -4,7 +4,6 @@ import { cacheDiscoveredHub, findPreferredHubInWindow } from './hub-cache';
 import { haversineDistance } from './geo-utils';
 import { reverseGeocodeTown } from './route-geocoder';
 import { getActivePOIProvider } from './providers/provider-config';
-import { findNearbyTownWithGoogle } from './providers/google/google-geocoding';
 import { recordProviderEvent } from './providers/provider-telemetry';
 
 /**
@@ -64,6 +63,7 @@ export async function snapOvernightsToTowns(
   if (provider === 'google') {
     const start = performance.now();
     try {
+      const { findNearbyTownWithGoogle } = await import('./providers/google/google-geocoding');
       const geocodeResults = await Promise.all(
         transitDays.map(d => {
           const { lat, lng } = d.overnight!.location;

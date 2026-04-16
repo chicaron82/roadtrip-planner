@@ -64,3 +64,14 @@ export function getActiveRoutingProvider(): 'google' | 'osrm' {
 export function getActivePOIProvider(): 'google' | 'overpass' {
   return hasGoogleKey ? 'google' : 'overpass';
 }
+
+// ── Fetch helper ──────────────────────────────────────────────────────────
+
+/**
+ * Composes the caller's optional signal with Google's timeout into one AbortSignal.
+ * Used by every Google adapter — keeps the abort handling in one place.
+ */
+export function googleFetchSignal(signal?: AbortSignal): AbortSignal {
+  const timeout = AbortSignal.timeout(PROVIDER_CONFIG.google.timeoutMs);
+  return signal ? AbortSignal.any([signal, timeout]) : timeout;
+}
