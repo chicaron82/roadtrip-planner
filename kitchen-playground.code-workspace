@@ -1,9 +1,6 @@
 {
 	"folders": [
 		{
-			"path": "../VN-Project"
-		},
-		{
 			"path": "."
 		},
 		{
@@ -11,12 +8,16 @@
 		},
 		{
 			"path": "../fleet-garage"
+		},
+		{
+			"path": "../nanays-orders"
 		}
 	],
 	"settings": {
 		"powershell.cwd": "roadtrip-planner",
 		"chat.tools.terminal.autoApprove": {
 			"npx tsc": true
-		}
+		},
+		"liveServer.settings.multiRootWorkspaceName": "nanays-orders"
 	}
 }
