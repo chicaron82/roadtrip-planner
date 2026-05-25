@@ -15,6 +15,7 @@ import { exportJournalAsTemplate } from '../../../lib/journal-export-templates';
 import { getTripDisplayEndpoints } from '../../../lib/trip-summary-view';
 import type { TripRecapSummary } from '../../../lib/trip-summary-slices';
 import { formatDateRange } from '../../../lib/trip-formatters';
+import { ParkedCarTrack } from '../../UI/ParkedCarTrack';
 
 interface PostTripScreenProps {
   journal: TripJournal | null;
@@ -152,49 +153,8 @@ export function PostTripScreen({
           </div>
 
           {/* Parked car track */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, delay: 0.7 }}
-            style={{ padding: '0 28px 24px' }}
-          >
-            <div className="relative" style={{ height: 28 }}>
-              <div
-                className="absolute rounded-full"
-                style={{
-                  top: '50%', left: 0, right: 0, height: 2,
-                  transform: 'translateY(-50%)',
-                  background: 'linear-gradient(90deg, rgba(74,222,128,0.4), rgba(74,222,128,0.8))',
-                }}
-              />
-              <div
-                className="absolute rounded-full"
-                style={{
-                  top: '50%', left: 0,
-                  width: 8, height: 8,
-                  transform: 'translate(-50%, -50%)',
-                  background: '#4ade80',
-                  boxShadow: '0 0 6px rgba(74,222,128,0.7)',
-                }}
-              />
-              <div style={{
-                position: 'absolute', top: '50%', right: 0,
-                transform: 'translate(50%, -60%)', fontSize: 18,
-                filter: 'drop-shadow(0 2px 6px rgba(74,222,128,0.4))',
-              }}>
-                🚗
-              </div>
-              <div
-                className="absolute rounded-full"
-                style={{
-                  top: '50%', right: 0,
-                  width: 10, height: 10,
-                  transform: 'translate(50%, -50%)',
-                  background: '#22c55e',
-                  boxShadow: '0 0 10px rgba(74,222,128,0.9)',
-                }}
-              />
-            </div>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4, delay: 0.7 }} style={{ padding: '0 28px 24px' }}>
+            <ParkedCarTrack />
           </motion.div>
 
           {/* Stats grid — journal path only */}
@@ -235,59 +195,20 @@ export function PostTripScreen({
 
           {/* Action buttons — journal path only */}
           {journal && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, delay: 1.0 }}
-              style={{ padding: '0 28px 32px' }}
-            >
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 1.0 }} style={{ padding: '0 28px 32px' }}>
               <div className="flex gap-2 flex-wrap">
-                <button
-                  onClick={onShare}
-                  className="flex-1 py-2.5 rounded-xl text-xs font-semibold tracking-wider uppercase transition-all"
-                  style={{
-                    background: 'rgba(74,222,128,0.12)',
-                    border: '1px solid rgba(74,222,128,0.2)',
-                    color: '#86efac',
-                  }}
-                >
-                  📤 Share
-                </button>
-                {onPrint && (
-                  <button
-                    onClick={onPrint}
+                {[
+                  { label: '📤 Share',    onClick: onShare },
+                  ...(onPrint ? [{ label: '🖨 Print', onClick: onPrint }] : []),
+                  { label: '📄 Export',   onClick: () => exportJournalAsHTML(journal, summary) },
+                  { label: '🔀 Template', onClick: () => exportJournalAsTemplate(journal, summary, settings) },
+                ].map(({ label, onClick }) => (
+                  <button key={label} onClick={onClick}
                     className="flex-1 py-2.5 rounded-xl text-xs font-semibold tracking-wider uppercase transition-all"
-                    style={{
-                      background: 'rgba(74,222,128,0.12)',
-                      border: '1px solid rgba(74,222,128,0.2)',
-                      color: '#86efac',
-                    }}
-                  >
-                    🖨 Print
+                    style={{ background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.2)', color: '#86efac' }}>
+                    {label}
                   </button>
-                )}
-                <button
-                  onClick={() => exportJournalAsHTML(journal, summary)}
-                  className="flex-1 py-2.5 rounded-xl text-xs font-semibold tracking-wider uppercase transition-all"
-                  style={{
-                    background: 'rgba(74,222,128,0.12)',
-                    border: '1px solid rgba(74,222,128,0.2)',
-                    color: '#86efac',
-                  }}
-                >
-                  📄 Export
-                </button>
-                <button
-                  onClick={() => exportJournalAsTemplate(journal, summary, settings)}
-                  className="flex-1 py-2.5 rounded-xl text-xs font-semibold tracking-wider uppercase transition-all"
-                  style={{
-                    background: 'rgba(74,222,128,0.12)',
-                    border: '1px solid rgba(74,222,128,0.2)',
-                    color: '#86efac',
-                  }}
-                >
-                  🔀 Template
-                </button>
+                ))}
               </div>
             </motion.div>
           )}

@@ -17,6 +17,20 @@ interface QuickCaptureDialogProps {
   initialValues?: QuickCapture;
 }
 
+function GpsStatusRow({ gpsStatus, gpsCoords, resolvedGpsName, onRetry }: {
+  gpsStatus: GpsStatus; gpsCoords: { lat: number; lng: number } | null;
+  resolvedGpsName: string | null; onRetry: () => void;
+}) {
+  if (gpsStatus === 'idle') return null;
+  return (
+    <div className="flex items-center gap-2 mt-1.5">
+      {gpsStatus === 'loading' && (<><Loader2 className="h-3 w-3 text-blue-500 animate-spin" /><span className="text-[11px] text-blue-600">Getting location…</span></>)}
+      {gpsStatus === 'captured' && gpsCoords && (<><CheckCircle2 className="h-3 w-3 text-green-500" /><span className="text-[11px] text-green-600">{resolvedGpsName ? `📍 ${resolvedGpsName}` : `GPS captured (${gpsCoords.lat.toFixed(4)}, ${gpsCoords.lng.toFixed(4)})`}</span></>)}
+      {gpsStatus === 'unavailable' && (<><AlertCircle className="h-3 w-3 text-amber-500" /><span className="text-[11px] text-amber-600">Location unavailable —</span><button onClick={onRetry} className="text-[11px] text-amber-700 underline hover:no-underline">retry</button></>)}
+    </div>
+  );
+}
+
 const CATEGORIES = [
   { value: 'food', label: '🍔 Food', emoji: '🍔' },
   { value: 'attraction', label: '🏞️ Attraction', emoji: '🏞️' },
@@ -244,37 +258,7 @@ export function QuickCaptureDialog({
               onChange={(e) => setLocationName(e.target.value)}
               placeholder={resolvedGpsName || autoTaggedLocation || 'e.g., Amazing Burger Joint'}
             />
-            {/* GPS status row */}
-            <div className="flex items-center gap-2 mt-1.5">
-              {gpsStatus === 'loading' && (
-                <>
-                  <Loader2 className="h-3 w-3 text-blue-500 animate-spin" />
-                  <span className="text-[11px] text-blue-600">Getting location…</span>
-                </>
-              )}
-              {gpsStatus === 'captured' && gpsCoords && (
-                <>
-                  <CheckCircle2 className="h-3 w-3 text-green-500" />
-                  <span className="text-[11px] text-green-600">
-                    {resolvedGpsName
-                      ? `📍 ${resolvedGpsName}`
-                      : `GPS captured (${gpsCoords.lat.toFixed(4)}, ${gpsCoords.lng.toFixed(4)})`}
-                  </span>
-                </>
-              )}
-              {gpsStatus === 'unavailable' && (
-                <>
-                  <AlertCircle className="h-3 w-3 text-amber-500" />
-                  <span className="text-[11px] text-amber-600">Location unavailable —</span>
-                  <button
-                    onClick={handleRetryGps}
-                    className="text-[11px] text-amber-700 underline hover:no-underline"
-                  >
-                    retry
-                  </button>
-                </>
-              )}
-            </div>
+            <GpsStatusRow gpsStatus={gpsStatus} gpsCoords={gpsCoords} resolvedGpsName={resolvedGpsName} onRetry={handleRetryGps} />
           </div>
 
           {/* Category */}

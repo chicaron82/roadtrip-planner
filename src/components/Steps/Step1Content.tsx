@@ -325,7 +325,6 @@ export function Step1Content({
           />
         </div>
       </div>
-
     </div>
   );
 }

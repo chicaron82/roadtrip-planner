@@ -304,27 +304,9 @@ export function DateRangePicker({
 
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border/60 bg-muted/30">
-            <button
-              type="button"
-              onClick={prevMonth}
-              className="h-7 w-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors"
-              aria-label="Previous month"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-
-            <span className="text-sm font-semibold">
-              {MONTHS[leftMonth.getMonth()]} {leftMonth.getFullYear()}
-            </span>
-
-            <button
-              type="button"
-              onClick={nextMonth}
-              className="h-7 w-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors"
-              aria-label="Next month"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
+            <button type="button" onClick={prevMonth} className="h-7 w-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors" aria-label="Previous month"><ChevronLeft className="h-4 w-4" /></button>
+            <span className="text-sm font-semibold">{MONTHS[leftMonth.getMonth()]} {leftMonth.getFullYear()}</span>
+            <button type="button" onClick={nextMonth} className="h-7 w-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors" aria-label="Next month"><ChevronRight className="h-4 w-4" /></button>
           </div>
 
           {/* Month grid */}
