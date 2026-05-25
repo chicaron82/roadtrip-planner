@@ -21,7 +21,9 @@ export const JOURNAL_HTML_STYLES = `
 
   /* Cover */
   .cover { padding: 28px 0 22px; border-bottom: 2px solid #e5e0d8; margin-bottom: 28px; }
-  .cover-brand { font-size: 7.5pt; letter-spacing: 0.14em; text-transform: uppercase; color: #aaa; font-weight: 700; margin-bottom: 14px; }
+  .cover-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .cover-brand-logo { height: 48px; width: auto; flex-shrink: 0; }
+  .cover-brand-label { font-size: 7.5pt; letter-spacing: 0.14em; text-transform: uppercase; color: #aaa; font-weight: 700; }
   .cover-title { font-size: 26pt; font-weight: 800; line-height: 1.15; letter-spacing: -0.02em; color: #111; margin-bottom: 6px; }
   .cover-route { font-size: 11.5pt; color: #666; margin-bottom: 14px; }
   .cover-dates { font-size: 9.5pt; color: #888; margin-bottom: 18px; }

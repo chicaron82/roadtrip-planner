@@ -169,6 +169,7 @@ export function buildPrintHTML(
   driverRotation: DriverRotationResult | null,
   timedEvents: TimedEvent[],
   journal?: TripJournal,
+  logoUrl?: string,
 ): string {
   const {
     summary,
@@ -219,6 +220,7 @@ export function buildPrintHTML(
     enrichedStats,
     printInput.subtitle,
     printInput.tripRead,
+    logoUrl,
   );
 
   const daysHTML = itineraryDays.map(day => {

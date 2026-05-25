@@ -248,6 +248,7 @@ export function buildCoverPageHTML(
   enrichedStats?: DriverStats[],
   tripSubtitle?: string,
   tripRead?: string,
+  logoUrl?: string,
 ): string {
   const heroHTML    = buildHeroSection(tripTitle, summary, settings, tripSubtitle, tripRead);
   const budgetHTML  = buildBudgetStatusCard(summary, settings, feasibility);
@@ -280,8 +281,11 @@ export function buildCoverPageHTML(
   return `
     <div class="cover-page">
       <div class="cover-brand">
-        <div class="cover-brand-name">My Experience Engine (M.E.E)</div>
-        <div class="cover-brand-tagline">Your MEE time${meeTimeStr}</div>
+        ${logoUrl ? `<img src="${logoUrl}" alt="M.E.E." class="cover-brand-logo" />` : ''}
+        <div class="cover-brand-text">
+          <div class="cover-brand-name">My Experience Engine (M.E.E)</div>
+          <div class="cover-brand-tagline">Your MEE time${meeTimeStr}</div>
+        </div>
       </div>
       <hr class="cover-divider" />
       ${heroHTML}

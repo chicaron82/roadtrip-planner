@@ -82,7 +82,10 @@ export function exportJournalAsHTML(journal: TripJournal, summary: SegmentLookup
 </head>
 <body>
   <div class="cover">
-    <div class="cover-brand">My Experience Engine · Trip Journal</div>
+    <div class="cover-brand">
+      <img src="${window.location.origin}/MEE_logo.jpg" alt="M.E.E." class="cover-brand-logo" />
+      <span class="cover-brand-label">My Experience Engine · Trip Journal</span>
+    </div>
     <h1 class="cover-title">${escapeHtml(metadata.title)}</h1>
     ${routeLabel ? `<p class="cover-route">${routeLabel}</p>` : ''}
     ${dateRange ? `<p class="cover-dates">${dateRange}</p>` : ''}

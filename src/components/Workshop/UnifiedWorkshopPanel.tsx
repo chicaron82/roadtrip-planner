@@ -159,7 +159,7 @@ export function UnifiedWorkshopPanel({
           <p style={{ color: 'rgba(245,240,232,0.5)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
             Who's coming?
           </p>
-          <WorkshopSteppervalue={travelers} min={1} max={8} label={label('person', 'people')} onChange={setTravelers} />
+          <WorkshopStepper value={travelers} min={1} max={8} label={label('person', 'people')} onChange={setTravelers} />
 
           {/* PRIMARY: Rooms — hidden for day trips (0 nights → no hotel) */}
           {isDayTrip ? (
@@ -171,7 +171,7 @@ export function UnifiedWorkshopPanel({
               <p style={{ color: 'rgba(245,240,232,0.5)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
                 Rooms needed?
               </p>
-              <WorkshopSteppervalue={numRooms} min={1} max={4} label={label('room', 'rooms')} onChange={setNumRooms} />
+              <WorkshopStepper value={numRooms} min={1} max={4} label={label('room', 'rooms')} onChange={setNumRooms} />
             </>
           )}
 

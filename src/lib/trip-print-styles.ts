@@ -383,7 +383,16 @@ export const PRINT_STYLES = `
   }
 
   .cover-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     margin-bottom: 20px;
+  }
+
+  .cover-brand-logo {
+    height: 44px;
+    width: auto;
+    flex-shrink: 0;
   }
 
   .cover-brand-name {

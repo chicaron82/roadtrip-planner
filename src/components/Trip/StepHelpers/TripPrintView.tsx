@@ -109,6 +109,7 @@ export function printTrip(props: TripPrintViewProps): void {
     driverRotation,
     timedEvents,
     journal,
+    `${window.location.origin}/MEE_logo.jpg`,
   );
 
   // Open print window
