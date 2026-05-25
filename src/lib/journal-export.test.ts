@@ -13,6 +13,8 @@ import type { TripJournal, TripSettings, Vehicle, Location } from '../types';
 import type { PrintInput } from './canonical-trip';
 import type { JournalExportSummary } from './trip-summary-slices';
 
+vi.mock('./toast', () => ({ showToast: vi.fn() }));
+
 // ── Mock DOM download side ────────────────────────────────────────────────────
 
 beforeEach(() => {
@@ -20,8 +22,6 @@ beforeEach(() => {
   vi.spyOn(document, 'createElement').mockReturnValue(mockAnchor as unknown as HTMLAnchorElement);
   vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock');
   vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
-  // Suppress toast
-  vi.mock('./toast', () => ({ showToast: vi.fn() }));
 });
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
