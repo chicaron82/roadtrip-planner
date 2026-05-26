@@ -157,6 +157,82 @@ No pure lib functions accumulate at 0% coverage silently. The Wave 3 cleanup (10
 
 ---
 
+## Post-Calculation Reveal Flow
+
+The choreography between calculation completing and the journal starting is non-obvious. Here's the exact sequence.
+
+### Classic wizard path (Step 3 → Calculate)
+
+```
+User clicks Calculate (Step 3)
+  → calculateAndDiscover()          [useTripCalculation]
+  → OSRM routing + Overpass POI...
+  → onCalcCompleteRef.current()     [App.tsx, useLayoutEffect-wired]
+      → icebreaker.onCalcComplete() returns false (no arc active)
+      → markStepComplete(1, 2)
+      → triggerFlyover()            [useVoilaFlow]
+          → flyoverActive = true
+  → Map flyover animation plays     [VoilaScreen / FlyoverMap]
+  → handleFlyoverComplete()
+      → flyoverActive = false
+      → showVoila = true
+  → VoilaScreen shown
+  → User clicks "Lock In"
+      → handleVoilaLockIn()         [useVoilaFlow]
+          → setTripConfirmed(true)
+          → forceStep(3)
+          → lockInPendingRef = true  (voila stays up as curtain)
+  → Journal auto-start useEffect fires  [App.tsx lines 190–210]
+      guards:  !tripConfirmed || !summary       → skip
+               isJournalComplete                → skip (trip done)
+               journalSkipped                   → dismissVoilaCurtain + skip
+               activeJournal                    → skip (in-progress)
+               isJournalLoading                 → skip (creation in flight)
+      → buildSeededTitle(destination, days, travelers) or customTitle
+      → delay = showVoila ? 0 : 700   (0ms behind voila curtain; 700ms for StepsBanner morph)
+      → setTimeout(() => {
+            startJournal(title)       [useJournal → IndexedDB]
+            dismissVoilaCurtain()     → showVoila = false
+        }, delay)
+  → viewMode = 'journal' (journal view takes over)
+```
+
+### Icebreaker arc path (Beat 1 → 2 → 3 → 4)
+
+```
+Beat 1: PlanIcebreaker completes     [useIcebreakerGate]
+  → arc.enterSketch(locations, vehicle, settings)
+      → Beat 2 active, haversine sketch estimate computed
+
+Beat 2: User sees Sketch screen
+  → "Looks good" → arc.startCalculation()
+  → OR "Customize" → arc.enterWorkshop() → Beat 3
+
+Beat 3 (optional workshop): User confirms
+  → arc.startCalculation()
+  → calculateAndDiscover()
+
+Calculation completes
+  → onCalcCompleteRef.current()
+      → icebreaker.onCalcComplete() returns true (arc intercepts)
+          → arc.onBuildComplete()      → isRevealing = true
+          → onTriggerFlyover()         → triggerFlyover()
+                                       → flyoverActive = true
+  → (same flyover → VoilaScreen → lockIn → journal path as above)
+```
+
+### Key actors
+
+| Hook / file | Owns |
+|---|---|
+| `useFourBeatArc` | Beat state machine (null / 2 / 3 / 4), sketch estimate |
+| `useIcebreakerOrchestrator` | Arc wiring, calc intercept, overlay props for App.tsx |
+| `useVoilaFlow` | `showVoila`, `flyoverActive`, `triggerFlyover`, `handleVoilaLockIn` |
+| `App.tsx` lines 190–210 | Journal auto-start effect (7 guards → `startJournal` + `dismissVoilaCurtain`) |
+| `useJournal` | IndexedDB journal CRUD, `startJournal`, `activeJournal` |
+
+---
+
 ## Build & Test
 
 ```bash
