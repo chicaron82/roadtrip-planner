@@ -1,4 +1,4 @@
-import { useRef, useState, useLayoutEffect, useEffect, lazy, Suspense } from 'react';
+import { useRef, useState, useLayoutEffect, lazy, Suspense } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { ErrorFallback } from './components/UI/ErrorFallback';
 import { useIcebreakerOrchestrator } from './components/Icebreaker/IcebreakerOrchestrator';
@@ -12,8 +12,7 @@ import {
   useCalculateAndDiscover, useGhostCar,
   useAppCallbacks, useArrivalSnap, useCalculationMessages,
 } from './hooks';
-import { useSessionLifecycle, useVoilaFlow, useAppBackPress } from './hooks/session';
-import { buildSeededTitle } from './lib/trip-title-seeds';
+import { useSessionLifecycle, useVoilaFlow, useAppBackPress, useJournalAutoStart } from './hooks/session';
 
 const Map = lazy(() => import('./components/Map/Map').then(m => ({ default: m.Map })));
 
@@ -181,33 +180,12 @@ function AppContent() {
   // ── Android back button guard ─────────────────────────────────────────────
   useAppBackPress({ activeJournal, viewMode, setViewMode, icebreaker, tripMode, planningStep, goToStep });
 
-  // Auto-start journal on lock-in. Creates a fresh journal each time —
-  // if a completed journal exists it is archived in IndexedDB and replaced.
-  // In-progress journals are preserved (mid-trip page reload recovery).
-  // When voila is still visible (lock-in curtain), start immediately —
-  // the StepsBanner morph isn't visible behind voila. Otherwise 700ms
-  // lets StepsBanner's wizard→trip morph play first.
-  useEffect(() => {
-    if (!tripConfirmed || !summary) return;
-    if (isJournalComplete) return;                   // trip finished — never restart
-    if (journalSkipped) { dismissVoilaCurtain(); return; }  // user opted out — still drop the curtain
-    if (activeJournal) return;                       // in-progress — don't override
-    if (isJournalLoading) return;                    // creation already in flight
-    // Seeded title: deterministic from destination + days + travelers.
-    // Falls through to generateDefaultTitle() only if both customTitle and seed fail.
-    const dest = locations.find(l => l.type === 'destination')?.name?.split(',')[0].trim() ?? '';
-    const title = customTitle || (dest ? buildSeededTitle({
-      destination: dest,
-      days: summary.drivingDays,
-      travelerCount: settings.numTravelers ?? 1,
-    }) : undefined);
-    const delay = showVoila ? 0 : 700;
-    const t = setTimeout(async () => {
-      await startJournal(title ?? undefined);
-      dismissVoilaCurtain();
-    }, delay);
-    return () => clearTimeout(t);
-  }, [tripConfirmed, showVoila, activeJournal, isJournalComplete, journalSkipped, isJournalLoading, summary, startJournal, dismissVoilaCurtain, customTitle, locations, settings.numTravelers]);
+  useJournalAutoStart({
+    tripConfirmed, summary, showVoila,
+    activeJournal, isJournalComplete, journalSkipped, isJournalLoading,
+    startJournal, dismissVoilaCurtain,
+    customTitle, locations, settings,
+  });
 
 
 

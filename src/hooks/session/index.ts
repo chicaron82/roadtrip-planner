@@ -5,3 +5,4 @@ export { useURLHydration } from './useURLHydration';
 export { useBackButtonGuard } from './useBackButtonGuard';
 export { useAppTemplateHandlers } from './useAppTemplateHandlers';
 export { useAppBackPress } from './useAppBackPress';
+export { useJournalAutoStart } from './useJournalAutoStart';
