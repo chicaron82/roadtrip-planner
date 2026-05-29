@@ -270,7 +270,7 @@ At the end of every coding session, create a blog entry in the **chicharons-kitc
 
 Use the `BlogEntry` type from `@uv7/journal-core`. Full content, no TODOs. Write it like an editorial recap — narrative, specific, with flavour. Not a changelog.
 
-**Required fields:** `id`, `date`, `sortDate`, `title`, `type`, `emoji`, `tags`, `modelId`, `summary`, `highlights`
+**Required fields:** `id`, `date`, `sortDate`, `title`, `type`, `emoji`, `tags`, `chefId`, `summary`, `highlights`
 
 **Encouraged fields:** `callout`, `technicalDetails`, `lessons`, `footer`
 
