@@ -182,7 +182,7 @@ User clicks Calculate (Step 3)
           → setTripConfirmed(true)
           → forceStep(3)
           → lockInPendingRef = true  (voila stays up as curtain)
-  → Journal auto-start useEffect fires  [App.tsx lines 190–210]
+  → Journal auto-start useEffect fires  [useJournalAutoStart]
       guards:  !tripConfirmed || !summary       → skip
                isJournalComplete                → skip (trip done)
                journalSkipped                   → dismissVoilaCurtain + skip
@@ -227,9 +227,12 @@ Calculation completes
 |---|---|
 | `useFourBeatArc` | Beat state machine (null / 2 / 3 / 4), sketch estimate |
 | `useIcebreakerOrchestrator` | Arc wiring, calc intercept, overlay props for App.tsx |
-| `useVoilaFlow` | `showVoila`, `flyoverActive`, `triggerFlyover`, `handleVoilaLockIn` |
-| `App.tsx` lines 190–210 | Journal auto-start effect (7 guards → `startJournal` + `dismissVoilaCurtain`) |
+| `useVoilaFlow` | `showVoila`, `flyoverActive`, `triggerFlyover`, `handleVoilaLockIn`, `lockInPendingRef` curtain |
+| `useJournalAutoStart` | Journal auto-start effect (5 guards → `startJournal` + `dismissVoilaCurtain`); App.tsx wires it |
 | `useJournal` | IndexedDB journal CRUD, `startJournal`, `activeJournal` |
+
+Reveal-flow hooks are covered by `useVoilaFlow.test.ts`, `useJournalAutoStart.test.ts`,
+and the composed `reveal-choreography.test.tsx` integration test.
 
 ---
 
@@ -265,7 +268,7 @@ npm run dev
 At the end of every coding session, create a blog entry in the **chicharons-kitchen** repo:
 
 ```
-../chicharons-kitchen/posts/YYYY/MM/slug.ts
+../chicharons-kitchen/src/posts/YYYY/MM/slug.ts
 ```
 
 Use the `BlogEntry` type from `@uv7/journal-core`. Full content, no TODOs. Write it like an editorial recap — narrative, specific, with flavour. Not a changelog.
