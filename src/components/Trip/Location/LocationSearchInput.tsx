@@ -22,6 +22,7 @@ export function LocationSearchInput({ value, onSelect, placeholder, className }:
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: mirrors the controlled `value` prop into editable local query state
     setQuery(value);
   }, [value]);
 

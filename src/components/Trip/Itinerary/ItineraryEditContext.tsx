@@ -42,6 +42,7 @@ export function ItineraryEditProvider({
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- the provider and its consumer hook are intentionally co-located (HMR-only rule)
 export function useItineraryEditContext(): ItineraryEditCallbacks {
   return useContext(ItineraryEditContext);
 }

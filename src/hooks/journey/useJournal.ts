@@ -165,6 +165,7 @@ export function useJournal({
   useEffect(() => {
     if (!activeJournal || isJournalComplete) return;
     if (checkJournalComplete(activeJournal)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: latches completion when the user marks the last stop mid-journey
       setIsJournalComplete(true);
     }
   }, [activeJournal, isJournalComplete]);

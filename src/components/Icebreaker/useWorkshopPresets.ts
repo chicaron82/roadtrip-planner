@@ -108,6 +108,7 @@ export function useWorkshopPresets({
 
   // Auto-sync rooms when travelers changes, unless the user has overridden.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: auto-syncs rooms to traveler count unless the user has overridden
     if (!userSetRooms) setNumRoomsState(defaultRooms(travelers));
   }, [travelers, userSetRooms]);
 

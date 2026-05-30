@@ -27,8 +27,10 @@ export function useVehicleFormState({ vehicle, setVehicle, units }: UseVehicleFo
 
     const { id: _id, name: _name, lastUsed: _lastUsed, isDefault: _isDefault, ...vehicleData } = defaultVehicle;
     setVehicle(vehicleData);
+    /* eslint-disable react-hooks/set-state-in-effect -- intentional: one-time hydration from the saved default vehicle on mount */
     setIsCustomMake(COMMON_MAKES.indexOf(defaultVehicle.make) === -1);
     setIsCustomModel(!VEHICLE_DB[defaultVehicle.make]?.[defaultVehicle.model]);
+    /* eslint-enable react-hooks/set-state-in-effect */
   // eslint-disable-next-line react-hooks/exhaustive-deps -- empty dep array is intentional; setVehicle is stable
   }, []);
 
@@ -44,6 +46,7 @@ export function useVehicleFormState({ vehicle, setVehicle, units }: UseVehicleFo
     const { isEV: vehicleIsEV } = stats;
     let { city, hwy, tank } = stats;
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: auto-populates EV/spec fields from the selected make/model
     setIsEV(!!vehicleIsEV);
 
     if (isHybrid && !vehicleIsEV) {

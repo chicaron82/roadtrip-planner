@@ -25,6 +25,7 @@ export function useEagerRoute(locations: Location[]): [number, number][] | null 
       !!(loc && loc.lat && loc.lat !== 0 && loc.lng && loc.lng !== 0 && loc.name);
 
     if (!valid(origin) || !valid(dest)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: clears the stale async preview when an endpoint is cleared
       setPreviewGeometry(null);
       return;
     }
