@@ -41,6 +41,15 @@ function createInitialState(config: StopSuggestionConfig, segments: RouteSegment
 
 /**
  * Generate smart stop suggestions based on route, vehicle, and settings.
+ *
+ * NOTE — line-cap exception (justified): this function runs over the 330 cap.
+ * The per-check logic (fuel/rest/meal/overnight/EV/arrival) is already extracted
+ * to the `stop-checks*.ts` siblings. What remains is the sequential simulation
+ * loop that orchestrates them, driving heavily-coupled mutable state (`state`,
+ * `suggestions`, `cumulativeDistanceKm`, `returnLegFuelResetDone`) across
+ * iterations. Extracting phases would thread a large mutable context + in/out
+ * loop vars through helpers — relocating complexity, not reducing it. The length
+ * is essential. Covered by stop-suggestions.test.ts.
  */
 export function generateSmartStops(
   segments: RouteSegment[],
