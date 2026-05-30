@@ -24,7 +24,6 @@ import {
  * Houses all business-logic derivations for the Step 3 results view so that
  * Step3Content is a pure layout component (renders what it receives, emits
  * user intents upward) rather than an inline analytics engine.
- *
  * Owns:
  *  - Trip feasibility analysis     (analyzeFeasibility)
  *  - Estimate-mode cost summary     (generateEstimate, only in estimate mode)

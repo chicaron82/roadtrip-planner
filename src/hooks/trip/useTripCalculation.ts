@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useLayoutEffect, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { Location, Vehicle, TripSettings, TripSummary, TripDay, RouteStrategy, StopType, DayType, OvernightStop } from '../../types';
+import type { Location, Vehicle, TripSettings, TripSummary, RouteStrategy, StopType, DayType, OvernightStop } from '../../types';
 import type { StrategicFuelStop } from '../../lib/calculations';
 import type { SuggestedStop } from '../../lib/stop-suggestion-types';
 import { fetchAllRouteStrategies } from '../../lib/api';
@@ -13,6 +13,7 @@ import {
   orchestrateTrip, orchestrateStopUpdate, orchestrateStrategySwap, TripCalculationError,
 } from '../../lib/trip-orchestrator';
 import { useTimeline } from '../../contexts/TripContext';
+import { useDayEditors } from './useDayEditors';
 
 interface UseTripCalculationOptions {
   locations: Location[];
@@ -251,46 +252,10 @@ export function useTripCalculation({
     [settings, vehicle, locations, setCanonicalTimeline]
   );
 
-  // Generic day updater — updates a single day in summary.days
-  const updateDay = useCallback(
-    (dayNumber: number, patch: Partial<TripDay>) => {
-      const currentSummary = summaryRef.current;
-      if (!currentSummary?.days) return;
-
-      const updatedDays = currentSummary.days.map(day =>
-        day.dayNumber === dayNumber ? { ...day, ...patch } : day
-      );
-
-      const updatedSummary = {
-        ...currentSummary,
-        days: updatedDays,
-      };
-
-      commitSummary(updatedSummary);
-    },
-    [commitSummary]
-  );
-
-  // Convenience wrappers
-  const updateDayNotes = useCallback(
-    (dayNumber: number, notes: string) => updateDay(dayNumber, { notes }),
-    [updateDay]
-  );
-
-  const updateDayTitle = useCallback(
-    (dayNumber: number, title: string) => updateDay(dayNumber, { title }),
-    [updateDay]
-  );
-
-  const updateDayType = useCallback(
-    (dayNumber: number, dayType: DayType) => updateDay(dayNumber, { dayType }),
-    [updateDay]
-  );
-
-  const updateDayOvernight = useCallback(
-    (dayNumber: number, overnight: OvernightStop) => updateDay(dayNumber, { overnight }),
-    [updateDay]
-  );
+  // Single-day field editors (notes/title/type/overnight) live in a sub-hook
+  // to keep this hook under the line cap.
+  const { updateDayNotes, updateDayTitle, updateDayType, updateDayOvernight } =
+    useDayEditors({ summaryRef, commitSummary });
 
   const dismissOvernightPrompt = useCallback(() => {
     setShowOvernightPrompt(false);
