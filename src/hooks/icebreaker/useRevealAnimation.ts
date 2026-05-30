@@ -42,7 +42,6 @@ export function useRevealAnimation(hasTrip: boolean): {
 
       if (isFirstBuild) {
         // Full luxury reveal — phase in layers sequentially.
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setPhase(1);
         const t2 = setTimeout(() => setPhase(2), 150);
         const t3 = setTimeout(() => setPhase(3), 280);
@@ -56,8 +55,10 @@ export function useRevealAnimation(hasTrip: boolean): {
       }
     }
 
-    if (!hasTrip) {
+    if (was && !hasTrip) {
       // Trip cleared — collapse immediately, ready for next reveal.
+      // Guarded by `was` so this only fires on the trip→no-trip transition,
+      // not on the initial no-trip mount (where phase is already 0).
       setPhase(0);
     }
   }, [hasTrip]);

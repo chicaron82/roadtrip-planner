@@ -150,7 +150,7 @@ export function useIcebreakerOrchestrator(
       return true;
     }
     return false;
-  }, [arc, estimateWorkshopActive]);
+  }, [arc, estimateWorkshopActive, onTriggerFlyover]);
 
   // When calculation fails at beat 4, exit the arc and fall back to the
   // classic wizard so the user can see the error toast and retry. Without

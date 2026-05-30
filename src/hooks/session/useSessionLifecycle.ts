@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { getHistory, saveActiveSession, loadActiveSession, getLastOrigin } from '../../lib/storage';
 import { applyLastOriginToTripInputs } from '../../lib/boot-sequence';
 import { resetAppAndSelectTripMode, resetTripSession as runResetTripSession } from '../../lib/reset-semantics';
@@ -66,7 +66,9 @@ export function useSessionLifecycle({
   // ── 3. Active Session Restore ──────────────────────────────────────────────
   const sessionRestored = useRef(false);
   const calculateRef = useRef(calculateAndDiscover);
-  calculateRef.current = calculateAndDiscover;
+  // Keep the ref current without writing during render (react-hooks/refs).
+  // Runs before the passive restore effect below, so it reads the latest callback.
+  useLayoutEffect(() => { calculateRef.current = calculateAndDiscover; });
 
   useEffect(() => {
     if (sessionRestored.current) return;
