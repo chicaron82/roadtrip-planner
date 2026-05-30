@@ -8,7 +8,8 @@
 
 import type { Location, TripSummary, TripDay, TripSettings } from '../../types';
 import type { CanonicalTripTimeline } from '../../lib/canonical-trip';
-import { snapOvernightsToTowns, validateIntentOvernights } from '../../lib/overnight-snapper';
+import { snapOvernightsToTowns } from '../../lib/overnight-snapper';
+import { validateIntentOvernights } from '../../lib/overnight-validator';
 import {
   applySnappedOvernightsToCanonicalTimeline,
   shouldPropagateSnappedOvernightToNextDay,

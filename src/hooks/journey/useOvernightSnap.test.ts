@@ -16,6 +16,9 @@ import { makeSettings as _makeSettings, makeBudget } from '../../test/fixtures';
 
 vi.mock('../../lib/overnight-snapper', () => ({
   snapOvernightsToTowns: vi.fn(),
+}));
+
+vi.mock('../../lib/overnight-validator', () => ({
   validateIntentOvernights: vi.fn(),
 }));
 
@@ -28,7 +31,8 @@ import {
   checkAndSetOvernightPrompt,
   fireAndForgetOvernightPostProcessing,
 } from './useOvernightSnap';
-import { snapOvernightsToTowns, validateIntentOvernights } from '../../lib/overnight-snapper';
+import { snapOvernightsToTowns } from '../../lib/overnight-snapper';
+import { validateIntentOvernights } from '../../lib/overnight-validator';
 import {
   applySnappedOvernightsToCanonicalTimeline,
   shouldPropagateSnappedOvernightToNextDay,

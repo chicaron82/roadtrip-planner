@@ -2,13 +2,14 @@
  * adventure-service.ts — unit tests for pure helper functions.
  *
  * Pure functions — no mocks needed.
- * Covers: calculateMaxDistance, formatCostBreakdown, buildAdventureBudget,
+ * Covers: calculateMaxDistance, formatCostBreakdown,
  *         findAdventureDestinations (numRooms, isOverBudget, 15% buffer).
+ * (buildAdventureBudget lives in adventure-budget.test.ts)
  */
 
 import { describe, it, expect } from 'vitest';
 import type { AdventureConfig } from '../../types';
-import { calculateMaxDistance, formatCostBreakdown, buildAdventureBudget, findAdventureDestinations } from './adventure-service';
+import { calculateMaxDistance, formatCostBreakdown, findAdventureDestinations } from './adventure-service';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -102,25 +103,6 @@ describe('formatCostBreakdown', () => {
   });
 });
 
-// ─── buildAdventureBudget ─────────────────────────────────────────────────────
-
-describe('buildAdventureBudget', () => {
-  it('returns total equal to the input totalBudget', () => {
-    const result = buildAdventureBudget(1000, 500, [], 'moderate');
-    expect(result.total).toBe(1000);
-  });
-
-  it('gas is based on estimated distance at $0.12/km', () => {
-    const result = buildAdventureBudget(1000, 500, [], 'moderate');
-    expect(result.gas).toBe(Math.round(500 * 0.12));
-  });
-
-  it('returns a profile string', () => {
-    const result = buildAdventureBudget(1000, 500, [], 'moderate');
-    expect(typeof result.profile).toBe('string');
-  });
-});
-
 // ─── findAdventureDestinations — isOverBudget / 15% buffer ───────────────────
 
 describe('findAdventureDestinations', () => {
@@ -187,21 +169,3 @@ describe('findAdventureDestinations', () => {
   });
 });
 
-// ─── buildAdventureBudget ─────────────────────────────────────────────────────
-
-describe('buildAdventureBudget', () => {
-  it('all weight percentages are numbers', () => {
-    const result = buildAdventureBudget(1000, 500, [], 'moderate');
-    expect(typeof result.weights.gas).toBe('number');
-    expect(typeof result.weights.hotel).toBe('number');
-    expect(typeof result.weights.food).toBe('number');
-    expect(typeof result.weights.misc).toBe('number');
-  });
-
-  it('hotel, food, misc are all non-negative', () => {
-    const result = buildAdventureBudget(1000, 500, [], 'moderate');
-    expect(result.hotel).toBeGreaterThanOrEqual(0);
-    expect(result.food).toBeGreaterThanOrEqual(0);
-    expect(result.misc).toBeGreaterThanOrEqual(0);
-  });
-});
