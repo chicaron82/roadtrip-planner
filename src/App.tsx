@@ -1,6 +1,7 @@
 import { useRef, useState, useLayoutEffect, lazy, Suspense } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { ErrorFallback } from './components/UI/ErrorFallback';
+import { BuildStamp } from './components/UI/BuildStamp';
 import { useIcebreakerOrchestrator } from './components/Icebreaker/IcebreakerOrchestrator';
 import './styles/sidebar.css';
 import { TripProvider, useTimeline, useTripCore } from './contexts';
@@ -270,6 +271,8 @@ function AppContent() {
         plannerContextValue={plannerContextValue}
         shareScreenProps={shareScreenProps}
       />
+
+      <BuildStamp />
     </div>
   );
 }
