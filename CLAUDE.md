@@ -122,6 +122,18 @@ The goal is not to second-guess everything — it's to catch the cases where div
 
 ---
 
+## react-hooks Suppressions — Intentional, Do Not Refactor
+
+Three `eslint-disable react-hooks` sites are deliberate (`64dfbba`):
+`LocationSearchInput` (value→query mirror), `useWorkshopPresets`
+(travelers→rooms), `useVehicleFormState` (mount init + derive). They work;
+the suppressions are honest documentation of intentional patterns, not debt.
+
+Revisit ONLY if adopting the React Compiler — and write component tests for
+LocationSearchInput and the vehicle form *first*, before touching them.
+
+---
+
 ## Read Before Touch
 
 **Never edit a file you haven't read in the current session.**
