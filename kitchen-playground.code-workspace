@@ -21,6 +21,7 @@
 		"chat.tools.terminal.autoApprove": {
 			"npx tsc": true
 		},
-		"liveServer.settings.multiRootWorkspaceName": "nanays-orders"
+		"liveServer.settings.multiRootWorkspaceName": "nanays-orders",
+		"markdown.validate.enabled": false
 	}
 }
