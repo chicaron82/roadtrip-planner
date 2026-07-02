@@ -14,15 +14,15 @@ import { getTankSizeLitres, getWeightedFuelEconomyL100km } from './unit-conversi
 import { getTripStartTime } from './trip-timezone';
 import type { SuggestionStopType } from './stop-suggestion-types';
 
-// createStopConfig only reads these six fields; cast a minimal fixture.
-const VEHICLE = {
+const VEHICLE: Vehicle = {
   id: 'v1',
-  name: 'Test Van',
+  year: '2020',
+  make: 'Test',
+  model: 'Van',
   tankSize: 60,        // litres (metric)
   fuelEconomyHwy: 8.0, // L/100km (metric)
   fuelEconomyCity: 12.0,
-  type: 'car',
-} as Vehicle;
+};
 
 const SETTINGS = {
   units: 'metric',

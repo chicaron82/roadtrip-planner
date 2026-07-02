@@ -252,13 +252,17 @@ and the composed `reveal-choreography.test.tsx` integration test.
 ## Build & Test
 
 ```bash
-# Type check
-npx tsc --noEmit
+# Type check — use the build, NOT bare `tsc --noEmit`. The root tsconfig is a
+# solution file (`files: []` + references), so --noEmit checks ZERO files and
+# exits clean while real type errors ship. `tsc -b` follows the references.
+# (Same trap FG documented; it bit RP on 2026-07-01 — two commits pushed
+# "gates green" with type errors only the build could see.)
+npm run build        # tsc -b && vite build — the real type gate
 
 # Lint (App.tsx line count enforced here)
 npx eslint src/
 
-# Tests
+# Tests (vitest transpiles without type-checking — it will NOT catch type errors)
 npx vitest run
 
 # Dev server

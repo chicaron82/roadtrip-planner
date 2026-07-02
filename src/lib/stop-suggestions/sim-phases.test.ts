@@ -11,7 +11,7 @@ import { lngToIANA, ianaToAbbr } from '../trip-timezone';
 import { getTimezoneShiftHours } from './timezone';
 import type { SimState } from './types';
 import type { StopSuggestionConfig } from '../stop-suggestion-types';
-import type { RouteSegment, TripDay } from '../../types';
+import type { ProcessedSegment, TripDay } from '../../types';
 
 // ─── Fixtures (mirroring the stop-checks sibling tests) ───────────────────────
 
@@ -49,7 +49,7 @@ function makeState(overrides: Partial<SimState> = {}): SimState {
   };
 }
 
-function makeSeg(overrides: Partial<RouteSegment> = {}): RouteSegment {
+function makeSeg(overrides: Partial<ProcessedSegment> = {}): ProcessedSegment {
   return {
     from: LOC_A,
     to: LOC_B,
@@ -57,6 +57,7 @@ function makeSeg(overrides: Partial<RouteSegment> = {}): RouteSegment {
     durationMinutes: 120,
     fuelNeededLitres: 10,
     fuelCost: 15,
+    _originalIndex: 0,
     ...overrides,
   };
 }
