@@ -163,7 +163,8 @@ When **removing, renaming, or changing the signature** of any exported function,
 
 When a new pure function lands in `src/lib/`:
 - A test file goes with it **in the same commit**, OR
-- An explicit entry is added to `docs/backlog.md` noting it's untested
+- An explicit `docs/ticket-*.md` drop is filed noting it's untested (the ticket
+  convention that replaced the old `docs/backlog.md`, which was archived)
 
 No pure lib functions accumulate at 0% coverage silently. The Wave 3 cleanup (10 files at 0%) is the example of what this prevents.
 
