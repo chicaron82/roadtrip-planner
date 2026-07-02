@@ -17,8 +17,13 @@ import {
 } from './stop-checks';
 import { checkEVChargeStop, getEnRouteChargeStops } from './stop-checks-ev';
 import { findPreferredHubInWindow } from '../hub-cache';
-import { lngToIANA, ianaToAbbr } from '../trip-timezone';
-import { getTimezoneShiftHours } from './timezone';
+import {
+  buildSynthesizedOvernight,
+  applyTransitTimezoneShift,
+  syncStateAfterEnRouteFills,
+  applyWaypointIntentReset,
+  refillTank,
+} from './sim-phases';
 import { createStopPlanningRouteContext, prewarmWaypointHubs } from './route-context';
 
 function createInitialState(config: StopSuggestionConfig, segments: RouteSegment[]): SimState {
@@ -42,14 +47,14 @@ function createInitialState(config: StopSuggestionConfig, segments: RouteSegment
 /**
  * Generate smart stop suggestions based on route, vehicle, and settings.
  *
- * NOTE — line-cap exception (justified): this function runs over the 330 cap.
- * The per-check logic (fuel/rest/meal/overnight/EV/arrival) is already extracted
- * to the `stop-checks*.ts` siblings. What remains is the sequential simulation
- * loop that orchestrates them, driving heavily-coupled mutable state (`state`,
- * `suggestions`, `cumulativeDistanceKm`, `returnLegFuelResetDone`) across
- * iterations. Extracting phases would thread a large mutable context + in/out
- * loop vars through helpers — relocating complexity, not reducing it. The length
- * is essential. Covered by stop-suggestions.test.ts.
+ * The per-check logic (fuel/rest/meal/overnight/EV/arrival) lives in the
+ * `stop-checks*.ts` siblings; the narrow-signature per-segment phases
+ * (synthesized overnight, transit tz shift, en-route fill sync, waypoint
+ * intent reset) live in `sim-phases.ts`. What remains here is the sequential
+ * simulation loop orchestrating them over heavily-coupled mutable state
+ * (`state`, `suggestions`, `cumulativeDistanceKm`, `returnLegFuelResetDone`)
+ * — the part where extraction would relocate coupling, not reduce it.
+ * Covered by stop-suggestions.test.ts.
  */
 export function generateSmartStops(
   segments: RouteSegment[],
@@ -115,33 +120,12 @@ export function generateSmartStops(
     //    prevents a spurious pre-destination overnight suggestion.
     const skipOvernightChecks = !!segment._transitPart && !drivingDayStartMap.has(index + 1);
 
-    // When crossing a day boundary, synthesize an overnight stop from TripDay
-    // overnight data if the auto-generator would have been suppressed by daysWithHotel.
-    // This covers round-trip destinations where the outbound leg fits within
-    // maxDriveHours so checkOvernightStop never fires, but a hotel stop was
-    // still assigned by splitTripByDays.
-    const incomingDay = drivingDayStartMap.get(index);
-    if (incomingDay && days) {
-      const prevDrivingDay = days
-        .filter(d => d.segmentIndices.length > 0 && d.dayNumber < incomingDay.dayNumber)
-        .at(-1);
-      if (prevDrivingDay?.overnight && daysWithHotel.has(prevDrivingDay.dayNumber)) {
-        const overnight = prevDrivingDay.overnight;
-        suggestions.push({
-          id: `overnight-midpoint-day${prevDrivingDay.dayNumber}`,
-          type: 'overnight',
-          reason: `Overnight at ${overnight.location.name}. Check in, rest up, and continue tomorrow.`,
-          afterSegmentIndex: Math.max(0, segOrigIdx - 1),
-          estimatedTime: new Date(state.currentTime),
-          duration: 720,
-          priority: 'required',
-          details: { hoursOnRoad: state.totalDrivingToday },
-          dayNumber: prevDrivingDay.dayNumber,
-          accepted: true, // User already filled in hotel data — don't show as pending suggestion
-          hubName: overnight.location.name,
-        });
-      }
-    }
+    // Day-boundary crossing: synthesize an overnight from TripDay hotel data
+    // where the auto-generator was suppressed (see sim-phases.ts).
+    const synthesized = buildSynthesizedOvernight(
+      days, drivingDayStartMap.get(index), daysWithHotel, state, segOrigIdx,
+    );
+    if (synthesized) suggestions.push(synthesized);
 
     // Day boundary reset (multi-day gap handling)
     handleDayBoundaryReset(state, index, drivingDayStartMap, config);
@@ -161,23 +145,10 @@ export function generateSmartStops(
     }
 
     // Apply timezone shift BEFORE fuel/rest/meal checks so stops are stamped in the
-    // correct local time. Example: Winnipeg (CDT) → Regina (CST) segment
-    // should stamp the fuel stop at 2:13 PM CST, not 3:13 PM CDT.
-    //
-    // Transit sub-segments (_transitPart) inherit their parent's DESTINATION
-    // timezoneAbbr — which is WRONG for intermediate sub-segments. A Winnipeg→Vancouver
-    // mega-segment split into 4 parts gives ALL parts timezoneAbbr='PDT'. We can't use
-    // segment.weather.timezoneAbbr for these. Instead, derive the correct timezone from
-    // the sub-segment's FROM longitude (which IS accurate — interpolated on the real road).
+    // correct local time (Winnipeg CDT → Regina CST stamps 2:13 PM CST, not 3:13 CDT).
+    // Transit sub-segments derive their zone from FROM-longitude (see sim-phases.ts).
     if (segment._transitPart) {
-      // Longitude-based timezone for transit sub-segments
-      const derivedAbbr = ianaToAbbr(lngToIANA(segment.from.lng)) ?? state.currentTzAbbr;
-      if (derivedAbbr && derivedAbbr !== state.currentTzAbbr) {
-        const shiftMs = getTimezoneShiftHours(state.currentTzAbbr, derivedAbbr) * 3600000;
-        state.currentTime = new Date(state.currentTime.getTime() + shiftMs);
-        state.lastBreakTime = new Date(state.lastBreakTime.getTime() + shiftMs);
-        state.currentTzAbbr = derivedAbbr;
-      }
+      applyTransitTimezoneShift(state, segment);
     } else {
       applyTimezoneShift(state, segment);
     }
@@ -189,10 +160,7 @@ export function generateSmartStops(
     // does this when day-split data is perfect, but acts as a reliable fallback
     // when that path doesn't fire (transit sub-segments, missing day boundaries).
     if (isRoundTrip && !returnLegFuelResetDone && cumulativeDistanceKm >= totalRouteDistanceKm / 2) {
-      state.currentFuel = config.isEV ? config.tankSizeLitres * TRIP_CONSTANTS.ev.chargeToLimit : config.tankSizeLitres;
-      state.distanceSinceLastFill = 0;
-      state.hoursSinceLastFill = 0;
-      state.costSinceLastFill = 0;
+      refillTank(state, config);
       returnLegFuelResetDone = true;
     }
 
@@ -332,46 +300,10 @@ export function generateSmartStops(
     // Drive the segment
     const arrivalTime = driveSegment(state, segment, segmentStartTime, config);
 
-    // Sync simulation state for mid-segment en-route fills.
-    // driveSegment consumes fuel for the full segment, but the tank was refilled
-    // at lastFillKm — correct distanceSinceLastFill, hoursSinceLastFill, and
-    // currentFuel to reflect only the distance driven AFTER the last en-route fill.
-    // This prevents checkFuelStop from firing spuriously at the next segment boundary.
-    if (lastFillKm > 0) {
-      const remainingKm  = segment.distanceKm - lastFillKm;
-      const remainingMin = (remainingKm / segment.distanceKm) * segment.durationMinutes;
-      const remainingFuel = (remainingKm / 100) * config.fuelEconomyL100km;
-      state.currentFuel          = config.tankSizeLitres - remainingFuel;
-      state.distanceSinceLastFill = remainingKm;
-      state.hoursSinceLastFill    = remainingMin / 60;
-      // Cost of the remaining portion after the last en-route fill (regional prices)
-      state.costSinceLastFill = (remainingKm / segment.distanceKm) * (segment.fuelCost ?? 0);
-    } else {
-      // No en-route fill — accumulate the entire segment's cost
-      state.costSinceLastFill += segment.fuelCost ?? 0;
-    }
-
-    // Intent-aware state reset: when the user declared a fuel/meal intent at this
-    // waypoint (segment.to), adjust sim state as if the planned stop happened.
-    // This prevents the NEXT segment's boundary check from firing a redundant fuel
-    // or meal stop near the same waypoint. The orchestrator injects the actual intent
-    // stop into the output — here we just sync the simulation state.
-    const waypointIntent = segment.to?.intent;
-    if (waypointIntent && segment.to?.type === 'waypoint') {
-      if (waypointIntent.fuel) {
-        state.currentFuel = config.isEV ? config.tankSizeLitres * TRIP_CONSTANTS.ev.chargeToLimit : config.tankSizeLitres;
-        state.distanceSinceLastFill = 0;
-        state.hoursSinceLastFill = 0;
-        state.costSinceLastFill = 0;
-        const dwellMs = (waypointIntent.dwellMinutes ?? (waypointIntent.meal ? 45 : 15)) * 60 * 1000;
-        state.currentTime = new Date(state.currentTime.getTime() + dwellMs);
-        state.lastBreakTime = new Date(state.currentTime);
-      } else if (waypointIntent.meal) {
-        const dwellMs = (waypointIntent.dwellMinutes ?? 45) * 60 * 1000;
-        state.currentTime = new Date(state.currentTime.getTime() + dwellMs);
-        state.lastBreakTime = new Date(state.currentTime);
-      }
-    }
+    // Sync state for mid-segment en-route fills, then apply any declared
+    // fuel/meal intent at this waypoint (both in sim-phases.ts).
+    syncStateAfterEnRouteFills(state, segment, config, lastFillKm);
+    applyWaypointIntentReset(state, segment, config);
 
     // Overnight stop check (uses strict "final segment" check, not grace zone).
     // Skipped for transit sub-segments without a following day boundary — beast mode
