@@ -153,7 +153,8 @@ When **removing, renaming, or changing the signature** of any exported function,
 
 1. `grep` for all usages across `src/` before making the change
 2. Update all call sites in the same commit — no partial changes
-3. Run `npx tsc --noEmit` before committing to confirm zero type errors
+3. Run `npm run build` (`tsc -b`) before committing to confirm zero type errors —
+   NOT bare `tsc --noEmit`, which is a no-op here (see Build & Test)
 
 **Never commit a breaking change without sweeping its consumers first.**
 
