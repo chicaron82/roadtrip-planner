@@ -70,7 +70,7 @@ export function checkEVChargeStop(
   // Replace locationPrefix and reasons with EV copy
   const locationPrefix = hubName ? `Charge up in ${hubName}. ` : '';
 
-  let reason = '';
+  let reason: string;
   if (wouldRunCriticallyLow) {
     reason = `${locationPrefix}Battery at ${tankPercent}%. ~$${refillCost.toFixed(2)} to charge (est. kWh). Critical: charge up before continuing to ${segment.to.name}.`;
   } else if (tankLow && !exceededSafeRange && !comfortRefuelDue) {

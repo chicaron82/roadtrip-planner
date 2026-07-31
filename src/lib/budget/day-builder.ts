@@ -193,7 +193,7 @@ export function finalizeTripDay(
   // 1. Charge for actual fuel stops occurrence (at-the-pump cost)
   // 2. Only charge mathematical L/km for segments that occur AFTER the very last fuel stop
   //    (the "home stretch" top-off).
-  let gasUsed = 0;
+  let gasUsed: number;
   if (fuelStops && fuelStops.length > 0) {
     const firstSeg = day.segments[0];
     const lastSeg = day.segments[day.segments.length - 1];

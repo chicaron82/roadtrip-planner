@@ -103,8 +103,6 @@ export function maybeInsertRoundTripMidpointDays({
     labelTransitDay(currentDay, originalSegments);
     nextBudget = { bankRemaining: currentDay.budget.bankRemaining };
     days.push(currentDay);
-    currentDay = null;
-    currentDayDriveMinutes = 0;
   }
 
   const outboundArrivalMs = currentDate.getTime() + outboundDriveMinutesSnapshot * 60 * 1000;

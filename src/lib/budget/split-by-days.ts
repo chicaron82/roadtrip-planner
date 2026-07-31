@@ -256,14 +256,13 @@ export function splitTripByDays(
   }
 
   if (!insertedFreeDays) {
-    const oneWayResult = insertOneWayDestinationFreeDays({
+    insertOneWayDestinationFreeDays({
       settings,
       fuelStops,
       dayNumber,
       days,
       budget,
     });
-    dayNumber = oneWayResult.dayNumber;
   }
 
   return days;

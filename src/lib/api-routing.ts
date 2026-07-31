@@ -132,7 +132,7 @@ export async function calculateRoute(
     const lakeSuperiorGuards = getGuardWaypoints(new Set(['lakeSuperior']), locations);
     if (lakeSuperiorGuards.length > 0) {
       const reroutedLocations = insertGuardWaypoints(locations, lakeSuperiorGuards);
-      let corridorResult: Awaited<ReturnType<typeof fetchOSRMRoute>> | null = null;
+      let corridorResult: Awaited<ReturnType<typeof fetchOSRMRoute>> | null;
       try {
         corridorResult = await fetchOSRMRoute(reroutedLocations, excludeParam);
       } catch {
@@ -154,7 +154,7 @@ export async function calculateRoute(
 
       if (guards.length > 0) {
         const reroutedLocations = insertGuardWaypoints(locations, guards);
-        let safeResult: Awaited<ReturnType<typeof fetchOSRMRoute>> | null = null;
+        let safeResult: Awaited<ReturnType<typeof fetchOSRMRoute>> | null;
         try {
           safeResult = await fetchOSRMRoute(reroutedLocations, excludeParam);
         } catch {

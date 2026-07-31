@@ -53,7 +53,7 @@ export function checkFuelStop(
   const litresRemaining = state.currentFuel.toFixed(1);
   const locationPrefix = hubName ? `Fuel up in ${hubName}. ` : '';
 
-  let reason = '';
+  let reason: string;
   if (wouldRunCriticallyLow) {
     reason = `${locationPrefix}Tank at ${tankPercent}% (${litresRemaining}L remaining). ~$${refillCost.toFixed(2)} to refill. Critical: refuel before continuing to ${segment.to.name}.`;
   } else if (tankLow && !exceededSafeRange && !comfortRefuelDue) {
