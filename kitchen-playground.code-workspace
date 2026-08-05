@@ -17,6 +17,15 @@
 		},
 		{
 			"path": "../bga-places"
+		},
+		{
+			"path": "../dizee-journal"
+		},
+		{
+			"path": "../dizee-memory"
+		},
+		{
+			"path": "../../.dizee-voice"
 		}
 	],
 	"settings": {
