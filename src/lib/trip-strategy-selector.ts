@@ -29,7 +29,9 @@ import {
   calculateCostBreakdown,
   getBudgetStatus,
 } from './budget';
-import { buildRoundTripSegments } from './trip-calculation-helpers';
+import {
+  buildRoundTripSegments, stampDeclaredOvernights, stampDrivingDayTerminals,
+} from './trip-calculation-helpers';
 
 /**
  * Build an updated TripSummary from a named route strategy.
@@ -64,6 +66,10 @@ export function buildStrategyUpdate(
     outboundLength = rt.roundTripMidpoint;
   }
 
+  // Pin day boundaries at declared overnights — the swap used to skip this, and a planned overnight
+  // vanished with any route change (ticket-swap-drops-declared-overnight).
+  allSegments = stampDeclaredOvernights(allSegments);
+
   // Fuel stops and day splits take the OUTBOUND geometry, as the first calculation passes them.
   const stratFuelStops = calculateStrategicFuelStops(
     strategy.geometry,
@@ -81,6 +87,10 @@ export function buildStrategyUpdate(
     strategy.geometry,
     stratFuelStops,
   );
+
+  // Same post-split pass as the first calculation. The breakdown below reads the UNSTAMPED days,
+  // exactly as orchestrate-trip does; only the returned records carry the stamp.
+  const stamped = stampDrivingDayTerminals(allSegments, updatedDays);
 
   let updatedCostBreakdown = localSummary.costBreakdown;
   let updatedBudgetStatus = localSummary.budgetStatus;
@@ -109,8 +119,8 @@ export function buildStrategyUpdate(
     costPerPerson: newSummary.costPerPerson,
     gasStops: newSummary.gasStops,
     fullGeometry: newSummary.fullGeometry,
-    segments: allSegments,
-    days: updatedDays,
+    segments: stamped.segments,
+    days: stamped.days,
     drivingDays: updatedDays.filter(d => d.dayType !== 'free').length,
     roundTripMidpoint: outboundLength,
     costBreakdown: updatedCostBreakdown,

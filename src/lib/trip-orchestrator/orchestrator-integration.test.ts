@@ -21,7 +21,13 @@ vi.mock('../calculations', () => ({
   calculateTripCosts: vi.fn(),
   calculateArrivalTimes: vi.fn(),
 }));
-vi.mock('../trip-calculation-helpers', () => ({ buildRoundTripSegments: vi.fn() }));
+// ⚠️ Keep the REAL helpers, stub only the round trip. The overnight stamping passes moved into this
+// module (2026-09-23, shared with the strategy swap); they used to be inline, real code in
+// orchestrate-trip, so stubbing them away would test less than this file always did.
+vi.mock('../trip-calculation-helpers', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../trip-calculation-helpers')>();
+  return { ...real, buildRoundTripSegments: vi.fn() };
+});
 vi.mock('../budget', () => ({
   splitTripByDays: vi.fn(),
   calculateCostBreakdown: vi.fn(),

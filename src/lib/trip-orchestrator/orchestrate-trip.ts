@@ -1,7 +1,9 @@
 import type { Location, Vehicle, TripSettings } from '../../types';
 import { calculateRoute } from '../api';
 import { calculateTripCosts, calculateArrivalTimes } from '../calculations';
-import { buildRoundTripSegments } from '../trip-calculation-helpers';
+import {
+  buildRoundTripSegments, stampDeclaredOvernights, stampDrivingDayTerminals,
+} from '../trip-calculation-helpers';
 import { splitTripByDays, calculateCostBreakdown, getBudgetStatus } from '../budget';
 import { generateSmartStops, createStopConfig } from '../stop-suggestions';
 import type { SuggestedStop } from '../stop-suggestions';
@@ -69,14 +71,8 @@ export async function orchestrateTrip(
     roundTripMidpoint = rt.roundTripMidpoint;
   }
 
-  // Stamp stopType = 'overnight' on segments ending at overnight-intent waypoints.
-  // splitTripByDays already handles isOvernightStop via segment.stopType — this is
-  // the only change needed to pin day boundaries at user-declared overnight stops.
-  segmentsWithTimes = segmentsWithTimes.map((seg) =>
-    seg.to.intent?.overnight && seg.to.type === 'waypoint'
-      ? { ...seg, stopType: 'overnight' as const }
-      : seg
-  );
+  // Pin day boundaries at user-declared overnight waypoints (shared with the strategy swap).
+  segmentsWithTimes = stampDeclaredOvernights(segmentsWithTimes);
 
   tripSummary.segments = segmentsWithTimes;
   tripSummary.roundTripMidpoint = roundTripMidpoint;
@@ -89,42 +85,12 @@ export async function orchestrateTrip(
   tripSummary.days = tripDays;
   tripSummary.drivingDays = tripDays.filter(d => d.dayType !== 'free').length;
 
-  // Stamp stopType='overnight' on the terminal segment of every non-final driving day.
-  // On icebreaker trips with no user-declared waypoints, the engine splits a long A→B
-  // segment into multiple days at inferred city stops (which may be guard waypoints for
-  // avoidBorders routing). Without this stamp, the journal guard filter would hide those
-  // cities and collapse the entire multi-day trip to 1-2 visible stops.
-  const drivingDays = tripDays.filter(d => d.dayType !== 'free');
-  const nonFinalDrivingDayNumbers = new Set(drivingDays.slice(0, -1).map(d => d.dayNumber));
-
-  // 1. Stamp tripSummary.segments (canonical record — consumed by ghost car and direct callers).
-  const terminalDrivingDayIndices = new Set<number>();
-  drivingDays.slice(0, -1).forEach(day => {
-    const lastIdx = day.segmentIndices[day.segmentIndices.length - 1];
-    if (lastIdx !== undefined) terminalDrivingDayIndices.add(lastIdx);
-  });
-  if (terminalDrivingDayIndices.size > 0) {
-    tripSummary.segments = tripSummary.segments.map((seg, idx) =>
-      terminalDrivingDayIndices.has(idx) && seg.stopType !== 'overnight'
-        ? { ...seg, stopType: 'overnight' as const }
-        : seg
-    );
-  }
-
-  // 2. Also stamp day.segments — buildTimelineIterationPlan uses these for the fast path
-  //    (when tripDays has populated segments). day.segments contains processed sub-segments
-  //    that are separate objects from tripSummary.segments, so the stamp above doesn't reach them.
-  if (nonFinalDrivingDayNumbers.size > 0) {
-    tripSummary.days = tripDays.map(day => {
-      if (!nonFinalDrivingDayNumbers.has(day.dayNumber) || day.segments.length === 0) return day;
-      const lastSegIdx = day.segments.length - 1;
-      const lastSeg = day.segments[lastSegIdx];
-      if (lastSeg.stopType === 'overnight') return day;
-      const newSegments = [...day.segments];
-      newSegments[lastSegIdx] = { ...lastSeg, stopType: 'overnight' as const };
-      return { ...day, segments: newSegments };
-    });
-  }
+  // Stamp the terminal segment of every non-final driving day (shared with the strategy swap —
+  // see stampDrivingDayTerminals for why both records need it). ⚠️ `tripDays` itself stays
+  // UNSTAMPED: the cost breakdown and smart stops below read it, exactly as before this was shared.
+  const stamped = stampDrivingDayTerminals(tripSummary.segments, tripDays);
+  tripSummary.segments = stamped.segments;
+  tripSummary.days = stamped.days;
 
   if (tripDays.length > 0) {
     tripSummary.costBreakdown = calculateCostBreakdown(tripDays, settings.numTravelers);

@@ -117,3 +117,67 @@ describe('applySnappedOvernightsToCanonicalTimeline', () => {
     expect(updated.days[1].events[0].locationHint).toBe('Lake Charles, LA');
   });
 });
+// ── The two overnight stamping passes (shared by orchestrate-trip and the strategy swap) ──────────
+import { stampDeclaredOvernights, stampDrivingDayTerminals } from './trip-calculation-helpers';
+import { makeLocation, makeSegment, makeDay as makeFixtureDay } from '../test/fixtures';
+
+describe('stampDeclaredOvernights', () => {
+  const origin = { ...makeLocation('Winnipeg'), type: 'origin' as const };
+  const planned = { ...makeLocation('Brandon'), type: 'waypoint' as const, intent: { overnight: true } };
+  const passThrough = { ...makeLocation('Virden'), type: 'waypoint' as const };
+  const dest = { ...makeLocation('Regina'), type: 'destination' as const, intent: { overnight: true } };
+
+  it('stamps a segment that ends at a waypoint the user declared as an overnight', () => {
+    const out = stampDeclaredOvernights([makeSegment({ from: origin, to: planned })]);
+    expect(out[0].stopType).toBe('overnight');
+  });
+
+  it('leaves a waypoint with no overnight intent alone', () => {
+    const seg = makeSegment({ from: origin, to: passThrough });
+    expect(stampDeclaredOvernights([seg])[0]).toBe(seg);
+  });
+
+  it('only WAYPOINTS pin a day — an overnight intent on the destination does not', () => {
+    const seg = makeSegment({ from: planned, to: dest });
+    expect(stampDeclaredOvernights([seg])[0].stopType).toBeUndefined();
+  });
+
+  it('never mutates its input', () => {
+    const seg = makeSegment({ from: origin, to: planned });
+    stampDeclaredOvernights([seg]);
+    expect(seg.stopType).toBeUndefined();
+  });
+});
+
+describe('stampDrivingDayTerminals', () => {
+  const segs = [makeSegment({ _originalIndex: 0 }), makeSegment({ _originalIndex: 1 }), makeSegment({ _originalIndex: 2 })];
+  const day = (n: number, idx: number[], extra = {}) =>
+    makeFixtureDay({ dayNumber: n, segmentIndices: idx, segments: idx.map(i => ({ ...segs[i] })), ...extra });
+
+  it('stamps the last segment of every driving day except the final one — in BOTH records', () => {
+    const { segments, days } = stampDrivingDayTerminals(segs, [day(1, [0]), day(2, [1]), day(3, [2])]);
+    expect(segments.map(s => s.stopType)).toEqual(['overnight', 'overnight', undefined]);
+    expect(days.map(d => d.segments[d.segments.length - 1].stopType)).toEqual(['overnight', 'overnight', undefined]);
+  });
+
+  it('a free day is not a driving day — it neither gets stamped nor counts as "final"', () => {
+    const { segments } = stampDrivingDayTerminals(
+      segs, [day(1, [0]), day(2, [], { dayType: 'free', segments: [] }), day(3, [1, 2])],
+    );
+    expect(segments.map(s => s.stopType)).toEqual(['overnight', undefined, undefined]);
+  });
+
+  it('a single-day trip is returned untouched (same arrays)', () => {
+    const days = [day(1, [0, 1, 2])];
+    const out = stampDrivingDayTerminals(segs, days);
+    expect(out.segments).toBe(segs);
+    expect(out.days).toBe(days);
+  });
+
+  it('never mutates the days it was given — callers keep reading the unstamped ones', () => {
+    const days = [day(1, [0]), day(2, [1])];
+    stampDrivingDayTerminals(segs, days);
+    expect(days[0].segments[0].stopType).toBeUndefined();
+    expect(segs[0].stopType).toBeUndefined();
+  });
+});

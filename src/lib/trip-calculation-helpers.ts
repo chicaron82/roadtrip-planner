@@ -83,6 +83,70 @@ export function buildRoundTripSegments(
   return { segments, roundTripMidpoint };
 }
 
+// ── The two overnight stamping passes ───────────────────────────────────────
+// Moved here from orchestrate-trip (2026-09-23) so the strategy swap runs the SAME passes. The swap
+// had neither, and a declared overnight vanished the moment the user picked a different route
+// (ticket-swap-drops-declared-overnight). One pipeline, two callers — never two copies.
+
+/** Pin a day boundary at every waypoint the user declared as an overnight. Run BEFORE the day split:
+ *  splitTripByDays already honours `stopType: 'overnight'`, so this is the whole mechanism. */
+export function stampDeclaredOvernights<T extends RouteSegment>(segments: T[]): T[] {
+  return segments.map((seg) =>
+    seg.to.intent?.overnight && seg.to.type === 'waypoint'
+      ? { ...seg, stopType: 'overnight' as const }
+      : seg
+  );
+}
+
+/**
+ * Stamp `overnight` on the terminal segment of every non-final driving day. Run AFTER the day split.
+ *
+ * On icebreaker trips with no user-declared waypoints, the engine splits a long A→B segment into
+ * multiple days at inferred city stops (which may be guard waypoints for avoidBorders routing).
+ * Without this stamp, the journal guard filter would hide those cities and collapse the entire
+ * multi-day trip to 1-2 visible stops.
+ *
+ * Returns new arrays for BOTH records, because they are separate objects:
+ *  1. `segments` — the canonical record, consumed by the ghost car and direct callers.
+ *  2. `days[].segments` — buildTimelineIterationPlan's fast path reads these processed sub-segments,
+ *     which the first stamp does not reach.
+ */
+export function stampDrivingDayTerminals<T extends RouteSegment>(
+  segments: T[],
+  days: TripDay[],
+): { segments: T[]; days: TripDay[] } {
+  const drivingDays = days.filter(d => d.dayType !== 'free');
+  const nonFinalDrivingDayNumbers = new Set(drivingDays.slice(0, -1).map(d => d.dayNumber));
+
+  const terminalDrivingDayIndices = new Set<number>();
+  drivingDays.slice(0, -1).forEach(day => {
+    const lastIdx = day.segmentIndices[day.segmentIndices.length - 1];
+    if (lastIdx !== undefined) terminalDrivingDayIndices.add(lastIdx);
+  });
+
+  const stampedSegments = terminalDrivingDayIndices.size > 0
+    ? segments.map((seg, idx) =>
+        terminalDrivingDayIndices.has(idx) && seg.stopType !== 'overnight'
+          ? { ...seg, stopType: 'overnight' as const }
+          : seg
+      )
+    : segments;
+
+  const stampedDays = nonFinalDrivingDayNumbers.size > 0
+    ? days.map(day => {
+        if (!nonFinalDrivingDayNumbers.has(day.dayNumber) || day.segments.length === 0) return day;
+        const lastSegIdx = day.segments.length - 1;
+        const lastSeg = day.segments[lastSegIdx];
+        if (lastSeg.stopType === 'overnight') return day;
+        const newSegments = [...day.segments];
+        newSegments[lastSegIdx] = { ...lastSeg, stopType: 'overnight' as const };
+        return { ...day, segments: newSegments };
+      })
+    : days;
+
+  return { segments: stampedSegments, days: stampedDays };
+}
+
 function usesSyntheticTransitDeparture(nextDay: TripDay): boolean {
   const firstSegment = nextDay.segments[0];
   if (!firstSegment) return false;

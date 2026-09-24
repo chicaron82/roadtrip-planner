@@ -137,6 +137,38 @@ describe('buildStrategyUpdate — an overnight round trip is unchanged', () => {
   });
 });
 
+describe('buildStrategyUpdate — a declared overnight survives the swap', () => {
+  // ticket-swap-drops-declared-overnight: the first calculation stamps `overnight` on a segment ending
+  // at a waypoint with intent.overnight BEFORE splitting days; the swap never did, so a planned
+  // overnight quietly vanished the moment the user picked a different route.
+  const A = { ...makeLocation('Winnipeg', 49.895, -97.138), type: 'origin' as const };
+  const B = { ...makeLocation('Brandon', 49.848, -99.95), type: 'waypoint' as const, intent: { overnight: true } };
+  const C = { ...makeLocation('Regina', 50.445, -104.619), type: 'destination' as const };
+  const THREE_STOP: RouteStrategy = {
+    id: 'fastest', label: 'Fastest', emoji: '⚡', distanceKm: 570, durationMinutes: 350,
+    geometry: [[49.895, -97.138], [49.848, -99.95], [50.445, -104.619]],
+    segments: [
+      makeSegment({ from: A, to: B, distanceKm: 210, durationMinutes: 130 }),
+      makeSegment({ from: B, to: C, distanceKm: 360, durationMinutes: 220, _originalIndex: 1 }),
+    ],
+  };
+  const settings = makeSettings({ isRoundTrip: false, maxDriveHours: 10 });
+
+  it('keeps the two days, with day one ending at Brandon', () => {
+    const r = buildStrategyUpdate(THREE_STOP, makeSummary(), VEHICLE, settings);
+    expect(r.days).toHaveLength(2);
+    expect(r.days?.[0].route).toBe('Winnipeg → Brandon');
+    expect(r.drivingDays).toBe(2);
+  });
+
+  it('marks the non-final driving day\'s last segment as an overnight, as the first calculation does', () => {
+    const r = buildStrategyUpdate(THREE_STOP, makeSummary(), VEHICLE, settings);
+    expect(r.segments[0].stopType).toBe('overnight');
+    const day1 = r.days?.[0];
+    expect(day1?.segments[day1.segments.length - 1].stopType).toBe('overnight');
+  });
+});
+
 describe('buildStrategyUpdate — one-way', () => {
   const ONE_WAY = makeSettings({ isRoundTrip: false, departureDate: '2025-08-16', departureTime: '09:00' });
 
