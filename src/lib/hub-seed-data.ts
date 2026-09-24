@@ -1,12 +1,12 @@
 /**
  * hub-seed-data.ts — Initial Highway Hub Seed Data
  *
- * Pre-seeds the hub cache with 130+ major highway corridor cities.
+ * Pre-seeds the hub cache with ~150 major highway corridor cities.
  * These are well-known stops that travelers would recognize.
  *
  * Organized by corridor for easy maintenance.
  * Coordinates are approximate city centers.
- * ~430 lines of pure declarative data — justified exception to 300-line guideline.
+ * Pure declarative data — a justified exception to the 330-line cap.
  *
  * 💚 My Experience Engine
  */

@@ -40,7 +40,7 @@ The stop suggestion system simulates the full drive in real-time to place stops 
 
 A self-learning cache of major highway corridor cities used by the stop engine and Smart Timeline to replace "~515 km from Winnipeg" with "near Fargo, ND":
 
-- **70+ pre-seeded cities** across Canadian and US corridors (Trans-Canada, I-94, I-90, I-75, I-95, BC, Ontario, Western US, Texas Triangle)
+- **~150 pre-seeded cities** across Canadian and US corridors (Trans-Canada, I-94, I-90, I-75, I-95, BC, Ontario, Western US, Texas Triangle)
 - **Runtime discovery** — Analyzes live Overpass POI density (gas stations + hotels) near a location; auto-adds new hubs to the cache when detected
 - **Route pre-warming** — On first calculation, route waypoints are seeded as discovered hubs so subsequent lookups are instant
 - **Quality filtering** — Rejects administrative placeholders ("Unorganized Territory", "Unnamed") at both read and write to keep the cache useful
@@ -140,10 +140,13 @@ Confirm your plan to unlock a travel journal for the actual trip:
 | Styling | Tailwind CSS |
 | Map | Leaflet + React Leaflet |
 | Routing | OSRM (Open Source Routing Machine) |
-| Geocoding | Nominatim (OpenStreetMap) |
+| Geocoding | Photon + Nominatim (OpenStreetMap) |
 | POI Data | Overpass API (OpenStreetMap) |
 | Icons | Lucide React |
-| UI Primitives | Radix UI |
+| UI Primitives | Hand-built in `src/components/UI/` (they replaced Radix) |
+| State | Zustand |
+| Data fetching | TanStack Query |
+| Animation | framer-motion |
 | Testing | Vitest |
 | Drag & Drop | dnd-kit |
 
@@ -211,7 +214,7 @@ src/
 │   ├── trip/                   # Trip calculation, mode, loader, added stops
 │   ├── ui/                     # Style presets, debounce, calculation messages
 │   └── wizard/                 # Planning steps, step props, Step 3 pipeline
-├── lib/                  # Pure business logic (~100 files, nearly 1:1 test coverage)
+├── lib/                  # Pure business logic, tested alongside (`npx vitest run --coverage` for the live number)
 │   ├── adventure/              # Adventure mode logic
 │   ├── budget/                 # Budget pipeline (dual-source fuel, day splits)
 │   ├── canonical-updates/      # Canonical trip mutations (title seeds, scenario packs)

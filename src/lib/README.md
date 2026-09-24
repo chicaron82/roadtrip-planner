@@ -67,7 +67,7 @@ All pure computation, external API calls, and domain services. No React, no hook
 ### Planning & Strategy
 | File | Owns |
 |---|---|
-| `trip-strategy-selector.ts` | Builds alternative route strategies (avoid tolls, scenic, etc.) |
+| `trip-strategy-selector.ts` | Applies a CHOSEN route strategy to the trip — swaps the route and re-mirrors the round trip (`buildStrategyUpdate`) |
 | `driver-rotation.ts` | Multi-driver segment assignment with fair rotation |
 | `outbound-departure-optimizer.ts` | Suggests earliest/latest viable departure times |
 | `return-departure-optimizer.ts` | Same for return leg |

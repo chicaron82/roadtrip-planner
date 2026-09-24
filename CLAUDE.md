@@ -276,7 +276,8 @@ npm run dev
 - Vite + Tailwind CSS
 - Leaflet / React Leaflet (maps)
 - OSRM (routing), Photon/Nominatim (geocoding), Overpass (POI)
-- Radix UI primitives
+- UI primitives are hand-built in `src/components/UI/` (they replaced Radix — there is no `@radix-ui` dependency)
+- Zustand (state), TanStack Query (data fetching), framer-motion (animation)
 - Vitest + Testing Library
 
 ---
