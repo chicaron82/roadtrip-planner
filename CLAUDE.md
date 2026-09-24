@@ -270,6 +270,16 @@ npx vitest run
 npm run dev
 ```
 
+### Two test traps (found 2026-09-23)
+
+- **`localStorage` is a no-op mock in every test** (`src/test/setup.ts` — `getItem` always returns
+  undefined). So "X is gone after reset" passes whether or not anything was cleared. Assert it was
+  **saved first** (a control), and give the mock a real memory in that test — see
+  `reset-semantics.test.ts`. Against the global mock, absence proves nothing.
+- **A whole-module `vi.mock` hides code that moves INTO that module.** When logic is extracted into
+  a helpers file some test mocks wholesale, that test silently stops exercising it. Mock with
+  `importOriginal` and stub only what it stubbed before — see `orchestrator-integration.test.ts`.
+
 ## Stack
 
 - React 19 + TypeScript (strict mode)
