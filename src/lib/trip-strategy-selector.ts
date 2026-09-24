@@ -1,9 +1,19 @@
 /**
  * trip-strategy-selector.ts — Pure function for applying a named route strategy.
  *
- * Extracted from useTripCalculation.ts to keep hook under 300 lines.
+ * Extracted from useTripCalculation.ts to keep the hook under the line cap.
  * Given a strategy and the current summary, produces an updated TripSummary
  * with recalculated costs, round-trip mirroring, and day-split budget.
+ *
+ * ⭐ THE CONTRACT: a swap builds the same trip the FIRST calculation (orchestrate-trip) would have
+ * built for that route. So it uses the first calculation's own steps rather than copies of them.
+ *
+ * ⚠️ It used to carry its OWN copy of the round-trip mirroring, and the copy had drifted: it dropped
+ * the day-trip dwell (a same-day Winnipeg → Gimli trip came home the NEXT MORNING after any swap),
+ * drew only the outbound leg, kept a stale drivingDays, and skipped arrival times on one-way trips.
+ * Proven by ZeeRah's 2026-09-21 line-check; nothing caught it because the one test that reached this
+ * file mocked it. Pinned now by trip-strategy-selector.test.ts, which compares against the first
+ * calculation rather than against clock times.
  */
 
 import type { RouteStrategy, Vehicle, TripSettings, TripSummary } from '../types';
@@ -19,18 +29,16 @@ import {
   calculateCostBreakdown,
   getBudgetStatus,
 } from './budget';
-import {
-  getTankSizeLitres,
-  estimateGasStops,
-} from './unit-conversions';
+import { buildRoundTripSegments } from './trip-calculation-helpers';
 
 /**
  * Build an updated TripSummary from a named route strategy.
  *
  * Handles:
  * - Recalculating costs from the strategy's segments
- * - Round-trip: mirroring outbound→return and recalculating totals
- * - Day splitting with budget tracking
+ * - Arrival times, and for a round trip the mirrored return — via the first calculation's own
+ *   `buildRoundTripSegments`, so day-trip dwell, both-leg geometry and the fuel model all match
+ * - Day splitting with budget tracking, and driving days counted from those days
  * - Budget status + remaining
  */
 export function buildStrategyUpdate(
@@ -39,38 +47,24 @@ export function buildStrategyUpdate(
   vehicle: Vehicle,
   settings: TripSettings,
 ): TripSummary {
+  // `newSummary` is fresh and ours — buildRoundTripSegments mutates the summary it is given, which is
+  // exactly why the caller's `localSummary` is never passed to it.
   const newSummary = calculateTripCosts(strategy.segments, vehicle, settings);
+  newSummary.fullGeometry = strategy.geometry;
 
-  let allSegments = newSummary.segments;
+  // Same first step as orchestrate-trip: every trip, one-way included, gets its times stamped.
+  let allSegments = calculateArrivalTimes(
+    newSummary.segments, settings.departureDate, settings.departureTime,
+  );
   let outboundLength: number | undefined;
 
   if (settings.isRoundTrip) {
-    const outbound = newSummary.segments;
-    outboundLength = outbound.length;
-    const returnLegs = [...outbound].reverse().map(seg => ({
-      ...seg,
-      from: seg.to,
-      to: seg.from,
-      departureTime: undefined,
-      arrivalTime: undefined,
-      stopDuration: undefined,
-      stopType: 'drive' as const,
-    }));
-    allSegments = calculateArrivalTimes(
-      [...outbound, ...returnLegs],
-      settings.departureDate,
-      settings.departureTime,
-      outboundLength,
-    );
-
-    newSummary.totalDistanceKm = allSegments.reduce((s, seg) => s + seg.distanceKm, 0);
-    newSummary.totalDurationMinutes = allSegments.reduce((s, seg) => s + seg.durationMinutes, 0);
-    newSummary.totalFuelLitres = allSegments.reduce((s, seg) => s + seg.fuelNeededLitres, 0);
-    const tankSizeLitres = getTankSizeLitres(vehicle, settings.units);
-    newSummary.gasStops = estimateGasStops(newSummary.totalFuelLitres, tankSizeLitres);
+    const rt = buildRoundTripSegments(allSegments, newSummary, settings, vehicle);
+    allSegments = rt.segments;
+    outboundLength = rt.roundTripMidpoint;
   }
 
-  // Calculate strategic fuel stops for this strategy
+  // Fuel stops and day splits take the OUTBOUND geometry, as the first calculation passes them.
   const stratFuelStops = calculateStrategicFuelStops(
     strategy.geometry,
     allSegments,
@@ -97,11 +91,13 @@ export function buildStrategyUpdate(
     updatedBudgetStatus = getBudgetStatus(settings.budget, updatedCostBreakdown);
     updatedBudgetRemaining = settings.budget.total - updatedCostBreakdown.total;
 
-    // Sync summary with breakdown (parity fix)
+    // Sync summary with breakdown — the same rule orchestrate-trip applies.
+    // ⚠️ Per person is the WHOLE trip split by travellers: TripSummary.tsx shows it under
+    // "Per Person" with "N people · $total total" beneath. This used to divide fuel only.
     newSummary.totalFuelCost = updatedCostBreakdown.fuel;
     newSummary.costPerPerson = settings.numTravelers > 0
-      ? newSummary.totalFuelCost / settings.numTravelers
-      : newSummary.totalFuelCost;
+      ? updatedCostBreakdown.total / settings.numTravelers
+      : updatedCostBreakdown.total;
   }
 
   return {
@@ -112,9 +108,11 @@ export function buildStrategyUpdate(
     totalFuelCost: newSummary.totalFuelCost,
     costPerPerson: newSummary.costPerPerson,
     gasStops: newSummary.gasStops,
-    fullGeometry: strategy.geometry,
+    fullGeometry: newSummary.fullGeometry,
     segments: allSegments,
     days: updatedDays,
+    drivingDays: updatedDays.filter(d => d.dayType !== 'free').length,
+    roundTripMidpoint: outboundLength,
     costBreakdown: updatedCostBreakdown,
     budgetStatus: updatedBudgetStatus,
     budgetRemaining: updatedBudgetRemaining,
