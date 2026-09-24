@@ -1,131 +1,16 @@
 /**
- * MEE Tokens — Single source of truth for labels, voice copy, and source-tier metadata.
+ * MEE Tokens · Voice builders — typed functions that produce interpretive copy.
  *
- * Three export groups:
- *   1. SOURCE_TIER   — Declared / Inferred / Discovered / Verified chip/label constants
- *   2. Voice builders — Typed functions that produce interpretive copy
- *   3. Vocabulary     — String union types that enforce the voice spec at compile time
- *
- * No component logic lives here. Pure data + pure functions.
- * All surfaces (viewer, print, results, map, Step 1) derive copy from this module.
+ * Interprets trip meaning, never merely echoes numbers. Pure functions + the GUIDANCE constants.
+ * Import from `lib/mee-tokens`, not from here — the barrel is the contract.
  *
  * 💚 "MEE sounds like a journey editor, not a trip calculator." — Editorial Voice Spec
  */
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 1. SOURCE TIER METADATA
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * The four tiers of trip truth, in descending authority order.
- *
- * declared   — the user explicitly authored this
- * verified   — grounded in real historical trip data (hub cache, challenge pars)
- * inferred   — engine-estimated to make the trip viable or coherent
- * discovered — optional enrichment, not canonical until accepted
- */
-export type SourceTier = 'declared' | 'verified' | 'inferred' | 'discovered';
-
-/**
- * Authority ranking: higher is more authoritative.
- * Use for sort/comparison logic when tiers need ordering.
- */
-export const SOURCE_TIER_RANK: Record<SourceTier, number> = {
-  declared:   4,
-  verified:   3,
-  inferred:   2,
-  discovered: 1,
-};
-
-/**
- * Chip/tag labels — the exact strings that appear in the UI.
- * Use the shortest clear phrasing that fits the surface context.
- */
-export const SOURCE_TIER_LABELS = {
-  // Primary short labels (chip / tag context)
-  declared:           'Declared',
-  verified:           'From real experience',
-  inferred:           'Estimated by MEE',
-  discovered:         'Suggested by MEE',
-
-  // Extended labels (helper copy / row context)
-  declaredStop:       'Declared stop',
-  declaredOvernight:  'Declared overnight',
-  customTitle:        'Custom title',
-  autoTitle:          'Auto title',
-  engineEstimated:    'Engine-estimated',
-  engineSupport:      'Engine support',
-  meeEstimatedStop:   'MEE-estimated stop',
-  meeWillInfer:       'MEE will infer',
-  nearbyDiscovery:    'Nearby discovery',
-  worthALook:         'Worth a look',
-  optionalStop:       'Optional stop',
-  suggestedByMee:     'Suggested by MEE',
-} as const;
-
-export type SourceTierLabelKey = keyof typeof SOURCE_TIER_LABELS;
-
-/**
- * Visual weight hint for each tier.
- * Components use this to select styling (filled vs outlined vs ghost chip).
- * Not a Tailwind class — intentionally generic so the design system can evolve.
- */
-export type ChipWeight = 'solid' | 'outlined' | 'ghost';
-
-export const SOURCE_TIER_CHIP_WEIGHT: Record<SourceTier, ChipWeight> = {
-  declared:   'solid',
-  verified:   'solid',
-  inferred:   'outlined',
-  discovered: 'ghost',
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 2. VOCABULARY TYPES (enforce voice spec at compile time)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Approved health/status phrases for trip summary surfaces.
- * These map to FeasibilityStatus + driver count context.
- */
-export type TripHealthPhrase =
-  | 'Balanced'
-  | 'Comfort-first'
-  | 'Ambitious but workable'
-  | 'Shared-driver friendly'
-  | 'Heavy driving day'
-  | 'A long push'
-  | 'Light stop pressure'
-  | 'Low stop pressure'
-  | 'Strong shared-driver fit'
-  | 'Well suited to shared driving';
-
-/**
- * Approved road-language terms.
- * Using this type in builder params prevents system-language from leaking in.
- */
-export type RoadLanguageTerm =
-  | 'journey'
-  | 'route'
-  | 'road'
-  | 'drive'
-  | 'leg'
-  | 'reset'
-  | 'anchor'
-  | 'rhythm'
-  | 'pacing'
-  | 'push'
-  | 'stretch'
-  | 'run'
-  | 'overnight'
-  | 'stop';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 3. VOICE BUILDERS
-// ─────────────────────────────────────────────────────────────────────────────
+import type { FeasibilityStatus } from '../feasibility/types';
+import type { TripHealthPhrase } from './vocabulary';
 
 // ── 3a. Trip Health Phrase ────────────────────────────────────────────────────
-
-import type { FeasibilityStatus } from './feasibility/types';
 
 export interface TripHealthContext {
   feasibilityStatus: FeasibilityStatus;
