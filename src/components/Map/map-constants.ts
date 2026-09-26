@@ -2,9 +2,15 @@ import type { FeasibilityStatus } from '../../lib/feasibility';
 
 // ── Tile layers ──────────────────────────────────────────────────────────────
 export const TILE_LAYERS = {
+  // ⚠️ OSM's own standard tiles, NOT CARTO. CARTO's basemaps started answering every request —
+  // localhost and myexperienceengine.com alike — with a grey "API KEY REQUIRED ·
+  // carto.com/basemaps/apikey" tile, so the default layer was watermarked for everyone while every
+  // gate stayed green (found by rendering it, ZeeRah's 2026-09-26 line-check). OSM keeps MEE's
+  // "no API keys required" promise true. Its usage policy asks for attribution and no bulk
+  // downloading, both of which a per-user map already honours. No `{r}` — OSM has no retina variant.
   street: {
-    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   },
   terrain: {
     url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',

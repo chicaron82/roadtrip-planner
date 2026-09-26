@@ -25,11 +25,6 @@ const OPEN_SOURCE_CREDITS = [
     description: 'Weather forecasts along your route.',
   },
   {
-    name: 'CARTO',
-    url: 'https://carto.com/',
-    description: 'Dark map tiles for the classic road-trip look.',
-  },
-  {
     name: 'Leaflet',
     url: 'https://leafletjs.com/',
     description: 'Interactive map rendering.',

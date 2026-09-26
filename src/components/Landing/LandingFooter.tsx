@@ -87,8 +87,6 @@ export function LandingFooter({ activeDot }: Props) {
         <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="hover:text-white/30 transition-colors">OpenStreetMap</a>
         {' · '}
         <a href="https://open-meteo.com" target="_blank" rel="noopener noreferrer" className="hover:text-white/30 transition-colors">Open-Meteo</a>
-        {' · '}
-        <a href="https://carto.com/attributions" target="_blank" rel="noopener noreferrer" className="hover:text-white/30 transition-colors">CARTO</a>
       </p>
     </div>
   );
